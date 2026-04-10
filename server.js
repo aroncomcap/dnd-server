@@ -146,6 +146,30 @@ function parseResponse(text) {
   return { narration, options, scene };
 }
 
+// ── Character Token Generation ───────────────────────────────────────────────
+async function generateCharacterToken(name, charData) {
+  if (!process.env.TOGETHER_API_KEY) return null;
+  try {
+    const desc = [charData.statsText, charData.personality, charData.backstory].filter(Boolean).join('. ');
+    const prompt = `Fantasy RPG character portrait token, circular frame, dark background. Character: ${name}. ${desc.slice(0, 600)}. Detailed face and upper body, dramatic lighting, painterly style. No text or words.`;
+    const response = await together.images.create({
+      model: 'black-forest-labs/FLUX.1-schnell-Free',
+      prompt: prompt.slice(0, 1000),
+      width: 512,
+      height: 512,
+      steps: 4,
+      n: 1,
+      response_format: 'b64_json',
+    });
+    const b64 = response.data[0]?.b64_json;
+    if (!b64) return null;
+    return `data:image/png;base64,${b64}`;
+  } catch (err) {
+    console.error('Token generation failed:', err.message);
+    return null;
+  }
+}
+
 // ── Image Generation (Together AI / FLUX) ────────────────────────────────────
 async function generateSceneImage(scene, gameConfig) {
   if (!process.env.TOGETHER_API_KEY || !scene) return null;
@@ -242,7 +266,8 @@ async function advanceTurn(gameId, gameConfig) {
   await db.saveTurnState(gameId, gd.currentTurnIndex, gd.turnOrder);
   const next = getCurrentPlayer(gameId);
   if (next) {
-    io.to(gameId).emit('turn_change', { player: next, duration: TURN_DURATION });
+    const token = gd.characters[next]?.token || null;
+    io.to(gameId).emit('turn_change', { player: next, duration: TURN_DURATION, token });
     startTurnTimer(gameId, gameConfig, next);
   }
 }
@@ -364,14 +389,18 @@ io.on('connection', (socket) => {
     const gameId = socket.gameId;
     if (!gameId) return;
 
+    // Preserve existing token if re-registering and no new upload
+    const gs = getGameState(gameId);
+    const existing = gs.data.characters[data.name];
+
     const charData = {
       statsText: data.statsText || '',
       personality: data.personality || 'Brave and curious',
       standardActions: data.standardActions || '',
       backstory: data.backstory || '',
+      token: data.token === null ? null : (data.token || (existing && existing.token) || null),
     };
 
-    const gs = getGameState(gameId);
     gs.data.characters[data.name] = charData;
     if (!gs.data.turnOrder.includes(data.name)) {
       gs.data.turnOrder.push(data.name);
@@ -380,6 +409,31 @@ io.on('connection', (socket) => {
     await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
     io.to(gameId).emit('character_registered', { name: data.name, character: charData });
     io.to(gameId).emit('system', { text: `📜 ${data.name} has joined the campaign.` });
+
+    // Auto-generate token if none provided (fire and forget)
+    if (!charData.token) {
+      generateCharacterToken(data.name, charData).then(async (tokenUrl) => {
+        if (tokenUrl) {
+          charData.token = tokenUrl;
+          gs.data.characters[data.name] = charData;
+          await db.upsertCharacter(gameId, data.name, charData);
+          io.to(gameId).emit('character_token', { name: data.name, token: tokenUrl });
+        }
+      });
+    }
+  });
+
+  // Upload custom token image
+  socket.on('upload_token', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const { name, token } = data; // token is base64 data URL
+    const gs = getGameState(gameId);
+    const char = gs.data.characters[name];
+    if (!char) return;
+    char.token = token;
+    await db.upsertCharacter(gameId, name, char);
+    io.to(gameId).emit('character_token', { name, token });
   });
 
   // Player sends an action
@@ -397,7 +451,8 @@ io.on('connection', (socket) => {
 
     const gs = getGameState(gameId);
     clearTimeout(gs.turnTimer);
-    io.to(gameId).emit('player_message', { player: playerName, text: action });
+    const playerToken = gs.data.characters[playerName]?.token || null;
+    io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });
 
     try {
       const gameConfig = await db.getGame(gameId);

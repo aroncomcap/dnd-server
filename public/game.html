@@ -67,7 +67,19 @@
     font-family: 'Cinzel Decorative', cursive;
     font-size: 0.75rem;
     text-align: center;
-    padding: 4px;
+    padding: 6px 4px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  #turn-token {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #0d0600;
+    box-shadow: 0 0 8px rgba(200,146,42,0.5);
     display: none;
   }
 
@@ -246,6 +258,75 @@
 
   .msg-auto { border-left-color: #888; opacity: 0.85; }
 
+  .msg-token {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--gold);
+    float: left;
+    margin-right: 8px;
+    margin-top: 2px;
+  }
+
+  .char-token {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--gold);
+    float: left;
+    margin-right: 10px;
+  }
+
+  /* ── Token Upload ── */
+  .token-preview-area {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .token-preview {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--gold);
+    background: var(--parchment-dark);
+  }
+  .token-placeholder {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    border: 2px dashed var(--parchment-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--ink-light);
+    background: rgba(255,255,255,0.3);
+  }
+  .token-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .token-btn {
+    background: transparent;
+    border: 1px solid var(--parchment-dark);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.8rem;
+    color: var(--ink-light);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .token-btn:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+
   .msg-dm .mechanic {
     display: block;
     font-weight: 700;
@@ -412,7 +493,7 @@
 <header>
   <h1><a href="/">⚔️ Tavern Table</a></h1>
   <div id="game-title"></div>
-  <div id="turn-banner">— <span id="turn-name">?</span>'s Turn —</div>
+  <div id="turn-banner"><img id="turn-token" src="" alt=""/>— <span id="turn-name">?</span>'s Turn —</div>
   <div id="timer-bar"></div>
 </header>
 
@@ -455,6 +536,17 @@ D&D: Level 5 Human Ranger, HP 42, STR 16 DEX 14 CON 13 INT 10 WIS 14 CHA 8
 
 RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, Sword 75%, Shield 60%, Dodge 45%"></textarea>
     <p class="host-note">Free-form — works with any game system.</p>
+
+    <label>Character Token</label>
+    <div class="token-preview-area">
+      <div class="token-placeholder" id="token-preview">🧙</div>
+      <div class="token-actions">
+        <button class="token-btn" id="btn-upload-token">📷 Upload Image</button>
+        <button class="token-btn" id="btn-gen-token">🎨 Auto-Generate</button>
+        <input type="file" id="token-input" accept="image/*" style="display:none;"/>
+      </div>
+    </div>
+    <p class="host-note">Token auto-generates on registration. Upload to override.</p>
 
     <label>Personality & Traits</label>
     <textarea id="c-personality" placeholder="Bold, protective of allies, distrusts magic…"></textarea>
@@ -540,6 +632,7 @@ const gameId = window.location.pathname.split('/game/')[1];
 let playerName = localStorage.getItem('playerName_' + gameId) || '';
 let currentPlayer = null;
 let gameConfig = null;
+const tokenCache = {}; // name -> token url
 
 if (!gameId) { window.location.href = '/'; }
 
@@ -578,9 +671,15 @@ function renderDmText(text) {
   return html;
 }
 
-function addMsg(type, text, label = '') {
+function addMsg(type, text, label = '', token = null) {
   const wrap = document.createElement('div');
   wrap.classList.add('msg', 'msg-' + type);
+  if (type === 'player' && (token || tokenCache[label])) {
+    const img = document.createElement('img');
+    img.className = 'msg-token';
+    img.src = token || tokenCache[label];
+    wrap.appendChild(img);
+  }
   if (label) {
     const lbl = document.createElement('div');
     lbl.className = 'msg-label';
@@ -653,10 +752,18 @@ function startVisualTimer(duration) {
   }, 50);
 }
 
-function setTurn(name) {
+function setTurn(name, token) {
   currentPlayer = name;
   turnName.textContent = name;
-  turnBanner.style.display = 'block';
+  turnBanner.style.display = 'flex';
+  const turnToken = document.getElementById('turn-token');
+  const tkn = token || tokenCache[name];
+  if (tkn) {
+    turnToken.src = tkn;
+    turnToken.style.display = 'block';
+  } else {
+    turnToken.style.display = 'none';
+  }
 }
 
 // ── Socket: Join game ─────────────────────────────────────────
@@ -667,6 +774,11 @@ socket.on('game_joined', (state) => {
   document.getElementById('game-title').textContent = `${state.game.name} · ${state.game.system.toUpperCase()}`;
   document.title = `⚔️ ${state.game.name} — Tavern Table`;
 
+  // Cache all tokens
+  Object.entries(state.characters).forEach(([name, c]) => {
+    if (c.token) tokenCache[name] = c.token;
+  });
+
   chatLog.innerHTML = '';
   if (state.chatHistory.length === 0) {
     chatLog.innerHTML = '<div class="msg msg-system">Awaiting the adventure to begin…</div>';
@@ -674,7 +786,8 @@ socket.on('game_joined', (state) => {
   state.chatHistory.forEach(m => {
     if (m.role === 'user') {
       const parts = m.content.split(': ');
-      addMsg('player', parts.slice(1).join(': '), parts[0]);
+      const pName = parts[0];
+      addMsg('player', parts.slice(1).join(': '), pName, tokenCache[pName]);
     } else {
       const marker = '---OPTIONS---';
       const sceneMarker = '---SCENE---';
@@ -713,11 +826,12 @@ socket.on('dm_message', (data) => {
   if (data.options && data.options.length) showOptions(data.options);
 });
 
-socket.on('player_message', (data) => addMsg('player', data.text, data.player));
+socket.on('player_message', (data) => addMsg('player', data.text, data.player, data.token));
 socket.on('system', (data) => addMsg('system', data.text));
 
 socket.on('turn_change', (data) => {
-  setTurn(data.player);
+  if (data.token) tokenCache[data.player] = data.token;
+  setTurn(data.player, data.token);
   startVisualTimer(data.duration);
 });
 
@@ -725,7 +839,39 @@ socket.on('scene_image', (data) => showSceneImage(data.url));
 
 socket.on('character_registered', (data) => {
   document.getElementById('char-status').textContent = `✅ ${data.name} registered!`;
+  if (data.character.token) tokenCache[data.name] = data.character.token;
   updatePartyCard(data.name, data.character);
+  // Show token in preview if it's our character
+  if (data.character.token && data.name === (playerName || document.getElementById('c-name').value.trim())) {
+    showTokenPreview(data.character.token);
+  }
+});
+
+socket.on('character_token', (data) => {
+  tokenCache[data.name] = data.token;
+  // Update party card
+  const gs = document.getElementById('card-' + data.name);
+  if (gs) {
+    const existingImg = gs.querySelector('.char-token');
+    if (existingImg) {
+      existingImg.src = data.token;
+    } else {
+      const img = document.createElement('img');
+      img.className = 'char-token';
+      img.src = data.token;
+      gs.insertBefore(img, gs.firstChild);
+    }
+  }
+  // Update turn banner if it's the current player
+  if (currentPlayer === data.name) {
+    const turnToken = document.getElementById('turn-token');
+    turnToken.src = data.token;
+    turnToken.style.display = 'block';
+  }
+  // Update token preview if it's our character
+  if (data.name === (playerName || document.getElementById('c-name').value.trim())) {
+    showTokenPreview(data.token);
+  }
 });
 
 socket.on('game_reset', () => {
@@ -758,9 +904,14 @@ function updatePartyCard(name, c) {
     if (ph) ph.remove();
   }
   const statsHtml = (c.statsText || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g, '<br/>');
+  const tokenImg = (c.token || tokenCache[name])
+    ? `<img class="char-token" src="${c.token || tokenCache[name]}" alt="${name}"/>`
+    : '';
   existing.innerHTML = `
+    ${tokenImg}
     <strong>${name}</strong><br/>
     <span>${statsHtml || 'No stats provided'}</span>
+    <div style="clear:both;"></div>
   `;
 }
 
@@ -814,6 +965,67 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   if (confirm('Reset the game? Chat history will be cleared but characters are kept.')) {
     socket.emit('reset_game');
   }
+});
+
+// ── Token Upload / Generate ───────────────────────────────────
+function showTokenPreview(src) {
+  const area = document.getElementById('token-preview');
+  if (src) {
+    area.innerHTML = '';
+    const img = document.createElement('img');
+    img.className = 'token-preview';
+    img.src = src;
+    area.replaceWith(img);
+    img.id = 'token-preview';
+  }
+}
+
+document.getElementById('btn-upload-token').addEventListener('click', () => {
+  document.getElementById('token-input').click();
+});
+
+document.getElementById('token-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    // Resize to 512x512 before sending
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      const size = Math.min(img.width, img.height);
+      const sx = (img.width - size) / 2;
+      const sy = (img.height - size) / 2;
+      ctx.drawImage(img, sx, sy, size, size, 0, 0, 512, 512);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      showTokenPreview(dataUrl);
+      const name = playerName || document.getElementById('c-name').value.trim();
+      if (name) {
+        socket.emit('upload_token', { name, token: dataUrl });
+      }
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+});
+
+document.getElementById('btn-gen-token').addEventListener('click', () => {
+  const name = playerName || document.getElementById('c-name').value.trim();
+  if (!name) { alert('Register your character first.'); return; }
+  // Re-register to trigger token regeneration — clear existing token
+  socket.emit('register_character', {
+    name,
+    statsText: document.getElementById('c-stats').value.trim(),
+    personality: document.getElementById('c-personality').value.trim(),
+    standardActions: document.getElementById('c-actions').value.trim(),
+    backstory: document.getElementById('c-backstory').value.trim(),
+    token: null, // force regeneration
+  });
+  document.getElementById('char-status').textContent = '🎨 Generating token...';
 });
 
 // ── PDF Upload ────────────────────────────────────────────────
