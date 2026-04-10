@@ -36,7 +36,8 @@ function getGameState(gameId) {
       turnCount: 0,
       imageUrl: null,
       turnDuration: DEFAULT_TURN_DURATION,
-      ferocity: 'verbose',
+      verbosity: 'verbose',
+      ferocity: 5,
       idleTurns: 0,
       paused: false,
     };
@@ -109,10 +110,17 @@ ${contextBlock}
 CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 
-NARRATION STYLE: ${gs.ferocity || 'verbose'}
-${gs.ferocity === 'terse' ? '- Keep responses to 2-3 short sentences max. Just the essential action and result.' :
-  gs.ferocity === 'medium' ? '- Keep responses to a short paragraph (3-5 sentences). Hit the key beats without excessive description.' :
+VERBOSITY: ${gs.verbosity || 'verbose'}
+${gs.verbosity === 'terse' ? '- Keep responses to 2-3 short sentences max. Just the essential action and result.' :
+  gs.verbosity === 'brief' ? '- Keep responses to a short paragraph (3-5 sentences). Hit the key beats without excessive description.' :
   '- Narrate vividly with rich atmosphere (short paragraphs for mobile readability). Use dramatic but readable prose.'}
+
+FEROCITY: ${gs.ferocity ?? 5}/5
+${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, numerous, and tactically smart. Death is likely without clever play. However, treasure rewards are VERY generous — rare magic items, large gold hoards, and powerful artifacts appear frequently.' :
+  gs.ferocity <= 2 ? '- Encounters are very dangerous. Enemies hit hard and use tactics. Survival requires good decisions. Treasure is generous — good magic items and substantial gold.' :
+  gs.ferocity <= 3 ? '- Encounters are moderately challenging. A balanced mix of danger and reward. Standard treasure for the party level with occasional magic items.' :
+  gs.ferocity <= 4 ? '- Encounters are light challenges. Enemies are beatable without much risk. Modest treasure rewards.' :
+  '- Encounters are easy and forgiving. Enemies are weak or few. Minimal treasure — mostly coins and mundane items.'}
 
 RULES:
 - Track HP, conditions, spells, powers, and resources accurately. Apply game rules correctly.
@@ -728,6 +736,12 @@ io.on('connection', (socket) => {
     await gameEngine.skipTurn(gameId);
   });
 
+  socket.on('set_verbosity', (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    gameEngine.setVerbosity(gameId, data.level);
+  });
+
   socket.on('set_ferocity', (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
@@ -907,14 +921,24 @@ const gameEngine = {
     return { ok: true };
   },
 
+  setVerbosity(gameId, level) {
+    const gs = getGameState(gameId);
+    const valid = ['verbose', 'brief', 'terse'];
+    if (!valid.includes(level)) return { error: 'Invalid verbosity level' };
+    gs.verbosity = level;
+    emitSystem(gameId, { text: `📝 Verbosity set to **${level}**.` });
+    io.to(gameId).emit('verbosity_updated', { verbosity: level });
+    return { ok: true, verbosity: level };
+  },
+
   setFerocity(gameId, level) {
     const gs = getGameState(gameId);
-    const valid = ['verbose', 'medium', 'terse'];
-    if (!valid.includes(level)) return { error: 'Invalid ferocity level' };
-    gs.ferocity = level;
-    emitSystem(gameId, { text: `📝 Narration style set to **${level}**.` });
-    io.to(gameId).emit('ferocity_updated', { ferocity: level });
-    return { ok: true, ferocity: level };
+    const num = Math.max(1, Math.min(5, parseInt(level) || 5));
+    gs.ferocity = num;
+    const labels = { 1: '💀 Extremely Deadly (max treasure)', 2: '⚔️ Very Dangerous (generous treasure)', 3: '⚖️ Balanced', 4: '🛡️ Light Challenge', 5: '😊 Easy & Forgiving' };
+    emitSystem(gameId, { text: `🔥 Ferocity set to **${num}/5** — ${labels[num]}` });
+    io.to(gameId).emit('ferocity_updated', { ferocity: num });
+    return { ok: true, ferocity: num };
   },
 
   setTimer(gameId, seconds) {

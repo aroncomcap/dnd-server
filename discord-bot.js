@@ -72,14 +72,19 @@ function buildSubcommands(builder) {
       .setName('world')
       .setDescription('Show known locations and NPCs'))
     .addSubcommand(sub => sub
-      .setName('style')
-      .setDescription('Set narration style')
+      .setName('verbosity')
+      .setDescription('Set narration detail level')
       .addStringOption(opt => opt.setName('level').setDescription('How detailed?').setRequired(true)
         .addChoices(
           { name: '📖 Verbose (rich, detailed)', value: 'verbose' },
-          { name: '📝 Medium (balanced)', value: 'medium' },
+          { name: '📝 Brief (balanced)', value: 'brief' },
           { name: '⚡ Terse (quick, minimal)', value: 'terse' },
         )))
+    .addSubcommand(sub => sub
+      .setName('ferocity')
+      .setDescription('Set encounter danger level (1=deadly+treasure, 5=easy)')
+      .addIntegerOption(opt => opt.setName('level').setDescription('1-5 (1=extremely deadly, 5=easy)').setRequired(true)
+        .setMinValue(1).setMaxValue(5)))
     .addSubcommand(sub => sub
       .setName('model')
       .setDescription('Switch AI model (haiku=fast, sonnet=balanced, opus=smartest)')
@@ -495,16 +500,28 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.reply({ embeds: [embed] });
   }
 
-  else if (sub === 'style') {
+  else if (sub === 'verbosity') {
     const gameId = await db.getChannelGame(interaction.channelId);
     if (!gameId) {
       await interaction.reply({ content: 'Link this channel first.', ephemeral: true });
       return;
     }
     const level = interaction.options.getString('level');
+    gameEngine.setVerbosity(gameId, level);
+    const labels = { verbose: '📖 Verbose', brief: '📝 Brief', terse: '⚡ Terse' };
+    await interaction.reply(`📝 Verbosity set to **${labels[level] || level}**`);
+  }
+
+  else if (sub === 'ferocity') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) {
+      await interaction.reply({ content: 'Link this channel first.', ephemeral: true });
+      return;
+    }
+    const level = interaction.options.getInteger('level');
     gameEngine.setFerocity(gameId, level);
-    const labels = { verbose: '📖 Verbose', medium: '📝 Medium', terse: '⚡ Terse' };
-    await interaction.reply(`📝 Narration style set to **${labels[level] || level}**`);
+    const labels = { 1: '💀 Extremely Deadly', 2: '⚔️ Very Dangerous', 3: '⚖️ Balanced', 4: '🛡️ Light', 5: '😊 Easy' };
+    await interaction.reply(`🔥 Ferocity set to **${level}/5** — ${labels[level]}`);
   }
 
   else if (sub === 'model') {
