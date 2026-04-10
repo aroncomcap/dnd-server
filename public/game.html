@@ -650,6 +650,39 @@
     opacity: 0.6;
   }
   #playing-as .pa-change:hover { opacity: 1; }
+
+  /* ── World Panel ── */
+  .world-item {
+    padding: 8px 10px;
+    background: var(--parchment-dark);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+  }
+  .world-item strong {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.7rem;
+    color: var(--ink);
+  }
+  .world-item span { color: var(--ink-light); }
+  .world-section-title {
+    font-size: 0.75rem;
+    color: var(--gold);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 10px;
+    margin-bottom: 6px;
+  }
+  .world-section-title:first-child { margin-top: 0; }
+
+  .not-your-turn {
+    text-align: center;
+    padding: 8px;
+    font-style: italic;
+    color: var(--ink-light);
+    font-size: 0.85rem;
+  }
 </style>
 </head>
 <body>
@@ -751,6 +784,17 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
   </div>
 </div>
 
+<!-- ── WORLD SCREEN ────────────────────────────────────────── -->
+<div id="screen-world" class="screen">
+  <div class="panel">
+    <div class="panel-title">🗺️ Known World</div>
+    <div class="world-section-title">📍 Locations</div>
+    <div id="world-locations"><p class="host-note">No locations discovered yet.</p></div>
+    <div class="world-section-title">👤 NPCs</div>
+    <div id="world-npcs"><p class="host-note">No NPCs encountered yet.</p></div>
+  </div>
+</div>
+
 <!-- ── HOST SCREEN ─────────────────────────────────────────── -->
 <div id="screen-host" class="screen">
   <div class="panel">
@@ -805,6 +849,9 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
   </button>
   <button data-screen="party">
     <span class="nav-icon">🛡</span>Party
+  </button>
+  <button data-screen="world">
+    <span class="nav-icon">🗺️</span>World
   </button>
   <button data-screen="host">
     <span class="nav-icon">👑</span>Host
@@ -971,6 +1018,7 @@ socket.on('game_joined', (state) => {
   if (state.turnDuration) {
     document.getElementById('timer-input').value = state.turnDuration;
   }
+  if (state.world) updateWorldPanel(state.world);
 
   chatLog.innerHTML = '';
   if (state.chatHistory.length === 0) {
@@ -1028,7 +1076,16 @@ socket.on('dm_message', (data) => {
   wrap.appendChild(body);
   chatLog.appendChild(wrap);
   chatLog.scrollTop = chatLog.scrollHeight;
-  if (data.options && data.options.length) showOptions(data.options);
+  // Only show options to the active player
+  if (data.options && data.options.length) {
+    if (!data.forPlayer || data.forPlayer === playerName) {
+      showOptions(data.options);
+    } else {
+      showOptions([]); // clear any old options
+    }
+  }
+  // Update world data
+  if (data.world) updateWorldPanel(data.world);
 });
 
 socket.on('player_message', (data) => addMsg('player', data.text, data.player, data.token));
@@ -1261,6 +1318,36 @@ document.getElementById('btn-reset').addEventListener('click', () => {
     socket.emit('reset_game');
   }
 });
+
+// ── World Panel ───────────────────────────────────────────────
+function updateWorldPanel(world) {
+  const locDiv = document.getElementById('world-locations');
+  const npcDiv = document.getElementById('world-npcs');
+
+  if (world.locations && world.locations.length) {
+    locDiv.innerHTML = '';
+    world.locations.forEach(loc => {
+      const el = document.createElement('div');
+      el.className = 'world-item';
+      el.innerHTML = `<strong>${loc.name}</strong><br/><span>${loc.description}</span>${loc.distance ? `<br/><span style="font-size:0.75rem;color:var(--gold);">📏 ${loc.distance}</span>` : ''}`;
+      locDiv.appendChild(el);
+    });
+  } else {
+    locDiv.innerHTML = '<p class="host-note">No locations discovered yet.</p>';
+  }
+
+  if (world.npcs && world.npcs.length) {
+    npcDiv.innerHTML = '';
+    world.npcs.forEach(npc => {
+      const el = document.createElement('div');
+      el.className = 'world-item';
+      el.innerHTML = `<strong>${npc.name}</strong><br/><span>${npc.description}</span>${npc.location ? `<br/><span style="font-size:0.75rem;color:var(--gold);">📍 ${npc.location}</span>` : ''}`;
+      npcDiv.appendChild(el);
+    });
+  } else {
+    npcDiv.innerHTML = '<p class="host-note">No NPCs encountered yet.</p>';
+  }
+}
 
 // ── Character Picker & Playing-As ─────────────────────────────
 function showPlayingAs(name, char) {

@@ -134,6 +134,27 @@ ACTION OPTIONS:
 3. 🔥 [a wild, reckless, or creative move]
 4. 💬 [a witty comment, taunt, or clever social move]
 
+WORLD TRACKING:
+- Maintain a running list of notable locations and NPCs the party has discovered or been told about.
+- At the end of every response, AFTER the scene block, include an updated list using this EXACT format:
+
+---WORLD---
+LOCATIONS:
+- [Location Name] | [Brief description] | [Approximate distance/travel time from current position]
+...
+NPCS:
+- [NPC Name] | [Brief description] | [Current location or last known location]
+...
+
+Only include locations and NPCs that have been introduced in the story so far. Add new ones as they appear. Remove ones that are no longer relevant (e.g., destroyed locations, dead NPCs).
+
+TRAVEL & MOVEMENT:
+- When characters want to travel to a distant location, narrate the journey realistically.
+- Consider distance, mode of travel (on foot, mounted, by boat, etc.), terrain, and weather.
+- Multi-turn journeys should involve encounters, discoveries, or events along the way.
+- If a player says "go directly to [location]" or "skip travel to [location]", fast-forward the journey with a brief summary and arrive immediately.
+- Otherwise, each travel turn covers a realistic distance and the party may face random encounters, environmental hazards, or interesting discoveries en route.
+
 SCENE DESCRIPTION:
 - At the end of every response, AFTER the options block, include a brief visual scene description for image generation.
 - Use this EXACT format:
@@ -147,8 +168,36 @@ function parseResponse(text) {
   let narration = text;
   let options = [];
   let scene = null;
+  let world = null;
 
-  // Extract scene first
+  // Extract world data first (at the very end)
+  const worldMarker = '---WORLD---';
+  const worldIdx = narration.indexOf(worldMarker);
+  if (worldIdx !== -1) {
+    const worldBlock = narration.slice(worldIdx + worldMarker.length).trim();
+    narration = narration.slice(0, worldIdx).trim();
+    // Parse locations and NPCs
+    const locations = [];
+    const npcs = [];
+    let section = null;
+    for (const line of worldBlock.split('\n')) {
+      const trimmed = line.trim();
+      if (/^LOCATIONS:/i.test(trimmed)) { section = 'locations'; continue; }
+      if (/^NPCS:/i.test(trimmed)) { section = 'npcs'; continue; }
+      if (trimmed.startsWith('---')) break; // hit next marker
+      if (trimmed.startsWith('- ') && section) {
+        const parts = trimmed.slice(2).split('|').map(s => s.trim());
+        if (section === 'locations') {
+          locations.push({ name: parts[0], description: parts[1] || '', distance: parts[2] || '' });
+        } else {
+          npcs.push({ name: parts[0], description: parts[1] || '', location: parts[2] || '' });
+        }
+      }
+    }
+    world = { locations, npcs };
+  }
+
+  // Extract scene
   const sceneMarker = '---SCENE---';
   const sceneIdx = narration.indexOf(sceneMarker);
   if (sceneIdx !== -1) {
@@ -167,7 +216,7 @@ function parseResponse(text) {
     narration = narration.slice(0, optIdx).trim();
   }
 
-  return { narration, options, scene };
+  return { narration, options, scene, world };
 }
 
 // ── Character Token Generation ───────────────────────────────────────────────
@@ -250,7 +299,15 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   }
   await db.saveChatHistory(gameId, gd.chatHistory);
 
-  return parseResponse(reply);
+  const parsed = parseResponse(reply);
+
+  // Save world data if present
+  if (parsed.world) {
+    gs.world = parsed.world;
+    await db.setState(gameId, 'world', parsed.world);
+  }
+
+  return parsed;
 }
 
 // ── Turn Management (scoped to a game) ───────────────────────────────────────
@@ -273,8 +330,11 @@ function startTurnTimer(gameId, gameConfig, playerName) {
     emitSystem(gameId, { text: `⏰ ${playerName} ran out of time. Claude is acting for them...` });
 
     try {
-      const { narration, options, scene } = await callClaude(gameId, gameConfig, autoPrompt, playerName);
-      emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName });
+      const { narration, options, scene, world } = await callClaude(gameId, gameConfig, autoPrompt, playerName);
+      const gs2 = getGameState(gameId);
+      const nextIdx = (gs2.data.currentTurnIndex + 1) % (gs2.data.turnOrder.length || 1);
+      const nextPlayer = gs2.data.turnOrder[nextIdx] || null;
+      emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName, forPlayer: nextPlayer, world });
       await maybeGenerateImage(gameId, gameConfig, scene);
       advanceTurn(gameId, gameConfig);
     } catch (err) {
@@ -395,6 +455,7 @@ io.on('connection', (socket) => {
     if (!games[gameId]) {
       const gs = getGameState(gameId);
       gs.data = await db.loadGameData(gameId);
+      gs.world = await db.getState(gameId, 'world', { locations: [], npcs: [] });
     }
 
     const gs = getGameState(gameId);
@@ -406,6 +467,7 @@ io.on('connection', (socket) => {
       currentPlayer: getCurrentPlayer(gameId),
       imageUrl: gs.imageUrl,
       turnDuration: gs.turnDuration,
+      world: gs.world || { locations: [], npcs: [] },
     });
   });
 
@@ -482,8 +544,10 @@ io.on('connection', (socket) => {
 
     try {
       const gameConfig = await db.getGame(gameId);
-      const { narration, options, scene } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
-      emitDmMessage(gameId, { text: narration, options, auto: false });
+      const { narration, options, scene, world } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
+      const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
+      const nextPlayer = gs.data.turnOrder[nextIdx] || null;
+      emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
       await maybeGenerateImage(gameId, gameConfig, scene);
       await advanceTurn(gameId, gameConfig);
     } catch (err) {
@@ -499,13 +563,14 @@ io.on('connection', (socket) => {
     const { prompt } = data;
     try {
       const gameConfig = await db.getGame(gameId);
-      const { narration, options, scene } = await callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.');
-      emitDmMessage(gameId, { text: narration, options, auto: false });
+      const gs = getGameState(gameId);
+      const { narration, options, scene, world } = await callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.');
+      const firstPlayer = getCurrentPlayer(gameId);
+      emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world });
       // Always generate image for the opening scene
       if (scene) {
         generateSceneImage(scene, gameConfig).then(url => {
           if (url) {
-            const gs = getGameState(gameId);
             gs.imageUrl = url;
             emitSceneImage(gameId, { url });
           }
@@ -587,9 +652,10 @@ const gameEngine = {
     clearTimeout(gs.turnTimer);
 
     const gameConfig = await db.getGame(gameId);
-    const { narration, options, scene } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
-    emitDmMessage(gameId, { text: narration, options, auto: false });
-    // Also emit to web socket player_message
+    const { narration, options, scene, world } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
+    const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
+    const nextPlayer = gs.data.turnOrder[nextIdx] || null;
+    emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
     const playerToken = gs.data.characters[playerName]?.token || null;
     io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });
     await maybeGenerateImage(gameId, gameConfig, scene);
@@ -636,8 +702,9 @@ const gameEngine = {
       gs.data = await db.loadGameData(gameId);
     }
     const gs = getGameState(gameId);
-    const { narration, options, scene } = await callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.');
-    emitDmMessage(gameId, { text: narration, options, auto: false });
+    const { narration, options, scene, world } = await callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.');
+    const firstPlayer = getCurrentPlayer(gameId);
+    emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world });
     if (scene) {
       generateSceneImage(scene, gameConfig).then(url => {
         if (url) {
