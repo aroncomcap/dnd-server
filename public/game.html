@@ -1102,6 +1102,13 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <button class="btn btn-danger" id="btn-reset" style="margin-top:10px;">
       🔄 Reset Game (keeps characters)
     </button>
+  </div>
+
+  <!-- Cost Monitor -->
+  <div class="panel" style="margin-top:12px;">
+    <div class="panel-title">💰 Cost Monitor</div>
+    <div id="cost-display" style="font-size:0.85rem; color:var(--ink-light);">Loading...</div>
+    <button class="token-btn" id="btn-refresh-costs" style="margin-top:8px;">🔄 Refresh</button>
 
     <label style="margin-top:16px;">My Player Name (for sending actions)</label>
     <input id="player-name-input" type="text" placeholder="Enter your character name"/>
@@ -1995,6 +2002,24 @@ document.getElementById('btn-gen-token').addEventListener('click', () => {
   });
   document.getElementById('char-status').textContent = '🎨 Generating token...';
 });
+
+// ── Cost monitor ──────────────────────────────────────────────
+async function refreshCosts() {
+  try {
+    const res = await fetch('/api/costs');
+    const data = await res.json();
+    document.getElementById('cost-display').innerHTML = `
+      <strong>Last hour:</strong> ${data.lastHour.calls} calls · $${data.lastHour.cost.toFixed(2)}<br/>
+      <strong>Last 24h:</strong> ${data.last24h.calls} calls · $${data.last24h.cost.toFixed(2)}<br/>
+      <strong>Projected:</strong> $${data.projectedHourly.toFixed(2)}/hr · $${data.projectedDaily.toFixed(2)}/day
+    `;
+  } catch (e) {
+    document.getElementById('cost-display').textContent = 'Failed to load costs.';
+  }
+}
+document.getElementById('btn-refresh-costs').addEventListener('click', refreshCosts);
+// Auto-refresh on Host tab view
+document.querySelector('[data-screen="host"]').addEventListener('click', refreshCosts);
 
 // ── PDF Upload ────────────────────────────────────────────────
 const uploadZone = document.getElementById('upload-zone');

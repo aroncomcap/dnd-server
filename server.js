@@ -314,7 +314,45 @@ async function generateSceneImage(scene, gameConfig) {
   }
 }
 
-// ── Rate limiting (prevent runaway costs) ────────────────────────────────────
+// ── Cost Tracking & Rate Limiting ─────────────────────────────────────────────
+const MODEL_COSTS = { // per 1M tokens (input/output)
+  'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
+  'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
+  'claude-opus-4-6': { input: 15.00, output: 75.00 },
+};
+const IMAGE_COST = 0.003; // per Together AI FLUX image
+const costLog = []; // { timestamp, gameId, model, inputTokens, outputTokens, cost, type }
+
+function estimateCost(model, inputTokens, outputTokens) {
+  const rates = MODEL_COSTS[model] || MODEL_COSTS['claude-haiku-4-5-20251001'];
+  return (inputTokens / 1_000_000 * rates.input) + (outputTokens / 1_000_000 * rates.output);
+}
+
+function logCost(entry) {
+  costLog.push({ ...entry, timestamp: Date.now() });
+  // Keep last 24h
+  const cutoff = Date.now() - 86400000;
+  while (costLog.length && costLog[0].timestamp < cutoff) costLog.shift();
+}
+
+function getCostSummary() {
+  const now = Date.now();
+  const lastHour = costLog.filter(e => now - e.timestamp < 3600000);
+  const last24h = costLog;
+  const hourTotal = lastHour.reduce((s, e) => s + (e.cost || 0), 0);
+  const dayTotal = last24h.reduce((s, e) => s + (e.cost || 0), 0);
+  const hourCalls = lastHour.length;
+  const dayCalls = last24h.length;
+  // Project hourly rate
+  const projected = hourCalls > 0 ? hourTotal : (dayCalls > 0 ? dayTotal / 24 : 0);
+  return {
+    lastHour: { calls: hourCalls, cost: Math.round(hourTotal * 100) / 100 },
+    last24h: { calls: dayCalls, cost: Math.round(dayTotal * 100) / 100 },
+    projectedHourly: Math.round(projected * 100) / 100,
+    projectedDaily: Math.round(projected * 24 * 100) / 100,
+  };
+}
+
 const apiCallLog = {}; // gameId -> [timestamps]
 const MAX_CALLS_PER_HOUR = 60;
 
@@ -363,6 +401,13 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   });
 
   const reply = response.content[0].text;
+
+  // Log cost
+  const inputTokens = response.usage?.input_tokens || 0;
+  const outputTokens = response.usage?.output_tokens || 0;
+  const cost = estimateCost(model, inputTokens, outputTokens);
+  logCost({ gameId, model, inputTokens, outputTokens, cost, type: actingAs ? 'auto-action' : 'player-action' });
+  console.log(`API call: ${model} | ${inputTokens}in/${outputTokens}out | $${cost.toFixed(4)} | ${actingAs ? 'auto' : 'human'}`);
 
   gd.chatHistory.push(
     { role: 'user', content: prefix + userMessage },
@@ -492,6 +537,7 @@ async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false)
       if (url) {
         gs.imageUrl = url;
         emitSceneImage(gameId, { url });
+        logCost({ gameId, model: 'FLUX', inputTokens: 0, outputTokens: 0, cost: IMAGE_COST, type: 'scene-image' });
       } else {
         io.to(gameId).emit('scene_gen_failed');
       }
@@ -555,6 +601,17 @@ app.post('/api/games/:id/model', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get('/api/costs', (req, res) => {
+  const summary = getCostSummary();
+  const games_detail = {};
+  for (const entry of costLog) {
+    if (!games_detail[entry.gameId]) games_detail[entry.gameId] = { calls: 0, cost: 0 };
+    games_detail[entry.gameId].calls++;
+    games_detail[entry.gameId].cost += entry.cost || 0;
+  }
+  res.json({ ...summary, games: games_detail, recentCalls: costLog.slice(-20) });
 });
 
 app.delete('/api/games/:id', async (req, res) => {
@@ -967,6 +1024,11 @@ const gameEngine = {
       messages: [{ role: 'user', content: `Summarize what ${playerName} missed:\n\n${transcript}` }],
     });
 
+    const inputTokens = response.usage?.input_tokens || 0;
+    const outputTokens = response.usage?.output_tokens || 0;
+    logCost({ gameId, model: 'claude-sonnet-4-6', inputTokens, outputTokens,
+      cost: estimateCost('claude-sonnet-4-6', inputTokens, outputTokens), type: 'catch-up' });
+
     return { summary: response.content[0].text };
   },
 
@@ -1052,6 +1114,32 @@ const PORT = process.env.PORT || 3000;
 async function boot() {
   await db.initDB();
   console.log('DB initialized');
+
+  // Cost estimate on startup
+  const gamesList = await db.listGames();
+  const activeGames = gamesList.length;
+  console.log('\n══════════════════════════════════════════');
+  console.log('  💰 COST ESTIMATE');
+  console.log('══════════════════════════════════════════');
+  console.log(`  Active games: ${activeGames}`);
+  console.log(`  Default model: Haiku ($0.80/$4.00 per 1M tokens)`);
+  console.log(`  Turn timer: ${DEFAULT_TURN_DURATION}s | Idle pause: after 2 auto-turns`);
+  console.log(`  Rate limit: ${MAX_CALLS_PER_HOUR} calls/game/hour`);
+  console.log('  ─────────────────────────────────────');
+  console.log('  Per API call (Haiku, ~2k in/500 out): ~$0.004');
+  console.log('  Per API call (Sonnet, ~2k/500):       ~$0.014');
+  console.log('  Per API call (Opus, ~2k/500):         ~$0.068');
+  console.log('  Per image (FLUX):                     ~$0.003');
+  console.log('  ─────────────────────────────────────');
+  console.log('  Max hourly (Haiku, 60 calls+30 imgs): ~$0.33');
+  console.log('  Max hourly (Sonnet, 60 calls+30 imgs):~$0.93');
+  console.log('  Max hourly (Opus, 60 calls+30 imgs):  ~$4.17');
+  console.log('  ─────────────────────────────────────');
+  console.log('  Safety: no timer without clients, 2-turn idle pause,');
+  console.log('  60 calls/hr rate limit, timer killed on disconnect');
+  console.log('  Monitor: GET /api/costs for live cost tracking');
+  console.log('══════════════════════════════════════════\n');
+
   await discord.startBot();
   server.listen(PORT, () => {
     console.log(`D&D Server running on http://localhost:${PORT}`);
