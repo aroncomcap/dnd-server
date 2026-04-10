@@ -210,7 +210,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-height: 45vh;
+    max-height: 55vh;
     padding-right: 4px;
   }
   #chat-log::-webkit-scrollbar { width: 4px; }
@@ -1279,14 +1279,17 @@ function updateActionArea() {
   const myTurnControls = document.getElementById('my-turn-controls');
   const waitingMsg = document.getElementById('waiting-msg');
   const waitingName = document.getElementById('waiting-name');
-  const isMyTurn = !currentPlayer || currentPlayer === playerName;
+  // Case-insensitive comparison and trim
+  const current = (currentPlayer || '').trim().toLowerCase();
+  const me = (playerName || '').trim().toLowerCase();
+  const isMyTurn = !currentPlayer || (me && current === me);
   if (isMyTurn) {
     myTurnControls.style.display = 'block';
     waitingMsg.style.display = 'none';
   } else {
     myTurnControls.style.display = 'none';
     waitingMsg.style.display = 'block';
-    waitingName.textContent = currentPlayer;
+    waitingName.textContent = currentPlayer || '...';
     showOptions([]); // clear any stale options
   }
 }
@@ -1370,12 +1373,13 @@ socket.on('dm_message', (data) => {
   wrap.appendChild(body);
   chatLog.appendChild(wrap);
   chatLog.scrollTop = chatLog.scrollHeight;
-  // Only show options to the active player
+  // Only show options to the active player (case-insensitive)
   if (data.options && data.options.length) {
-    if (!data.forPlayer || data.forPlayer === playerName) {
+    const forMe = !data.forPlayer || (playerName && data.forPlayer.trim().toLowerCase() === playerName.trim().toLowerCase());
+    if (forMe) {
       showOptions(data.options);
     } else {
-      showOptions([]); // clear any old options
+      showOptions([]);
     }
   }
   // Update world data
@@ -1389,6 +1393,10 @@ socket.on('turn_change', (data) => {
   if (data.token) tokenCache[data.player] = data.token;
   setTurn(data.player, data.token);
   startVisualTimer(data.duration);
+  // Reset send button
+  const sendBtn = document.getElementById('btn-send');
+  sendBtn.textContent = 'Send Action';
+  sendBtn.disabled = false;
 });
 
 socket.on('scene_image', (data) => showSceneImage(data.url));
@@ -1677,10 +1685,11 @@ function sendAction() {
   socket.emit('player_action', { playerName: name, action });
   document.getElementById('action-input').value = '';
   showOptions([]);
-  // Hide controls immediately — next turn_change will show them if it's our turn again
-  document.getElementById('my-turn-controls').style.display = 'none';
-  document.getElementById('waiting-msg').style.display = 'block';
-  document.getElementById('waiting-name').textContent = '...';
+  // Show a brief "processing" state — turn_change will update properly
+  const sendBtn = document.getElementById('btn-send');
+  sendBtn.textContent = '⏳ ...';
+  sendBtn.disabled = true;
+  setTimeout(() => { sendBtn.textContent = 'Send Action'; sendBtn.disabled = false; }, 15000);
 }
 
 // ── Skip turn ─────────────────────────────────────────────────
