@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>⚔️ Tavern Table — D&D Live</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --parchment: #f5ead6;
+    --parchment-dark: #e8d5b0;
+    --ink: #2c1a0e;
+    --ink-light: #5c3d1e;
+    --gold: #c8922a;
+    --gold-light: #f0c060;
+    --red: #8b2020;
+    --green: #2a5c2a;
+    --shadow: rgba(44,26,14,0.35);
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a0f05;
+    background-image:
+      radial-gradient(ellipse at 20% 80%, #2d1a08 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, #2d1a08 0%, transparent 50%);
+    font-family: 'Crimson Pro', serif;
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  header {
+    width: 100%;
+    background: linear-gradient(180deg, #0d0600 0%, #1f1005 100%);
+    border-bottom: 2px solid var(--gold);
+    padding: 12px 16px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  header h1 {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 1.1rem;
+    color: var(--gold-light);
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 20px rgba(200,146,42,0.6);
+  }
+
+  #turn-banner {
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    color: #0d0600;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.75rem;
+    text-align: center;
+    padding: 4px;
+    display: none;
+  }
+
+  #timer-bar {
+    height: 4px;
+    background: var(--gold);
+    width: 100%;
+    transform-origin: left;
+    transition: transform 0.5s linear;
+  }
+
+  .screen {
+    display: none;
+    width: 100%;
+    max-width: 480px;
+    padding: 16px;
+    flex: 1;
+  }
+  .screen.active { display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── Panel ── */
+  .panel {
+    background: var(--parchment);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: 0 4px 20px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.4);
+    border: 1px solid var(--parchment-dark);
+  }
+
+  .panel-title {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.8rem;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 10px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--parchment-dark);
+  }
+
+  /* ── Inputs ── */
+  input, textarea, select {
+    width: 100%;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'Crimson Pro', serif;
+    font-size: 1rem;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(200,146,42,0.2);
+  }
+  textarea { resize: vertical; min-height: 70px; }
+  label {
+    font-size: 0.85rem;
+    color: var(--ink-light);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
+    margin-top: 8px;
+  }
+  label:first-child { margin-top: 0; }
+
+  /* ── Stats grid ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .stat-box { text-align: center; }
+  .stat-box input { text-align: center; font-size: 1.1rem; font-weight: 600; padding: 8px 4px; }
+  .stat-box label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+    width: 100%;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #c8922a, #f0c060, #c8922a);
+    color: #0d0600;
+    box-shadow: 0 4px 12px rgba(200,146,42,0.4);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(200,146,42,0.5); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--gold);
+    border: 1px solid var(--gold);
+  }
+
+  /* ── Chat ── */
+  #chat-log {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 55vh;
+    padding-right: 4px;
+  }
+  #chat-log::-webkit-scrollbar { width: 4px; }
+  #chat-log::-webkit-scrollbar-thumb { background: var(--parchment-dark); border-radius: 2px; }
+
+  .msg { border-radius: 10px; padding: 10px 12px; max-width: 92%; font-size: 0.95rem; line-height: 1.5; }
+
+  .msg-dm {
+    background: linear-gradient(135deg, #2c1a0e, #3d2510);
+    color: var(--parchment);
+    align-self: stretch;
+    border-left: 3px solid var(--gold);
+    border-radius: 0 10px 10px 0;
+  }
+  .msg-dm .msg-label {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.65rem;
+    color: var(--gold);
+    margin-bottom: 4px;
+    letter-spacing: 0.08em;
+  }
+
+  .msg-player {
+    background: var(--parchment-dark);
+    align-self: flex-end;
+    border-right: 3px solid var(--ink-light);
+    border-radius: 10px 0 0 10px;
+  }
+  .msg-player .msg-label {
+    font-size: 0.7rem;
+    color: var(--ink-light);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .msg-system {
+    align-self: center;
+    background: transparent;
+    color: var(--ink-light);
+    font-style: italic;
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 4px;
+  }
+
+  .msg-auto { border-left-color: #888; opacity: 0.85; }
+
+  /* ── Action input ── */
+  #action-area {
+    background: var(--parchment);
+    border-radius: var(--radius);
+    padding: 12px;
+    box-shadow: 0 -2px 12px var(--shadow);
+    border: 1px solid var(--parchment-dark);
+  }
+  #action-area textarea {
+    min-height: 56px;
+    margin-bottom: 8px;
+    font-size: 1rem;
+  }
+  .action-row { display: flex; gap: 8px; }
+  .action-row .btn { flex: 1; padding: 10px; font-size: 0.7rem; }
+
+  /* ── Nav ── */
+  nav {
+    width: 100%;
+    max-width: 480px;
+    display: flex;
+    background: #0d0600;
+    border-top: 1px solid var(--gold);
+    position: sticky;
+    bottom: 0;
+  }
+  nav button {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--gold);
+    padding: 10px 4px 8px;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+  }
+  nav button .nav-icon { font-size: 1.2rem; }
+  nav button.active { opacity: 1; border-top: 2px solid var(--gold); }
+
+  /* ── Character Cards ── */
+  .char-card {
+    background: var(--parchment-dark);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border-left: 3px solid var(--gold);
+    font-size: 0.9rem;
+  }
+  .char-card strong { font-family: 'Cinzel Decorative', cursive; font-size: 0.75rem; color: var(--ink); }
+  .char-card span { color: var(--ink-light); font-size: 0.8rem; }
+
+  /* ── Host panel ── */
+  .host-note { font-size: 0.8rem; color: var(--ink-light); font-style: italic; margin-top: 6px; }
+
+  /* ── Spinner ── */
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(200,146,42,0.3);
+    border-top-color: var(--gold);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚔️ Tavern Table</h1>
+  <div id="turn-banner">— <span id="turn-name">?</span>'s Turn —</div>
+  <div id="timer-bar"></div>
+</header>
+
+<!-- ── GAME SCREEN ─────────────────────────────────────────── -->
+<div id="screen-game" class="screen active">
+  <div class="panel" id="chat-panel" style="flex:1; display:flex; flex-direction:column;">
+    <div class="panel-title">📖 The Story</div>
+    <div id="chat-log">
+      <div class="msg msg-system">Awaiting the adventure to begin…</div>
+    </div>
+  </div>
+
+  <div id="action-area">
+    <textarea id="action-input" placeholder="Describe what your character does…" rows="2"></textarea>
+    <div class="action-row">
+      <button class="btn btn-ghost" id="btn-std-action">⚡ Quick</button>
+      <button class="btn btn-primary" id="btn-send">Send Action</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CHARACTER SCREEN ────────────────────────────────────── -->
+<div id="screen-char" class="screen">
+  <div class="panel">
+    <div class="panel-title">🧝 My Character</div>
+
+    <label>Character Name</label>
+    <input id="c-name" type="text" placeholder="Aragorn"/>
+
+    <label>Race</label>
+    <input id="c-race" type="text" placeholder="Human"/>
+
+    <label>Class</label>
+    <input id="c-class" type="text" placeholder="Ranger"/>
+
+    <label>Level</label>
+    <input id="c-level" type="number" min="1" max="20" value="1"/>
+
+    <label>Max HP</label>
+    <input id="c-hp" type="number" min="1" value="10"/>
+
+    <label>Ability Scores</label>
+    <div class="stats-grid">
+      <div class="stat-box"><label>STR</label><input id="s-str" type="number" value="10"/></div>
+      <div class="stat-box"><label>DEX</label><input id="s-dex" type="number" value="10"/></div>
+      <div class="stat-box"><label>CON</label><input id="s-con" type="number" value="10"/></div>
+      <div class="stat-box"><label>INT</label><input id="s-int" type="number" value="10"/></div>
+      <div class="stat-box"><label>WIS</label><input id="s-wis" type="number" value="10"/></div>
+      <div class="stat-box"><label>CHA</label><input id="s-cha" type="number" value="10"/></div>
+    </div>
+
+    <label>Personality & Traits</label>
+    <textarea id="c-personality" placeholder="Bold, protective of allies, distrusts magic…"></textarea>
+
+    <label>Standard Actions (comma-separated)</label>
+    <textarea id="c-actions" placeholder="Attack nearest enemy, Dodge, Help ally…" style="min-height:56px;"></textarea>
+
+    <label>Backstory (brief)</label>
+    <textarea id="c-backstory" placeholder="Raised in the north, exiled knight…"></textarea>
+
+    <button class="btn btn-primary" id="btn-register" style="margin-top:12px;">
+      📜 Register / Update Character
+    </button>
+    <p class="host-note" id="char-status"></p>
+  </div>
+</div>
+
+<!-- ── PARTY SCREEN ────────────────────────────────────────── -->
+<div id="screen-party" class="screen">
+  <div class="panel">
+    <div class="panel-title">🛡 Party Members</div>
+    <div id="party-list"><p class="host-note">No adventurers registered yet.</p></div>
+  </div>
+</div>
+
+<!-- ── HOST SCREEN ─────────────────────────────────────────── -->
+<div id="screen-host" class="screen">
+  <div class="panel">
+    <div class="panel-title">👑 Dungeon Master Controls</div>
+    <p class="host-note">Use these controls to manage the session.</p>
+
+    <label style="margin-top:12px;">Opening Scene Prompt (optional)</label>
+    <textarea id="host-prompt" style="min-height:80px;" placeholder="The party arrives at a fog-covered village…"></textarea>
+
+    <button class="btn btn-primary" id="btn-start" style="margin-top:10px;">
+      ⚔️ Begin the Adventure
+    </button>
+
+    <button class="btn btn-danger" id="btn-reset" style="margin-top:10px;">
+      🔄 Reset Game (keeps characters)
+    </button>
+
+    <label style="margin-top:16px;">My Player Name (for sending actions)</label>
+    <input id="player-name-input" type="text" placeholder="Enter your character name"/>
+    <p class="host-note">This should match your registered character name.</p>
+  </div>
+</div>
+
+<!-- ── NAV ──────────────────────────────────────────────────── -->
+<nav>
+  <button class="active" data-screen="game">
+    <span class="nav-icon">📖</span>Game
+  </button>
+  <button data-screen="char">
+    <span class="nav-icon">🧝</span>Character
+  </button>
+  <button data-screen="party">
+    <span class="nav-icon">🛡</span>Party
+  </button>
+  <button data-screen="host">
+    <span class="nav-icon">👑</span>Host
+  </button>
+</nav>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let playerName = localStorage.getItem('playerName') || '';
+let currentPlayer = null;
+let timerInterval = null;
+let timerEnd = null;
+let stdActions = [];
+
+// ── Navigation ────────────────────────────────────────────────
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('screen-' + btn.dataset.screen).classList.add('active');
+  });
+});
+
+// ── Player name persistence ───────────────────────────────────
+const playerNameInput = document.getElementById('player-name-input');
+playerNameInput.value = playerName;
+playerNameInput.addEventListener('input', () => {
+  playerName = playerNameInput.value.trim();
+  localStorage.setItem('playerName', playerName);
+});
+
+// ── Chat ──────────────────────────────────────────────────────
+const chatLog = document.getElementById('chat-log');
+
+function addMsg(type, text, label = '') {
+  const wrap = document.createElement('div');
+  wrap.classList.add('msg', 'msg-' + type);
+  if (label) {
+    const lbl = document.createElement('div');
+    lbl.className = 'msg-label';
+    lbl.textContent = label;
+    wrap.appendChild(lbl);
+  }
+  const body = document.createElement('div');
+  body.textContent = text;
+  wrap.appendChild(body);
+  // Remove placeholder
+  const placeholder = chatLog.querySelector('.msg-system');
+  if (placeholder && placeholder.textContent === 'Awaiting the adventure to begin…') placeholder.remove();
+  chatLog.appendChild(wrap);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+// ── Timer ─────────────────────────────────────────────────────
+const timerBar = document.getElementById('timer-bar');
+const turnBanner = document.getElementById('turn-banner');
+const turnName = document.getElementById('turn-name');
+
+function startVisualTimer(duration) {
+  clearInterval(timerInterval);
+  timerEnd = Date.now() + duration;
+  timerBar.style.transform = 'scaleX(1)';
+  timerBar.style.transition = 'none';
+  setTimeout(() => {
+    timerBar.style.transition = `transform ${duration}ms linear`;
+    timerBar.style.transform = 'scaleX(0)';
+  }, 50);
+}
+
+// ── Socket events ─────────────────────────────────────────────
+socket.on('game_state', (state) => {
+  chatLog.innerHTML = '';
+  if (state.chatHistory.length === 0) {
+    chatLog.innerHTML = '<div class="msg msg-system">Awaiting the adventure to begin…</div>';
+  }
+  state.chatHistory.forEach(m => {
+    if (m.role === 'user') {
+      const parts = m.content.split(': ');
+      addMsg('player', parts.slice(1).join(': '), parts[0]);
+    } else {
+      addMsg('dm', m.content, '🎲 Dungeon Master');
+    }
+  });
+  updateParty(state.characters);
+  if (state.currentPlayer) {
+    setTurn(state.currentPlayer);
+  }
+});
+
+socket.on('dm_message', (data) => {
+  const wrap = document.createElement('div');
+  wrap.classList.add('msg', 'msg-dm');
+  if (data.auto) wrap.classList.add('msg-auto');
+  const lbl = document.createElement('div');
+  lbl.className = 'msg-label';
+  lbl.textContent = data.auto ? `🤖 Auto-action for ${data.player}` : '🎲 Dungeon Master';
+  wrap.appendChild(lbl);
+  const body = document.createElement('div');
+  body.textContent = data.text;
+  wrap.appendChild(body);
+  chatLog.appendChild(wrap);
+  chatLog.scrollTop = chatLog.scrollHeight;
+});
+
+socket.on('player_message', (data) => addMsg('player', data.text, data.player));
+socket.on('system', (data) => addMsg('system', data.text));
+
+socket.on('turn_change', (data) => {
+  currentPlayer = data.player;
+  setTurn(data.player);
+  startVisualTimer(data.duration);
+});
+
+socket.on('character_registered', (data) => {
+  document.getElementById('char-status').textContent = `✅ ${data.name} registered!`;
+  updatePartyCard(data.name, data.character);
+});
+
+socket.on('game_reset', () => {
+  chatLog.innerHTML = '<div class="msg msg-system">Game reset. Characters preserved.</div>';
+  turnBanner.style.display = 'none';
+});
+
+// ── Party display ─────────────────────────────────────────────
+const partyList = document.getElementById('party-list');
+
+function updateParty(characters) {
+  partyList.innerHTML = '';
+  if (!Object.keys(characters).length) {
+    partyList.innerHTML = '<p class="host-note">No adventurers registered yet.</p>';
+    return;
+  }
+  Object.entries(characters).forEach(([name, c]) => updatePartyCard(name, c));
+}
+
+function updatePartyCard(name, c) {
+  let existing = document.getElementById('card-' + name);
+  if (!existing) {
+    existing = document.createElement('div');
+    existing.className = 'char-card';
+    existing.id = 'card-' + name;
+    partyList.appendChild(existing);
+    // Remove placeholder
+    const ph = partyList.querySelector('.host-note');
+    if (ph) ph.remove();
+  }
+  existing.innerHTML = `
+    <strong>${name}</strong><br/>
+    <span>Level ${c.level} ${c.race} ${c.class} · HP ${c.hp}</span><br/>
+    <span>STR ${c.stats.str} DEX ${c.stats.dex} CON ${c.stats.con} INT ${c.stats.int} WIS ${c.stats.wis} CHA ${c.stats.cha}</span>
+  `;
+}
+
+function setTurn(name) {
+  currentPlayer = name;
+  turnName.textContent = name;
+  turnBanner.style.display = 'block';
+}
+
+// ── Register character ────────────────────────────────────────
+document.getElementById('btn-register').addEventListener('click', () => {
+  const name = document.getElementById('c-name').value.trim();
+  if (!name) { alert('Please enter a character name.'); return; }
+
+  const actions = document.getElementById('c-actions').value.trim();
+  stdActions = actions.split(',').map(a => a.trim()).filter(Boolean);
+
+  socket.emit('register_character', {
+    name,
+    race: document.getElementById('c-race').value.trim(),
+    class: document.getElementById('c-class').value.trim(),
+    level: parseInt(document.getElementById('c-level').value) || 1,
+    hp: parseInt(document.getElementById('c-hp').value) || 10,
+    stats: {
+      str: parseInt(document.getElementById('s-str').value) || 10,
+      dex: parseInt(document.getElementById('s-dex').value) || 10,
+      con: parseInt(document.getElementById('s-con').value) || 10,
+      int: parseInt(document.getElementById('s-int').value) || 10,
+      wis: parseInt(document.getElementById('s-wis').value) || 10,
+      cha: parseInt(document.getElementById('s-cha').value) || 10,
+    },
+    personality: document.getElementById('c-personality').value.trim(),
+    standardActions: actions,
+    backstory: document.getElementById('c-backstory').value.trim(),
+  });
+
+  // Auto-set player name
+  if (!playerName) {
+    playerName = name;
+    playerNameInput.value = name;
+    localStorage.setItem('playerName', name);
+  }
+});
+
+// ── Send action ───────────────────────────────────────────────
+document.getElementById('btn-send').addEventListener('click', sendAction);
+document.getElementById('action-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAction(); }
+});
+
+function sendAction() {
+  const action = document.getElementById('action-input').value.trim();
+  const name = playerName || document.getElementById('c-name').value.trim();
+  if (!action) return;
+  if (!name) { alert('Set your player name in the Host tab first.'); return; }
+  socket.emit('player_action', { playerName: name, action });
+  document.getElementById('action-input').value = '';
+}
+
+// ── Quick / standard action ────────────────────────────────────
+document.getElementById('btn-std-action').addEventListener('click', () => {
+  if (!stdActions.length) {
+    alert('Register your character with standard actions first.');
+    return;
+  }
+  const sheet = document.createElement('div');
+  sheet.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
+    background:var(--parchment);border-radius:12px;padding:16px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.5);z-index:999;min-width:240px;
+    border:1px solid var(--gold);font-family:'Crimson Pro',serif;`;
+  sheet.innerHTML = `<div style="font-family:'Cinzel Decorative',cursive;font-size:0.75rem;color:var(--gold);margin-bottom:10px;">Quick Actions</div>`;
+  stdActions.forEach(a => {
+    const b = document.createElement('button');
+    b.textContent = a;
+    b.style.cssText = `display:block;width:100%;padding:8px 12px;margin-bottom:6px;
+      background:var(--parchment-dark);border:1px solid var(--parchment-dark);
+      border-radius:6px;cursor:pointer;font-family:'Crimson Pro',serif;font-size:0.95rem;text-align:left;`;
+    b.addEventListener('click', () => {
+      document.getElementById('action-input').value = a;
+      document.body.removeChild(sheet);
+    });
+    sheet.appendChild(b);
+  });
+  const close = document.createElement('button');
+  close.textContent = '✕ Close';
+  close.style.cssText = `margin-top:4px;width:100%;padding:6px;background:transparent;
+    border:none;color:var(--ink-light);cursor:pointer;font-family:'Crimson Pro',serif;font-size:0.85rem;`;
+  close.addEventListener('click', () => document.body.removeChild(sheet));
+  sheet.appendChild(close);
+  document.body.appendChild(sheet);
+});
+
+// ── Host controls ─────────────────────────────────────────────
+document.getElementById('btn-start').addEventListener('click', () => {
+  const prompt = document.getElementById('host-prompt').value.trim();
+  socket.emit('dm_start', { prompt });
+  // Switch to game screen
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelector('[data-screen="game"]').classList.add('active');
+  document.getElementById('screen-game').classList.add('active');
+});
+
+document.getElementById('btn-reset').addEventListener('click', () => {
+  if (confirm('Reset the game? Chat history will be cleared but characters are kept.')) {
+    socket.emit('reset_game');
+  }
+});
+</script>
+</body>
+</html>
