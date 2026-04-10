@@ -723,13 +723,18 @@
   </div>
 
   <div id="action-area">
-    <div id="options-area"></div>
-    <div class="or-divider" id="or-divider" style="display:none;">— or describe your own action —</div>
-    <textarea id="action-input" placeholder="Describe what your character does…" rows="2"></textarea>
-    <div class="action-row">
-      <button class="btn btn-ghost" id="btn-skip" style="flex:0.3;">⏭️ Skip</button>
-      <button class="btn btn-ghost" id="btn-catchup" style="flex:0.4;">📜 Catch Up</button>
-      <button class="btn btn-primary" id="btn-send">Send Action</button>
+    <div id="waiting-msg" class="not-your-turn" style="display:none;">
+      Waiting for <strong id="waiting-name"></strong> to act...
+    </div>
+    <div id="my-turn-controls">
+      <div id="options-area"></div>
+      <div class="or-divider" id="or-divider" style="display:none;">— or describe your own action —</div>
+      <textarea id="action-input" placeholder="Describe what your character does…" rows="2"></textarea>
+      <div class="action-row">
+        <button class="btn btn-ghost" id="btn-skip" style="flex:0.3;">⏭️ Skip</button>
+        <button class="btn btn-ghost" id="btn-catchup" style="flex:0.4;">📜 Catch Up</button>
+        <button class="btn btn-primary" id="btn-send">Send Action</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1012,6 +1017,23 @@ function setTurn(name, token) {
   } else {
     turnToken.style.display = 'none';
   }
+  updateActionArea();
+}
+
+function updateActionArea() {
+  const myTurnControls = document.getElementById('my-turn-controls');
+  const waitingMsg = document.getElementById('waiting-msg');
+  const waitingName = document.getElementById('waiting-name');
+  const isMyTurn = !currentPlayer || currentPlayer === playerName;
+  if (isMyTurn) {
+    myTurnControls.style.display = 'block';
+    waitingMsg.style.display = 'none';
+  } else {
+    myTurnControls.style.display = 'none';
+    waitingMsg.style.display = 'block';
+    waitingName.textContent = currentPlayer;
+    showOptions([]); // clear any stale options
+  }
 }
 
 // ── Socket: Join game ─────────────────────────────────────────
@@ -1056,6 +1078,7 @@ socket.on('game_joined', (state) => {
 
   updateParty(state.characters);
   if (state.currentPlayer) setTurn(state.currentPlayer);
+  updateActionArea();
   if (state.imageUrl) showSceneImage(state.imageUrl);
 
   // Auto-reconnect or show character picker
@@ -1396,6 +1419,10 @@ function sendAction() {
   socket.emit('player_action', { playerName: name, action });
   document.getElementById('action-input').value = '';
   showOptions([]);
+  // Hide controls immediately — next turn_change will show them if it's our turn again
+  document.getElementById('my-turn-controls').style.display = 'none';
+  document.getElementById('waiting-msg').style.display = 'block';
+  document.getElementById('waiting-name').textContent = '...';
 }
 
 // ── Skip turn ─────────────────────────────────────────────────
