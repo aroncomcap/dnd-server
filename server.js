@@ -730,6 +730,9 @@ io.on('connection', (socket) => {
       gs.world = await db.getState(gameId, 'world', { locations: [], npcs: [] });
       const mapData = await db.getState(gameId, 'map', null);
       if (mapData) gs.mapGraph = new MapGraph(mapData);
+      gs.ferocity = await db.getState(gameId, 'ferocity', 5);
+      gs.verbosity = await db.getState(gameId, 'verbosity', 'verbose');
+      gs.pillars = await db.getState(gameId, 'pillars', { exploration: 33, combat: 33, social: 34 });
     }
 
     const gs = getGameState(gameId);
@@ -745,6 +748,9 @@ io.on('connection', (socket) => {
       lastOptions: gs.lastOptions || [],
       lastForPlayer: gs.lastForPlayer || null,
       mapState: gs.mapGraph.toJSON(),
+      ferocity: gs.ferocity,
+      verbosity: gs.verbosity,
+      pillars: gs.pillars,
     });
   });
 
@@ -1214,27 +1220,29 @@ const gameEngine = {
     return { ok: true };
   },
 
-  setVerbosity(gameId, level) {
+  async setVerbosity(gameId, level) {
     const gs = getGameState(gameId);
     const valid = ['verbose', 'brief', 'terse'];
     if (!valid.includes(level)) return { error: 'Invalid verbosity level' };
     gs.verbosity = level;
+    await db.setState(gameId, 'verbosity', gs.verbosity);
     emitSystem(gameId, { text: `📝 Verbosity set to **${level}**.` });
     io.to(gameId).emit('verbosity_updated', { verbosity: level });
     return { ok: true, verbosity: level };
   },
 
-  setFerocity(gameId, level) {
+  async setFerocity(gameId, level) {
     const gs = getGameState(gameId);
     const num = Math.max(1, Math.min(5, parseInt(level) || 5));
     gs.ferocity = num;
+    await db.setState(gameId, 'ferocity', gs.ferocity);
     const labels = { 1: '💀 Extremely Deadly (max treasure)', 2: '⚔️ Very Dangerous (generous treasure)', 3: '⚖️ Balanced', 4: '🛡️ Light Challenge', 5: '😊 Easy & Forgiving' };
     emitSystem(gameId, { text: `🔥 Ferocity set to **${num}/5** — ${labels[num]}` });
     io.to(gameId).emit('ferocity_updated', { ferocity: num });
     return { ok: true, ferocity: num };
   },
 
-  setPillars(gameId, exploration, combat, social) {
+  async setPillars(gameId, exploration, combat, social) {
     const gs = getGameState(gameId);
     // Normalize to 100%
     const total = exploration + combat + social;
@@ -1243,6 +1251,7 @@ const gameEngine = {
       combat: Math.round(combat / total * 100),
       social: Math.round(social / total * 100),
     };
+    await db.setState(gameId, 'pillars', gs.pillars);
     emitSystem(gameId, { text: `🎭 Pillars set: Exploration ${gs.pillars.exploration}% · Combat ${gs.pillars.combat}% · Social ${gs.pillars.social}%` });
     io.to(gameId).emit('pillars_updated', gs.pillars);
     return { ok: true, pillars: gs.pillars };

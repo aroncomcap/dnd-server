@@ -1429,6 +1429,21 @@ socket.on('game_joined', (state) => {
   if (state.game.model) {
     document.getElementById('model-select').value = state.game.model;
   }
+  if (state.ferocity != null) {
+    const fs = document.getElementById('ferocity-slider');
+    const fl = document.getElementById('ferocity-label');
+    const ferocityLabels = { 1: '💀 Extremely Deadly', 2: '⚔️ Very Dangerous', 3: '⚖️ Balanced', 4: '🛡️ Light', 5: '😊 Easy' };
+    fs.value = state.ferocity;
+    fl.textContent = `${state.ferocity}/5 — ${ferocityLabels[state.ferocity]}`;
+  }
+  if (state.verbosity) {
+    document.getElementById('verbosity-select').value = state.verbosity;
+  }
+  if (state.pillars) {
+    document.getElementById('pillar-explore').value = state.pillars.exploration;
+    document.getElementById('pillar-combat').value = state.pillars.combat;
+    document.getElementById('pillar-social').value = state.pillars.social;
+  }
   if (state.world) updateWorldPanel(state.world);
 
   chatLog.innerHTML = '';
