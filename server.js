@@ -4,7 +4,7 @@ const { Server } = require('socket.io');
 const path = require('path');
 const crypto = require('crypto');
 const Anthropic = require('@anthropic-ai/sdk');
-const OpenAI = require('openai');
+const Together = require('together-ai');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const db = require('./db');
@@ -17,7 +17,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const together = new Together({ apiKey: process.env.TOGETHER_API_KEY });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 const TURN_DURATION = 3 * 60 * 1000;
@@ -154,20 +154,24 @@ function parseResponse(text) {
   return { narration, options, scene };
 }
 
-// ── Image Generation ─────────────────────────────────────────────────────────
+// ── Image Generation (Together AI / FLUX) ────────────────────────────────────
 async function generateSceneImage(scene, gameConfig) {
-  if (!process.env.OPENAI_API_KEY || !scene) return null;
+  if (!process.env.TOGETHER_API_KEY || !scene) return null;
   try {
     const style = gameConfig.image_style || 'fantasy illustration';
     const prompt = `${style}: ${scene}. No text or words in the image.`;
-    const response = await openai.images.generate({
-      model: 'dall-e-3',
+    const response = await together.images.create({
+      model: 'black-forest-labs/FLUX.1-schnell-Free',
       prompt: prompt.slice(0, 1000),
+      width: 1024,
+      height: 768,
+      steps: 4,
       n: 1,
-      size: '1024x1024',
-      quality: 'standard',
+      response_format: 'b64_json',
     });
-    return response.data[0]?.url || null;
+    const b64 = response.data[0]?.b64_json;
+    if (!b64) return null;
+    return `data:image/png;base64,${b64}`;
   } catch (err) {
     console.error('Image generation failed:', err.message);
     return null;
