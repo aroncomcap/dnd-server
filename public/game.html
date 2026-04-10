@@ -1065,6 +1065,24 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     </select>
     <p class="host-note" id="model-status"></p>
 
+    <label style="margin-top:12px;">🎭 Three Pillars of Play</label>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:0.7rem;color:var(--ink-light);">🗺️ Explore</div>
+        <input id="pillar-explore" type="number" min="0" max="100" value="33" style="width:100%;text-align:center;font-size:0.9rem;padding:4px;"/>
+      </div>
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:0.7rem;color:var(--ink-light);">⚔️ Combat</div>
+        <input id="pillar-combat" type="number" min="0" max="100" value="33" style="width:100%;text-align:center;font-size:0.9rem;padding:4px;"/>
+      </div>
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:0.7rem;color:var(--ink-light);">💬 Social</div>
+        <input id="pillar-social" type="number" min="0" max="100" value="34" style="width:100%;text-align:center;font-size:0.9rem;padding:4px;"/>
+      </div>
+      <button class="token-btn" id="btn-set-pillars" style="align-self:flex-end;">Set</button>
+    </div>
+    <p class="host-note">Target balance of gameplay types (%)</p>
+
     <div class="timer-row">
       <label>⏱️ Turn Timer:</label>
       <input id="timer-input" type="number" min="10" max="3600" value="180"/>
@@ -1812,6 +1830,21 @@ document.getElementById('model-select').addEventListener('change', async () => {
   if (res.ok) {
     document.getElementById('model-status').textContent = '✅ Model updated.';
   }
+});
+
+// ── Pillars selector ──────────────────────────────────────────
+document.getElementById('btn-set-pillars').addEventListener('click', () => {
+  socket.emit('set_pillars', {
+    exploration: parseInt(document.getElementById('pillar-explore').value) || 33,
+    combat: parseInt(document.getElementById('pillar-combat').value) || 33,
+    social: parseInt(document.getElementById('pillar-social').value) || 34,
+  });
+});
+
+socket.on('pillars_updated', (pillars) => {
+  document.getElementById('pillar-explore').value = pillars.exploration;
+  document.getElementById('pillar-combat').value = pillars.combat;
+  document.getElementById('pillar-social').value = pillars.social;
 });
 
 // ── Verbosity selector ────────────────────────────────────────

@@ -76,6 +76,12 @@ function buildSubcommands(builder) {
       .setName('world')
       .setDescription('Show known locations and NPCs'))
     .addSubcommand(sub => sub
+      .setName('pillars')
+      .setDescription('Set exploration/combat/social balance')
+      .addIntegerOption(opt => opt.setName('exploration').setDescription('Exploration % (e.g. 33)').setRequired(true).setMinValue(0).setMaxValue(100))
+      .addIntegerOption(opt => opt.setName('combat').setDescription('Combat % (e.g. 33)').setRequired(true).setMinValue(0).setMaxValue(100))
+      .addIntegerOption(opt => opt.setName('social').setDescription('Social % (e.g. 34)').setRequired(true).setMinValue(0).setMaxValue(100)))
+    .addSubcommand(sub => sub
       .setName('verbosity')
       .setDescription('Set narration detail level')
       .addStringOption(opt => opt.setName('level').setDescription('How detailed?').setRequired(true)
@@ -520,6 +526,16 @@ client.on('interactionCreate', async (interaction) => {
         { name: '🏆 Accomplishments', value: accText.slice(0, 1024) }
       );
     await interaction.reply({ embeds: [embed] });
+  }
+
+  else if (sub === 'pillars') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) { await interaction.reply({ content: 'Link this channel first.', ephemeral: true }); return; }
+    const e = interaction.options.getInteger('exploration');
+    const c = interaction.options.getInteger('combat');
+    const s = interaction.options.getInteger('social');
+    const result = gameEngine.setPillars(gameId, e, c, s);
+    await interaction.reply(`🎭 Pillars set: Exploration **${result.pillars.exploration}%** · Combat **${result.pillars.combat}%** · Social **${result.pillars.social}%**`);
   }
 
   else if (sub === 'verbosity') {

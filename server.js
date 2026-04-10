@@ -40,6 +40,7 @@ function getGameState(gameId) {
       turnDuration: DEFAULT_TURN_DURATION,
       verbosity: 'verbose',
       ferocity: 5,
+      pillars: { exploration: 33, combat: 33, social: 34 },
       idleTurns: 0,
       paused: false,
     };
@@ -117,9 +118,9 @@ CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 
 VERBOSITY: ${gs.verbosity || 'verbose'}
-${gs.verbosity === 'terse' ? '- Keep responses to 2-3 short sentences max. Just the essential action and result.' :
-  gs.verbosity === 'brief' ? '- Keep responses to a short paragraph (3-5 sentences). Hit the key beats without excessive description.' :
-  '- Narrate vividly with rich atmosphere (short paragraphs for mobile readability). Use dramatic but readable prose.'}
+${gs.verbosity === 'terse' ? '- Keep responses to 1-2 sentences. Just the action and result, nothing else.' :
+  gs.verbosity === 'brief' ? '- Keep responses to 50-80 words. Hit the key beats concisely.' :
+  '- Keep responses to 200 words MAX, with a strong bias towards 50-100 words unless there is a significant plot point, dramatic reveal, or important narrative moment that justifies more. Shorter is almost always better.'}
 
 FEROCITY: ${gs.ferocity ?? 5}/5
 ${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, numerous, and tactically smart. Death is likely without clever play. However, treasure rewards are VERY generous — rare magic items, large gold hoards, and powerful artifacts appear frequently.' :
@@ -128,10 +129,24 @@ ${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, n
   gs.ferocity <= 4 ? '- Encounters are light challenges. Enemies are beatable without much risk. Modest treasure rewards.' :
   '- Encounters are easy and forgiving. Enemies are weak or few. Minimal treasure — mostly coins and mundane items.'}
 
+THREE PILLARS OF PLAY (target weighting):
+- Exploration: ${gs.pillars?.exploration ?? 33}% | Combat: ${gs.pillars?.combat ?? 33}% | Social: ${gs.pillars?.social ?? 34}%
+- Over the course of a session, aim for this ratio. If one pillar has been neglected, steer towards it.
+- Each pillar should involve meaningful challenges that test character skills:
+  * Exploration: perception, survival, investigation, knowledge checks, traps, puzzles, navigation
+  * Combat: attack rolls, saving throws, tactical positioning, damage, conditions, initiative
+  * Social: persuasion, intimidation, deception, insight, diplomacy, bargaining, interrogation
+
+SKILL TEST PACING:
+- CRITICAL: Include a skill test, ability check, or game mechanic roll with MOST character actions — at minimum every other action.
+- If two consecutive turns pass without any dice roll or skill check, the pace is too slow. Introduce a challenge, obstacle, or situation that demands a roll.
+- Skill tests drive advancement. Without them, characters don't grow. Make tests feel natural and consequential.
+- If characters are wandering or stalling, gently push the action forward: an NPC interrupts, a sound is heard, a danger emerges, a clue appears.
+
 RULES:
 - Track HP, conditions, spells, powers, and resources accurately. Apply game rules correctly.
 - When acting for an absent player, weigh their standard actions and personality heavily, but adapt to context.
-- Keep the story moving.
+- Keep the story moving. If players seem stuck, nudge them forward.
 - If campaign source material is provided above, use it to guide the adventure, encounters, NPCs, and lore.
 - Encourage banter between player characters and between PCs and NPCs. Have NPCs react to players with personality — tease, joke, challenge, flirt, argue. Make the world feel alive through dialogue.
 - If a character has catchphrases listed, weave them naturally into narration or dialogue SPARINGLY — at most 1-2 times per real-world day across all turns. Don't force them; use them when the moment fits.
@@ -917,6 +932,12 @@ io.on('connection', (socket) => {
     await gameEngine.skipTurn(gameId);
   });
 
+  socket.on('set_pillars', (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    gameEngine.setPillars(gameId, data.exploration || 33, data.combat || 33, data.social || 34);
+  });
+
   socket.on('set_verbosity', (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
@@ -1140,6 +1161,20 @@ const gameEngine = {
     emitSystem(gameId, { text: `🔥 Ferocity set to **${num}/5** — ${labels[num]}` });
     io.to(gameId).emit('ferocity_updated', { ferocity: num });
     return { ok: true, ferocity: num };
+  },
+
+  setPillars(gameId, exploration, combat, social) {
+    const gs = getGameState(gameId);
+    // Normalize to 100%
+    const total = exploration + combat + social;
+    gs.pillars = {
+      exploration: Math.round(exploration / total * 100),
+      combat: Math.round(combat / total * 100),
+      social: Math.round(social / total * 100),
+    };
+    emitSystem(gameId, { text: `🎭 Pillars set: Exploration ${gs.pillars.exploration}% · Combat ${gs.pillars.combat}% · Social ${gs.pillars.social}%` });
+    io.to(gameId).emit('pillars_updated', gs.pillars);
+    return { ok: true, pillars: gs.pillars };
   },
 
   setTimer(gameId, seconds) {
