@@ -104,6 +104,30 @@ async function initDB() {
     ALTER TABLE games ADD COLUMN IF NOT EXISTS billing_mode TEXT DEFAULT 'host_pays';
     ALTER TABLE games ADD COLUMN IF NOT EXISTS host_user_id TEXT;
   `);
+
+  // ── Feature Requests table ──────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS feature_requests (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL UNIQUE,
+      description TEXT,
+      status TEXT DEFAULT 'proposed',
+      priority TEXT DEFAULT 'medium',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
+  // Seed the streaming feature request if it doesn't exist
+  await pool.query(`
+    INSERT INTO feature_requests (title, description, status, priority)
+    VALUES (
+      'Streaming responses',
+      'Stream Claude responses word-by-word for perceived speed improvement. Pros: feels faster, dramatic text reveal. Cons: OPTIONS/SCENE/WORLD blocks still wait for completion, more complex code, zero actual time savings. Thinking timer already provides feedback.',
+      'deferred',
+      'low'
+    )
+    ON CONFLICT (title) DO NOTHING;
+  `);
 }
 
 // ── Games ────────────────────────────────────────────────────────────────────

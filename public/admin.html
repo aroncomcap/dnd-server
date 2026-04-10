@@ -185,6 +185,31 @@
     font-weight: 600;
   }
 
+  .badge-status {
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-block;
+    transition: opacity 0.2s;
+  }
+  .badge-status:hover { opacity: 0.8; }
+  .badge-status.proposed { background: rgba(200,146,42,0.2); color: var(--gold); }
+  .badge-status.in-progress { background: rgba(42,92,150,0.2); color: #2a5c96; }
+  .badge-status.done { background: rgba(42,92,42,0.15); color: var(--green); }
+  .badge-status.deferred { background: rgba(139,32,32,0.1); color: var(--red); }
+
+  .badge-priority {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  .badge-priority.high { background: rgba(139,32,32,0.15); color: var(--red); }
+  .badge-priority.medium { background: rgba(200,146,42,0.15); color: var(--gold); }
+  .badge-priority.low { background: rgba(42,92,42,0.1); color: var(--green); }
+
   /* Credit form row */
   .credit-row {
     display: flex;
@@ -319,6 +344,39 @@
       <tbody id="user-tbody"><tr><td colspan="8">Loading...</td></tr></tbody>
     </table>
   </div>
+
+  <!-- Feature Requests -->
+  <div class="panel">
+    <div class="panel-title">Feature Requests</div>
+    <table>
+      <thead><tr><th>Title</th><th>Description</th><th>Status</th><th>Priority</th><th>Created</th></tr></thead>
+      <tbody id="feature-tbody"><tr><td colspan="5">Loading...</td></tr></tbody>
+    </table>
+
+    <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--parchment-dark)">
+      <strong style="font-size:0.85rem; color:var(--ink-light)">Add Feature Request</strong>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px; align-items:flex-end">
+        <div style="flex:2; min-width:180px">
+          <label>Title</label>
+          <input id="feat-title" placeholder="Feature title"/>
+        </div>
+        <div style="flex:3; min-width:200px">
+          <label>Description</label>
+          <input id="feat-desc" placeholder="Details (optional)"/>
+        </div>
+        <div style="flex:0 0 120px">
+          <label>Priority</label>
+          <select id="feat-priority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <button class="btn btn-primary btn-sm" id="btn-add-feature">Add</button>
+      </div>
+      <div id="feature-msg"></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -448,6 +506,70 @@ document.getElementById('btn-gen-promo').addEventListener('click', async () => {
   }
 });
 
+// ── Feature Requests ─────────────────────────────────────────────────────
+const STATUS_CYCLE = ['proposed', 'in-progress', 'done', 'deferred'];
+
+async function loadFeatures() {
+  const res = await fetch('/api/admin/features');
+  const features = await res.json();
+  const tbody = document.getElementById('feature-tbody');
+  if (!features.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;font-style:italic">No feature requests yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = features.map(f => {
+    const desc = f.description && f.description.length > 80
+      ? f.description.slice(0, 80) + '...'
+      : (f.description || '—');
+    const statusClass = f.status || 'proposed';
+    return `
+      <tr>
+        <td>${f.title}</td>
+        <td style="font-size:0.8rem;color:var(--ink-light)">${desc}</td>
+        <td><span class="badge-status ${statusClass}" onclick="cycleStatus(${f.id}, '${f.status}')" title="Click to cycle status">${f.status}</span></td>
+        <td><span class="badge-priority ${f.priority}">${f.priority}</span></td>
+        <td>${f.created_at ? new Date(f.created_at).toLocaleDateString() : '—'}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+async function cycleStatus(id, current) {
+  const idx = STATUS_CYCLE.indexOf(current);
+  const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length];
+  await fetch('/api/admin/features/' + id, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: next }),
+  });
+  loadFeatures();
+}
+
+document.getElementById('btn-add-feature').addEventListener('click', async () => {
+  const title = document.getElementById('feat-title').value.trim();
+  const description = document.getElementById('feat-desc').value.trim();
+  const priority = document.getElementById('feat-priority').value;
+  const msgEl = document.getElementById('feature-msg');
+  if (!title) {
+    msgEl.innerHTML = '<div class="msg msg-err">Title is required.</div>';
+    return;
+  }
+  const res = await fetch('/api/admin/features', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title, description, priority }),
+  });
+  const data = await res.json();
+  if (data.id) {
+    msgEl.innerHTML = `<div class="msg msg-ok">Feature "${title}" added.</div>`;
+    document.getElementById('feat-title').value = '';
+    document.getElementById('feat-desc').value = '';
+    loadFeatures();
+  } else {
+    msgEl.innerHTML = `<div class="msg msg-err">${data.error || 'Failed to add feature.'}</div>`;
+  }
+});
+
 // ── Init ────────────────────────────────────────────────────────────────────
 (async () => {
   const isAdmin = await checkAdmin();
@@ -460,6 +582,7 @@ document.getElementById('btn-gen-promo').addEventListener('click', async () => {
   loadBillingStatus();
   loadUsers();
   loadPromos();
+  loadFeatures();
 })();
 </script>
 </body>

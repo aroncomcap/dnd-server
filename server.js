@@ -138,9 +138,9 @@ CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 
 VERBOSITY: ${gs.verbosity || 'verbose'}
-${gs.verbosity === 'terse' ? '- Keep responses to 1-2 sentences. Just the action and result, nothing else.' :
-  gs.verbosity === 'brief' ? '- Keep responses to 50-80 words. Hit the key beats concisely.' :
-  '- Keep responses to 200 words MAX, with a strong bias towards 50-100 words unless there is a significant plot point, dramatic reveal, or important narrative moment that justifies more. Shorter is almost always better.'}
+${gs.verbosity === 'terse' ? '- Keep non-mechanic narration to 20 words max. Action and result only.' :
+  gs.verbosity === 'brief' ? '- Keep non-mechanic narration to 50 words max. Just the key beats.' :
+  '- Keep non-mechanic narration to 100 words max. Skill rolls, combat results, and game mechanics don\'t count toward this limit. Bias towards 50-75 words unless there\'s a significant plot point.'}
 
 FEROCITY: ${gs.ferocity ?? 5}/5
 ${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, numerous, and tactically smart. Death is likely without clever play. However, treasure rewards are VERY generous — rare magic items, large gold hoards, and powerful artifacts appear frequently.' :
@@ -239,6 +239,71 @@ MAP: [Current location name — where the party is RIGHT NOW after this turn's a
 
 Valid fields: statsText, personality, backstory, standardActions
 Include CHAR_UPDATES whenever: leveling up, gaining items, learning spells, stat changes, spell slot usage/recovery, skill improvements.`;
+}
+
+function buildTrimmedPrompt(gameId, gameConfig) {
+  const gs = getGameState(gameId);
+  const gd = gs.data;
+
+  const characterBlock = Object.entries(gd.characters)
+    .map(([name, c]) => {
+      const catchphrases = c.catchphrases?.length
+        ? `Catchphrases (use sparingly, max 1-2 per day): ${c.catchphrases.join('; ')}`
+        : '';
+      return `
+Player: ${name}
+${c.statsText || 'No stats provided'}
+Personality: ${c.personality || 'Not specified'}
+Standard Actions: ${c.standardActions || 'None defined'}
+Backstory: ${c.backstory || 'Unknown'}
+${catchphrases}
+      `.trim();
+    })
+    .join('\n\n');
+
+  const basePrompt = SYSTEM_PROMPTS[gameConfig.system] || SYSTEM_PROMPTS.custom;
+
+  let contextBlock = '';
+  if (gameConfig.custom_context) {
+    contextBlock = `\n\nCAMPAIGN SOURCE MATERIAL:\n${gameConfig.custom_context.slice(0, MAX_CONTEXT_CHARS)}`;
+    if (gameConfig.custom_context.length > MAX_CONTEXT_CHARS) {
+      contextBlock += '\n[...truncated — source material exceeds limit]';
+    }
+  }
+
+  return `${basePrompt}
+${contextBlock}
+
+CHARACTERS IN THIS CAMPAIGN:
+${characterBlock || 'No characters registered yet.'}
+
+VERBOSITY: ${gs.verbosity || 'verbose'}
+${gs.verbosity === 'terse' ? '- Keep non-mechanic narration to 20 words max. Action and result only.' :
+  gs.verbosity === 'brief' ? '- Keep non-mechanic narration to 50 words max. Just the key beats.' :
+  '- Keep non-mechanic narration to 100 words max. Skill rolls, combat results, and game mechanics don\'t count toward this limit. Bias towards 50-75 words unless there\'s a significant plot point.'}
+
+FEROCITY: ${gs.ferocity ?? 5}/5
+${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, numerous, and tactically smart. Death is likely without clever play. However, treasure rewards are VERY generous — rare magic items, large gold hoards, and powerful artifacts appear frequently.' :
+  gs.ferocity <= 2 ? '- Encounters are very dangerous. Enemies hit hard and use tactics. Survival requires good decisions. Treasure is generous — good magic items and substantial gold.' :
+  gs.ferocity <= 3 ? '- Encounters are moderately challenging. A balanced mix of danger and reward. Standard treasure for the party level with occasional magic items.' :
+  gs.ferocity <= 4 ? '- Encounters are light challenges. Enemies are beatable without much risk. Modest treasure rewards.' :
+  '- Encounters are easy and forgiving. Enemies are weak or few. Minimal treasure — mostly coins and mundane items.'}
+
+THREE PILLARS OF PLAY (target weighting):
+- Exploration: ${gs.pillars?.exploration ?? 33}% | Combat: ${gs.pillars?.combat ?? 33}% | Social: ${gs.pillars?.social ?? 34}%
+- Over the course of a session, aim for this ratio. If one pillar has been neglected, steer towards it.
+- Each pillar should involve meaningful challenges that test character skills:
+  * Exploration: perception, survival, investigation, knowledge checks, traps, puzzles, navigation
+  * Combat: attack rolls, saving throws, tactical positioning, damage, conditions, initiative
+  * Social: persuasion, intimidation, deception, insight, diplomacy, bargaining, interrogation
+
+SKILL TEST PACING:
+- CRITICAL: Include a skill test, ability check, or game mechanic roll with MOST character actions — at minimum every other action.
+- If two consecutive turns pass without any dice roll or skill check, the pace is too slow. Introduce a challenge, obstacle, or situation that demands a roll.
+- Skill tests drive advancement. Without them, characters don't grow. Make tests feel natural and consequential.
+- If characters are wandering or stalling, gently push the action forward: an NPC interrupts, a sound is heard, a danger emerges, a clue appears.
+
+Continue using the same output format as your previous responses. End every response with ---OPTIONS---, ---SCENE---, and ---WORLD--- blocks (including MAP: line).`;
 }
 
 // ── Parsing (single-pass, order-independent) ─────────────────────────────────
@@ -440,10 +505,12 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
 
   const model = gameConfig?.model || 'claude-haiku-4-5-20251001';
   const maxTokens = gs.verbosity === 'terse' ? 512 : gs.verbosity === 'brief' ? 1024 : 2048;
+  const hasHistory = gd.chatHistory.some(m => m.role === 'assistant');
+  const systemPrompt = hasHistory ? buildTrimmedPrompt(gameId, gameConfig) : buildSystemPrompt(gameId, gameConfig);
   const response = await anthropic.messages.create({
     model,
     max_tokens: maxTokens,
-    system: buildSystemPrompt(gameId, gameConfig),
+    system: systemPrompt,
     messages,
   });
 
@@ -771,6 +838,54 @@ app.post('/api/admin/billing-toggle', requireAuth, requireAdmin, (req, res) => {
   billingEnabled = !billingEnabled;
   process.env.BILLING_ENABLED = billingEnabled ? 'true' : 'false';
   res.json({ enabled: billingEnabled });
+});
+
+// ── Feature Requests ─────────────────────────────────────────────────────────
+app.get('/api/admin/features', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await db.pool.query(
+      'SELECT * FROM feature_requests ORDER BY created_at DESC'
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/features', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { title, description, priority } = req.body;
+    if (!title) return res.status(400).json({ error: 'Title is required' });
+    const { rows } = await db.pool.query(
+      `INSERT INTO feature_requests (title, description, priority)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [title, description || '', priority || 'medium']
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/admin/features/:id', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { status, priority } = req.body;
+    const sets = [];
+    const vals = [];
+    let idx = 1;
+    if (status) { sets.push(`status = $${idx++}`); vals.push(status); }
+    if (priority) { sets.push(`priority = $${idx++}`); vals.push(priority); }
+    if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+    vals.push(req.params.id);
+    const { rows } = await db.pool.query(
+      `UPDATE feature_requests SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`,
+      vals
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/admin', requireAuth, requireAdmin, (req, res) => {
