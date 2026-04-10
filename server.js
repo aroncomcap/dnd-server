@@ -439,9 +439,10 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   ];
 
   const model = gameConfig?.model || 'claude-haiku-4-5-20251001';
+  const maxTokens = gs.verbosity === 'terse' ? 512 : gs.verbosity === 'brief' ? 1024 : 2048;
   const response = await anthropic.messages.create({
     model,
-    max_tokens: 2048,
+    max_tokens: maxTokens,
     system: buildSystemPrompt(gameId, gameConfig),
     messages,
   });

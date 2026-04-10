@@ -1517,6 +1517,10 @@ socket.on('error_msg', (data) => {
 });
 
 socket.on('dm_message', (data) => {
+  // Clear thinking indicator
+  const thinking = document.getElementById('thinking-indicator');
+  if (thinking) thinking.remove();
+  if (window._thinkingInterval) { clearInterval(window._thinkingInterval); window._thinkingInterval = null; }
   const wrap = document.createElement('div');
   wrap.classList.add('msg', 'msg-dm');
   if (data.auto) wrap.classList.add('msg-auto');
@@ -1546,7 +1550,14 @@ socket.on('dm_message', (data) => {
   updateActionArea();
 });
 
-socket.on('player_message', (data) => addMsg('player', data.text, data.player, data.token));
+socket.on('player_message', (data) => {
+  // Skip if we already echoed this locally
+  if (data.text === window._lastSentAction && data.player === getMyName()) {
+    window._lastSentAction = null;
+    return;
+  }
+  addMsg('player', data.text, data.player, data.token);
+});
 socket.on('system', (data) => addMsg('system', data.text));
 
 socket.on('turn_change', (data) => {
@@ -1908,8 +1919,24 @@ function sendAction() {
   const name = playerName || document.getElementById('c-name').value.trim();
   if (!action) return;
   if (!name) { alert('Set your player name in the Host tab first.'); return; }
+  // Immediately echo the action in chat so player sees it was received
+  addMsg('player', action, getMyName());
+  window._lastSentAction = action;
   socket.emit('player_action', { playerName: name, action });
   document.getElementById('action-input').value = '';
+  // Show thinking indicator with timer
+  const thinkingDiv = document.createElement('div');
+  thinkingDiv.id = 'thinking-indicator';
+  thinkingDiv.classList.add('msg', 'msg-dm');
+  thinkingDiv.innerHTML = '<div class="msg-label" style="color:var(--gold);">🎲 Game Master</div><div><span class="spinner"></span> Thinking... <span id="thinking-timer">0s</span></div>';
+  chatLog.appendChild(thinkingDiv);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  let thinkSeconds = 0;
+  window._thinkingInterval = setInterval(() => {
+    thinkSeconds++;
+    const el = document.getElementById('thinking-timer');
+    if (el) el.textContent = thinkSeconds + 's';
+  }, 1000);
   showOptions([]);
   // Show a brief "processing" state — turn_change will update properly
   const sendBtn = document.getElementById('btn-send');
