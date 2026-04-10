@@ -225,6 +225,66 @@
 
   .msg-auto { border-left-color: #888; opacity: 0.85; }
 
+  .msg-dm .mechanic {
+    display: block;
+    font-weight: 700;
+    color: var(--gold-light);
+    margin: 8px 0;
+    padding: 6px 10px;
+    background: rgba(200,146,42,0.12);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 6px 6px 0;
+    font-size: 0.9rem;
+  }
+
+  /* ── Action Options ── */
+  #options-area {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  #options-area:empty { display: none; }
+
+  .option-btn {
+    display: block;
+    width: 100%;
+    padding: 10px 12px;
+    background: linear-gradient(135deg, #2c1a0e, #3d2510);
+    color: var(--parchment);
+    border: 1px solid var(--gold);
+    border-radius: 8px;
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.9rem;
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s;
+    line-height: 1.4;
+  }
+  .option-btn:hover {
+    background: linear-gradient(135deg, #3d2510, #4e3218);
+    border-color: var(--gold-light);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(200,146,42,0.3);
+  }
+  .option-btn:active { transform: translateY(0); }
+
+  .options-label {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.65rem;
+    color: var(--gold);
+    letter-spacing: 0.08em;
+    margin-bottom: 2px;
+  }
+
+  .or-divider {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--ink-light);
+    font-style: italic;
+    margin: 2px 0;
+  }
+
   /* ── Action input ── */
   #action-area {
     background: var(--parchment);
@@ -320,9 +380,10 @@
   </div>
 
   <div id="action-area">
+    <div id="options-area"></div>
+    <div class="or-divider" id="or-divider" style="display:none;">— or describe your own action —</div>
     <textarea id="action-input" placeholder="Describe what your character does…" rows="2"></textarea>
     <div class="action-row">
-      <button class="btn btn-ghost" id="btn-std-action">⚡ Quick</button>
       <button class="btn btn-primary" id="btn-send">Send Action</button>
     </div>
   </div>
@@ -451,6 +512,24 @@ playerNameInput.addEventListener('input', () => {
 // ── Chat ──────────────────────────────────────────────────────
 const chatLog = document.getElementById('chat-log');
 
+function renderDmText(text) {
+  // Convert **bold** to <span class="mechanic"> when on its own line, otherwise <strong>
+  // Split into paragraphs by double newline
+  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const lines = escaped.split('\n');
+  const html = lines.map(line => {
+    const trimmed = line.trim();
+    // Full-line bold = mechanic block
+    if (/^\*\*(.+)\*\*$/.test(trimmed)) {
+      const inner = trimmed.slice(2, -2);
+      return `<span class="mechanic">${inner}</span>`;
+    }
+    // Inline bold
+    return line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  }).join('<br/>');
+  return html;
+}
+
 function addMsg(type, text, label = '') {
   const wrap = document.createElement('div');
   wrap.classList.add('msg', 'msg-' + type);
@@ -461,13 +540,42 @@ function addMsg(type, text, label = '') {
     wrap.appendChild(lbl);
   }
   const body = document.createElement('div');
-  body.textContent = text;
+  if (type === 'dm') {
+    body.innerHTML = renderDmText(text);
+  } else {
+    body.textContent = text;
+  }
   wrap.appendChild(body);
   // Remove placeholder
   const placeholder = chatLog.querySelector('.msg-system');
   if (placeholder && placeholder.textContent === 'Awaiting the adventure to begin…') placeholder.remove();
   chatLog.appendChild(wrap);
   chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function showOptions(options) {
+  const area = document.getElementById('options-area');
+  const divider = document.getElementById('or-divider');
+  area.innerHTML = '';
+  if (!options || !options.length) {
+    divider.style.display = 'none';
+    return;
+  }
+  const lbl = document.createElement('div');
+  lbl.className = 'options-label';
+  lbl.textContent = 'Choose Your Action';
+  area.appendChild(lbl);
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.textContent = opt;
+    btn.addEventListener('click', () => {
+      document.getElementById('action-input').value = opt;
+      sendAction();
+    });
+    area.appendChild(btn);
+  });
+  divider.style.display = 'block';
 }
 
 // ── Timer ─────────────────────────────────────────────────────
@@ -497,7 +605,11 @@ socket.on('game_state', (state) => {
       const parts = m.content.split(': ');
       addMsg('player', parts.slice(1).join(': '), parts[0]);
     } else {
-      addMsg('dm', m.content, '🎲 Dungeon Master');
+      // Strip options from stored history for display
+      const marker = '---OPTIONS---';
+      const idx = m.content.indexOf(marker);
+      const text = idx !== -1 ? m.content.slice(0, idx).trim() : m.content;
+      addMsg('dm', text, '🎲 Dungeon Master');
     }
   });
   updateParty(state.characters);
@@ -515,10 +627,14 @@ socket.on('dm_message', (data) => {
   lbl.textContent = data.auto ? `🤖 Auto-action for ${data.player}` : '🎲 Dungeon Master';
   wrap.appendChild(lbl);
   const body = document.createElement('div');
-  body.textContent = data.text;
+  body.innerHTML = renderDmText(data.text);
   wrap.appendChild(body);
   chatLog.appendChild(wrap);
   chatLog.scrollTop = chatLog.scrollHeight;
+  // Show action options if present
+  if (data.options && data.options.length) {
+    showOptions(data.options);
+  }
 });
 
 socket.on('player_message', (data) => addMsg('player', data.text, data.player));
@@ -538,6 +654,7 @@ socket.on('character_registered', (data) => {
 socket.on('game_reset', () => {
   chatLog.innerHTML = '<div class="msg msg-system">Game reset. Characters preserved.</div>';
   turnBanner.style.display = 'none';
+  showOptions([]);
 });
 
 // ── Party display ─────────────────────────────────────────────
@@ -624,40 +741,9 @@ function sendAction() {
   if (!name) { alert('Set your player name in the Host tab first.'); return; }
   socket.emit('player_action', { playerName: name, action });
   document.getElementById('action-input').value = '';
+  // Clear options after sending
+  showOptions([]);
 }
-
-// ── Quick / standard action ────────────────────────────────────
-document.getElementById('btn-std-action').addEventListener('click', () => {
-  if (!stdActions.length) {
-    alert('Register your character with standard actions first.');
-    return;
-  }
-  const sheet = document.createElement('div');
-  sheet.style.cssText = `position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
-    background:var(--parchment);border-radius:12px;padding:16px;
-    box-shadow:0 8px 32px rgba(0,0,0,0.5);z-index:999;min-width:240px;
-    border:1px solid var(--gold);font-family:'Crimson Pro',serif;`;
-  sheet.innerHTML = `<div style="font-family:'Cinzel Decorative',cursive;font-size:0.75rem;color:var(--gold);margin-bottom:10px;">Quick Actions</div>`;
-  stdActions.forEach(a => {
-    const b = document.createElement('button');
-    b.textContent = a;
-    b.style.cssText = `display:block;width:100%;padding:8px 12px;margin-bottom:6px;
-      background:var(--parchment-dark);border:1px solid var(--parchment-dark);
-      border-radius:6px;cursor:pointer;font-family:'Crimson Pro',serif;font-size:0.95rem;text-align:left;`;
-    b.addEventListener('click', () => {
-      document.getElementById('action-input').value = a;
-      document.body.removeChild(sheet);
-    });
-    sheet.appendChild(b);
-  });
-  const close = document.createElement('button');
-  close.textContent = '✕ Close';
-  close.style.cssText = `margin-top:4px;width:100%;padding:6px;background:transparent;
-    border:none;color:var(--ink-light);cursor:pointer;font-family:'Crimson Pro',serif;font-size:0.85rem;`;
-  close.addEventListener('click', () => document.body.removeChild(sheet));
-  sheet.appendChild(close);
-  document.body.appendChild(sheet);
-});
 
 // ── Host controls ─────────────────────────────────────────────
 document.getElementById('btn-start').addEventListener('click', () => {

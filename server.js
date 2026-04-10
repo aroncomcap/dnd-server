@@ -48,8 +48,40 @@ RULES:
 - Narrate vividly and concisely for a mobile screen (short paragraphs).
 - Track HP, conditions, and resources. Apply D&D 5e rules accurately.
 - When acting for an absent player, weigh their standard actions and personality heavily, but adapt to context.
-- Keep the story moving. End each message by making it clear what the active player (or the party) can do next.
-- Use dramatic but readable prose. Add atmosphere.`;
+- Keep the story moving. Use dramatic but readable prose. Add atmosphere.
+
+FORMATTING — SKILL ROLLS & GAME MECHANICS:
+- Any time there is a skill check, saving throw, attack roll, damage roll, or other game mechanic, put it on its own line with a blank line before and after, wrapped in **double asterisks** for bold. Example:
+
+Some narration text here.
+
+**🎲 DC 14 Dexterity Saving Throw — Kael rolls a 16. Success!**
+
+More narration continues.
+
+ACTION OPTIONS:
+- At the end of EVERY response (except auto-actions), present exactly 4 action choices for the next player, plus indicate they can type anything.
+- At least one option must be a wild/reckless/creative move (mark with 🔥).
+- At least one option must be a witty quip or clever social move (mark with 💬).
+- Use this EXACT format at the end of your message — the lines after ---OPTIONS--- are parsed by the client:
+
+---OPTIONS---
+1. 🗡️ [a combat or practical action]
+2. 🛡️ [a defensive or cautious action]
+3. 🔥 [a wild, reckless, or creative move]
+4. 💬 [a witty comment, taunt, or clever social move]`;
+}
+
+function parseOptions(text) {
+  const marker = '---OPTIONS---';
+  const idx = text.indexOf(marker);
+  if (idx === -1) return { narration: text.trim(), options: [] };
+  const narration = text.slice(0, idx).trim();
+  const optionsBlock = text.slice(idx + marker.length).trim();
+  const options = optionsBlock.split('\n')
+    .map(line => line.replace(/^\d+\.\s*/, '').trim())
+    .filter(Boolean);
+  return { narration, options };
 }
 
 async function callClaude(userMessage, actingAs = null) {
@@ -71,7 +103,7 @@ async function callClaude(userMessage, actingAs = null) {
 
   const reply = response.content[0].text;
 
-  // Persist conversation
+  // Persist conversation (full text including options marker)
   gameData.chatHistory.push(
     { role: 'user', content: prefix + userMessage },
     { role: 'assistant', content: reply }
@@ -81,7 +113,10 @@ async function callClaude(userMessage, actingAs = null) {
     gameData.chatHistory = gameData.chatHistory.slice(-80);
   }
   await db.saveChatHistory(gameData.chatHistory);
-  return reply;
+
+  // Parse options out of reply for the client
+  const parsed = parseOptions(reply);
+  return parsed;
 }
 
 // ── Turn Management ───────────────────────────────────────────────────────────
@@ -96,8 +131,8 @@ function startTurnTimer(playerName) {
     io.emit('system', { text: `⏰ ${playerName} ran out of time. Claude is acting for them...` });
 
     try {
-      const reply = await callClaude(autoPrompt, playerName);
-      io.emit('dm_message', { text: reply, auto: true, player: playerName });
+      const { narration, options } = await callClaude(autoPrompt, playerName);
+      io.emit('dm_message', { text: narration, options, auto: true, player: playerName });
       advanceTurn();
     } catch (err) {
       io.emit('system', { text: 'Error during auto-action.' });
@@ -163,8 +198,8 @@ io.on('connection', (socket) => {
     io.emit('player_message', { player: playerName, text: action });
 
     try {
-      const reply = await callClaude(`${playerName}: ${action}`);
-      io.emit('dm_message', { text: reply, auto: false });
+      const { narration, options } = await callClaude(`${playerName}: ${action}`);
+      io.emit('dm_message', { text: narration, options, auto: false });
       await advanceTurn();
     } catch (err) {
       socket.emit('system', { text: 'Error communicating with the DM. Try again.' });
@@ -175,8 +210,8 @@ io.on('connection', (socket) => {
   socket.on('dm_start', async (data) => {
     const { prompt } = data;
     try {
-      const reply = await callClaude(prompt || 'Begin the adventure. Set the scene vividly.');
-      io.emit('dm_message', { text: reply, auto: false });
+      const { narration, options } = await callClaude(prompt || 'Begin the adventure. Set the scene vividly.');
+      io.emit('dm_message', { text: narration, options, auto: false });
       const first = getCurrentPlayer();
       if (first) {
         io.emit('turn_change', { player: first, duration: TURN_DURATION });
