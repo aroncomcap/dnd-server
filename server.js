@@ -634,7 +634,21 @@ app.post('/api/games/:id/upload-pdf', upload.array('pdfs', 10), async (req, res)
     }
 
     await db.updateGameContext(game.id, allText);
-    res.json({ success: true, totalChars: allText.length, files: req.files.map(f => f.originalname) });
+
+    // Seed map with location names from PDF
+    const gs = getGameState(req.params.id);
+    const locationPattern = /(?:^|\n)(?:#{1,3}\s+)?([A-Z][A-Za-z\s''-]{2,30})(?:\n|$)/gm;
+    let match;
+    const skip = /^(chapter|appendix|introduction|table|figure|page|index|contents|credits|about|section|part|summary|overview)/i;
+    while ((match = locationPattern.exec(allText)) !== null) {
+      const name = match[1].trim();
+      if (!skip.test(name) && name.split(' ').length <= 5) {
+        gs.mapGraph.addNode(name, { level: 'world', description: 'From campaign source' });
+      }
+    }
+    await db.setState(req.params.id, 'map', gs.mapGraph.toJSON());
+
+    res.json({ success: true, totalChars: allText.length, files: req.files.map(f => f.originalname), mapNodes: Object.keys(gs.mapGraph.nodes).length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
