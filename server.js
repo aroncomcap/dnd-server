@@ -1022,7 +1022,7 @@ io.on('connection', (socket) => {
 
     const current = getCurrentPlayer(gameId);
 
-    if (current && current !== playerName) {
+    if (current && current.toLowerCase() !== playerName.toLowerCase()) {
       socket.emit('system', { text: `It's ${current}'s turn, not yours.` });
       return;
     }
@@ -1286,7 +1286,7 @@ const gameEngine = {
 
   async playerAction(gameId, playerName, action) {
     const current = getCurrentPlayer(gameId);
-    if (current && current !== playerName) {
+    if (current && current.toLowerCase() !== playerName.toLowerCase()) {
       return { error: `It's ${current}'s turn, not yours.` };
     }
     const gs = getGameState(gameId);

@@ -1415,13 +1415,31 @@ function updateActionArea() {
   const myTurnControls = document.getElementById('my-turn-controls');
   const waitingMsg = document.getElementById('waiting-msg');
   const waitingName = document.getElementById('waiting-name');
+
+  const myName = getMyName();
+
+  if (!currentPlayer) {
+    // No turn set — show controls (pre-game)
+    myTurnControls.style.display = 'block';
+    waitingMsg.style.display = 'none';
+    return;
+  }
+
+  if (!myName) {
+    // Player hasn't selected a character — show prompt to select
+    myTurnControls.style.display = 'none';
+    waitingMsg.style.display = 'block';
+    waitingName.innerHTML = '<strong>' + currentPlayer + '</strong> — <a href="#" onclick="document.querySelector(\'[data-screen=party]\').click(); return false;" style="color:var(--gold);">Select your character</a> to play';
+    return;
+  }
+
   if (isMyTurnCheck()) {
     myTurnControls.style.display = 'block';
     waitingMsg.style.display = 'none';
   } else {
     myTurnControls.style.display = 'none';
     waitingMsg.style.display = 'block';
-    waitingName.textContent = currentPlayer || '...';
+    waitingName.textContent = currentPlayer;
   }
 }
 
@@ -1494,12 +1512,26 @@ socket.on('game_joined', (state) => {
     // Already bound — show "Playing as" banner
     showPlayingAs(playerName, state.characters[playerName]);
     prefillCharacterForm(playerName, state.characters[playerName]);
+  } else if (playerName) {
+    // playerName set but no exact match — try case-insensitive
+    const match = charNames.find(n => n.toLowerCase() === playerName.toLowerCase());
+    if (match) {
+      selectCharacter(match, state.characters[match]);
+    } else if (charNames.length === 1) {
+      selectCharacter(charNames[0], state.characters[charNames[0]]);
+    } else if (charNames.length > 1) {
+      showCharacterPicker(state.characters);
+    }
   } else if (charNames.length === 1) {
     // Exactly 1 character — auto-select it
     const onlyName = charNames[0];
     selectCharacter(onlyName, state.characters[onlyName]);
   } else if (charNames.length > 1) {
-    // Multiple characters exist but no binding — show picker
+    // Multiple characters exist but no binding — show picker immediately
+    showCharacterPicker(state.characters);
+  }
+  // Final fallback: if still no playerName and characters exist, force picker
+  if (!getMyName() && charNames.length > 0) {
     showCharacterPicker(state.characters);
   }
   // Store and show last options if they're for us
@@ -1573,11 +1605,21 @@ socket.on('system', (data) => addMsg('system', data.text));
 socket.on('turn_change', (data) => {
   if (data.token) tokenCache[data.player] = data.token;
   setTurn(data.player, data.token);
+  console.log('Turn changed:', { currentPlayer, myName: getMyName(), isMyTurn: isMyTurnCheck() });
   startVisualTimer(data.duration);
   // Reset send button
   const sendBtn = document.getElementById('btn-send');
   sendBtn.textContent = 'Send Action';
   sendBtn.disabled = false;
+  // "It's your turn!" notification
+  if (isMyTurnCheck()) {
+    const origTitle = document.title;
+    document.title = '⚔️ YOUR TURN!';
+    setTimeout(() => { document.title = origTitle; }, 3000);
+    const actionArea = document.getElementById('action-area');
+    actionArea.style.boxShadow = '0 0 20px var(--gold)';
+    setTimeout(() => { actionArea.style.boxShadow = ''; }, 2000);
+  }
 });
 
 socket.on('scene_image', (data) => showSceneImage(data.url));
