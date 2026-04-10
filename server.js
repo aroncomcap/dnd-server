@@ -706,6 +706,76 @@ app.delete('/api/games/:id', async (req, res) => {
   }
 });
 
+// ── Billing toggle (in-memory, defaults from env) ────────────────────────────
+let billingEnabled = process.env.BILLING_ENABLED === 'true';
+
+// ── Admin API routes (all require admin auth) ────────────────────────────────
+
+app.get('/api/admin/users', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const users = await db.listUsers();
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/credit', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { userId, minutes } = req.body;
+    if (!userId || !minutes || minutes <= 0) {
+      return res.status(400).json({ error: 'userId and positive minutes required' });
+    }
+    await db.creditMinutes(userId, minutes, { creditType: 'admin' });
+    res.json({ ok: true, credited: minutes, userId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/promo/generate', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let suffix = '';
+    for (let i = 0; i < 6; i++) suffix += chars[Math.floor(Math.random() * chars.length)];
+    const code = 'BETA-' + suffix;
+    const minutes = 2400; // 40 hours
+    await db.pool.query(
+      `INSERT INTO promo_codes (code, minutes_granted) VALUES ($1, $2)`,
+      [code, minutes]
+    );
+    res.json({ ok: true, code, minutes });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/promo/list', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await db.pool.query(
+      `SELECT code, minutes_granted, created_at, redeemed_by, redeemed_at
+       FROM promo_codes ORDER BY created_at DESC`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/admin/billing-status', requireAuth, requireAdmin, (req, res) => {
+  res.json({ enabled: billingEnabled });
+});
+
+app.post('/api/admin/billing-toggle', requireAuth, requireAdmin, (req, res) => {
+  billingEnabled = !billingEnabled;
+  process.env.BILLING_ENABLED = billingEnabled ? 'true' : 'false';
+  res.json({ enabled: billingEnabled });
+});
+
+app.get('/admin', requireAuth, requireAdmin, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
 // Serve game page for any game slug
 app.get('/game/:gameId', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'game.html'));

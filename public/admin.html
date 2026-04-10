@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tavern Table — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --parchment: #f5ead6;
+    --parchment-dark: #e8d5b0;
+    --ink: #2c1a0e;
+    --ink-light: #5c3d1e;
+    --gold: #c8922a;
+    --gold-light: #f0c060;
+    --red: #8b2020;
+    --green: #2a5c2a;
+    --shadow: rgba(44,26,14,0.35);
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a0f05;
+    background-image:
+      radial-gradient(ellipse at 20% 80%, #2d1a08 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, #2d1a08 0%, transparent 50%);
+    font-family: 'Crimson Pro', serif;
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 1.6rem;
+    color: var(--gold-light);
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 30px rgba(200,146,42,0.6);
+    margin-bottom: 4px;
+  }
+  header p {
+    color: var(--parchment-dark);
+    font-size: 0.95rem;
+    font-style: italic;
+  }
+
+  .container { width: 100%; max-width: 800px; }
+
+  .panel {
+    background: var(--parchment);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: 0 4px 20px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.4);
+    border: 1px solid var(--parchment-dark);
+    margin-bottom: 16px;
+  }
+
+  .panel-title {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.8rem;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--parchment-dark);
+  }
+
+  label {
+    font-size: 0.85rem;
+    color: var(--ink-light);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
+    margin-top: 10px;
+  }
+  label:first-of-type { margin-top: 0; }
+
+  input, select {
+    width: 100%;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'Crimson Pro', serif;
+    font-size: 1rem;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus, select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(200,146,42,0.2);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+    margin-top: 14px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #c8922a, #f0c060, #c8922a);
+    color: #0d0600;
+    box-shadow: 0 4px 12px rgba(200,146,42,0.4);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(200,146,42,0.5); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-sm {
+    padding: 6px 14px;
+    font-size: 0.65rem;
+    margin-top: 0;
+  }
+  .btn-danger {
+    background: linear-gradient(135deg, #8b2020, #b03030, #8b2020);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(139,32,32,0.3);
+  }
+
+  /* Toggle switch */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .toggle-label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .toggle-status {
+    font-size: 0.9rem;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  .toggle-status.on { background: rgba(42,92,42,0.15); color: var(--green); }
+  .toggle-status.off { background: rgba(139,32,32,0.15); color: var(--red); }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  th, td {
+    padding: 8px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--parchment-dark);
+  }
+  th {
+    font-weight: 600;
+    color: var(--ink-light);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  td { color: var(--ink); }
+  tr:hover td { background: rgba(200,146,42,0.05); }
+
+  .badge-admin {
+    background: rgba(200,146,42,0.2);
+    color: var(--gold);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  /* Credit form row */
+  .credit-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .credit-row > div { flex: 1; min-width: 150px; }
+  .credit-row .btn { flex: 0 0 auto; }
+
+  /* Messages */
+  .msg {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    margin-top: 10px;
+  }
+  .msg-ok { background: rgba(42,92,42,0.1); color: var(--green); }
+  .msg-err { background: rgba(139,32,32,0.1); color: var(--red); }
+
+  /* Promo code list */
+  .promo-code {
+    font-family: monospace;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: 0.05em;
+  }
+  .copy-btn {
+    background: none;
+    border: 1px solid var(--parchment-dark);
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--ink-light);
+    transition: all 0.2s;
+  }
+  .copy-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  .back-link {
+    color: var(--gold);
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-bottom: 16px;
+  }
+  .back-link:hover { color: var(--gold-light); }
+
+  /* Access denied overlay */
+  #access-denied {
+    display: none;
+    text-align: center;
+    padding: 60px 20px;
+  }
+  #access-denied h2 {
+    font-family: 'Cinzel Decorative', cursive;
+    color: var(--red);
+    font-size: 1.2rem;
+    margin-bottom: 12px;
+  }
+  #access-denied p {
+    color: var(--parchment-dark);
+    font-size: 0.95rem;
+  }
+
+  #admin-content { display: none; }
+
+  @media (min-width: 640px) {
+    header h1 { font-size: 2rem; }
+    .panel { padding: 24px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tavern Table — Admin</h1>
+  <p>Server Management Panel</p>
+</header>
+
+<div id="access-denied">
+  <h2>Access Denied</h2>
+  <p>You do not have admin privileges. Redirecting...</p>
+</div>
+
+<div id="admin-content" class="container">
+  <a href="/" class="back-link">← Back to Lobby</a>
+
+  <!-- Billing Toggle -->
+  <div class="panel">
+    <div class="panel-title">Billing Control</div>
+    <div class="toggle-row">
+      <span class="toggle-label">Billing Engine:</span>
+      <span id="billing-status" class="toggle-status off">Loading...</span>
+      <button class="btn btn-primary btn-sm" id="btn-toggle-billing">Toggle</button>
+    </div>
+  </div>
+
+  <!-- Direct Credit -->
+  <div class="panel">
+    <div class="panel-title">Direct Credit</div>
+    <div class="credit-row">
+      <div>
+        <label>User</label>
+        <select id="credit-user"></select>
+      </div>
+      <div>
+        <label>Hours to Credit</label>
+        <input id="credit-hours" type="number" min="1" value="10" style="width:100%"/>
+      </div>
+      <button class="btn btn-primary btn-sm" id="btn-credit">Credit</button>
+    </div>
+    <div id="credit-msg"></div>
+  </div>
+
+  <!-- Promo Codes -->
+  <div class="panel">
+    <div class="panel-title">Promo Codes</div>
+    <button class="btn btn-primary btn-sm" id="btn-gen-promo">Generate BETA Code (40 hrs)</button>
+    <div id="promo-msg"></div>
+    <table style="margin-top:12px">
+      <thead><tr><th>Code</th><th>Minutes</th><th>Created</th><th>Redeemed By</th><th></th></tr></thead>
+      <tbody id="promo-tbody"><tr><td colspan="5">Loading...</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- User List -->
+  <div class="panel">
+    <div class="panel-title">Users</div>
+    <table>
+      <thead><tr><th>Name</th><th>Email</th><th>Provider</th><th>Free Min</th><th>Paid Min</th><th>Used</th><th>Admin</th><th>Created</th></tr></thead>
+      <tbody id="user-tbody"><tr><td colspan="8">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+// ── Auth check ──────────────────────────────────────────────────────────────
+async function checkAdmin() {
+  try {
+    const res = await fetch('/auth/me');
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (!data.user?.isAdmin) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// ── Billing toggle ──────────────────────────────────────────────────────────
+async function loadBillingStatus() {
+  const res = await fetch('/api/admin/billing-status');
+  const data = await res.json();
+  const el = document.getElementById('billing-status');
+  if (data.enabled) {
+    el.textContent = 'ENABLED';
+    el.className = 'toggle-status on';
+  } else {
+    el.textContent = 'DISABLED';
+    el.className = 'toggle-status off';
+  }
+}
+
+document.getElementById('btn-toggle-billing').addEventListener('click', async () => {
+  const res = await fetch('/api/admin/billing-toggle', { method: 'POST' });
+  const data = await res.json();
+  loadBillingStatus();
+});
+
+// ── Users ───────────────────────────────────────────────────────────────────
+let allUsers = [];
+
+async function loadUsers() {
+  const res = await fetch('/api/admin/users');
+  allUsers = await res.json();
+  const tbody = document.getElementById('user-tbody');
+  if (!allUsers.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;font-style:italic">No users yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allUsers.map(u => `
+    <tr>
+      <td>${u.display_name || '—'}</td>
+      <td>${u.email || '—'}</td>
+      <td>${u.auth_provider || '—'}</td>
+      <td>${u.free_minutes_remaining ?? '—'}</td>
+      <td>${u.paid_minutes_remaining ?? '—'}</td>
+      <td>${u.total_minutes_used ?? 0}</td>
+      <td>${u.is_admin ? '<span class="badge-admin">ADMIN</span>' : ''}</td>
+      <td>${u.created_at ? new Date(u.created_at).toLocaleDateString() : '—'}</td>
+    </tr>
+  `).join('');
+
+  // Populate credit dropdown
+  const sel = document.getElementById('credit-user');
+  sel.innerHTML = allUsers.map(u =>
+    `<option value="${u.id}">${u.display_name || u.email} (${u.email})</option>`
+  ).join('');
+}
+
+// ── Direct Credit ───────────────────────────────────────────────────────────
+document.getElementById('btn-credit').addEventListener('click', async () => {
+  const userId = document.getElementById('credit-user').value;
+  const hours = parseInt(document.getElementById('credit-hours').value) || 0;
+  if (!userId || hours <= 0) return;
+  const minutes = hours * 60;
+  const msgEl = document.getElementById('credit-msg');
+
+  const res = await fetch('/api/admin/credit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId, minutes }),
+  });
+  const data = await res.json();
+  if (data.ok) {
+    msgEl.innerHTML = `<div class="msg msg-ok">Credited ${minutes} minutes (${hours} hrs) successfully.</div>`;
+    loadUsers();
+  } else {
+    msgEl.innerHTML = `<div class="msg msg-err">${data.error || 'Failed'}</div>`;
+  }
+});
+
+// ── Promo Codes ─────────────────────────────────────────────────────────────
+async function loadPromos() {
+  const res = await fetch('/api/admin/promo/list');
+  const promos = await res.json();
+  const tbody = document.getElementById('promo-tbody');
+  if (!promos.length) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;font-style:italic">No promo codes yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = promos.map(p => `
+    <tr>
+      <td class="promo-code">${p.code}</td>
+      <td>${p.minutes_granted}</td>
+      <td>${new Date(p.created_at).toLocaleDateString()}</td>
+      <td>${p.redeemed_by || '<em>unused</em>'}</td>
+      <td><button class="copy-btn" onclick="copyCode('${p.code}')">Copy</button></td>
+    </tr>
+  `).join('');
+}
+
+function copyCode(code) {
+  navigator.clipboard.writeText(code).then(() => {
+    // Brief visual feedback
+    event.target.textContent = 'Copied!';
+    setTimeout(() => { event.target.textContent = 'Copy'; }, 1500);
+  });
+}
+
+document.getElementById('btn-gen-promo').addEventListener('click', async () => {
+  const msgEl = document.getElementById('promo-msg');
+  const res = await fetch('/api/admin/promo/generate', { method: 'POST' });
+  const data = await res.json();
+  if (data.code) {
+    msgEl.innerHTML = `<div class="msg msg-ok">Generated: <strong>${data.code}</strong></div>`;
+    loadPromos();
+  } else {
+    msgEl.innerHTML = `<div class="msg msg-err">${data.error || 'Failed'}</div>`;
+  }
+});
+
+// ── Init ────────────────────────────────────────────────────────────────────
+(async () => {
+  const isAdmin = await checkAdmin();
+  if (!isAdmin) {
+    document.getElementById('access-denied').style.display = 'block';
+    setTimeout(() => { window.location.href = '/'; }, 2000);
+    return;
+  }
+  document.getElementById('admin-content').style.display = 'block';
+  loadBillingStatus();
+  loadUsers();
+  loadPromos();
+})();
+</script>
+</body>
+</html>
