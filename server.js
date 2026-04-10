@@ -7,9 +7,12 @@ const Anthropic = require('@anthropic-ai/sdk');
 const Together = require('together-ai');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
+const cookieParser = require('cookie-parser');
+const passport = require('passport');
 const db = require('./db');
 const discord = require('./discord-bot');
 const { MapGraph, processMapHint } = require('./map-engine');
+const { router: authRouter, authMiddleware, requireAuth, requireAdmin } = require('./auth');
 
 const DEPLOY_TIME = new Date().toISOString();
 
@@ -18,6 +21,10 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 
 app.use(express.json());
+app.use(cookieParser());
+app.use(passport.initialize());
+app.use(authRouter);
+app.use(authMiddleware); // Attaches req.user to all requests (non-blocking)
 app.use(express.static(path.join(__dirname, 'public')));
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
