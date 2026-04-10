@@ -662,6 +662,16 @@
     color: var(--ink);
   }
   .world-item span { color: var(--ink-light); }
+  .world-item img.world-thumb {
+    width: 48px; height: 48px; border-radius: 6px; object-fit: cover;
+    float: left; margin-right: 8px; border: 1px solid var(--gold); cursor: pointer;
+  }
+  .world-item .world-thumb-spinner {
+    width: 48px; height: 48px; border-radius: 6px; float: left; margin-right: 8px;
+    background: var(--parchment); display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
   .world-section-title {
     font-size: 0.75rem;
     color: var(--gold);
@@ -1893,6 +1903,55 @@ socket.on('world_updated', (world) => {
   updateWorldPanel(world);
 });
 
+// ── World Art ──────────────────────────────────────────────────
+let lastWorldData = null;
+
+socket.on('world_art_generating', (data) => {
+  // Show spinner on the relevant world item
+  const container = data.type === 'location'
+    ? document.getElementById('world-locations')
+    : document.getElementById('world-npcs');
+  if (!container) return;
+  const items = container.querySelectorAll('.world-item');
+  items.forEach(el => {
+    if (el.querySelector('strong')?.textContent?.toLowerCase() === data.name.toLowerCase() && !el.querySelector('.world-thumb')) {
+      const spinner = document.createElement('div');
+      spinner.className = 'world-thumb-spinner';
+      spinner.textContent = '🎨';
+      el.insertBefore(spinner, el.firstChild);
+    }
+  });
+});
+
+socket.on('world_art_ready', (data) => {
+  // Update stored world data with the new image
+  if (lastWorldData) {
+    const list = data.type === 'location' ? lastWorldData.locations : lastWorldData.npcs;
+    const entry = list?.find(e => e.name.toLowerCase() === data.name.toLowerCase());
+    if (entry) {
+      entry.imageUrl = data.imageUrl;
+    }
+    updateWorldPanel(lastWorldData);
+  }
+});
+
+socket.on('world_art_failed', (data) => {
+  // Remove spinner if present
+  const container = data.type === 'location'
+    ? document.getElementById('world-locations')
+    : document.getElementById('world-npcs');
+  if (!container) return;
+  container.querySelectorAll('.world-thumb-spinner').forEach(s => s.remove());
+});
+
+function showLightbox(name, src) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:500;display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer;';
+  overlay.innerHTML = `<img src="${src}" style="max-width:90%;max-height:80vh;border-radius:12px;border:2px solid var(--gold);"/><div style="color:var(--parchment-dark);margin-top:12px;font-family:'Cinzel Decorative',cursive;font-size:0.9rem;">${name}</div>`;
+  overlay.addEventListener('click', () => overlay.remove());
+  document.body.appendChild(overlay);
+}
+
 // ── Catchphrases ──────────────────────────────────────────────
 document.getElementById('btn-add-catchphrase').addEventListener('click', () => {
   const phrase = document.getElementById('catchphrase-input').value.trim();
@@ -2241,6 +2300,7 @@ document.getElementById('btn-reset').addEventListener('click', () => {
 
 // ── World Panel ───────────────────────────────────────────────
 function updateWorldPanel(world) {
+  lastWorldData = world;
   const locDiv = document.getElementById('world-locations');
   const npcDiv = document.getElementById('world-npcs');
 
@@ -2249,7 +2309,10 @@ function updateWorldPanel(world) {
     world.locations.forEach(loc => {
       const el = document.createElement('div');
       el.className = 'world-item';
-      el.innerHTML = `<strong>${loc.name}</strong><br/><span>${loc.description}</span>${loc.distance ? `<br/><span style="font-size:0.75rem;color:var(--gold);">📏 ${loc.distance}</span>` : ''}`;
+      const imgHtml = loc.imageUrl
+        ? `<img class="world-thumb" src="${loc.imageUrl}" onclick="showLightbox('${loc.name.replace(/'/g, "\\'")}', this.src)"/>`
+        : '';
+      el.innerHTML = `${imgHtml}<strong>${loc.name}</strong><br/><span>${loc.description}</span>${loc.distance ? `<br/><span style="font-size:0.75rem;color:var(--gold);">📏 ${loc.distance}</span>` : ''}<div style="clear:both;"></div>`;
       locDiv.appendChild(el);
     });
   } else {
@@ -2261,7 +2324,10 @@ function updateWorldPanel(world) {
     world.npcs.forEach(npc => {
       const el = document.createElement('div');
       el.className = 'world-item';
-      el.innerHTML = `<strong>${npc.name}</strong><br/><span>${npc.description}</span>${npc.location ? `<br/><span style="font-size:0.75rem;color:var(--gold);">📍 ${npc.location}</span>` : ''}`;
+      const imgHtml = npc.imageUrl
+        ? `<img class="world-thumb" src="${npc.imageUrl}" onclick="showLightbox('${npc.name.replace(/'/g, "\\'")}', this.src)"/>`
+        : '';
+      el.innerHTML = `${imgHtml}<strong>${npc.name}</strong><br/><span>${npc.description}</span>${npc.location ? `<br/><span style="font-size:0.75rem;color:var(--gold);">📍 ${npc.location}</span>` : ''}<div style="clear:both;"></div>`;
       npcDiv.appendChild(el);
     });
   } else {

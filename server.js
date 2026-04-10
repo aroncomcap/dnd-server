@@ -254,6 +254,20 @@ LOCATIONS:
 - [Location Name] | [Brief description] | [Distance/travel time from current position]
 NPCS:
 - [NPC Name] | [Brief description] | [Current/last known location]
+
+IMAGE DESCRIPTIONS:
+- When introducing a NEW location or NPC for the first time, include an image description field.
+- Use this format in the LOCATIONS and NPCS sections:
+
+LOCATIONS:
+- [Name] | [Description] | [Distance] | IMG: [One sentence visual description for image generation — setting, lighting, architecture, mood. Painterly fantasy style.]
+
+NPCS:
+- [Name] | [Description] | [Location] | IMG: [One sentence visual description — appearance, clothing, expression, distinguishing features. Portrait style.]
+
+- Only include IMG: on the FIRST appearance or when the location/NPC fundamentally changes (destroyed, rebuilt, scarred, transformed, etc.).
+- If a location or NPC changes significantly, include IMG: with the UPDATED description and add "UPDATED:" prefix: IMG: UPDATED: [new description reflecting the change]
+
 ACCOMPLISHMENTS:
 - [Character Name] | [Achievement description]
 CHAR_UPDATES:
@@ -340,6 +354,19 @@ INITIATIVE / TURN ORDER:
 - Format: TURN_ORDER: followed by lines like: - 1 | Name | initiative value | PC/Enemy/NPC
 - Update every round. Remove dead combatants. Omit outside combat.
 
+IMAGE DESCRIPTIONS:
+- When introducing a NEW location or NPC for the first time, include an image description field.
+- Use this format in the LOCATIONS and NPCS sections:
+
+LOCATIONS:
+- [Name] | [Description] | [Distance] | IMG: [One sentence visual description for image generation — setting, lighting, architecture, mood. Painterly fantasy style.]
+
+NPCS:
+- [Name] | [Description] | [Location] | IMG: [One sentence visual description — appearance, clothing, expression, distinguishing features. Portrait style.]
+
+- Only include IMG: on the FIRST appearance or when the location/NPC fundamentally changes (destroyed, rebuilt, scarred, transformed, etc.).
+- If a location or NPC changes significantly, include IMG: with the UPDATED description and add "UPDATED:" prefix: IMG: UPDATED: [new description reflecting the change]
+
 REQUIRED OUTPUT FORMAT (every response):
 1. Narration (follow verbosity limits above)
 2. ---OPTIONS--- block with exactly 4 choices (🗡️ combat, 🛡️ defensive, 🔥 wild, 💬 witty)
@@ -403,16 +430,43 @@ function parseResponse(text) {
       if (/^CHAR_UPDATES:/i.test(trimmed)) { section = 'char_updates'; continue; }
       if (/^TURN_ORDER:/i.test(trimmed)) { section = 'turn_order'; continue; }
       if (trimmed.startsWith('- ') && section) {
-        const parts = trimmed.slice(2).split('|').map(s => s.trim());
         if (section === 'locations') {
-          locations.push({ name: parts[0], description: parts[1] || '', distance: parts[2] || '' });
+          const imgIdx = trimmed.indexOf('| IMG:');
+          let imagePrompt = null;
+          let imageUpdate = false;
+          if (imgIdx !== -1) {
+            imagePrompt = trimmed.slice(imgIdx + 6).trim();
+            if (imagePrompt.startsWith('UPDATED:')) {
+              imagePrompt = imagePrompt.slice(8).trim();
+              imageUpdate = true;
+            }
+          }
+          const mainPart = imgIdx !== -1 ? trimmed.slice(2, imgIdx) : trimmed.slice(2);
+          const parts = mainPart.split('|').map(s => s.trim());
+          locations.push({ name: parts[0], description: parts[1] || '', distance: parts[2] || '', imagePrompt: imagePrompt || null, imageUpdate });
         } else if (section === 'npcs') {
-          npcs.push({ name: parts[0], description: parts[1] || '', location: parts[2] || '' });
+          const imgIdx = trimmed.indexOf('| IMG:');
+          let imagePrompt = null;
+          let imageUpdate = false;
+          if (imgIdx !== -1) {
+            imagePrompt = trimmed.slice(imgIdx + 6).trim();
+            if (imagePrompt.startsWith('UPDATED:')) {
+              imagePrompt = imagePrompt.slice(8).trim();
+              imageUpdate = true;
+            }
+          }
+          const mainPart = imgIdx !== -1 ? trimmed.slice(2, imgIdx) : trimmed.slice(2);
+          const parts = mainPart.split('|').map(s => s.trim());
+          npcs.push({ name: parts[0], description: parts[1] || '', location: parts[2] || '', imagePrompt: imagePrompt || null, imageUpdate });
         } else if (section === 'accomplishments') {
+          const parts = trimmed.slice(2).split('|').map(s => s.trim());
+
           accomplishments.push({ character: parts[0], achievement: parts[1] || '' });
         } else if (section === 'char_updates') {
+          const parts = trimmed.slice(2).split('|').map(s => s.trim());
           charUpdates.push({ character: parts[0], field: parts[1] || '', value: parts[2] || '' });
         } else if (section === 'turn_order') {
+          const parts = trimmed.slice(2).split('|').map(s => s.trim());
           turnOrder.push({ position: parts[0], name: parts[1], value: parts[2] || '', type: parts[3] || '' });
         }
       }
@@ -468,6 +522,53 @@ async function generateSceneImage(scene, gameConfig) {
   } catch (err) {
     console.error('Image generation failed:', err.message);
     return null;
+  }
+}
+
+// ── World Art Generation (Together AI / FLUX) ─────────────────────────────────
+async function generateWorldArt(gameId, item) {
+  if (!process.env.TOGETHER_API_KEY) return;
+  const gs = getGameState(gameId);
+
+  const style = item.type === 'npc'
+    ? 'Fantasy RPG character portrait, detailed face and upper body, dramatic lighting, painterly style.'
+    : 'Fantasy RPG landscape/location, atmospheric lighting, detailed architecture, painterly style.';
+
+  const prompt = `${style} ${item.prompt}. No text or words in the image.`;
+
+  try {
+    io.to(gameId).emit('world_art_generating', { type: item.type, name: item.name });
+
+    const response = await together.images.generate({
+      model: 'black-forest-labs/FLUX.1-schnell',
+      prompt: prompt.slice(0, 1000),
+      width: item.type === 'npc' ? 512 : 768,
+      height: 512,
+      steps: 4,
+      n: 1,
+      response_format: 'b64_json',
+    });
+
+    const b64 = response.data[0]?.b64_json;
+    if (!b64) return;
+
+    const imageUrl = `data:image/png;base64,${b64}`;
+
+    // Save to world state
+    const list = item.type === 'location' ? gs.world?.locations : gs.world?.npcs;
+    const entry = list?.find(e => e.name.toLowerCase() === item.name.toLowerCase());
+    if (entry) {
+      entry.imageUrl = imageUrl;
+      entry.imageState = 'done';
+      await db.setState(gameId, 'world', gs.world);
+    }
+
+    io.to(gameId).emit('world_art_ready', { type: item.type, name: item.name, imageUrl });
+    logCost({ gameId, model: 'FLUX', inputTokens: 0, outputTokens: 0, cost: 0.003, type: 'world-art' });
+
+  } catch (err) {
+    console.error(`World art generation failed for ${item.name}:`, err.message);
+    io.to(gameId).emit('world_art_failed', { type: item.type, name: item.name });
   }
 }
 
@@ -600,6 +701,31 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
           });
         }
       }
+    }
+
+    // Queue world art generation for new locations/NPCs with image prompts
+    const artQueue = [];
+    for (const loc of (parsed.world.locations || [])) {
+      if (loc.imagePrompt) {
+        const existing = gs.world?.locations?.find(l => l.name.toLowerCase() === loc.name.toLowerCase());
+        const hasImage = existing?.imageUrl && !loc.imageUpdate;
+        if (!hasImage) {
+          artQueue.push({ type: 'location', name: loc.name, prompt: loc.imagePrompt, isUpdate: loc.imageUpdate });
+        }
+      }
+    }
+    for (const npc of (parsed.world.npcs || [])) {
+      if (npc.imagePrompt) {
+        const existing = gs.world?.npcs?.find(n => n.name.toLowerCase() === npc.name.toLowerCase());
+        const hasImage = existing?.imageUrl && !npc.imageUpdate;
+        if (!hasImage) {
+          artQueue.push({ type: 'npc', name: npc.name, prompt: npc.imagePrompt, isUpdate: npc.imageUpdate });
+        }
+      }
+    }
+    // Generate art async (fire and forget, max 2 at a time)
+    for (const item of artQueue.slice(0, 2)) {
+      generateWorldArt(gameId, item).catch(err => console.error('Art gen failed:', err.message));
     }
   }
 
@@ -758,6 +884,10 @@ app.post('/api/games/:id/upload-pdf', upload.array('pdfs', 10), async (req, res)
     }
 
     await db.updateGameContext(game.id, allText);
+
+    // TODO: PDF image extraction — pdf-parse doesn't extract images reliably.
+    // For now, image prompts come from Claude's first mention of each location/NPC.
+    // Future: use a PDF library that extracts images and associate them with nearby headers.
 
     // Seed map with location names from PDF
     const gs = getGameState(req.params.id);
