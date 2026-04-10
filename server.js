@@ -845,6 +845,46 @@ io.on('connection', (socket) => {
     io.to(gameId).emit('catchphrases_updated', { name: data.name, catchphrases: char.catchphrases });
   });
 
+  socket.on('add_backstory', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    const char = gs.data.characters[data.name];
+    if (!char) return;
+    // Append to existing backstory with a note
+    const existing = char.backstory || '';
+    char.backstory = existing + (existing ? '\n' : '') + `[Added: ${data.text}]`;
+    await db.upsertCharacter(gameId, data.name, char);
+    socket.emit('system', { text: `📝 Backstory note added for ${data.name}. Claude will weave it into the narrative.` });
+    io.to(gameId).emit('character_updated', { name: data.name, character: char });
+  });
+
+  socket.on('add_world_context', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    if (!gs.world) gs.world = { locations: [], npcs: [], accomplishments: [] };
+    if (data.type === 'location') {
+      // Add or append context to a location
+      const existing = gs.world.locations.find(l => l.name.toLowerCase() === data.name?.toLowerCase());
+      if (existing) {
+        existing.description += ` | ${data.context}`;
+      } else {
+        gs.world.locations.push({ name: data.name || data.context.split(' ')[0], description: data.context, distance: '' });
+      }
+    } else if (data.type === 'npc') {
+      const existing = gs.world.npcs.find(n => n.name.toLowerCase() === data.name?.toLowerCase());
+      if (existing) {
+        existing.description += ` | ${data.context}`;
+      } else {
+        gs.world.npcs.push({ name: data.name || data.context.split(' ')[0], description: data.context, location: '' });
+      }
+    }
+    await db.setState(gameId, 'world', gs.world);
+    io.to(gameId).emit('world_updated', gs.world);
+    socket.emit('system', { text: `🗺️ World context added. Claude will use this in the narrative.` });
+  });
+
   socket.on('save_character', async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
