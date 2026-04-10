@@ -86,12 +86,16 @@ function buildSystemPrompt(gameId, gameConfig) {
 
   const characterBlock = Object.entries(gd.characters)
     .map(([name, c]) => {
+      const catchphrases = c.catchphrases?.length
+        ? `Catchphrases (use sparingly, max 1-2 per day): ${c.catchphrases.join('; ')}`
+        : '';
       return `
 Player: ${name}
 ${c.statsText || 'No stats provided'}
 Personality: ${c.personality || 'Not specified'}
 Standard Actions: ${c.standardActions || 'None defined'}
 Backstory: ${c.backstory || 'Unknown'}
+${catchphrases}
       `.trim();
     })
     .join('\n\n');
@@ -129,6 +133,8 @@ RULES:
 - When acting for an absent player, weigh their standard actions and personality heavily, but adapt to context.
 - Keep the story moving.
 - If campaign source material is provided above, use it to guide the adventure, encounters, NPCs, and lore.
+- Encourage banter between player characters and between PCs and NPCs. Have NPCs react to players with personality — tease, joke, challenge, flirt, argue. Make the world feel alive through dialogue.
+- If a character has catchphrases listed, weave them naturally into narration or dialogue SPARINGLY — at most 1-2 times per real-world day across all turns. Don't force them; use them when the moment fits.
 
 SPELLS, POWERS & RESOURCES:
 - Track all spells, powers, abilities, and limited-use resources for each character.
@@ -809,6 +815,34 @@ io.on('connection', (socket) => {
     await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
     io.to(gameId).emit('game_reset');
     emitSystem(gameId, { text: '🔄 Game has been reset. Characters preserved.' });
+  });
+
+  socket.on('add_catchphrase', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    const char = gs.data.characters[data.name];
+    if (!char) return;
+    if (!char.catchphrases) char.catchphrases = [];
+    if (char.catchphrases.length >= 10) {
+      socket.emit('system', { text: '⚠️ Max 10 catchphrases. Remove one first.' });
+      return;
+    }
+    char.catchphrases.push(data.phrase);
+    await db.upsertCharacter(gameId, data.name, char);
+    socket.emit('system', { text: `💬 Catchphrase added: "${data.phrase}"` });
+    io.to(gameId).emit('catchphrases_updated', { name: data.name, catchphrases: char.catchphrases });
+  });
+
+  socket.on('remove_catchphrase', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    const char = gs.data.characters[data.name];
+    if (!char || !char.catchphrases) return;
+    char.catchphrases = char.catchphrases.filter(p => p !== data.phrase);
+    await db.upsertCharacter(gameId, data.name, char);
+    io.to(gameId).emit('catchphrases_updated', { name: data.name, catchphrases: char.catchphrases });
   });
 
   socket.on('save_character', async (data) => {

@@ -69,6 +69,10 @@ function buildSubcommands(builder) {
       .setName('catchup')
       .setDescription('Summarize what happened since your last turn'))
     .addSubcommand(sub => sub
+      .setName('catchphrase')
+      .setDescription('Add a catchphrase for your character')
+      .addStringOption(opt => opt.setName('phrase').setDescription('The catchphrase').setRequired(true)))
+    .addSubcommand(sub => sub
       .setName('world')
       .setDescription('Show known locations and NPCs'))
     .addSubcommand(sub => sub
@@ -447,6 +451,24 @@ client.on('interactionCreate', async (interaction) => {
       .setDescription(char.statsText || 'No stats');
     if (char.token) embed.setThumbnail(char.token);
     await interaction.reply({ embeds: [embed] });
+  }
+
+  else if (sub === 'catchphrase') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) { await interaction.reply({ content: 'Link this channel first.', ephemeral: true }); return; }
+    const charName = await getCharName(gameId, interaction.user.id);
+    if (!charName) { await interaction.reply({ content: 'Claim a character first with `/tt claim`.', ephemeral: true }); return; }
+    const phrase = interaction.options.getString('phrase');
+    const gs = gameEngine.getGameState(gameId);
+    const char = gs.data.characters[charName];
+    if (!char) { await interaction.reply({ content: 'Character not found.', ephemeral: true }); return; }
+    if (!char.catchphrases) char.catchphrases = [];
+    if (char.catchphrases.length >= 10) {
+      await interaction.reply({ content: '⚠️ Max 10 catchphrases. Remove one first.', ephemeral: true }); return;
+    }
+    char.catchphrases.push(phrase);
+    await db.upsertCharacter(gameId, charName, char);
+    await interaction.reply(`💬 **${charName}** catchphrase added: *"${phrase}"*\n(${char.catchphrases.length}/10)`);
   }
 
   else if (sub === 'catchup') {

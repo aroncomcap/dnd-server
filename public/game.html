@@ -58,7 +58,6 @@
     font-size: 0.65rem;
     color: var(--parchment-dark);
     opacity: 0.7;
-    margin-top: 1px;
   }
 
   #turn-banner {
@@ -210,7 +209,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-height: 60vh;
+    max-height: calc(100vh - 280px);
     padding-right: 4px;
   }
   #chat-log::-webkit-scrollbar { width: 4px; }
@@ -715,7 +714,7 @@
     #scene-panel img { height: 280px; }
 
     /* Chat log more room */
-    #chat-log { max-height: 55vh; }
+    #chat-log { max-height: calc(100vh - 280px); }
 
     /* Action area more spacious */
     #action-area { padding: 16px; }
@@ -749,6 +748,11 @@
       gap: 8px;
     }
     .world-item { margin-bottom: 0; }
+
+    #screen-char .panel, #screen-host .panel, #screen-party .panel, #screen-world .panel {
+      max-width: 600px;
+      margin: 0 auto;
+    }
 
     .msg { font-size: 1rem; }
   }
@@ -827,7 +831,7 @@
     #screen-game.has-scene #action-area { grid-column: 1 / -1; grid-row: 3; }
 
     #chat-log {
-      max-height: 70vh;
+      max-height: calc(100vh - 200px);
     }
 
     #action-area {
@@ -871,11 +875,9 @@
     .world-item { margin-bottom: 0; }
 
     /* ── Character & Host screens: constrain width, center ── */
-    #screen-char .panel,
-    #screen-host .panel {
-      max-width: 640px;
-      margin-left: auto;
-      margin-right: auto;
+    #screen-char .panel, #screen-host .panel, #screen-party .panel, #screen-world .panel {
+      max-width: 700px;
+      margin: 0 auto;
     }
 
     /* Bigger messages */
@@ -918,9 +920,13 @@
 <body>
 
 <header>
-  <h1><a href="/">⚔️ Tavern Table</a></h1>
-  <div id="game-title"></div>
-  <div id="deploy-time" style="font-size:0.5rem; color:var(--parchment-dark); opacity:0.4;"></div>
+  <div style="display:flex; align-items:center; justify-content:space-between;">
+    <h1><a href="/">⚔️ Tavern Table</a></h1>
+    <div style="text-align:right;">
+      <span id="game-title" style="font-size:0.65rem;color:var(--parchment-dark);opacity:0.7;"></span>
+      <span id="deploy-time" style="font-size:0.5rem;color:var(--parchment-dark);opacity:0.4;margin-left:6px;"></span>
+    </div>
+  </div>
   <div id="turn-banner"><img id="turn-token" src="" alt=""/>— <span id="turn-name">?</span>'s Turn —</div>
   <div id="timer-bar"></div>
 </header>
@@ -1009,6 +1015,15 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <label>✨ Spells, Powers & Resources</label>
     <div id="c-spells" style="min-height:40px; background:rgba(255,255,255,0.3); border-radius:8px; padding:10px; font-size:0.85rem; color:var(--ink-light);">
       <em>Tracked automatically during play.</em>
+    </div>
+
+    <label>💬 Catchphrases <span style="font-weight:normal;font-size:0.75rem;color:var(--ink-light);">(max 10, used sparingly by the GM)</span></label>
+    <div id="c-catchphrases" style="min-height:30px; background:rgba(255,255,255,0.3); border-radius:8px; padding:8px; font-size:0.85rem; color:var(--ink-light);">
+      <em>No catchphrases yet.</em>
+    </div>
+    <div style="display:flex; gap:6px; margin-top:4px;">
+      <input id="catchphrase-input" type="text" placeholder="e.g., 'By the light of Yelm!'" style="flex:1; font-size:0.85rem; padding:6px 8px;"/>
+      <button class="token-btn" id="btn-add-catchphrase">+ Add</button>
     </div>
 
     <label>🏆 Accomplishments</label>
@@ -1308,6 +1323,11 @@ function updateActionArea() {
   const myTurnControls = document.getElementById('my-turn-controls');
   const waitingMsg = document.getElementById('waiting-msg');
   const waitingName = document.getElementById('waiting-name');
+  // If playerName is empty but there's exactly one character, auto-select it
+  if (!getMyName() && Object.keys(currentCharacters).length === 1) {
+    const onlyName = Object.keys(currentCharacters)[0];
+    selectCharacter(onlyName, currentCharacters[onlyName]);
+  }
   if (isMyTurnCheck()) {
     myTurnControls.style.display = 'block';
     waitingMsg.style.display = 'none';
@@ -1373,11 +1393,16 @@ socket.on('game_joined', (state) => {
     // Already bound — show "Playing as" banner
     showPlayingAs(playerName, state.characters[playerName]);
     prefillCharacterForm(playerName, state.characters[playerName]);
-  } else if (charNames.length > 0) {
-    // Characters exist but no binding — show picker
+  } else if (charNames.length === 1) {
+    // Exactly 1 character — auto-select it
+    const onlyName = charNames[0];
+    selectCharacter(onlyName, state.characters[onlyName]);
+  } else if (charNames.length > 1) {
+    // Multiple characters exist but no binding — show picker
     showCharacterPicker(state.characters);
   }
   // If no characters at all, user needs to register first
+  updateActionArea();
 });
 
 socket.on('error_msg', (data) => {
@@ -1603,6 +1628,40 @@ document.getElementById('btn-register').addEventListener('click', () => {
     localStorage.setItem('playerName_' + gameId, name);
   }
 });
+
+// ── Catchphrases ──────────────────────────────────────────────
+document.getElementById('btn-add-catchphrase').addEventListener('click', () => {
+  const phrase = document.getElementById('catchphrase-input').value.trim();
+  const name = getMyName();
+  if (!phrase || !name) return;
+  socket.emit('add_catchphrase', { name, phrase });
+  document.getElementById('catchphrase-input').value = '';
+});
+
+socket.on('catchphrases_updated', (data) => {
+  if (data.name === getMyName()) renderCatchphrases(data.catchphrases);
+  if (currentCharacters[data.name]) currentCharacters[data.name].catchphrases = data.catchphrases;
+});
+
+function renderCatchphrases(phrases) {
+  const div = document.getElementById('c-catchphrases');
+  if (!phrases || !phrases.length) {
+    div.innerHTML = '<em>No catchphrases yet.</em>';
+    return;
+  }
+  div.innerHTML = '';
+  phrases.forEach(p => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:3px;';
+    row.innerHTML = `<span style="flex:1;">"${p}"</span>`;
+    const del = document.createElement('button');
+    del.textContent = '✕';
+    del.style.cssText = 'background:none;border:none;color:var(--red);cursor:pointer;font-size:0.8rem;padding:2px 4px;';
+    del.addEventListener('click', () => socket.emit('remove_catchphrase', { name: getMyName(), phrase: p }));
+    row.appendChild(del);
+    div.appendChild(row);
+  });
+}
 
 // ── Save character edits ──────────────────────────────────────
 document.getElementById('btn-save-char').addEventListener('click', () => {
@@ -1901,6 +1960,8 @@ function prefillCharacterForm(name, char) {
   document.getElementById('c-actions').value = char.standardActions || '';
   document.getElementById('c-backstory').value = char.backstory || '';
   if (char.token) showTokenPreview(char.token);
+  // Catchphrases
+  renderCatchphrases(char.catchphrases || []);
   // Update spells/powers from stats text (Claude embeds them)
   const spellsDiv = document.getElementById('c-spells');
   const statsText = char.statsText || '';
