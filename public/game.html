@@ -683,6 +683,234 @@
     color: var(--ink-light);
     font-size: 0.85rem;
   }
+
+  /* ══════════════════════════════════════════════════════════
+     TABLET  (640px – 1024px)
+     ══════════════════════════════════════════════════════════ */
+  @media (min-width: 640px) {
+    .screen {
+      max-width: 720px;
+      padding: 20px;
+    }
+
+    nav {
+      max-width: 720px;
+    }
+
+    header h1 { font-size: 1.1rem; }
+    #game-title { font-size: 0.85rem; }
+
+    /* Scene image taller on tablet */
+    #scene-panel img { height: 280px; }
+
+    /* Chat log more room */
+    #chat-log { max-height: 55vh; }
+
+    /* Action area more spacious */
+    #action-area { padding: 16px; }
+    #action-area textarea { min-height: 70px; font-size: 1.05rem; }
+    .action-row .btn { padding: 12px; font-size: 0.75rem; }
+
+    /* Option buttons in 2-col grid */
+    #options-area {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    #options-area .options-label {
+      grid-column: 1 / -1;
+    }
+
+    /* Party cards in 2-col grid */
+    #party-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    #party-list .char-card { margin-bottom: 0; }
+
+    /* World items in 2-col grid */
+    #world-locations,
+    #world-npcs,
+    #world-accomplishments {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .world-item { margin-bottom: 0; }
+
+    .msg { font-size: 1rem; }
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     DESKTOP  (1024px+)
+     ══════════════════════════════════════════════════════════ */
+  @media (min-width: 1024px) {
+    body {
+      align-items: stretch;
+    }
+
+    header {
+      padding: 12px 24px;
+      order: -2;
+    }
+    header h1 { font-size: 1.2rem; }
+    #game-title { font-size: 0.9rem; }
+
+    /* ── Nav becomes top bar on desktop ── */
+    nav {
+      max-width: 100%;
+      position: sticky;
+      top: 0;
+      bottom: auto;
+      border-top: none;
+      border-bottom: 1px solid var(--gold);
+      justify-content: center;
+      gap: 4px;
+      z-index: 99;
+      order: -1;
+    }
+    nav button {
+      flex: 0 0 auto;
+      flex-direction: row;
+      padding: 10px 20px;
+      font-size: 0.65rem;
+      gap: 6px;
+    }
+    nav button .nav-icon { font-size: 1rem; }
+    nav button.active {
+      border-top: none;
+      border-bottom: 2px solid var(--gold);
+    }
+
+    /* ── Screens fill width ── */
+    .screen {
+      max-width: 1200px;
+      padding: 24px 32px;
+      margin: 0 auto;
+    }
+
+    /* ── Game screen: 2-column layout ── */
+    #screen-game.active {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      grid-template-rows: auto 1fr auto;
+      gap: 16px;
+      align-items: start;
+    }
+
+    /* Playing-as banner spans full width */
+    #playing-as {
+      grid-column: 1 / -1;
+    }
+
+    /* Chat panel: left column, fills vertical space */
+    #chat-panel {
+      grid-column: 1;
+      grid-row: 2;
+      min-height: 0;
+    }
+
+    /* Chat log: no fixed height cap, fill available space */
+    #chat-log {
+      max-height: 70vh;
+    }
+
+    /* Scene + info sidebar: right column */
+    #scene-panel {
+      grid-column: 2;
+      grid-row: 2;
+    }
+    #scene-panel img {
+      height: 360px;
+    }
+
+    /* Action area spans full bottom */
+    #action-area {
+      grid-column: 1 / -1;
+      grid-row: 3;
+      padding: 20px 24px;
+    }
+    #action-area textarea {
+      min-height: 80px;
+      font-size: 1.05rem;
+    }
+    .action-row .btn {
+      padding: 14px 20px;
+      font-size: 0.8rem;
+    }
+
+    /* Option buttons in 3-col grid */
+    #options-area {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+    }
+    #options-area .options-label {
+      grid-column: 1 / -1;
+    }
+
+    /* ── Party screen: wider grid ── */
+    #party-list {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    #party-list .char-card { margin-bottom: 0; }
+
+    /* ── World screen: 3-col grids ── */
+    #world-locations,
+    #world-npcs,
+    #world-accomplishments {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .world-item { margin-bottom: 0; }
+
+    /* ── Character & Host screens: constrain width, center ── */
+    #screen-char .panel,
+    #screen-host .panel {
+      max-width: 640px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Bigger messages */
+    .msg { max-width: 85%; font-size: 1.05rem; }
+
+    /* Larger character picker on desktop */
+    #char-picker .picker-panel {
+      max-width: 500px;
+    }
+  }
+
+  /* ══════════════════════════════════════════════════════════
+     WIDE DESKTOP  (1400px+)
+     ══════════════════════════════════════════════════════════ */
+  @media (min-width: 1400px) {
+    .screen {
+      max-width: 1400px;
+    }
+
+    #chat-log {
+      max-height: 75vh;
+    }
+
+    #scene-panel img {
+      height: 420px;
+    }
+
+    #party-list {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    #world-locations,
+    #world-npcs,
+    #world-accomplishments {
+      grid-template-columns: repeat(4, 1fr);
+    }
+  }
 </style>
 </head>
 <body>
