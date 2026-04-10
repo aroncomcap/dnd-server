@@ -314,13 +314,39 @@ async function generateSceneImage(scene, gameConfig) {
   }
 }
 
+// ── Rate limiting (prevent runaway costs) ────────────────────────────────────
+const apiCallLog = {}; // gameId -> [timestamps]
+const MAX_CALLS_PER_HOUR = 60;
+
+function checkRateLimit(gameId) {
+  const now = Date.now();
+  if (!apiCallLog[gameId]) apiCallLog[gameId] = [];
+  // Prune old entries
+  apiCallLog[gameId] = apiCallLog[gameId].filter(t => now - t < 3600000);
+  if (apiCallLog[gameId].length >= MAX_CALLS_PER_HOUR) {
+    console.error(`Rate limit hit for game ${gameId}: ${apiCallLog[gameId].length} calls in last hour`);
+    return false;
+  }
+  apiCallLog[gameId].push(now);
+  return true;
+}
+
 // ── Claude Call (scoped to a game) ───────────────────────────────────────────
 async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
+  // Rate limit check
+  if (!checkRateLimit(gameId)) {
+    const gs = getGameState(gameId);
+    gs.paused = true;
+    clearTimeout(gs.turnTimer);
+    emitSystem(gameId, { text: '⚠️ Rate limit reached (60 calls/hour). Game paused to prevent runaway costs.' });
+    return { narration: 'Game paused — rate limit reached.', options: [], scene: null, world: null, isKillshot: false };
+  }
+
   const gs = getGameState(gameId);
   const gd = gs.data;
 
   const prefix = actingAs
-    ? `[AUTO-ACTION for ${actingAs} — 3 min timer expired]\n`
+    ? `[AUTO-ACTION for ${actingAs} — timer expired]\n`
     : '';
 
   const messages = [
@@ -383,10 +409,28 @@ function getCurrentPlayer(gameId) {
   return turnOrder[currentTurnIndex % turnOrder.length];
 }
 
+function getConnectedClients(gameId) {
+  const room = io.sockets.adapter.rooms.get(gameId);
+  return room ? room.size : 0;
+}
+
 function startTurnTimer(gameId, gameConfig, playerName) {
   const gs = getGameState(gameId);
   clearTimeout(gs.turnTimer);
+
+  // Safety: don't start timer if no humans are connected or game is paused
+  if (getConnectedClients(gameId) === 0 || gs.paused) {
+    console.log(`Timer not started for ${gameId}: ${gs.paused ? 'paused' : 'no clients'}`);
+    return;
+  }
+
   gs.turnTimer = setTimeout(async () => {
+    // Double-check: still have connected clients?
+    if (getConnectedClients(gameId) === 0) {
+      console.log(`Auto-action aborted for ${gameId}: no clients connected`);
+      return;
+    }
+
     const char = gs.data.characters[playerName];
     const autoPrompt = char
       ? `It is ${playerName}'s turn but they did not respond. Act on their behalf as their character (${char.class}, personality: ${char.personality}). Choose the most fitting action given the current situation and their standard actions: ${char.standardActions || 'none'}. Narrate what they do.`
@@ -419,8 +463,8 @@ async function advanceTurn(gameId, gameConfig, wasHumanAction = false) {
     gs.idleTurns = (gs.idleTurns || 0) + 1;
   }
 
-  // Pause after 5 consecutive idle turns
-  if (gs.idleTurns >= 5) {
+  // Pause after 2 consecutive idle turns (prevents runaway API costs)
+  if (gs.idleTurns >= 2) {
     gs.paused = true;
     clearTimeout(gs.turnTimer);
     emitSystem(gameId, { text: '⏸️ Game paused — no human actions for 5 turns. Use /tt start or tap Begin to resume.' });
@@ -774,6 +818,21 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
+    // If no humans left in this game, stop the timer to prevent runaway API costs
+    const gameId = socket.gameId;
+    if (gameId) {
+      setTimeout(() => {
+        const remaining = getConnectedClients(gameId);
+        if (remaining === 0) {
+          const gs = games[gameId];
+          if (gs) {
+            clearTimeout(gs.turnTimer);
+            gs.turnTimer = null;
+            console.log(`All clients left ${gameId} — timer stopped`);
+          }
+        }
+      }, 5000); // 5s grace period for reconnects
+    }
   });
 });
 
