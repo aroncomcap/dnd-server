@@ -175,7 +175,7 @@ async function generateCharacterToken(name, charData) {
   try {
     const desc = [charData.statsText, charData.personality, charData.backstory].filter(Boolean).join('. ');
     const prompt = `Fantasy RPG character portrait token, circular frame, dark background. Character: ${name}. ${desc.slice(0, 600)}. Detailed face and upper body, dramatic lighting, painterly style. No text or words.`;
-    const response = await together.images.create({
+    const response = await together.images.generate({
       model: 'black-forest-labs/FLUX.1-schnell-Free',
       prompt: prompt.slice(0, 1000),
       width: 512,
@@ -199,7 +199,7 @@ async function generateSceneImage(scene, gameConfig) {
   try {
     const style = gameConfig.image_style || 'fantasy illustration';
     const prompt = `${style}: ${scene}. No text or words in the image.`;
-    const response = await together.images.create({
+    const response = await together.images.generate({
       model: 'black-forest-labs/FLUX.1-schnell-Free',
       prompt: prompt.slice(0, 1000),
       width: 1024,

@@ -440,6 +440,16 @@
     margin-bottom: 8px;
     border-left: 3px solid var(--gold);
     font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .char-card:hover {
+    border-left-color: var(--gold-light);
+    transform: translateX(3px);
+  }
+  .char-card.active-char {
+    border-left-color: var(--gold-light);
+    box-shadow: 0 0 0 1px var(--gold);
   }
   .char-card strong { font-family: 'Cinzel Decorative', cursive; font-size: 0.75rem; color: var(--ink); }
   .char-card span { color: var(--ink-light); font-size: 0.8rem; }
@@ -1052,6 +1062,15 @@ function updatePartyCard(name, c) {
     <span>${statsHtml || 'No stats provided'}</span>
     <div style="clear:both;"></div>
   `;
+  // Click to take over character
+  existing.onclick = () => {
+    selectCharacter(name, c);
+    // Highlight active card
+    document.querySelectorAll('.char-card').forEach(el => el.classList.remove('active-char'));
+    existing.classList.add('active-char');
+  };
+  // Mark active if this is the current player
+  if (name === playerName) existing.classList.add('active-char');
 }
 
 // ── Register character ────────────────────────────────────────

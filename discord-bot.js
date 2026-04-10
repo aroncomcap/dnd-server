@@ -31,10 +31,8 @@ const client = new Client({
 });
 
 // ── Slash Commands ───────────────────────────────────────────────────────────
-const commands = [
-  new SlashCommandBuilder()
-    .setName('tavern')
-    .setDescription('Tavern Table game commands')
+function buildSubcommands(builder) {
+  return builder
     .addSubcommand(sub => sub
       .setName('join')
       .setDescription('Link this channel to a game')
@@ -58,7 +56,12 @@ const commands = [
       .setDescription('Show party members'))
     .addSubcommand(sub => sub
       .setName('reset')
-      .setDescription('Reset the game (keeps characters)')),
+      .setDescription('Reset the game (keeps characters)'));
+}
+
+const commands = [
+  buildSubcommands(new SlashCommandBuilder().setName('tavern').setDescription('Tavern Table game commands')),
+  buildSubcommands(new SlashCommandBuilder().setName('tt').setDescription('Tavern Table (shortcut)')),
 ];
 
 async function registerCommands() {
@@ -187,7 +190,7 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName !== 'tavern') return;
+  if (interaction.commandName !== 'tavern' && interaction.commandName !== 'tt') return;
 
   const sub = interaction.options.getSubcommand();
 
@@ -330,6 +333,31 @@ client.on('interactionCreate', async (interaction) => {
     }
     await gameEngine.resetGame(gameId);
     await interaction.reply('🔄 Game has been reset. Characters preserved.');
+  }
+});
+
+// ── Plain message handler (just type your action) ────────────────────────────
+client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+  if (!message.guild) return;
+
+  const gameId = await db.getChannelGame(message.channelId);
+  if (!gameId) return;
+
+  const charName = await getCharName(gameId, message.author.id);
+  if (!charName) return; // Not registered — ignore
+
+  const text = message.content.trim();
+  if (!text || text.startsWith('/')) return; // Ignore empty or commands
+
+  try {
+    const result = await gameEngine.playerAction(gameId, charName, text);
+    if (result.error) {
+      await message.reply({ content: result.error, allowedMentions: { repliedUser: false } });
+    }
+    // Success — DM response broadcasts automatically
+  } catch (err) {
+    // Silently fail — might not be their turn
   }
 });
 
