@@ -66,6 +66,9 @@ function buildSubcommands(builder) {
       .setDescription('Claim an existing character')
       .addStringOption(opt => opt.setName('name').setDescription('Character name to play as').setRequired(true)))
     .addSubcommand(sub => sub
+      .setName('catchup')
+      .setDescription('Summarize what happened since your last turn'))
+    .addSubcommand(sub => sub
       .setName('world')
       .setDescription('Show known locations and NPCs'))
     .addSubcommand(sub => sub
@@ -386,6 +389,30 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.reply({ embeds: [embed] });
   }
 
+  else if (sub === 'catchup') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) {
+      await interaction.reply({ content: 'Link this channel first.', ephemeral: true });
+      return;
+    }
+    const charName = await getCharName(gameId, interaction.user.id);
+    if (!charName) {
+      await interaction.reply({ content: 'Claim a character first with `/tt claim <name>`.', ephemeral: true });
+      return;
+    }
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      const result = await gameEngine.catchUp(gameId, charName);
+      const embed = new EmbedBuilder()
+        .setColor(0xC8922A)
+        .setTitle(`📜 Catch-Up for ${charName}`)
+        .setDescription(result.summary.slice(0, 4096));
+      await interaction.editReply({ embeds: [embed] });
+    } catch (err) {
+      await interaction.editReply('Error generating catch-up summary.');
+    }
+  }
+
   else if (sub === 'world') {
     const gameId = await db.getChannelGame(interaction.channelId);
     if (!gameId) {
@@ -399,12 +426,16 @@ client.on('interactionCreate', async (interaction) => {
     const npcText = world.npcs?.length
       ? world.npcs.map(n => `**${n.name}** — ${n.description}${n.location ? ` *(${n.location})*` : ''}`).join('\n')
       : '*No NPCs encountered yet.*';
+    const accText = world.accomplishments?.length
+      ? world.accomplishments.map(a => `**${a.character}** — ${a.achievement}`).join('\n')
+      : '*No accomplishments yet.*';
     const embed = new EmbedBuilder()
       .setColor(0xC8922A)
       .setTitle('🗺️ Known World')
       .addFields(
         { name: '📍 Locations', value: locText.slice(0, 1024) },
-        { name: '👤 NPCs', value: npcText.slice(0, 1024) }
+        { name: '👤 NPCs', value: npcText.slice(0, 1024) },
+        { name: '🏆 Accomplishments', value: accText.slice(0, 1024) }
       );
     await interaction.reply({ embeds: [embed] });
   }

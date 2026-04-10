@@ -727,7 +727,8 @@
     <div class="or-divider" id="or-divider" style="display:none;">— or describe your own action —</div>
     <textarea id="action-input" placeholder="Describe what your character does…" rows="2"></textarea>
     <div class="action-row">
-      <button class="btn btn-ghost" id="btn-skip" style="flex:0.4;">⏭️ Skip</button>
+      <button class="btn btn-ghost" id="btn-skip" style="flex:0.3;">⏭️ Skip</button>
+      <button class="btn btn-ghost" id="btn-catchup" style="flex:0.4;">📜 Catch Up</button>
       <button class="btn btn-primary" id="btn-send">Send Action</button>
     </div>
   </div>
@@ -769,6 +770,11 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <label>Backstory (brief)</label>
     <textarea id="c-backstory" placeholder="Raised in the north, exiled knight…"></textarea>
 
+    <label>🏆 Accomplishments</label>
+    <div id="c-accomplishments" style="min-height:40px; background:rgba(255,255,255,0.3); border-radius:8px; padding:10px; font-size:0.85rem; color:var(--ink-light);">
+      <em>No accomplishments yet — play to earn them!</em>
+    </div>
+
     <button class="btn btn-primary" id="btn-register" style="margin-top:12px;">
       📜 Register / Update Character
     </button>
@@ -792,6 +798,8 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <div id="world-locations"><p class="host-note">No locations discovered yet.</p></div>
     <div class="world-section-title">👤 NPCs</div>
     <div id="world-npcs"><p class="host-note">No NPCs encountered yet.</p></div>
+    <div class="world-section-title">🏆 Accomplishments</div>
+    <div id="world-accomplishments"><p class="host-note">No accomplishments yet.</p></div>
   </div>
 </div>
 
@@ -1297,6 +1305,18 @@ document.getElementById('btn-skip').addEventListener('click', () => {
   socket.emit('skip_turn');
 });
 
+// ── Catch up ──────────────────────────────────────────────────
+document.getElementById('btn-catchup').addEventListener('click', () => {
+  const name = playerName || document.getElementById('c-name').value.trim();
+  if (!name) { alert('Set your player name first.'); return; }
+  addMsg('system', '📜 Generating catch-up summary...');
+  socket.emit('catch_up', { playerName: name });
+});
+
+socket.on('catch_up_result', (data) => {
+  addMsg('dm', data.summary, '📜 Catch-Up Summary');
+});
+
 // ── Timer control ─────────────────────────────────────────────
 document.getElementById('btn-set-timer').addEventListener('click', () => {
   const seconds = parseInt(document.getElementById('timer-input').value) || 180;
@@ -1346,6 +1366,27 @@ function updateWorldPanel(world) {
     });
   } else {
     npcDiv.innerHTML = '<p class="host-note">No NPCs encountered yet.</p>';
+  }
+
+  // Accomplishments
+  const accDiv = document.getElementById('world-accomplishments');
+  if (world.accomplishments && world.accomplishments.length) {
+    accDiv.innerHTML = '';
+    world.accomplishments.forEach(a => {
+      const el = document.createElement('div');
+      el.className = 'world-item';
+      el.innerHTML = `<strong>${a.character}</strong><br/><span>${a.achievement}</span>`;
+      accDiv.appendChild(el);
+    });
+
+    // Update character sheet accomplishments if viewing your character
+    const myAccomplishments = world.accomplishments.filter(a => a.character === playerName);
+    const cAccDiv = document.getElementById('c-accomplishments');
+    if (myAccomplishments.length) {
+      cAccDiv.innerHTML = myAccomplishments.map(a => `🏆 ${a.achievement}`).join('<br/>');
+    }
+  } else {
+    accDiv.innerHTML = '<p class="host-note">No accomplishments yet.</p>';
   }
 }
 
@@ -1402,6 +1443,20 @@ function prefillCharacterForm(name, char) {
   document.getElementById('c-actions').value = char.standardActions || '';
   document.getElementById('c-backstory').value = char.backstory || '';
   if (char.token) showTokenPreview(char.token);
+  // Update accomplishments from world data
+  const accDiv = document.getElementById('c-accomplishments');
+  const worldAcc = document.querySelectorAll('#world-accomplishments .world-item');
+  const myAcc = [];
+  worldAcc.forEach(el => {
+    if (el.querySelector('strong')?.textContent === name) {
+      myAcc.push(el.querySelector('span')?.textContent || '');
+    }
+  });
+  if (myAcc.length) {
+    accDiv.innerHTML = myAcc.map(a => `🏆 ${a}`).join('<br/>');
+  } else {
+    accDiv.innerHTML = '<em>No accomplishments yet — play to earn them!</em>';
+  }
 }
 
 document.getElementById('picker-new-btn').addEventListener('click', () => {

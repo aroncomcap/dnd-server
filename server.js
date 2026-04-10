@@ -148,6 +148,15 @@ NPCS:
 
 Only include locations and NPCs that have been introduced in the story so far. Add new ones as they appear. Remove ones that are no longer relevant (e.g., destroyed locations, dead NPCs).
 
+ACCOMPLISHMENTS:
+- After the NPCS section, include an accomplishments section tracking major achievements for each character.
+- Only add entries when something significant happens: a major quest completed, a powerful foe defeated, an important discovery, a heroic deed, etc.
+- Use this format:
+
+ACCOMPLISHMENTS:
+- [Character Name] | [Achievement description]
+...
+
 TRAVEL & MOVEMENT:
 - When characters want to travel to a distant location, narrate the journey realistically.
 - Consider distance, mode of travel (on foot, mounted, by boat, etc.), terrain, and weather.
@@ -179,22 +188,26 @@ function parseResponse(text) {
     // Parse locations and NPCs
     const locations = [];
     const npcs = [];
+    const accomplishments = [];
     let section = null;
     for (const line of worldBlock.split('\n')) {
       const trimmed = line.trim();
       if (/^LOCATIONS:/i.test(trimmed)) { section = 'locations'; continue; }
       if (/^NPCS:/i.test(trimmed)) { section = 'npcs'; continue; }
-      if (trimmed.startsWith('---')) break; // hit next marker
+      if (/^ACCOMPLISHMENTS:/i.test(trimmed)) { section = 'accomplishments'; continue; }
+      if (trimmed.startsWith('---')) break;
       if (trimmed.startsWith('- ') && section) {
         const parts = trimmed.slice(2).split('|').map(s => s.trim());
         if (section === 'locations') {
           locations.push({ name: parts[0], description: parts[1] || '', distance: parts[2] || '' });
-        } else {
+        } else if (section === 'npcs') {
           npcs.push({ name: parts[0], description: parts[1] || '', location: parts[2] || '' });
+        } else if (section === 'accomplishments') {
+          accomplishments.push({ character: parts[0], achievement: parts[1] || '' });
         }
       }
     }
-    world = { locations, npcs };
+    world = { locations, npcs, accomplishments };
   }
 
   // Extract scene
@@ -604,6 +617,17 @@ io.on('connection', (socket) => {
     emitSystem(gameId, { text: '🔄 Game has been reset. Characters preserved.' });
   });
 
+  socket.on('catch_up', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    try {
+      const result = await gameEngine.catchUp(gameId, data.playerName);
+      socket.emit('catch_up_result', result);
+    } catch (err) {
+      socket.emit('catch_up_result', { summary: 'Error generating summary.' });
+    }
+  });
+
   socket.on('skip_turn', async () => {
     const gameId = socket.gameId;
     if (!gameId) return;
@@ -732,6 +756,42 @@ const gameEngine = {
     await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
     io.to(gameId).emit('game_reset');
     emitSystem(gameId, { text: '🔄 Game has been reset. Characters preserved.' });
+  },
+
+  async catchUp(gameId, playerName) {
+    const gs = getGameState(gameId);
+    const gd = gs.data;
+    // Find messages since the player last acted
+    let lastActionIdx = -1;
+    for (let i = gd.chatHistory.length - 1; i >= 0; i--) {
+      const msg = gd.chatHistory[i];
+      if (msg.role === 'user' && msg.content.startsWith(`${playerName}:`)) {
+        lastActionIdx = i;
+        break;
+      }
+    }
+    const missedMessages = lastActionIdx === -1
+      ? gd.chatHistory
+      : gd.chatHistory.slice(lastActionIdx + 1);
+
+    if (!missedMessages.length) {
+      return { summary: 'You haven\'t missed anything — you\'re all caught up!' };
+    }
+
+    // Build a condensed transcript
+    const transcript = missedMessages
+      .map(m => m.role === 'user' ? `Player: ${m.content}` : `DM: ${m.content}`)
+      .join('\n')
+      .slice(0, 8000);
+
+    const response = await anthropic.messages.create({
+      model: 'claude-opus-4-5',
+      max_tokens: 600,
+      system: `Summarize what happened in this RPG session in 400 words or less. Focus on key events, combat outcomes, discoveries, and story developments. Write from a third-person perspective. Be vivid but concise.`,
+      messages: [{ role: 'user', content: `Summarize what ${playerName} missed:\n\n${transcript}` }],
+    });
+
+    return { summary: response.content[0].text };
   },
 
   async skipTurn(gameId) {
