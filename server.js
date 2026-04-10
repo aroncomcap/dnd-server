@@ -8,6 +8,7 @@ const Together = require('together-ai');
 const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const db = require('./db');
+const discord = require('./discord-bot');
 
 const app = express();
 const server = http.createServer(app);
@@ -37,6 +38,28 @@ function getGameState(gameId) {
     };
   }
   return games[gameId];
+}
+
+// ── Broadcast helpers (Socket.io + Discord) ──────────────────────────────────
+function emitDmMessage(gameId, data) {
+  io.to(gameId).emit('dm_message', data);
+  discord.onDmMessage(gameId, data).catch(e => console.error('Discord dm_message error:', e.message));
+}
+function emitTurnChange(gameId, data) {
+  io.to(gameId).emit('turn_change', data);
+  discord.onTurnChange(gameId, data).catch(e => console.error('Discord turn_change error:', e.message));
+}
+function emitSystem(gameId, data) {
+  io.to(gameId).emit('system', data);
+  discord.onSystem(gameId, data).catch(e => console.error('Discord system error:', e.message));
+}
+function emitSceneImage(gameId, data) {
+  io.to(gameId).emit('scene_image', data);
+  discord.onSceneImage(gameId, data).catch(e => console.error('Discord scene_image error:', e.message));
+}
+function emitCharacterToken(gameId, data) {
+  io.to(gameId).emit('character_token', data);
+  discord.onCharacterToken(gameId, data).catch(e => console.error('Discord token error:', e.message));
 }
 
 // ── System Prompts per Game System ───────────────────────────────────────────
@@ -246,15 +269,15 @@ function startTurnTimer(gameId, gameConfig, playerName) {
       ? `It is ${playerName}'s turn but they did not respond. Act on their behalf as their character (${char.class}, personality: ${char.personality}). Choose the most fitting action given the current situation and their standard actions: ${char.standardActions || 'none'}. Narrate what they do.`
       : `It is ${playerName}'s turn but they did not respond. Have them take a cautious, sensible action.`;
 
-    io.to(gameId).emit('system', { text: `⏰ ${playerName} ran out of time. Claude is acting for them...` });
+    emitSystem(gameId, { text: `⏰ ${playerName} ran out of time. Claude is acting for them...` });
 
     try {
       const { narration, options, scene } = await callClaude(gameId, gameConfig, autoPrompt, playerName);
-      io.to(gameId).emit('dm_message', { text: narration, options, auto: true, player: playerName });
+      emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName });
       await maybeGenerateImage(gameId, gameConfig, scene);
       advanceTurn(gameId, gameConfig);
     } catch (err) {
-      io.to(gameId).emit('system', { text: 'Error during auto-action.' });
+      emitSystem(gameId, { text: 'Error during auto-action.' });
     }
   }, TURN_DURATION);
 }
@@ -267,7 +290,7 @@ async function advanceTurn(gameId, gameConfig) {
   const next = getCurrentPlayer(gameId);
   if (next) {
     const token = gd.characters[next]?.token || null;
-    io.to(gameId).emit('turn_change', { player: next, duration: TURN_DURATION, token });
+    emitTurnChange(gameId, { player: next, duration: TURN_DURATION, token });
     startTurnTimer(gameId, gameConfig, next);
   }
 }
@@ -280,7 +303,7 @@ async function maybeGenerateImage(gameId, gameConfig, scene) {
     generateSceneImage(scene, gameConfig).then(url => {
       if (url) {
         gs.imageUrl = url;
-        io.to(gameId).emit('scene_image', { url });
+        emitSceneImage(gameId, { url });
       }
     });
   }
@@ -408,7 +431,7 @@ io.on('connection', (socket) => {
     await db.upsertCharacter(gameId, data.name, charData);
     await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
     io.to(gameId).emit('character_registered', { name: data.name, character: charData });
-    io.to(gameId).emit('system', { text: `📜 ${data.name} has joined the campaign.` });
+    emitSystem(gameId, { text: `📜 ${data.name} has joined the campaign.` });
 
     // Auto-generate token if none provided (fire and forget)
     if (!charData.token) {
@@ -417,7 +440,7 @@ io.on('connection', (socket) => {
           charData.token = tokenUrl;
           gs.data.characters[data.name] = charData;
           await db.upsertCharacter(gameId, data.name, charData);
-          io.to(gameId).emit('character_token', { name: data.name, token: tokenUrl });
+          emitCharacterToken(gameId, { name: data.name, token: tokenUrl });
         }
       });
     }
@@ -433,7 +456,7 @@ io.on('connection', (socket) => {
     if (!char) return;
     char.token = token;
     await db.upsertCharacter(gameId, name, char);
-    io.to(gameId).emit('character_token', { name, token });
+    emitCharacterToken(gameId, { name, token });
   });
 
   // Player sends an action
@@ -453,11 +476,12 @@ io.on('connection', (socket) => {
     clearTimeout(gs.turnTimer);
     const playerToken = gs.data.characters[playerName]?.token || null;
     io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });
+    discord.onSystem(gameId, { text: `**${playerName}:** ${action}` }).catch(() => {});
 
     try {
       const gameConfig = await db.getGame(gameId);
       const { narration, options, scene } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
-      io.to(gameId).emit('dm_message', { text: narration, options, auto: false });
+      emitDmMessage(gameId, { text: narration, options, auto: false });
       await maybeGenerateImage(gameId, gameConfig, scene);
       await advanceTurn(gameId, gameConfig);
     } catch (err) {
@@ -474,20 +498,21 @@ io.on('connection', (socket) => {
     try {
       const gameConfig = await db.getGame(gameId);
       const { narration, options, scene } = await callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.');
-      io.to(gameId).emit('dm_message', { text: narration, options, auto: false });
+      emitDmMessage(gameId, { text: narration, options, auto: false });
       // Always generate image for the opening scene
       if (scene) {
         generateSceneImage(scene, gameConfig).then(url => {
           if (url) {
             const gs = getGameState(gameId);
             gs.imageUrl = url;
-            io.to(gameId).emit('scene_image', { url });
+            emitSceneImage(gameId, { url });
           }
         });
       }
       const first = getCurrentPlayer(gameId);
       if (first) {
-        io.to(gameId).emit('turn_change', { player: first, duration: TURN_DURATION });
+        const firstToken = gs.data.characters[first]?.token || null;
+        emitTurnChange(gameId, { player: first, duration: TURN_DURATION, token: firstToken });
         startTurnTimer(gameId, gameConfig, first);
       }
     } catch (err) {
@@ -509,7 +534,7 @@ io.on('connection', (socket) => {
     await db.saveChatHistory(gameId, gs.data.chatHistory);
     await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
     io.to(gameId).emit('game_reset');
-    io.to(gameId).emit('system', { text: '🔄 Game has been reset. Characters preserved.' });
+    emitSystem(gameId, { text: '🔄 Game has been reset. Characters preserved.' });
   });
 
   socket.on('disconnect', () => {
@@ -517,12 +542,109 @@ io.on('connection', (socket) => {
   });
 });
 
+// ── Game Engine API (used by Discord bot) ────────────────────────────────────
+const gameEngine = {
+  getGameState,
+
+  async playerAction(gameId, playerName, action) {
+    const current = getCurrentPlayer(gameId);
+    if (current && current !== playerName) {
+      return { error: `It's ${current}'s turn, not yours.` };
+    }
+    const gs = getGameState(gameId);
+    clearTimeout(gs.turnTimer);
+
+    const gameConfig = await db.getGame(gameId);
+    const { narration, options, scene } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
+    emitDmMessage(gameId, { text: narration, options, auto: false });
+    // Also emit to web socket player_message
+    const playerToken = gs.data.characters[playerName]?.token || null;
+    io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });
+    await maybeGenerateImage(gameId, gameConfig, scene);
+    await advanceTurn(gameId, gameConfig);
+    return { ok: true };
+  },
+
+  async registerCharacter(gameId, name, data) {
+    const gs = getGameState(gameId);
+    const existing = gs.data.characters[name];
+    const charData = {
+      statsText: data.statsText || '',
+      personality: data.personality || 'Brave and curious',
+      standardActions: data.standardActions || '',
+      backstory: data.backstory || '',
+      token: (existing && existing.token) || null,
+    };
+    gs.data.characters[name] = charData;
+    if (!gs.data.turnOrder.includes(name)) {
+      gs.data.turnOrder.push(name);
+    }
+    await db.upsertCharacter(gameId, name, charData);
+    await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
+    io.to(gameId).emit('character_registered', { name, character: charData });
+    emitSystem(gameId, { text: `📜 ${name} has joined the campaign.` });
+
+    // Auto-generate token
+    if (!charData.token) {
+      generateCharacterToken(name, charData).then(async (tokenUrl) => {
+        if (tokenUrl) {
+          charData.token = tokenUrl;
+          gs.data.characters[name] = charData;
+          await db.upsertCharacter(gameId, name, charData);
+          emitCharacterToken(gameId, { name, token: tokenUrl });
+        }
+      });
+    }
+  },
+
+  async startGame(gameId, prompt) {
+    const gameConfig = await db.getGame(gameId);
+    if (!games[gameId]) {
+      const gs = getGameState(gameId);
+      gs.data = await db.loadGameData(gameId);
+    }
+    const gs = getGameState(gameId);
+    const { narration, options, scene } = await callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.');
+    emitDmMessage(gameId, { text: narration, options, auto: false });
+    if (scene) {
+      generateSceneImage(scene, gameConfig).then(url => {
+        if (url) {
+          gs.imageUrl = url;
+          emitSceneImage(gameId, { url });
+        }
+      });
+    }
+    const first = getCurrentPlayer(gameId);
+    if (first) {
+      const firstToken = gs.data.characters[first]?.token || null;
+      emitTurnChange(gameId, { player: first, duration: TURN_DURATION, token: firstToken });
+      startTurnTimer(gameId, gameConfig, first);
+    }
+  },
+
+  async resetGame(gameId) {
+    const gs = getGameState(gameId);
+    clearTimeout(gs.turnTimer);
+    gs.data.chatHistory = [];
+    gs.data.currentTurnIndex = 0;
+    gs.turnCount = 0;
+    gs.imageUrl = null;
+    await db.saveChatHistory(gameId, gs.data.chatHistory);
+    await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
+    io.to(gameId).emit('game_reset');
+    emitSystem(gameId, { text: '🔄 Game has been reset. Characters preserved.' });
+  },
+};
+
+discord.setGameEngine(gameEngine);
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 
 async function boot() {
   await db.initDB();
   console.log('DB initialized');
+  await discord.startBot();
   server.listen(PORT, () => {
     console.log(`D&D Server running on http://localhost:${PORT}`);
   });

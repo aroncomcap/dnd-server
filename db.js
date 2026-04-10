@@ -45,6 +45,12 @@ async function initDB() {
       updated_at TIMESTAMPTZ DEFAULT NOW(),
       PRIMARY KEY (game_id, key)
     );
+    CREATE TABLE IF NOT EXISTS channel_links (
+      channel_id TEXT PRIMARY KEY,
+      game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      guild_id TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
 }
 
@@ -137,6 +143,30 @@ async function saveTurnState(gameId, currentTurnIndex, turnOrder) {
   await setState(gameId, 'turnOrder', turnOrder);
 }
 
+// ── Channel Links ────────────────────────────────────────────────────────────
+async function linkChannel(channelId, guildId, gameId) {
+  await pool.query(
+    `INSERT INTO channel_links (channel_id, guild_id, game_id)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (channel_id) DO UPDATE SET game_id = $3, guild_id = $2`,
+    [channelId, guildId, gameId]
+  );
+}
+
+async function getChannelGame(channelId) {
+  const { rows } = await pool.query(
+    'SELECT game_id FROM channel_links WHERE channel_id = $1', [channelId]
+  );
+  return rows[0]?.game_id || null;
+}
+
+async function getGameChannels(gameId) {
+  const { rows } = await pool.query(
+    'SELECT channel_id FROM channel_links WHERE game_id = $1', [gameId]
+  );
+  return rows.map(r => r.channel_id);
+}
+
 module.exports = {
   pool,
   initDB,
@@ -151,5 +181,8 @@ module.exports = {
   setState,
   loadGameData,
   saveChatHistory,
+  linkChannel,
+  getChannelGame,
+  getGameChannels,
   saveTurnState,
 };
