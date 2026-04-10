@@ -41,6 +41,8 @@ function getGameState(gameId) {
       verbosity: 'verbose',
       ferocity: 5,
       pillars: { exploration: 33, combat: 33, social: 34 },
+      lastOptions: [],
+      lastForPlayer: null,
       idleTurns: 0,
       paused: false,
     };
@@ -50,6 +52,12 @@ function getGameState(gameId) {
 
 // ── Broadcast helpers (Socket.io + Discord) ──────────────────────────────────
 function emitDmMessage(gameId, data) {
+  // Save last options for reconnects
+  const gs = games[gameId];
+  if (gs && data.options?.length) {
+    gs.lastOptions = data.options;
+    gs.lastForPlayer = data.forPlayer;
+  }
   io.to(gameId).emit('dm_message', data);
   discord.onDmMessage(gameId, data).catch(e => console.error('Discord dm_message error:', e.message));
 }
@@ -190,9 +198,20 @@ ACTION OPTIONS:
 3. 🔥 [a wild, reckless, or creative move]
 4. 💬 [a witty comment, taunt, or clever social move]
 
-WORLD TRACKING:
-- Maintain a running list of notable locations, NPCs, and accomplishments.
-- At the end of every response, AFTER the scene block, include:
+TRAVEL & MOVEMENT:
+- Narrate journeys realistically with distance, terrain, mode of travel.
+- Multi-turn travel may involve encounters. "Go directly to [location]" fast-forwards.
+
+OUTPUT FORMAT (use this EXACT order at the end of every response):
+
+---OPTIONS---
+1. 🗡️ [a combat or practical action]
+2. 🛡️ [a defensive or cautious action]
+3. 🔥 [a wild, reckless, or creative move]
+4. 💬 [a witty comment, taunt, or clever social move]
+
+---SCENE---
+[One sentence describing the visual scene for image generation. Painterly fantasy art style. No text.]
 
 ---WORLD---
 LOCATIONS:
@@ -205,45 +224,61 @@ CHAR_UPDATES:
 - [Character Name] | [field] | [new value]
 
 Valid fields: statsText, personality, backstory, standardActions
-Include CHAR_UPDATES whenever: leveling up, gaining items, learning spells, stat changes, spell slot usage/recovery, skill improvements.
-
-TRAVEL & MOVEMENT:
-- Narrate journeys realistically with distance, terrain, mode of travel.
-- Multi-turn travel may involve encounters. "Go directly to [location]" fast-forwards.
-
-SCENE DESCRIPTION:
-- At the end of every response, AFTER the options block, include a scene description:
-
----SCENE---
-[One sentence describing the visual scene for image generation. Painterly fantasy art style. No text.]`;
+Include CHAR_UPDATES whenever: leveling up, gaining items, learning spells, stat changes, spell slot usage/recovery, skill improvements.`;
 }
 
-// ── Parsing ──────────────────────────────────────────────────────────────────
+// ── Parsing (single-pass, order-independent) ─────────────────────────────────
 function parseResponse(text) {
+  // Split on all three markers in one pass
+  const markers = ['---OPTIONS---', '---SCENE---', '---WORLD---'];
   let narration = text;
-  let options = [];
-  let scene = null;
-  let world = null;
+  let optionsRaw = '';
+  let sceneRaw = '';
+  let worldRaw = '';
 
-  // Extract world data first (at the very end)
-  const worldMarker = '---WORLD---';
-  const worldIdx = narration.indexOf(worldMarker);
-  if (worldIdx !== -1) {
-    const worldBlock = narration.slice(worldIdx + worldMarker.length).trim();
-    narration = narration.slice(0, worldIdx).trim();
-    // Parse locations and NPCs
+  // Find all marker positions
+  const positions = markers.map(m => ({ marker: m, idx: text.indexOf(m) })).filter(p => p.idx !== -1);
+  positions.sort((a, b) => a.idx - b.idx);
+
+  if (positions.length > 0) {
+    narration = text.slice(0, positions[0].idx).trim();
+    for (let i = 0; i < positions.length; i++) {
+      const start = positions[i].idx + positions[i].marker.length;
+      const end = i + 1 < positions.length ? positions[i + 1].idx : text.length;
+      const block = text.slice(start, end).trim();
+      if (positions[i].marker === '---OPTIONS---') optionsRaw = block;
+      else if (positions[i].marker === '---SCENE---') sceneRaw = block;
+      else if (positions[i].marker === '---WORLD---') worldRaw = block;
+    }
+  }
+
+  // Parse options
+  const options = optionsRaw ? optionsRaw.split('\n')
+    .map(line => line.replace(/^\d+\.\s*/, '').trim())
+    .filter(Boolean) : [];
+
+  // Parse scene + killshot
+  let scene = sceneRaw || null;
+  let isKillshot = false;
+  if (scene && scene.startsWith('KILLSHOT:')) {
+    scene = scene.slice(9).trim();
+    isKillshot = true;
+  }
+
+  // Parse world
+  let world = null;
+  if (worldRaw) {
     const locations = [];
     const npcs = [];
     const accomplishments = [];
     const charUpdates = [];
     let section = null;
-    for (const line of worldBlock.split('\n')) {
+    for (const line of worldRaw.split('\n')) {
       const trimmed = line.trim();
       if (/^LOCATIONS:/i.test(trimmed)) { section = 'locations'; continue; }
       if (/^NPCS:/i.test(trimmed)) { section = 'npcs'; continue; }
       if (/^ACCOMPLISHMENTS:/i.test(trimmed)) { section = 'accomplishments'; continue; }
       if (/^CHAR_UPDATES:/i.test(trimmed)) { section = 'char_updates'; continue; }
-      if (trimmed.startsWith('---')) break;
       if (trimmed.startsWith('- ') && section) {
         const parts = trimmed.slice(2).split('|').map(s => s.trim());
         if (section === 'locations') {
@@ -258,32 +293,6 @@ function parseResponse(text) {
       }
     }
     world = { locations, npcs, accomplishments, charUpdates };
-  }
-
-  // Extract scene
-  const sceneMarker = '---SCENE---';
-  const sceneIdx = narration.indexOf(sceneMarker);
-  if (sceneIdx !== -1) {
-    scene = narration.slice(sceneIdx + sceneMarker.length).trim();
-    narration = narration.slice(0, sceneIdx).trim();
-  }
-
-  // Check for killshot scene (always generate image for these)
-  let isKillshot = false;
-  if (scene && scene.startsWith('KILLSHOT:')) {
-    scene = scene.slice(9).trim();
-    isKillshot = true;
-  }
-
-  // Extract options
-  const optionsMarker = '---OPTIONS---';
-  const optIdx = narration.indexOf(optionsMarker);
-  if (optIdx !== -1) {
-    const optionsBlock = narration.slice(optIdx + optionsMarker.length).trim();
-    options = optionsBlock.split('\n')
-      .map(line => line.replace(/^\d+\.\s*/, '').trim())
-      .filter(Boolean);
-    narration = narration.slice(0, optIdx).trim();
   }
 
   return { narration, options, scene, world, isKillshot };
@@ -617,7 +626,7 @@ app.post('/api/games/:id/upload-pdf', upload.array('pdfs', 10), async (req, res)
 app.post('/api/games/:id/model', async (req, res) => {
   try {
     const { model } = req.body;
-    const valid = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6'];
+    const valid = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6'];
     if (!valid.includes(model)) return res.status(400).json({ error: 'Invalid model' });
     await db.pool.query('UPDATE games SET model = $1 WHERE id = $2', [model, req.params.id]);
     res.json({ success: true });
@@ -693,6 +702,8 @@ io.on('connection', (socket) => {
       imageUrl: gs.imageUrl,
       turnDuration: gs.turnDuration,
       world: gs.world || { locations: [], npcs: [] },
+      lastOptions: gs.lastOptions || [],
+      lastForPlayer: gs.lastForPlayer || null,
     });
   });
 

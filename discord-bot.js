@@ -102,7 +102,6 @@ function buildSubcommands(builder) {
         .addChoices(
           { name: '⚡ Haiku (fast, cheap)', value: 'claude-haiku-4-5-20251001' },
           { name: '⚖️ Sonnet (balanced)', value: 'claude-sonnet-4-6' },
-          { name: '🧠 Opus (smartest, slow)', value: 'claude-opus-4-6' },
         )))
     .addSubcommand(sub => sub
       .setName('reset')
@@ -573,7 +572,6 @@ client.on('interactionCreate', async (interaction) => {
     const labels = {
       'claude-haiku-4-5-20251001': '⚡ Haiku (fast)',
       'claude-sonnet-4-6': '⚖️ Sonnet (balanced)',
-      'claude-opus-4-6': '🧠 Opus (smartest)',
     };
     await interaction.reply(`🤖 AI model switched to **${labels[model] || model}**`);
   }
