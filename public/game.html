@@ -673,6 +673,22 @@
   }
   .world-section-title:first-child { margin-top: 0; }
 
+  .turn-order-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    margin-bottom: 2px;
+    color: var(--parchment-dark);
+  }
+  .turn-order-item.active { background: rgba(200,146,42,0.2); color: var(--gold-light); font-weight: bold; }
+  .turn-order-item.enemy { color: #cc6666; }
+  .turn-order-item .turn-num { width: 16px; text-align: center; font-size: 0.65rem; color: var(--gold); opacity: 0.6; }
+  .turn-order-item .turn-name { flex: 1; }
+  .turn-order-item .turn-value { font-size: 0.65rem; opacity: 0.5; }
+
   .not-your-turn {
     text-align: center;
     padding: 6px;
@@ -928,7 +944,11 @@
 </div>
 
 <!-- ── GAME SCREEN ─────────────────────────────────────────── -->
-<div id="screen-game" class="screen active">
+<div id="screen-game" class="screen active" style="position:relative;">
+  <div id="turn-order-overlay" style="display:none; position:absolute; top:40px; right:16px; width:200px; background:rgba(13,6,0,0.92); border:1px solid var(--gold); border-radius:8px; padding:8px; z-index:50;">
+    <div style="font-family:'Cinzel Decorative',cursive;font-size:0.6rem;color:var(--gold);margin-bottom:6px;text-align:center;">Turn Order</div>
+    <div id="turn-order-list"></div>
+  </div>
   <div id="map-sidebar" style="display:none;">
     <div class="panel" style="height:100%;display:flex;flex-direction:column;padding:8px;">
       <div style="display:flex;gap:4px;margin-bottom:6px;">
@@ -1439,8 +1459,35 @@ function updateActionArea() {
   } else {
     myTurnControls.style.display = 'none';
     waitingMsg.style.display = 'block';
-    waitingName.textContent = currentPlayer;
+    if (Object.keys(currentCharacters).includes(currentPlayer)) {
+      waitingName.innerHTML = `<strong>${currentPlayer}</strong> — <a href="#" id="switch-to-active" style="color:var(--gold);">Switch to ${currentPlayer}?</a>`;
+      document.getElementById('switch-to-active')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        selectCharacter(currentPlayer, currentCharacters[currentPlayer]);
+      });
+    } else {
+      waitingName.textContent = currentPlayer;
+    }
   }
+}
+
+function updateTurnOrder(turnOrderData) {
+  const overlay = document.getElementById('turn-order-overlay');
+  const list = document.getElementById('turn-order-list');
+  if (!turnOrderData || !turnOrderData.length) {
+    overlay.style.display = 'none';
+    return;
+  }
+  overlay.style.display = 'block';
+  list.innerHTML = '';
+  turnOrderData.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'turn-order-item' +
+      (item.name === currentPlayer ? ' active' : '') +
+      (item.type?.toLowerCase() === 'enemy' ? ' enemy' : '');
+    div.innerHTML = `<span class="turn-num">${item.position}</span><span class="turn-name">${item.name}</span><span class="turn-value">${item.value || ''}</span>`;
+    list.appendChild(div);
+  });
 }
 
 // ── Socket: Join game ─────────────────────────────────────────
@@ -1480,6 +1527,7 @@ socket.on('game_joined', (state) => {
     document.getElementById('pillar-social').value = state.pillars.social;
   }
   if (state.world) updateWorldPanel(state.world);
+  if (state.world?.turnOrder) updateTurnOrder(state.world.turnOrder);
 
   chatLog.innerHTML = '';
   if (state.chatHistory.length === 0) {
@@ -1591,6 +1639,7 @@ socket.on('dm_message', (data) => {
   }
   // Update world data
   if (data.world) updateWorldPanel(data.world);
+  if (data.world?.turnOrder) updateTurnOrder(data.world.turnOrder);
   updateActionArea();
 });
 
@@ -1670,6 +1719,7 @@ socket.on('game_reset', () => {
   chatLog.innerHTML = '<div class="msg msg-system">Game reset. Characters preserved.</div>';
   turnBanner.style.display = 'none';
   scenePanel.style.display = 'none';
+  updateTurnOrder(null);
   showOptions([]);
 });
 

@@ -196,6 +196,21 @@ COMBAT:
   Put "KILLSHOT:" before the scene description to trigger a dramatic illustration.
   Example: KILLSHOT: Kael drives his flaming sword through the dragon's chest as lightning crackles around them, the beast collapsing in a shower of sparks
 
+INITIATIVE / TURN ORDER:
+- During combat, output a turn order using the appropriate game system (D&D 5e: initiative rolls, RuneQuest: strike ranks).
+- Include monsters/NPCs in the turn order.
+- Use this format in the ---WORLD--- block:
+
+TURN_ORDER:
+- 1 | Judge | 18 | PC
+- 2 | Goblin Archer | 15 | Enemy
+- 3 | Sir Ethilrist | 12 | PC
+- 4 | Goblin Chief | 8 | Enemy
+
+Format: position | name | initiative/SR value | type (PC/Enemy/NPC)
+- Update this every round. Remove dead combatants.
+- Outside of combat, omit the TURN_ORDER block entirely.
+
 FORMATTING — SKILL ROLLS & GAME MECHANICS:
 - Any time there is a skill check, saving throw, attack roll, damage roll, or other game mechanic, put it on its own line with a blank line before and after, wrapped in **double asterisks** for bold.
 
@@ -303,11 +318,16 @@ SKILL TEST PACING:
 - Skill tests drive advancement. Without them, characters don't grow. Make tests feel natural and consequential.
 - If characters are wandering or stalling, gently push the action forward: an NPC interrupts, a sound is heard, a danger emerges, a clue appears.
 
+INITIATIVE / TURN ORDER:
+- During combat, include TURN_ORDER in the ---WORLD--- block.
+- Format: TURN_ORDER: followed by lines like: - 1 | Name | initiative value | PC/Enemy/NPC
+- Update every round. Remove dead combatants. Omit outside combat.
+
 REQUIRED OUTPUT FORMAT (every response):
 1. Narration (follow verbosity limits above)
 2. ---OPTIONS--- block with exactly 4 choices (🗡️ combat, 🛡️ defensive, 🔥 wild, 💬 witty)
 3. ---SCENE--- block with one visual description sentence
-4. ---WORLD--- block with LOCATIONS, NPCS, ACCOMPLISHMENTS, CHAR_UPDATES, and MAP: line
+4. ---WORLD--- block with LOCATIONS, NPCS, ACCOMPLISHMENTS, CHAR_UPDATES, TURN_ORDER (combat only), and MAP: line
 All five sections are MANDATORY. Never skip any of them.`;
 }
 
@@ -356,6 +376,7 @@ function parseResponse(text) {
     const npcs = [];
     const accomplishments = [];
     const charUpdates = [];
+    const turnOrder = [];
     let section = null;
     for (const line of worldRaw.split('\n')) {
       const trimmed = line.trim();
@@ -363,6 +384,7 @@ function parseResponse(text) {
       if (/^NPCS:/i.test(trimmed)) { section = 'npcs'; continue; }
       if (/^ACCOMPLISHMENTS:/i.test(trimmed)) { section = 'accomplishments'; continue; }
       if (/^CHAR_UPDATES:/i.test(trimmed)) { section = 'char_updates'; continue; }
+      if (/^TURN_ORDER:/i.test(trimmed)) { section = 'turn_order'; continue; }
       if (trimmed.startsWith('- ') && section) {
         const parts = trimmed.slice(2).split('|').map(s => s.trim());
         if (section === 'locations') {
@@ -373,10 +395,12 @@ function parseResponse(text) {
           accomplishments.push({ character: parts[0], achievement: parts[1] || '' });
         } else if (section === 'char_updates') {
           charUpdates.push({ character: parts[0], field: parts[1] || '', value: parts[2] || '' });
+        } else if (section === 'turn_order') {
+          turnOrder.push({ position: parts[0], name: parts[1], value: parts[2] || '', type: parts[3] || '' });
         }
       }
     }
-    world = { locations, npcs, accomplishments, charUpdates };
+    world = { locations, npcs, accomplishments, charUpdates, turnOrder: turnOrder.length ? turnOrder : undefined };
   }
 
   return { narration, options, scene, world, isKillshot, worldRaw: worldRaw || '' };
