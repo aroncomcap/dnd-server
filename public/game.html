@@ -178,11 +178,11 @@
     overflow: hidden;
     position: relative;
     display: none;
-    margin-bottom: 0;
   }
   #scene-panel img {
     width: 100%;
-    height: 200px;
+    height: auto;
+    max-height: 500px;
     object-fit: cover;
     display: block;
     transition: opacity 0.8s ease;
@@ -700,7 +700,7 @@
     #game-title { font-size: 0.85rem; }
 
     /* Scene image taller on tablet */
-    #scene-panel img { height: 280px; }
+    #scene-panel img { max-height: 400px; }
 
     /* Chat log — flex handles height */
 
@@ -800,33 +800,8 @@
       margin: 0 auto;
     }
 
-    /* When scene image is visible, switch to 2-column */
-    #screen-game.has-scene.active {
-      display: grid;
-      grid-template-columns: 3fr 2fr;
-      grid-template-rows: auto 1fr auto;
-      gap: 16px;
-      align-items: start;
-      max-width: 1400px;
-    }
-
-    #screen-game.has-scene #chat-panel { grid-column: 1; grid-row: 1 / 3; min-height: 0; }
-    #screen-game.has-scene #scene-panel { grid-column: 2; grid-row: 1; }
+    /* When scene image is visible, treat same as has-map (scene is inside sidebar now) */
     #screen-game.has-scene #scene-panel img { height: 360px; }
-    #screen-game.has-scene #action-area { grid-column: 1 / -1; grid-row: 3; }
-
-    /* When BOTH scene and map are present */
-    #screen-game.has-scene.has-map.active {
-      display: grid;
-      grid-template-columns: 3fr 2fr;
-      grid-template-rows: auto 1fr auto;
-      gap: 16px;
-      max-width: 1400px;
-    }
-    #screen-game.has-scene.has-map #scene-panel { grid-column: 2; grid-row: 1; }
-    #screen-game.has-scene.has-map #chat-panel { grid-column: 1; grid-row: 1 / 3; min-height: 0; }
-    #screen-game.has-scene.has-map #map-sidebar { grid-column: 2; grid-row: 2; }
-    #screen-game.has-scene.has-map #action-area { grid-column: 1 / -1; grid-row: 3; }
 
     /* Chat log — flex handles height */
 
@@ -888,17 +863,18 @@
     #screen-game.has-map.active {
       display: grid;
       grid-template-columns: 3fr 2fr;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: 1fr auto;
       gap: 16px;
+      align-items: start;
       max-width: 1200px;
     }
-    #screen-game.has-map #chat-panel { grid-column: 1; grid-row: 1 / 3; min-height: 0; }
+    #screen-game.has-map #chat-panel { grid-column: 1; grid-row: 1; min-height: 0; }
     #screen-game.has-map #map-sidebar {
       display: block;
       grid-column: 2;
-      grid-row: 2;
+      grid-row: 1;
     }
-    #screen-game.has-map #action-area { grid-column: 1 / -1; grid-row: 3; }
+    #screen-game.has-map #action-area { grid-column: 1 / -1; grid-row: 2; }
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -908,7 +884,7 @@
     /* Chat log — flex handles height */
 
     #scene-panel img {
-      height: 420px;
+      max-height: 500px;
     }
 
     #party-list {
@@ -936,7 +912,8 @@
   <div id="turn-banner">
     <img id="turn-token" src="" alt=""/>
     <span>— <span id="turn-name">?</span>'s Turn —</span>
-    <span id="playing-as-inline" style="margin-left:auto;font-family:'Crimson Pro',serif;font-size:0.6rem;color:var(--parchment-dark);opacity:0.7;cursor:pointer;"></span>
+    <span style="color:var(--parchment-dark);opacity:0.4;">|</span>
+    <span id="playing-as-inline" style="font-family:'Crimson Pro',serif;font-size:0.6rem;color:var(--parchment-dark);opacity:0.7;cursor:pointer;"></span>
   </div>
   <div id="timer-bar"></div>
 </header>
@@ -952,19 +929,19 @@
 
 <!-- ── GAME SCREEN ─────────────────────────────────────────── -->
 <div id="screen-game" class="screen active">
-  <div id="scene-panel">
-    <img id="scene-img" src="" alt="Scene"/>
-    <div class="scene-overlay"></div>
-  </div>
-
   <div id="map-sidebar" style="display:none;">
     <div class="panel" style="height:100%;display:flex;flex-direction:column;padding:8px;">
       <div style="display:flex;gap:4px;margin-bottom:6px;">
-        <button class="map-level-btn active" data-level="world">🌍 World</button>
+        <button class="map-level-btn active" data-level="scene">🖼️ Scene</button>
+        <button class="map-level-btn" data-level="world">🌍 World</button>
         <button class="map-level-btn" data-level="location">🏰 Location</button>
         <button class="map-level-btn" data-level="detail">🚪 Detail</button>
       </div>
-      <div id="map-container" style="flex:1;min-height:200px;"></div>
+      <div id="scene-panel" style="flex:1;min-height:200px;">
+        <img id="scene-img" src="" alt="Scene"/>
+        <div class="scene-overlay"></div>
+      </div>
+      <div id="map-container" style="flex:1;min-height:200px;display:none;"></div>
     </div>
   </div>
 
@@ -1357,8 +1334,40 @@ function showSceneImage(url) {
   sceneImg.onload = () => {
     scenePanel.style.display = 'block';
     sceneImg.style.opacity = '1';
-    document.getElementById('screen-game').classList.add('has-scene');
+    const screenGame = document.getElementById('screen-game');
+    screenGame.classList.add('has-scene');
+    screenGame.classList.add('has-map');
+    document.getElementById('map-sidebar').style.display = 'block';
+    // Switch to Scene tab
+    switchSidebarTab('scene');
   };
+}
+
+function switchSidebarTab(level) {
+  const sidebar = document.getElementById('map-sidebar');
+  sidebar.querySelectorAll('.map-level-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.level === level);
+  });
+  if (level === 'scene') {
+    document.getElementById('scene-panel').style.display = 'block';
+    document.getElementById('map-container').style.display = 'none';
+  } else {
+    document.getElementById('scene-panel').style.display = 'none';
+    document.getElementById('map-container').style.display = 'block';
+    if (mapRenderer) mapRenderer.setLevel(level);
+  }
+}
+
+function flashSidebarTab(level, duration) {
+  const btn = document.querySelector(`#map-sidebar .map-level-btn[data-level="${level}"]`);
+  if (!btn) return;
+  const origBg = btn.style.background;
+  btn.style.background = '#f0c060';
+  btn.style.color = '#0d0600';
+  setTimeout(() => {
+    btn.style.background = origBg;
+    btn.style.color = '';
+  }, duration || 2000);
 }
 
 // ── Timer ─────────────────────────────────────────────────────
@@ -1517,6 +1526,7 @@ socket.on('error_msg', (data) => {
 });
 
 socket.on('dm_message', (data) => {
+  console.log('dm_message received:', { hasOptions: !!data.options?.length, forPlayer: data.forPlayer, myName: getMyName(), optionCount: data.options?.length });
   // Clear thinking indicator
   const thinking = document.getElementById('thinking-indicator');
   if (thinking) thinking.remove();
@@ -1880,6 +1890,9 @@ socket.on('token_failed', (data) => {
 socket.on('scene_generating', () => {
   const panel = document.getElementById('scene-panel');
   panel.style.display = 'block';
+  document.getElementById('screen-game').classList.add('has-map');
+  document.getElementById('map-sidebar').style.display = 'block';
+  switchSidebarTab('scene');
   const img = document.getElementById('scene-img');
   img.style.opacity = '0.3';
   // Add a small loading text
@@ -2037,7 +2050,7 @@ function initMap() {
 function updateMap(mapState) {
   if (mapRenderer) mapRenderer.update(mapState);
   if (mapRendererMobile) mapRendererMobile.update(mapState);
-  // Show sidebar on desktop
+  // Show sidebar on desktop (scene/map share the sidebar)
   if (mapState.playerLocation) {
     document.getElementById('screen-game').classList.add('has-map');
     document.getElementById('map-sidebar').style.display = 'block';
@@ -2049,6 +2062,8 @@ socket.on('map_update', (mapState) => {
   // Flash badge on mobile
   const badge = document.getElementById('map-badge');
   if (badge) badge.classList.add('active');
+  // Flash the relevant map tab on desktop (but don't switch away from current tab)
+  flashSidebarTab('world', 2000);
 });
 
 socket.on('map_inline', (data) => {
@@ -2060,13 +2075,18 @@ socket.on('map_style_changed', (data) => {
   if (mapRendererMobile) mapRendererMobile.setStyle(data.style);
 });
 
-// Level tab clicks
-document.querySelectorAll('.map-level-btn, .map-level-btn-mobile').forEach(btn => {
+// Level tab clicks — sidebar (desktop)
+document.querySelectorAll('#map-sidebar .map-level-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    switchSidebarTab(btn.dataset.level);
+  });
+});
+// Level tab clicks — mobile
+document.querySelectorAll('.map-level-btn-mobile').forEach(btn => {
   btn.addEventListener('click', () => {
     const level = btn.dataset.level;
     btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    if (mapRenderer) mapRenderer.setLevel(level);
     if (mapRendererMobile) mapRendererMobile.setLevel(level);
   });
 });

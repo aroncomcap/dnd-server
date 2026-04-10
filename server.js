@@ -303,7 +303,12 @@ SKILL TEST PACING:
 - Skill tests drive advancement. Without them, characters don't grow. Make tests feel natural and consequential.
 - If characters are wandering or stalling, gently push the action forward: an NPC interrupts, a sound is heard, a danger emerges, a clue appears.
 
-Continue using the same output format as your previous responses. End every response with ---OPTIONS---, ---SCENE---, and ---WORLD--- blocks (including MAP: line).`;
+REQUIRED OUTPUT FORMAT (every response):
+1. Narration (follow verbosity limits above)
+2. ---OPTIONS--- block with exactly 4 choices (🗡️ combat, 🛡️ defensive, 🔥 wild, 💬 witty)
+3. ---SCENE--- block with one visual description sentence
+4. ---WORLD--- block with LOCATIONS, NPCS, ACCOMPLISHMENTS, CHAR_UPDATES, and MAP: line
+All five sections are MANDATORY. Never skip any of them.`;
 }
 
 // ── Parsing (single-pass, order-independent) ─────────────────────────────────
