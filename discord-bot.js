@@ -105,7 +105,14 @@ function buildSubcommands(builder) {
         )))
     .addSubcommand(sub => sub
       .setName('reset')
-      .setDescription('Reset the game (keeps characters)'));
+      .setDescription('Reset the game (keeps characters)'))
+    .addSubcommand(sub => sub
+      .setName('map')
+      .setDescription('Show the current map'))
+    .addSubcommand(sub => sub
+      .setName('reveal')
+      .setDescription('Reveal a location on the map (GM)')
+      .addStringOption(opt => opt.setName('location').setDescription('Location to reveal').setRequired(true).setAutocomplete(true)));
 }
 
 const commands = [
@@ -194,6 +201,16 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.respond(
         filtered.map(g => ({ name: `${g.name} (${g.system})`, value: g.id }))
       );
+      return;
+    }
+
+    if (focused.name === 'location') {
+      const gameId = await db.getChannelGame(interaction.channelId);
+      if (!gameId) { await interaction.respond([]); return; }
+      const gs = gameEngine.getGameState(gameId);
+      const nodes = Object.keys(gs.mapGraph?.nodes || {});
+      const filtered = nodes.filter(n => n.toLowerCase().includes(focused.value.toLowerCase())).slice(0, 25);
+      await interaction.respond(filtered.map(n => ({ name: n, value: n })));
       return;
     }
 
@@ -574,6 +591,43 @@ client.on('interactionCreate', async (interaction) => {
       'claude-sonnet-4-6': '⚖️ Sonnet (balanced)',
     };
     await interaction.reply(`🤖 AI model switched to **${labels[model] || model}**`);
+  }
+
+  else if (sub === 'map') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) {
+      await interaction.reply({ content: 'Link this channel first.', ephemeral: true });
+      return;
+    }
+    const gs = gameEngine.getGameState(gameId);
+    if (!gs.mapGraph || !gs.mapGraph.playerLocation) {
+      await interaction.reply({ content: 'No map data yet — start exploring!', ephemeral: true });
+      return;
+    }
+    const nodes = Object.entries(gs.mapGraph.nodes)
+      .filter(([_, n]) => n.revealed)
+      .map(([name, n]) => {
+        const marker = name === gs.mapGraph.playerLocation ? '📍' : (n.visited ? '✅' : '👁');
+        return `${marker} **${name}**${n.description ? ' — ' + n.description : ''}`;
+      }).join('\n');
+    const embed = new EmbedBuilder()
+      .setColor(0xC8922A)
+      .setTitle('🗺️ Map')
+      .setDescription(nodes || 'No locations discovered.')
+      .setFooter({ text: `Current: ${gs.mapGraph.playerLocation || 'Unknown'} | Level: ${gs.mapGraph.activeLevel}` });
+    await interaction.reply({ embeds: [embed] });
+  }
+
+  else if (sub === 'reveal') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) { await interaction.reply({ content: 'Link this channel first.', ephemeral: true }); return; }
+    const name = interaction.options.getString('location');
+    const revealed = await gameEngine.revealLocation(gameId, name);
+    if (revealed) {
+      await interaction.reply(`🗺️ Revealed **${name}** on the map.`);
+    } else {
+      await interaction.reply({ content: `Location "${name}" not found in map data.`, ephemeral: true });
+    }
   }
 
   else if (sub === 'reset') {

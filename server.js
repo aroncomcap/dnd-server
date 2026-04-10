@@ -1259,6 +1259,17 @@ const gameEngine = {
     return { ok: true };
   },
 
+  async revealLocation(gameId, name) {
+    const gs = getGameState(gameId);
+    if (gs.mapGraph.revealNode(name)) {
+      await db.setState(gameId, 'map', gs.mapGraph.toJSON());
+      io.to(gameId).emit('map_update', gs.mapGraph.toJSON());
+      emitSystem(gameId, { text: `🗺️ Revealed: ${name}` });
+      return true;
+    }
+    return false;
+  },
+
   async activateCharacter(gameId, name) {
     const gs = getGameState(gameId);
     if (gs.data.characters[name] && !gs.data.turnOrder.includes(name)) {
