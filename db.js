@@ -7,6 +7,20 @@ const pool = new Pool({
 
 // ── Schema ───────────────────────────────────────────────────────────────────
 async function initDB() {
+  // Drop old single-game tables and recreate with multi-game schema
+  const { rows } = await pool.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'characters' AND column_name = 'game_id'
+  `);
+
+  if (!rows.length) {
+    // Old schema exists — drop and recreate
+    await pool.query(`
+      DROP TABLE IF EXISTS game_state CASCADE;
+      DROP TABLE IF EXISTS characters CASCADE;
+    `);
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS games (
       id TEXT PRIMARY KEY,
