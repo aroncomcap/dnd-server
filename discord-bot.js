@@ -82,6 +82,14 @@ function buildSubcommands(builder) {
       .addIntegerOption(opt => opt.setName('combat').setDescription('Combat % (e.g. 33)').setRequired(true).setMinValue(0).setMaxValue(100))
       .addIntegerOption(opt => opt.setName('social').setDescription('Social % (e.g. 34)').setRequired(true).setMinValue(0).setMaxValue(100)))
     .addSubcommand(sub => sub
+      .setName('persona')
+      .setDescription('Switch DM personality')
+      .addStringOption(opt => opt.setName('style').setDescription('DM style').setRequired(true)
+        .addChoices(
+          { name: '📖 Epic (literary, dramatic)', value: 'epic' },
+          { name: '🤪 Over the Top (zany, comedic)', value: 'overthetop' },
+        )))
+    .addSubcommand(sub => sub
       .setName('verbosity')
       .setDescription('Set narration detail level')
       .addStringOption(opt => opt.setName('level').setDescription('How detailed?').setRequired(true)
@@ -552,6 +560,15 @@ client.on('interactionCreate', async (interaction) => {
     const s = interaction.options.getInteger('social');
     const result = gameEngine.setPillars(gameId, e, c, s);
     await interaction.reply(`🎭 Pillars set: Exploration **${result.pillars.exploration}%** · Combat **${result.pillars.combat}%** · Social **${result.pillars.social}%**`);
+  }
+
+  else if (sub === 'persona') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) { await interaction.reply({ content: 'Link this channel first.', ephemeral: true }); return; }
+    const style = interaction.options.getString('style');
+    gameEngine.setDmPersona(gameId, style);
+    const labels = { epic: '📖 Epic', overthetop: '🤪 Over the Top' };
+    await interaction.reply(`🎭 DM Persona switched to **${labels[style]}**`);
   }
 
   else if (sub === 'verbosity') {

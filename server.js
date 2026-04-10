@@ -57,6 +57,7 @@ function getGameState(gameId) {
       idleTurns: 0,
       paused: false,
       mapGraph: new MapGraph(),
+      dmPersona: 'epic',
     };
   }
   return games[gameId];
@@ -131,8 +132,16 @@ ${catchphrases}
     }
   }
 
+  const personaBlock = gs.dmPersona === 'overthetop'
+    ? `DM PERSONA: OVER THE TOP
+You are a wildly entertaining DM who lives for the chaos. Channel the energy of Critical Role's most unhinged moments. Every NPC has a ridiculous personality quirk — the bartender who whispers everything, the dragon who's going through a midlife crisis, the skeleton who just wants to be left alone. Break the fourth wall occasionally. React to player choices with genuine surprise and delight ("You want to WHAT?!"). Narrate combat like an action movie director on caffeine. Physical comedy, pratfalls, and absurd coincidences are your bread and butter. Monsters negotiate, panic, monologue, and have existential crises mid-combat. Pop culture references are welcome. Running gags and catchphrases should emerge naturally. NPCs bicker with each other. Accents are described ("speaks in a thick dwarven accent that sounds suspiciously like a Brooklyn cab driver"). Every scene should have at least one moment that makes players laugh. The stakes are still real — comedy comes from character, not from undermining the story.`
+    : `DM PERSONA: EPIC
+You are a master storyteller in the tradition of great fantasy literature. Your narration is dramatic, atmospheric, and emotionally resonant. Prose is tight and evocative. NPCs feel real and grounded. Combat is visceral and consequential. The world has weight and history. Humor emerges naturally from character and situation, never forced. You take the world seriously even when players don't.`;
+
   return `${basePrompt}
 ${contextBlock}
+
+${personaBlock}
 
 CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
@@ -286,8 +295,16 @@ ${catchphrases}
     }
   }
 
+  const personaBlock = gs.dmPersona === 'overthetop'
+    ? `DM PERSONA: OVER THE TOP
+You are a wildly entertaining DM who lives for the chaos. Channel the energy of Critical Role's most unhinged moments. Every NPC has a ridiculous personality quirk — the bartender who whispers everything, the dragon who's going through a midlife crisis, the skeleton who just wants to be left alone. Break the fourth wall occasionally. React to player choices with genuine surprise and delight ("You want to WHAT?!"). Narrate combat like an action movie director on caffeine. Physical comedy, pratfalls, and absurd coincidences are your bread and butter. Monsters negotiate, panic, monologue, and have existential crises mid-combat. Pop culture references are welcome. Running gags and catchphrases should emerge naturally. NPCs bicker with each other. Accents are described ("speaks in a thick dwarven accent that sounds suspiciously like a Brooklyn cab driver"). Every scene should have at least one moment that makes players laugh. The stakes are still real — comedy comes from character, not from undermining the story.`
+    : `DM PERSONA: EPIC
+You are a master storyteller in the tradition of great fantasy literature. Your narration is dramatic, atmospheric, and emotionally resonant. Prose is tight and evocative. NPCs feel real and grounded. Combat is visceral and consequential. The world has weight and history. Humor emerges naturally from character and situation, never forced. You take the world seriously even when players don't.`;
+
   return `${basePrompt}
 ${contextBlock}
+
+${personaBlock}
 
 CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
@@ -955,6 +972,7 @@ io.on('connection', (socket) => {
       gs.ferocity = await db.getState(gameId, 'ferocity', 5);
       gs.verbosity = await db.getState(gameId, 'verbosity', 'verbose');
       gs.pillars = await db.getState(gameId, 'pillars', { exploration: 33, combat: 33, social: 34 });
+      gs.dmPersona = await db.getState(gameId, 'dmPersona', 'epic');
     }
 
     const gs = getGameState(gameId);
@@ -973,6 +991,7 @@ io.on('connection', (socket) => {
       ferocity: gs.ferocity,
       verbosity: gs.verbosity,
       pillars: gs.pillars,
+      dmPersona: gs.dmPersona,
     });
   });
 
@@ -1240,6 +1259,12 @@ io.on('connection', (socket) => {
     gameEngine.setFerocity(gameId, data.level);
   });
 
+  socket.on('set_dm_persona', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    gameEngine.setDmPersona(gameId, data.persona);
+  });
+
   socket.on('set_timer', (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
@@ -1473,6 +1498,17 @@ const gameEngine = {
     emitSystem(gameId, { text: `🔥 Ferocity set to **${num}/5** — ${labels[num]}` });
     io.to(gameId).emit('ferocity_updated', { ferocity: num });
     return { ok: true, ferocity: num };
+  },
+
+  async setDmPersona(gameId, persona) {
+    const gs = getGameState(gameId);
+    const valid = ['epic', 'overthetop'];
+    if (!valid.includes(persona)) return { error: 'Invalid persona' };
+    gs.dmPersona = persona;
+    await db.setState(gameId, 'dmPersona', persona);
+    emitSystem(gameId, { text: `🎭 DM Persona switched to ${persona === 'epic' ? '📖 Epic' : '🤪 Over the Top'}` });
+    io.to(gameId).emit('persona_updated', { persona });
+    return { ok: true };
   },
 
   async setPillars(gameId, exploration, combat, social) {

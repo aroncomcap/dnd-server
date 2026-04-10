@@ -1121,6 +1121,12 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
       ⚔️ Begin the Adventure
     </button>
 
+    <label style="margin-top:12px;">🎭 DM Persona</label>
+    <select id="persona-select">
+      <option value="epic">📖 Epic — Literary, dramatic, atmospheric</option>
+      <option value="overthetop">🤪 Over the Top — Zany, comedic, Critical Role energy</option>
+    </select>
+
     <label style="margin-top:12px;">📝 Verbosity</label>
     <select id="verbosity-select">
       <option value="verbose">📖 Verbose (rich, detailed)</option>
@@ -1521,6 +1527,7 @@ socket.on('game_joined', (state) => {
   if (state.verbosity) {
     document.getElementById('verbosity-select').value = state.verbosity;
   }
+  document.getElementById('persona-select').value = state.dmPersona || 'epic';
   if (state.pillars) {
     document.getElementById('pillar-explore').value = state.pillars.exploration;
     document.getElementById('pillar-combat').value = state.pillars.combat;
@@ -2102,6 +2109,15 @@ socket.on('pillars_updated', (pillars) => {
   document.getElementById('pillar-explore').value = pillars.exploration;
   document.getElementById('pillar-combat').value = pillars.combat;
   document.getElementById('pillar-social').value = pillars.social;
+});
+
+// ── DM Persona selector ───────────────────────────────────────
+document.getElementById('persona-select').addEventListener('change', () => {
+  socket.emit('set_dm_persona', { persona: document.getElementById('persona-select').value });
+});
+
+socket.on('persona_updated', (data) => {
+  document.getElementById('persona-select').value = data.persona;
 });
 
 // ── Verbosity selector ────────────────────────────────────────
