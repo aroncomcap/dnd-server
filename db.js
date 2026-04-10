@@ -28,8 +28,11 @@ async function initDB() {
       system TEXT NOT NULL DEFAULT 'dnd5e',
       custom_context TEXT DEFAULT '',
       image_style TEXT DEFAULT 'fantasy illustration',
+      model TEXT DEFAULT 'claude-haiku-4-5-20251001',
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+    -- Add model column if upgrading from older schema
+    ALTER TABLE games ADD COLUMN IF NOT EXISTS model TEXT DEFAULT 'claude-haiku-4-5-20251001';
     CREATE TABLE IF NOT EXISTS characters (
       game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
       name TEXT NOT NULL,

@@ -826,6 +826,14 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
       ⚔️ Begin the Adventure
     </button>
 
+    <label style="margin-top:12px;">🤖 AI Model</label>
+    <select id="model-select">
+      <option value="claude-haiku-4-5-20251001">⚡ Haiku (fast, cheap)</option>
+      <option value="claude-sonnet-4-6">⚖️ Sonnet (balanced)</option>
+      <option value="claude-opus-4-6">🧠 Opus (smartest, slow)</option>
+    </select>
+    <p class="host-note" id="model-status"></p>
+
     <div class="timer-row">
       <label>⏱️ Turn Timer:</label>
       <input id="timer-input" type="number" min="10" max="3600" value="180"/>
@@ -1052,6 +1060,9 @@ socket.on('game_joined', (state) => {
   });
   if (state.turnDuration) {
     document.getElementById('timer-input').value = state.turnDuration;
+  }
+  if (state.game.model) {
+    document.getElementById('model-select').value = state.game.model;
   }
   if (state.world) updateWorldPanel(state.world);
 
@@ -1446,6 +1457,19 @@ socket.on('catch_up_result', (data) => {
 document.getElementById('btn-set-timer').addEventListener('click', () => {
   const seconds = parseInt(document.getElementById('timer-input').value) || 180;
   socket.emit('set_timer', { seconds });
+});
+
+// ── Model selector ────────────────────────────────────────────
+document.getElementById('model-select').addEventListener('change', async () => {
+  const model = document.getElementById('model-select').value;
+  const res = await fetch(`/api/games/${gameId}/model`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model }),
+  });
+  if (res.ok) {
+    document.getElementById('model-status').textContent = '✅ Model updated.';
+  }
 });
 
 // ── Host controls ─────────────────────────────────────────────

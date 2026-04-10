@@ -72,6 +72,15 @@ function buildSubcommands(builder) {
       .setName('world')
       .setDescription('Show known locations and NPCs'))
     .addSubcommand(sub => sub
+      .setName('model')
+      .setDescription('Switch AI model (haiku=fast, sonnet=balanced, opus=smartest)')
+      .addStringOption(opt => opt.setName('level').setDescription('Model level').setRequired(true)
+        .addChoices(
+          { name: '⚡ Haiku (fast, cheap)', value: 'claude-haiku-4-5-20251001' },
+          { name: '⚖️ Sonnet (balanced)', value: 'claude-sonnet-4-6' },
+          { name: '🧠 Opus (smartest, slow)', value: 'claude-opus-4-6' },
+        )))
+    .addSubcommand(sub => sub
       .setName('reset')
       .setDescription('Reset the game (keeps characters)'));
 }
@@ -475,6 +484,22 @@ client.on('interactionCreate', async (interaction) => {
         { name: '🏆 Accomplishments', value: accText.slice(0, 1024) }
       );
     await interaction.reply({ embeds: [embed] });
+  }
+
+  else if (sub === 'model') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) {
+      await interaction.reply({ content: 'Link this channel first.', ephemeral: true });
+      return;
+    }
+    const model = interaction.options.getString('level');
+    await db.pool.query('UPDATE games SET model = $1 WHERE id = $2', [model, gameId]);
+    const labels = {
+      'claude-haiku-4-5-20251001': '⚡ Haiku (fast)',
+      'claude-sonnet-4-6': '⚖️ Sonnet (balanced)',
+      'claude-opus-4-6': '🧠 Opus (smartest)',
+    };
+    await interaction.reply(`🤖 AI model switched to **${labels[model] || model}**`);
   }
 
   else if (sub === 'reset') {

@@ -309,8 +309,9 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     { role: 'user', content: prefix + userMessage },
   ];
 
+  const model = gameConfig?.model || 'claude-haiku-4-5-20251001';
   const response = await anthropic.messages.create({
-    model: 'claude-opus-4-5',
+    model,
     max_tokens: 1024,
     system: buildSystemPrompt(gameId, gameConfig),
     messages,
@@ -458,6 +459,18 @@ app.post('/api/games/:id/upload-pdf', upload.array('pdfs', 10), async (req, res)
 
     await db.updateGameContext(game.id, allText);
     res.json({ success: true, totalChars: allText.length, files: req.files.map(f => f.originalname) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/games/:id/model', async (req, res) => {
+  try {
+    const { model } = req.body;
+    const valid = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6'];
+    if (!valid.includes(model)) return res.status(400).json({ error: 'Invalid model' });
+    await db.pool.query('UPDATE games SET model = $1 WHERE id = $2', [model, req.params.id]);
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -838,7 +851,7 @@ const gameEngine = {
       .slice(0, 8000);
 
     const response = await anthropic.messages.create({
-      model: 'claude-opus-4-5',
+      model: 'claude-sonnet-4-6',
       max_tokens: 600,
       system: `Summarize what happened in this RPG session in 400 words or less. Focus on key events, combat outcomes, discoveries, and story developments. Write from a third-person perspective. Be vivid but concise.`,
       messages: [{ role: 'user', content: `Summarize what ${playerName} missed:\n\n${transcript}` }],
