@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { Pool } = require('pg');
 
 const pool = new Pool({
@@ -54,6 +55,54 @@ async function initDB() {
       guild_id TEXT NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+  `);
+
+  // ── Billing tables ──────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE,
+      password_hash TEXT,
+      display_name TEXT,
+      auth_provider TEXT NOT NULL DEFAULT 'email',
+      auth_provider_id TEXT,
+      is_admin BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS user_balances (
+      user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+      free_minutes_remaining INT DEFAULT 300,
+      paid_minutes_remaining INT DEFAULT 0,
+      free_reset_date DATE DEFAULT (DATE_TRUNC('month', NOW()) + INTERVAL '1 month')::DATE,
+      total_minutes_used INT DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS purchases (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      provider_tx_id TEXT,
+      product_id TEXT,
+      minutes_credited INT NOT NULL,
+      amount_cents INT DEFAULT 0,
+      credit_type TEXT DEFAULT 'purchase',
+      expires_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS promo_codes (
+      code TEXT PRIMARY KEY,
+      minutes_granted INT DEFAULT 2400,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      redeemed_by TEXT REFERENCES users(id),
+      redeemed_at TIMESTAMPTZ,
+      expires_at TIMESTAMPTZ
+    );
+
+    -- Add billing columns to games table
+    ALTER TABLE games ADD COLUMN IF NOT EXISTS billing_mode TEXT DEFAULT 'host_pays';
+    ALTER TABLE games ADD COLUMN IF NOT EXISTS host_user_id TEXT;
   `);
 }
 
@@ -170,6 +219,109 @@ async function getGameChannels(gameId) {
   return rows.map(r => r.channel_id);
 }
 
+// ── Users ─────────────────────────────────────────────────────────────────────
+async function createUser({ id, email, passwordHash, displayName, authProvider, authProviderId }) {
+  await pool.query(
+    `INSERT INTO users (id, email, password_hash, display_name, auth_provider, auth_provider_id)
+     VALUES ($1, $2, $3, $4, $5, $6)
+     ON CONFLICT (email) DO UPDATE SET
+       display_name = COALESCE(EXCLUDED.display_name, users.display_name),
+       auth_provider = EXCLUDED.auth_provider,
+       auth_provider_id = EXCLUDED.auth_provider_id`,
+    [id, email, passwordHash, displayName, authProvider, authProviderId]
+  );
+  // Create balance row if not exists
+  await pool.query(
+    `INSERT INTO user_balances (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING`,
+    [id]
+  );
+  // First user becomes admin
+  const { rows } = await pool.query('SELECT COUNT(*) as cnt FROM users');
+  if (parseInt(rows[0].cnt) === 1) {
+    await pool.query('UPDATE users SET is_admin = TRUE WHERE id = $1', [id]);
+  }
+}
+
+async function getUserByEmail(email) {
+  const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+  return rows[0] || null;
+}
+
+async function getUserById(id) {
+  const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+async function getUserByProvider(provider, providerId) {
+  const { rows } = await pool.query(
+    'SELECT * FROM users WHERE auth_provider = $1 AND auth_provider_id = $2',
+    [provider, providerId]
+  );
+  return rows[0] || null;
+}
+
+async function getUserBalance(userId) {
+  const { rows } = await pool.query('SELECT * FROM user_balances WHERE user_id = $1', [userId]);
+  return rows[0] || null;
+}
+
+async function deductMinutes(userId, minutes) {
+  // Deduct free minutes first, then paid
+  const balance = await getUserBalance(userId);
+  if (!balance) return null;
+
+  let remaining = minutes;
+  let freeDeduct = Math.min(remaining, balance.free_minutes_remaining);
+  remaining -= freeDeduct;
+  let paidDeduct = Math.min(remaining, balance.paid_minutes_remaining);
+
+  await pool.query(
+    `UPDATE user_balances SET
+       free_minutes_remaining = free_minutes_remaining - $2,
+       paid_minutes_remaining = paid_minutes_remaining - $3,
+       total_minutes_used = total_minutes_used + $4
+     WHERE user_id = $1`,
+    [userId, freeDeduct, paidDeduct, freeDeduct + paidDeduct]
+  );
+  return { freeDeducted: freeDeduct, paidDeducted: paidDeduct, totalDeducted: freeDeduct + paidDeduct };
+}
+
+async function creditMinutes(userId, minutes, { provider = 'admin', providerTxId = null, productId = null, amountCents = 0, creditType = 'admin', expiresAt = null } = {}) {
+  const id = crypto.randomUUID();
+  if (!expiresAt && (creditType === 'admin' || creditType === 'promo')) {
+    expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
+  }
+  await pool.query(
+    `INSERT INTO purchases (id, user_id, provider, provider_tx_id, product_id, minutes_credited, amount_cents, credit_type, expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+    [id, userId, provider, providerTxId, productId, minutes, amountCents, creditType, expiresAt]
+  );
+  await pool.query(
+    `UPDATE user_balances SET paid_minutes_remaining = paid_minutes_remaining + $2 WHERE user_id = $1`,
+    [userId, minutes]
+  );
+}
+
+async function resetFreeMinutes() {
+  // Called monthly — resets all users' free minutes
+  await pool.query(
+    `UPDATE user_balances
+     SET free_minutes_remaining = 300,
+         free_reset_date = (DATE_TRUNC('month', NOW()) + INTERVAL '1 month')::DATE
+     WHERE free_reset_date <= CURRENT_DATE`
+  );
+}
+
+async function listUsers() {
+  const { rows } = await pool.query(
+    `SELECT u.id, u.email, u.display_name, u.auth_provider, u.is_admin, u.created_at,
+            b.free_minutes_remaining, b.paid_minutes_remaining, b.total_minutes_used
+     FROM users u LEFT JOIN user_balances b ON u.id = b.user_id
+     ORDER BY u.created_at DESC`
+  );
+  return rows;
+}
+
 module.exports = {
   pool,
   initDB,
@@ -188,4 +340,13 @@ module.exports = {
   getChannelGame,
   getGameChannels,
   saveTurnState,
+  createUser,
+  getUserByEmail,
+  getUserById,
+  getUserByProvider,
+  getUserBalance,
+  deductMinutes,
+  creditMinutes,
+  resetFreeMinutes,
+  listUsers,
 };
