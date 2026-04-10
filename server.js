@@ -56,18 +56,10 @@ function buildSystemPrompt(gameId, gameConfig) {
 
   const characterBlock = Object.entries(gd.characters)
     .map(([name, c]) => {
-      let stats;
-      if (gameConfig.system === 'runequest') {
-        stats = `STR ${c.stats.str}, CON ${c.stats.con}, SIZ ${c.stats.siz || 13}, INT ${c.stats.int}, POW ${c.stats.pow || 10}, DEX ${c.stats.dex}, CHA ${c.stats.cha}`;
-      } else {
-        stats = `STR ${c.stats.str}, DEX ${c.stats.dex}, CON ${c.stats.con}, INT ${c.stats.int}, WIS ${c.stats.wis}, CHA ${c.stats.cha}`;
-      }
       return `
 Player: ${name}
-Level: ${c.level} ${c.class} (${c.race})
-Stats: ${stats}
-HP: ${c.hp}
-Personality: ${c.personality}
+${c.statsText || 'No stats provided'}
+Personality: ${c.personality || 'Not specified'}
 Standard Actions: ${c.standardActions || 'None defined'}
 Backstory: ${c.backstory || 'Unknown'}
       `.trim();
@@ -373,11 +365,7 @@ io.on('connection', (socket) => {
     if (!gameId) return;
 
     const charData = {
-      level: data.level || 1,
-      class: data.class || 'Fighter',
-      race: data.race || 'Human',
-      stats: data.stats || { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-      hp: data.hp || 10,
+      statsText: data.statsText || '',
       personality: data.personality || 'Brave and curious',
       standardActions: data.standardActions || '',
       backstory: data.backstory || '',

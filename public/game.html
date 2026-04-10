@@ -135,15 +135,6 @@
   }
   label:first-child { margin-top: 0; }
 
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-  .stat-box { text-align: center; }
-  .stat-box input { text-align: center; font-size: 1.1rem; font-weight: 600; padding: 8px 4px; }
-  .stat-box label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; }
-
   .btn {
     display: inline-flex;
     align-items: center;
@@ -457,27 +448,13 @@
     <label>Character Name</label>
     <input id="c-name" type="text" placeholder="Aragorn"/>
 
-    <label>Race</label>
-    <input id="c-race" type="text" placeholder="Human"/>
+    <label>Character Stats</label>
+    <textarea id="c-stats" style="min-height:120px; font-family:monospace; font-size:0.85rem;" placeholder="Paste or type your full character sheet stats here. Examples:
 
-    <label>Class</label>
-    <input id="c-class" type="text" placeholder="Ranger"/>
+D&D: Level 5 Human Ranger, HP 42, STR 16 DEX 14 CON 13 INT 10 WIS 14 CHA 8
 
-    <label>Level</label>
-    <input id="c-level" type="number" min="1" max="20" value="1"/>
-
-    <label>Max HP</label>
-    <input id="c-hp" type="number" min="1" value="10"/>
-
-    <label>Ability Scores</label>
-    <div class="stats-grid">
-      <div class="stat-box"><label>STR</label><input id="s-str" type="number" value="10"/></div>
-      <div class="stat-box"><label>DEX</label><input id="s-dex" type="number" value="10"/></div>
-      <div class="stat-box"><label>CON</label><input id="s-con" type="number" value="10"/></div>
-      <div class="stat-box"><label>INT</label><input id="s-int" type="number" value="10"/></div>
-      <div class="stat-box"><label>WIS</label><input id="s-wis" type="number" value="10"/></div>
-      <div class="stat-box"><label>CHA</label><input id="s-cha" type="number" value="10"/></div>
-    </div>
+RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, Sword 75%, Shield 60%, Dodge 45%"></textarea>
+    <p class="host-note">Free-form — works with any game system.</p>
 
     <label>Personality & Traits</label>
     <textarea id="c-personality" placeholder="Bold, protective of allies, distrusts magic…"></textarea>
@@ -780,10 +757,10 @@ function updatePartyCard(name, c) {
     const ph = partyList.querySelector('.host-note');
     if (ph) ph.remove();
   }
+  const statsHtml = (c.statsText || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g, '<br/>');
   existing.innerHTML = `
     <strong>${name}</strong><br/>
-    <span>Level ${c.level} ${c.race} ${c.class} · HP ${c.hp}</span><br/>
-    <span>STR ${c.stats.str} DEX ${c.stats.dex} CON ${c.stats.con} INT ${c.stats.int} WIS ${c.stats.wis} CHA ${c.stats.cha}</span>
+    <span>${statsHtml || 'No stats provided'}</span>
   `;
 }
 
@@ -794,18 +771,7 @@ document.getElementById('btn-register').addEventListener('click', () => {
 
   socket.emit('register_character', {
     name,
-    race: document.getElementById('c-race').value.trim(),
-    class: document.getElementById('c-class').value.trim(),
-    level: parseInt(document.getElementById('c-level').value) || 1,
-    hp: parseInt(document.getElementById('c-hp').value) || 10,
-    stats: {
-      str: parseInt(document.getElementById('s-str').value) || 10,
-      dex: parseInt(document.getElementById('s-dex').value) || 10,
-      con: parseInt(document.getElementById('s-con').value) || 10,
-      int: parseInt(document.getElementById('s-int').value) || 10,
-      wis: parseInt(document.getElementById('s-wis').value) || 10,
-      cha: parseInt(document.getElementById('s-cha').value) || 10,
-    },
+    statsText: document.getElementById('c-stats').value.trim(),
     personality: document.getElementById('c-personality').value.trim(),
     standardActions: document.getElementById('c-actions').value.trim(),
     backstory: document.getElementById('c-backstory').value.trim(),
