@@ -9,6 +9,18 @@ function setGameEngine(engine) {
   gameEngine = engine;
 }
 
+// ── Discord user → character bindings (per game) ─────────────────────────────
+async function bindUser(gameId, discordUserId, charName) {
+  const bindings = await db.getState(gameId, 'discord_bindings', {});
+  bindings[discordUserId] = charName;
+  await db.setState(gameId, 'discord_bindings', bindings);
+}
+
+async function getCharName(gameId, discordUserId) {
+  const bindings = await db.getState(gameId, 'discord_bindings', {});
+  return bindings[discordUserId] || null;
+}
+
 // ── Discord Client ───────────────────────────────────────────────────────────
 const client = new Client({
   intents: [
@@ -129,16 +141,18 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.reply({ content: 'Invalid action.', ephemeral: true });
       return;
     }
-    // Use Discord display name as player name
-    const playerName = interaction.member?.displayName || interaction.user.displayName;
+    const charName = await getCharName(gameId, interaction.user.id);
+    if (!charName) {
+      await interaction.reply({ content: 'You haven\'t registered a character yet. Use `/tavern register` first.', ephemeral: true });
+      return;
+    }
     await interaction.deferReply();
     try {
-      const result = await gameEngine.playerAction(gameId, playerName, actionText);
+      const result = await gameEngine.playerAction(gameId, charName, actionText);
       if (result.error) {
         await interaction.editReply(result.error);
       } else {
-        await interaction.editReply(`**${playerName}:** ${actionText}`);
-        // DM response is broadcast via the game event system
+        await interaction.editReply(`**${charName}:** ${actionText}`);
       }
     } catch (err) {
       await interaction.editReply('Error processing action.');
@@ -164,7 +178,8 @@ client.on('interactionCreate', async (interaction) => {
       await gameEngine.registerCharacter(gameId, name, {
         statsText, personality, standardActions: actions, backstory,
       });
-      await interaction.editReply(`📜 **${name}** has joined the campaign!`);
+      await bindUser(gameId, interaction.user.id, name);
+      await interaction.editReply(`📜 **${name}** has joined the campaign! You're now bound to this character.`);
     } catch (err) {
       await interaction.editReply('Error registering character.');
     }
@@ -248,14 +263,18 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
     const text = interaction.options.getString('text');
-    const playerName = interaction.member?.displayName || interaction.user.displayName;
+    const charName = await getCharName(gameId, interaction.user.id);
+    if (!charName) {
+      await interaction.reply({ content: 'You haven\'t registered a character yet. Use `/tavern register` first.', ephemeral: true });
+      return;
+    }
     await interaction.deferReply();
     try {
-      const result = await gameEngine.playerAction(gameId, playerName, text);
+      const result = await gameEngine.playerAction(gameId, charName, text);
       if (result.error) {
         await interaction.editReply(result.error);
       } else {
-        await interaction.editReply(`**${playerName}:** ${text}`);
+        await interaction.editReply(`**${charName}:** ${text}`);
       }
     } catch (err) {
       await interaction.editReply('Error processing action.');

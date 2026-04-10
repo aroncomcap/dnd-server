@@ -486,6 +486,119 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .hidden { display: none !important; }
+
+  /* ── Character Picker Overlay ── */
+  #char-picker {
+    position: fixed;
+    inset: 0;
+    background: rgba(13,6,0,0.92);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #char-picker .picker-panel {
+    background: var(--parchment);
+    border-radius: var(--radius);
+    padding: 20px;
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 8px 40px rgba(200,146,42,0.3);
+    border: 1px solid var(--gold);
+  }
+  #char-picker .picker-title {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.9rem;
+    color: var(--gold);
+    text-align: center;
+    margin-bottom: 14px;
+  }
+  .picker-char {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    background: var(--parchment-dark);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+  }
+  .picker-char:hover {
+    border-color: var(--gold);
+    transform: translateX(4px);
+  }
+  .picker-char img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--gold);
+  }
+  .picker-char-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(200,146,42,0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    border: 2px solid var(--parchment-dark);
+  }
+  .picker-char strong {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.75rem;
+  }
+  .picker-char span {
+    font-size: 0.8rem;
+    color: var(--ink-light);
+  }
+  .picker-new {
+    text-align: center;
+    margin-top: 8px;
+  }
+  .picker-new a {
+    color: var(--gold);
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  /* ── Playing As Banner ── */
+  #playing-as {
+    background: linear-gradient(135deg, #2c1a0e, #3d2510);
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+    border: 1px solid var(--gold);
+  }
+  #playing-as img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--gold);
+  }
+  #playing-as .pa-name {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.7rem;
+    color: var(--gold-light);
+  }
+  #playing-as .pa-change {
+    margin-left: auto;
+    font-size: 0.7rem;
+    color: var(--parchment-dark);
+    cursor: pointer;
+    opacity: 0.6;
+  }
+  #playing-as .pa-change:hover { opacity: 1; }
 </style>
 </head>
 <body>
@@ -497,8 +610,22 @@
   <div id="timer-bar"></div>
 </header>
 
+<!-- ── CHARACTER PICKER ─────────────────────────────────────── -->
+<div id="char-picker" style="display:none;">
+  <div class="picker-panel">
+    <div class="picker-title">⚔️ Who Are You?</div>
+    <div id="picker-list"></div>
+    <div class="picker-new"><a id="picker-new-btn">Create a new character</a></div>
+  </div>
+</div>
+
 <!-- ── GAME SCREEN ─────────────────────────────────────────── -->
 <div id="screen-game" class="screen active">
+  <div id="playing-as">
+    <img id="pa-token" src="" alt=""/>
+    <span class="pa-name" id="pa-name"></span>
+    <span class="pa-change" id="pa-change">switch</span>
+  </div>
   <div id="scene-panel">
     <img id="scene-img" src="" alt="Scene"/>
     <div class="scene-overlay"></div>
@@ -591,7 +718,7 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
 
     <label style="margin-top:16px;">My Player Name (for sending actions)</label>
     <input id="player-name-input" type="text" placeholder="Enter your character name"/>
-    <p class="host-note">This should match your registered character name.</p>
+    <p class="host-note">Or select from party below. This is a fallback — use the picker on the Game screen.</p>
   </div>
 
   <!-- PDF Upload -->
@@ -803,6 +930,18 @@ socket.on('game_joined', (state) => {
   updateParty(state.characters);
   if (state.currentPlayer) setTurn(state.currentPlayer);
   if (state.imageUrl) showSceneImage(state.imageUrl);
+
+  // Auto-reconnect or show character picker
+  const charNames = Object.keys(state.characters);
+  if (playerName && state.characters[playerName]) {
+    // Already bound — show "Playing as" banner
+    showPlayingAs(playerName, state.characters[playerName]);
+    prefillCharacterForm(playerName, state.characters[playerName]);
+  } else if (charNames.length > 0) {
+    // Characters exist but no binding — show picker
+    showCharacterPicker(state.characters);
+  }
+  // If no characters at all, user needs to register first
 });
 
 socket.on('error_msg', (data) => {
@@ -965,6 +1104,84 @@ document.getElementById('btn-reset').addEventListener('click', () => {
   if (confirm('Reset the game? Chat history will be cleared but characters are kept.')) {
     socket.emit('reset_game');
   }
+});
+
+// ── Character Picker & Playing-As ─────────────────────────────
+function showPlayingAs(name, char) {
+  const bar = document.getElementById('playing-as');
+  const paToken = document.getElementById('pa-token');
+  const paName = document.getElementById('pa-name');
+  paName.textContent = `Playing as ${name}`;
+  const tkn = char?.token || tokenCache[name];
+  if (tkn) {
+    paToken.src = tkn;
+    paToken.style.display = 'block';
+  } else {
+    paToken.style.display = 'none';
+  }
+  bar.style.display = 'flex';
+}
+
+function showCharacterPicker(characters) {
+  const picker = document.getElementById('char-picker');
+  const list = document.getElementById('picker-list');
+  list.innerHTML = '';
+  Object.entries(characters).forEach(([name, c]) => {
+    const row = document.createElement('div');
+    row.className = 'picker-char';
+    const tkn = c.token || tokenCache[name];
+    const imgHtml = tkn
+      ? `<img src="${tkn}" alt="${name}"/>`
+      : `<div class="picker-char-placeholder">🧙</div>`;
+    const statsSnippet = (c.statsText || '').split('\n')[0].slice(0, 60);
+    row.innerHTML = `${imgHtml}<div><strong>${name}</strong><br/><span>${statsSnippet || 'No stats'}</span></div>`;
+    row.addEventListener('click', () => {
+      selectCharacter(name, c);
+      picker.style.display = 'none';
+    });
+    list.appendChild(row);
+  });
+  picker.style.display = 'flex';
+}
+
+function selectCharacter(name, char) {
+  playerName = name;
+  localStorage.setItem('playerName_' + gameId, name);
+  document.getElementById('player-name-input').value = name;
+  showPlayingAs(name, char);
+  prefillCharacterForm(name, char);
+}
+
+function prefillCharacterForm(name, char) {
+  document.getElementById('c-name').value = name;
+  document.getElementById('c-stats').value = char.statsText || '';
+  document.getElementById('c-personality').value = char.personality || '';
+  document.getElementById('c-actions').value = char.standardActions || '';
+  document.getElementById('c-backstory').value = char.backstory || '';
+  if (char.token) showTokenPreview(char.token);
+}
+
+document.getElementById('picker-new-btn').addEventListener('click', () => {
+  document.getElementById('char-picker').style.display = 'none';
+  // Switch to character tab
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelector('[data-screen="char"]').classList.add('active');
+  document.getElementById('screen-char').classList.add('active');
+});
+
+document.getElementById('pa-change').addEventListener('click', () => {
+  // Re-show picker with current characters
+  const gs = {};
+  document.querySelectorAll('.char-card').forEach(card => {
+    // Rebuild from tokenCache and what we have
+  });
+  // Simpler: just clear binding and reload
+  playerName = '';
+  localStorage.removeItem('playerName_' + gameId);
+  document.getElementById('playing-as').style.display = 'none';
+  // Emit a re-join to get fresh state
+  socket.emit('join_game', gameId);
 });
 
 // ── Token Upload / Generate ───────────────────────────────────
