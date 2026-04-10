@@ -1454,6 +1454,7 @@ socket.on('game_joined', (state) => {
   // Cache state
   currentTurnOrder = state.turnOrder || [];
   currentCharacters = state.characters || {};
+  debugEvent('game_joined', Object.keys(state.characters).join(','));
   Object.entries(state.characters).forEach(([name, c]) => {
     if (c.token) tokenCache[name] = c.token;
   });
@@ -1558,6 +1559,7 @@ socket.on('error_msg', (data) => {
 });
 
 socket.on('dm_message', (data) => {
+  debugEvent('dm_message', 'options:' + (data.options?.length || 0) + ' for:' + (data.forPlayer || '?'));
   console.log('dm_message received:', { hasOptions: !!data.options?.length, forPlayer: data.forPlayer, myName: getMyName(), optionCount: data.options?.length });
   // Clear thinking indicator
   const thinking = document.getElementById('thinking-indicator');
@@ -1605,6 +1607,7 @@ socket.on('system', (data) => addMsg('system', data.text));
 socket.on('turn_change', (data) => {
   if (data.token) tokenCache[data.player] = data.token;
   setTurn(data.player, data.token);
+  debugEvent('turn_change', data.player);
   console.log('Turn changed:', { currentPlayer, myName: getMyName(), isMyTurn: isMyTurnCheck() });
   startVisualTimer(data.duration);
   // Reset send button
@@ -2438,6 +2441,59 @@ async function uploadPDFs(files) {
   }
   pdfInput.value = '';
 }
+
+// ── Debug panel ───────────────────────────────────────────────
+const debugLog = [];
+function debugEvent(name, detail) {
+  debugLog.push({ t: new Date().toLocaleTimeString(), name, detail });
+  if (debugLog.length > 8) debugLog.shift();
+}
+
+function updateDebug() {
+  const el = document.getElementById('debug-content');
+  if (!el || document.getElementById('debug-panel').style.display === 'none') return;
+
+  const myName = getMyName();
+  const isMyTurn = isMyTurnCheck();
+  const controlsVisible = document.getElementById('my-turn-controls')?.style.display !== 'none';
+  const optionsCount = document.getElementById('options-area')?.children.length || 0;
+  const pendingCount = pendingOptions?.length || 0;
+
+  el.innerHTML = [
+    `<span style="color:#888;">Turn:</span> <span style="color:${isMyTurn ? '#0f0' : '#f88'};">${currentPlayer || 'none'}</span>`,
+    `<span style="color:#888;">Me:</span> ${myName || '<span style="color:#f00;">NOT SET</span>'}`,
+    `<span style="color:#888;">My turn:</span> <span style="color:${isMyTurn ? '#0f0' : '#f88'};">${isMyTurn}</span>`,
+    `<span style="color:#888;">Controls:</span> <span style="color:${controlsVisible ? '#0f0' : '#f88'};">${controlsVisible ? 'visible' : 'HIDDEN'}</span>`,
+    `<span style="color:#888;">Options:</span> ${optionsCount} shown, ${pendingCount} pending`,
+    `<span style="color:#888;">Characters:</span> ${Object.keys(currentCharacters).length}`,
+    `<span style="color:#888;">Turn order:</span> ${currentTurnOrder?.length || 0}`,
+  ].join('<br/>');
+
+  el.innerHTML += '<br/><span style="color:#c8922a;">Events:</span><br/>' +
+    debugLog.map(e => `<span style="color:#666;">${e.t}</span> ${e.name} <span style="color:#aaa;">${e.detail}</span>`).join('<br/>');
+}
+
+// Update debug every second
+setInterval(updateDebug, 1000);
+
+// Toggle
+document.getElementById('debug-toggle').addEventListener('click', () => {
+  document.getElementById('debug-panel').style.display = 'block';
+  document.getElementById('debug-toggle').style.display = 'none';
+  updateDebug();
+});
+document.getElementById('debug-toggle-close').addEventListener('click', () => {
+  document.getElementById('debug-panel').style.display = 'none';
+  document.getElementById('debug-toggle').style.display = 'block';
+});
 </script>
+<div id="debug-panel" style="position:fixed;bottom:50px;right:8px;background:rgba(0,0,0,0.85);color:#0f0;font-family:monospace;font-size:10px;padding:6px 10px;border-radius:6px;border:1px solid #333;z-index:300;max-width:280px;display:none;">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+    <span style="color:#c8922a;font-weight:bold;">Debug</span>
+    <span id="debug-toggle-close" style="cursor:pointer;color:#888;">✕</span>
+  </div>
+  <div id="debug-content" style="line-height:1.6;"></div>
+</div>
+<div id="debug-toggle" style="position:fixed;bottom:50px;right:8px;background:rgba(0,0,0,0.6);color:#888;font-size:9px;padding:3px 6px;border-radius:4px;cursor:pointer;z-index:300;">🐛</div>
 </body>
 </html>
