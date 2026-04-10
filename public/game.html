@@ -38,7 +38,7 @@
     width: 100%;
     background: linear-gradient(180deg, #0d0600 0%, #1f1005 100%);
     border-bottom: 2px solid var(--gold);
-    padding: 10px 16px;
+    padding: 6px 12px;
     text-align: center;
     position: sticky;
     top: 0;
@@ -47,7 +47,7 @@
 
   header h1 {
     font-family: 'Cinzel Decorative', cursive;
-    font-size: 0.9rem;
+    font-size: 0.75rem;
     color: var(--gold-light);
     letter-spacing: 0.05em;
     text-shadow: 0 0 20px rgba(200,146,42,0.6);
@@ -55,23 +55,23 @@
   header h1 a { color: inherit; text-decoration: none; }
   #game-title {
     font-family: 'Crimson Pro', serif;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     color: var(--parchment-dark);
     opacity: 0.7;
-    margin-top: 2px;
+    margin-top: 1px;
   }
 
   #turn-banner {
     background: linear-gradient(90deg, transparent, var(--gold), transparent);
     color: #0d0600;
     font-family: 'Cinzel Decorative', cursive;
-    font-size: 0.75rem;
+    font-size: 0.65rem;
     text-align: center;
-    padding: 6px 4px;
+    padding: 3px 4px;
     display: none;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
   }
   #turn-token {
     width: 28px;
@@ -95,28 +95,28 @@
     display: none;
     width: 100%;
     max-width: 480px;
-    padding: 16px;
+    padding: 8px;
     flex: 1;
   }
-  .screen.active { display: flex; flex-direction: column; gap: 12px; }
+  .screen.active { display: flex; flex-direction: column; gap: 6px; }
 
   .panel {
     background: var(--parchment);
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
     border-radius: var(--radius);
-    padding: 16px;
+    padding: 10px;
     box-shadow: 0 4px 20px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.4);
     border: 1px solid var(--parchment-dark);
   }
 
   .panel-title {
     font-family: 'Cinzel Decorative', cursive;
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     color: var(--gold);
     text-transform: uppercase;
     letter-spacing: 0.1em;
-    margin-bottom: 10px;
-    padding-bottom: 6px;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
     border-bottom: 1px solid var(--parchment-dark);
   }
 
@@ -210,13 +210,13 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-height: 55vh;
+    max-height: 60vh;
     padding-right: 4px;
   }
   #chat-log::-webkit-scrollbar { width: 4px; }
   #chat-log::-webkit-scrollbar-thumb { background: var(--parchment-dark); border-radius: 2px; }
 
-  .msg { border-radius: 10px; padding: 10px 12px; max-width: 92%; font-size: 0.95rem; line-height: 1.5; }
+  .msg { border-radius: 8px; padding: 8px 10px; max-width: 95%; font-size: 1rem; line-height: 1.55; }
 
   .msg-dm {
     background: linear-gradient(135deg, #2c1a0e, #3d2510);
@@ -227,9 +227,9 @@
   }
   .msg-dm .msg-label {
     font-family: 'Cinzel Decorative', cursive;
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     color: var(--gold);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
     letter-spacing: 0.08em;
   }
 
@@ -351,13 +351,13 @@
   .option-btn {
     display: block;
     width: 100%;
-    padding: 10px 12px;
+    padding: 8px 10px;
     background: linear-gradient(135deg, #2c1a0e, #3d2510);
     color: var(--parchment);
     border: 1px solid var(--gold);
     border-radius: 8px;
     font-family: 'Crimson Pro', serif;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     text-align: left;
     cursor: pointer;
     transition: all 0.2s;
@@ -391,17 +391,17 @@
   #action-area {
     background: var(--parchment);
     border-radius: var(--radius);
-    padding: 12px;
+    padding: 8px;
     box-shadow: 0 -2px 12px var(--shadow);
     border: 1px solid var(--parchment-dark);
   }
   #action-area textarea {
-    min-height: 56px;
-    margin-bottom: 8px;
-    font-size: 1rem;
+    min-height: 44px;
+    margin-bottom: 6px;
+    font-size: 0.95rem;
   }
-  .action-row { display: flex; gap: 8px; }
-  .action-row .btn { flex: 1; padding: 10px; font-size: 0.7rem; }
+  .action-row { display: flex; gap: 6px; }
+  .action-row .btn { flex: 1; padding: 8px; font-size: 0.65rem; }
 
   /* ── Nav ── */
   nav {
@@ -418,19 +418,19 @@
     background: none;
     border: none;
     color: var(--gold);
-    padding: 10px 4px 8px;
+    padding: 6px 2px 5px;
     font-family: 'Cinzel Decorative', cursive;
-    font-size: 0.58rem;
-    letter-spacing: 0.06em;
+    font-size: 0.5rem;
+    letter-spacing: 0.04em;
     cursor: pointer;
     opacity: 0.5;
     transition: opacity 0.2s;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
+    gap: 1px;
   }
-  nav button .nav-icon { font-size: 1.2rem; }
+  nav button .nav-icon { font-size: 1rem; }
   nav button.active { opacity: 1; border-top: 2px solid var(--gold); }
 
   .char-card {
@@ -622,17 +622,17 @@
   /* ── Playing As Banner ── */
   #playing-as {
     background: linear-gradient(135deg, #2c1a0e, #3d2510);
-    border-radius: 8px;
-    padding: 8px 12px;
+    border-radius: 6px;
+    padding: 5px 10px;
     display: none;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
+    gap: 6px;
+    margin-bottom: 2px;
     border: 1px solid var(--gold);
   }
   #playing-as img {
-    width: 28px;
-    height: 28px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     object-fit: cover;
     border: 1px solid var(--gold);
@@ -678,10 +678,10 @@
 
   .not-your-turn {
     text-align: center;
-    padding: 8px;
+    padding: 6px;
     font-style: italic;
     color: var(--ink-light);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -691,7 +691,18 @@
     .screen {
       max-width: 720px;
       padding: 20px;
+      gap: 12px;
     }
+    .panel { padding: 16px; }
+    .panel-title { font-size: 0.8rem; margin-bottom: 10px; padding-bottom: 6px; }
+    header { padding: 10px 16px; }
+    header h1 { font-size: 1.1rem; }
+    #turn-banner { font-size: 0.75rem; padding: 6px 4px; }
+    #playing-as { padding: 8px 12px; }
+    #playing-as img { width: 28px; height: 28px; }
+    nav button { padding: 10px 4px 8px; font-size: 0.58rem; }
+    nav button .nav-icon { font-size: 1.2rem; }
+    .msg { font-size: 1rem; padding: 10px 12px; }
 
     nav {
       max-width: 720px;
