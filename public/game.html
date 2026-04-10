@@ -933,9 +933,10 @@
     <span style="margin:0 8px;color:var(--parchment-dark);opacity:0.3;">|</span>
     <span id="deploy-time" style="font-size:0.6rem;color:var(--parchment-dark);opacity:0.5;"></span>
   </div>
-  <div id="turn-banner"><img id="turn-token" src="" alt=""/><span>— <span id="turn-name">?</span>'s Turn —</span><span id="playing-as-inline" style="margin-left:auto;font-family:'Crimson Pro',serif;font-size:0.6rem;color:var(--parchment-dark);opacity:0.7;"></span></div>
-  <div id="playing-as-bar" style="display:none; text-align:center; padding:2px 8px; font-size:0.65rem; color:var(--parchment-dark); background:rgba(13,6,0,0.5);">
-    Playing as <span id="playing-as-text"></span> <span id="pa-switch" style="cursor:pointer;color:var(--gold);opacity:0.6;margin-left:6px;">(switch)</span>
+  <div id="turn-banner">
+    <img id="turn-token" src="" alt=""/>
+    <span>— <span id="turn-name">?</span>'s Turn —</span>
+    <span id="playing-as-inline" style="margin-left:auto;font-family:'Crimson Pro',serif;font-size:0.6rem;color:var(--parchment-dark);opacity:0.7;cursor:pointer;"></span>
   </div>
   <div id="timer-bar"></div>
 </header>
@@ -1615,7 +1616,6 @@ socket.on('character_deleted', (data) => {
     playerName = '';
     localStorage.removeItem('playerName_' + gameId);
     document.getElementById('playing-as-inline').textContent = '';
-    document.getElementById('playing-as-bar').style.display = 'none';
   }
 });
 
@@ -2134,9 +2134,7 @@ function updateWorldPanel(world) {
 
 // ── Character Picker & Playing-As ─────────────────────────────
 function showPlayingAs(name, char) {
-  document.getElementById('playing-as-inline').textContent = 'Playing as ' + name;
-  document.getElementById('playing-as-text').textContent = name;
-  document.getElementById('playing-as-bar').style.display = 'block';
+  document.getElementById('playing-as-inline').textContent = 'Playing as ' + name + ' (switch)';
 }
 
 function showCharacterPicker(characters) {
@@ -2224,16 +2222,7 @@ document.getElementById('playing-as-inline').addEventListener('click', () => {
   playerName = '';
   localStorage.removeItem('playerName_' + gameId);
   document.getElementById('playing-as-inline').textContent = '';
-  document.getElementById('playing-as-bar').style.display = 'none';
   // Emit a re-join to get fresh state
-  socket.emit('join_game', gameId);
-});
-
-document.getElementById('pa-switch').addEventListener('click', () => {
-  playerName = '';
-  localStorage.removeItem('playerName_' + gameId);
-  document.getElementById('playing-as-inline').textContent = '';
-  document.getElementById('playing-as-bar').style.display = 'none';
   socket.emit('join_game', gameId);
 });
 
