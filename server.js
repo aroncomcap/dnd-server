@@ -9,6 +9,7 @@ const multer = require('multer');
 const pdfParse = require('pdf-parse');
 const db = require('./db');
 const discord = require('./discord-bot');
+const { MapGraph, processMapHint } = require('./map-engine');
 
 const DEPLOY_TIME = new Date().toISOString();
 
@@ -45,6 +46,7 @@ function getGameState(gameId) {
       lastForPlayer: null,
       idleTurns: 0,
       paused: false,
+      mapGraph: new MapGraph(),
     };
   }
   return games[gameId];
@@ -223,6 +225,8 @@ ACCOMPLISHMENTS:
 CHAR_UPDATES:
 - [Character Name] | [field] | [new value]
 
+MAP: [Current location name — where the party is RIGHT NOW after this turn's action]
+
 Valid fields: statsText, personality, backstory, standardActions
 Include CHAR_UPDATES whenever: leveling up, gaining items, learning spells, stat changes, spell slot usage/recovery, skill improvements.`;
 }
@@ -295,7 +299,7 @@ function parseResponse(text) {
     world = { locations, npcs, accomplishments, charUpdates };
   }
 
-  return { narration, options, scene, world, isKillshot };
+  return { narration, options, scene, world, isKillshot, worldRaw: worldRaw || '' };
 }
 
 // ── Character Token Generation ───────────────────────────────────────────────
@@ -472,6 +476,19 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
           });
         }
       }
+    }
+  }
+
+  // Process map hint
+  const mapResult = processMapHint(gs.mapGraph, parsed.worldRaw, parsed.world?.locations);
+  if (mapResult.moved) {
+    await db.setState(gameId, 'map', gs.mapGraph.toJSON());
+    io.to(gameId).emit('map_update', gs.mapGraph.toJSON());
+    if (mapResult.isNew) {
+      io.to(gameId).emit('map_inline', {
+        location: mapResult.location,
+        mapState: gs.mapGraph.toJSON(),
+      });
     }
   }
 
@@ -690,6 +707,8 @@ io.on('connection', (socket) => {
       const gs = getGameState(gameId);
       gs.data = await db.loadGameData(gameId);
       gs.world = await db.getState(gameId, 'world', { locations: [], npcs: [] });
+      const mapData = await db.getState(gameId, 'map', null);
+      if (mapData) gs.mapGraph = new MapGraph(mapData);
     }
 
     const gs = getGameState(gameId);
@@ -704,6 +723,7 @@ io.on('connection', (socket) => {
       world: gs.world || { locations: [], npcs: [] },
       lastOptions: gs.lastOptions || [],
       lastForPlayer: gs.lastForPlayer || null,
+      mapState: gs.mapGraph.toJSON(),
     });
   });
 
@@ -983,6 +1003,25 @@ io.on('connection', (socket) => {
     const gameId = socket.gameId;
     if (!gameId) return;
     await gameEngine.activateCharacter(gameId, data.name);
+  });
+
+  socket.on('reveal_location', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    if (gs.mapGraph.revealNode(data.name)) {
+      await db.setState(gameId, 'map', gs.mapGraph.toJSON());
+      io.to(gameId).emit('map_update', gs.mapGraph.toJSON());
+      emitSystem(gameId, { text: `🗺️ Revealed: ${data.name}` });
+    }
+  });
+
+  socket.on('set_map_style', (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    gs.mapStyle = data.style; // 'parchment' | 'dark' | 'tactical'
+    io.to(gameId).emit('map_style_changed', { style: data.style });
   });
 
   socket.on('disconnect', () => {
