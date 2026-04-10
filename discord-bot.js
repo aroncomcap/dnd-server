@@ -36,7 +36,7 @@ function buildSubcommands(builder) {
     .addSubcommand(sub => sub
       .setName('join')
       .setDescription('Link this channel to a game')
-      .addStringOption(opt => opt.setName('game').setDescription('Game ID (from the URL)').setRequired(true)))
+      .addStringOption(opt => opt.setName('game').setDescription('Game ID (from the URL)').setRequired(true).setAutocomplete(true)))
     .addSubcommand(sub => sub
       .setName('games')
       .setDescription('List available games'))
@@ -64,7 +64,7 @@ function buildSubcommands(builder) {
     .addSubcommand(sub => sub
       .setName('claim')
       .setDescription('Claim an existing character')
-      .addStringOption(opt => opt.setName('name').setDescription('Character name to play as').setRequired(true)))
+      .addStringOption(opt => opt.setName('name').setDescription('Character name to play as').setRequired(true).setAutocomplete(true)))
     .addSubcommand(sub => sub
       .setName('catchup')
       .setDescription('Summarize what happened since your last turn'))
@@ -149,6 +149,43 @@ function makeTurnEmbed(playerName, token, durationMs) {
 
 // ── Interaction Handler ──────────────────────────────────────────────────────
 client.on('interactionCreate', async (interaction) => {
+  // Handle autocomplete
+  if (interaction.isAutocomplete()) {
+    const sub = interaction.options.getSubcommand();
+    const focused = interaction.options.getFocused(true);
+
+    if (focused.name === 'game') {
+      const gamesList = await db.listGames();
+      const filtered = gamesList
+        .filter(g => g.id.includes(focused.value.toLowerCase()) || g.name.toLowerCase().includes(focused.value.toLowerCase()))
+        .slice(0, 25);
+      await interaction.respond(
+        filtered.map(g => ({ name: `${g.name} (${g.system})`, value: g.id }))
+      );
+      return;
+    }
+
+    if (focused.name === 'name') {
+      const gameId = await db.getChannelGame(interaction.channelId);
+      if (!gameId) {
+        await interaction.respond([]);
+        return;
+      }
+      const gs = gameEngine.getGameState(gameId);
+      const chars = Object.keys(gs.data.characters);
+      const filtered = chars
+        .filter(n => n.toLowerCase().includes(focused.value.toLowerCase()))
+        .slice(0, 25);
+      await interaction.respond(
+        filtered.map(n => ({ name: n, value: n }))
+      );
+      return;
+    }
+
+    await interaction.respond([]);
+    return;
+  }
+
   // Handle button clicks (action options)
   if (interaction.isButton() && interaction.customId.startsWith('action_')) {
     const idx = parseInt(interaction.customId.split('_')[1]);
