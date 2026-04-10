@@ -775,9 +775,14 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
       <em>No accomplishments yet — play to earn them!</em>
     </div>
 
-    <button class="btn btn-primary" id="btn-register" style="margin-top:12px;">
-      📜 Register / Update Character
-    </button>
+    <div style="display:flex; gap:8px; margin-top:12px;">
+      <button class="btn btn-primary" id="btn-register" style="flex:1;">
+        📜 Register
+      </button>
+      <button class="btn btn-ghost" id="btn-save-char" style="flex:1;">
+        💾 Save Changes
+      </button>
+    </div>
     <p class="host-note" id="char-status"></p>
   </div>
 </div>
@@ -1283,6 +1288,99 @@ document.getElementById('btn-register').addEventListener('click', () => {
     localStorage.setItem('playerName_' + gameId, name);
   }
 });
+
+// ── Save character edits ──────────────────────────────────────
+document.getElementById('btn-save-char').addEventListener('click', () => {
+  const name = playerName || document.getElementById('c-name').value.trim();
+  if (!name) { alert('No character selected.'); return; }
+  socket.emit('save_character', {
+    name,
+    statsText: document.getElementById('c-stats').value.trim(),
+    personality: document.getElementById('c-personality').value.trim(),
+    standardActions: document.getElementById('c-actions').value.trim(),
+    backstory: document.getElementById('c-backstory').value.trim(),
+  });
+  document.getElementById('char-status').textContent = '💾 Saving...';
+});
+
+// ── Character updated (from Claude or another client) ─────────
+socket.on('character_updated', (data) => {
+  if (data.character) {
+    currentCharacters[data.name] = data.character;
+    updatePartyCard(data.name, data.character);
+  } else if (data.field && data.value) {
+    // Single field update from Claude
+    if (currentCharacters[data.name]) {
+      currentCharacters[data.name][data.field] = data.value;
+    }
+  }
+  // If it's our character, update the form
+  if (data.name === playerName) {
+    const char = data.character || currentCharacters[data.name];
+    if (char) prefillCharacterForm(data.name, char);
+    document.getElementById('char-status').textContent = `✅ ${data.name}'s sheet updated.`;
+  }
+});
+
+// ── Image generation loading indicators ───────────────────────
+socket.on('token_generating', (data) => {
+  // Show spinner on the token preview if it's our character
+  if (data.name === (playerName || document.getElementById('c-name').value.trim())) {
+    document.getElementById('char-status').textContent = '🎨 Generating character token...';
+  }
+  // Update party card with spinner
+  const card = document.getElementById('card-' + data.name);
+  if (card) {
+    const existing = card.querySelector('.char-token');
+    if (!existing) {
+      const spinner = document.createElement('div');
+      spinner.className = 'char-token';
+      spinner.style.cssText = 'display:flex;align-items:center;justify-content:center;background:rgba(200,146,42,0.1);font-size:0.7rem;';
+      spinner.innerHTML = '<span class="spinner"></span>';
+      spinner.id = 'spinner-' + data.name;
+      card.insertBefore(spinner, card.firstChild);
+    }
+  }
+});
+
+socket.on('token_failed', (data) => {
+  if (data.name === (playerName || document.getElementById('c-name').value.trim())) {
+    document.getElementById('char-status').textContent = '⚠️ Token generation failed (credits may be depleted).';
+  }
+  const spinner = document.getElementById('spinner-' + data.name);
+  if (spinner) spinner.remove();
+});
+
+socket.on('scene_generating', () => {
+  const panel = document.getElementById('scene-panel');
+  panel.style.display = 'block';
+  const img = document.getElementById('scene-img');
+  img.style.opacity = '0.3';
+  // Add a small loading text
+  let loader = document.getElementById('scene-loader');
+  if (!loader) {
+    loader = document.createElement('div');
+    loader.id = 'scene-loader';
+    loader.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--gold-light);font-family:Cinzel Decorative,cursive;font-size:0.7rem;text-align:center;';
+    loader.innerHTML = '<span class="spinner"></span><br/>Painting scene...';
+    panel.appendChild(loader);
+  }
+});
+
+socket.on('scene_gen_failed', () => {
+  const loader = document.getElementById('scene-loader');
+  if (loader) loader.remove();
+  const img = document.getElementById('scene-img');
+  img.style.opacity = '1';
+});
+
+// Update scene_image handler to clear loader
+const origSceneHandler = showSceneImage;
+showSceneImage = function(url) {
+  const loader = document.getElementById('scene-loader');
+  if (loader) loader.remove();
+  origSceneHandler(url);
+};
 
 // ── Send action ───────────────────────────────────────────────
 document.getElementById('btn-send').addEventListener('click', sendAction);

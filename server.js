@@ -157,6 +157,17 @@ ACCOMPLISHMENTS:
 - [Character Name] | [Achievement description]
 ...
 
+CHARACTER SHEET UPDATES:
+- If a player asks to update their character sheet, backstory, stats, personality, or any character detail, make the change and include it in a special block.
+- Also include updates when story events change a character (level up, new items, stat changes, injuries, etc.)
+- Use this EXACT format after the ACCOMPLISHMENTS section:
+
+CHAR_UPDATES:
+- [Character Name] | [field] | [new value]
+
+Valid fields: statsText, personality, backstory, standardActions
+Example: - Kael | statsText | Level 6 Human Ranger, HP 48, STR 16 DEX 15 CON 13 INT 10 WIS 14 CHA 8, now wielding Flameblade
+
 TRAVEL & MOVEMENT:
 - When characters want to travel to a distant location, narrate the journey realistically.
 - Consider distance, mode of travel (on foot, mounted, by boat, etc.), terrain, and weather.
@@ -189,12 +200,14 @@ function parseResponse(text) {
     const locations = [];
     const npcs = [];
     const accomplishments = [];
+    const charUpdates = [];
     let section = null;
     for (const line of worldBlock.split('\n')) {
       const trimmed = line.trim();
       if (/^LOCATIONS:/i.test(trimmed)) { section = 'locations'; continue; }
       if (/^NPCS:/i.test(trimmed)) { section = 'npcs'; continue; }
       if (/^ACCOMPLISHMENTS:/i.test(trimmed)) { section = 'accomplishments'; continue; }
+      if (/^CHAR_UPDATES:/i.test(trimmed)) { section = 'char_updates'; continue; }
       if (trimmed.startsWith('---')) break;
       if (trimmed.startsWith('- ') && section) {
         const parts = trimmed.slice(2).split('|').map(s => s.trim());
@@ -204,10 +217,12 @@ function parseResponse(text) {
           npcs.push({ name: parts[0], description: parts[1] || '', location: parts[2] || '' });
         } else if (section === 'accomplishments') {
           accomplishments.push({ character: parts[0], achievement: parts[1] || '' });
+        } else if (section === 'char_updates') {
+          charUpdates.push({ character: parts[0], field: parts[1] || '', value: parts[2] || '' });
         }
       }
     }
-    world = { locations, npcs, accomplishments };
+    world = { locations, npcs, accomplishments, charUpdates };
   }
 
   // Extract scene
@@ -318,6 +333,23 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   if (parsed.world) {
     gs.world = parsed.world;
     await db.setState(gameId, 'world', parsed.world);
+
+    // Apply character sheet updates
+    if (parsed.world.charUpdates && parsed.world.charUpdates.length) {
+      for (const update of parsed.world.charUpdates) {
+        const char = gd.characters[update.character];
+        if (char && ['statsText', 'personality', 'backstory', 'standardActions'].includes(update.field)) {
+          char[update.field] = update.value;
+          await db.upsertCharacter(gameId, update.character, char);
+          io.to(gameId).emit('character_updated', {
+            name: update.character,
+            field: update.field,
+            value: update.value,
+            character: char,
+          });
+        }
+      }
+    }
   }
 
   return parsed;
@@ -373,11 +405,13 @@ async function maybeGenerateImage(gameId, gameConfig, scene) {
   const gs = getGameState(gameId);
   gs.turnCount++;
   if (gs.turnCount % IMAGE_COOLDOWN === 0 && scene) {
-    // Fire and forget — don't block the game
+    io.to(gameId).emit('scene_generating');
     generateSceneImage(scene, gameConfig).then(url => {
       if (url) {
         gs.imageUrl = url;
         emitSceneImage(gameId, { url });
+      } else {
+        io.to(gameId).emit('scene_gen_failed');
       }
     });
   }
@@ -510,14 +544,17 @@ io.on('connection', (socket) => {
     io.to(gameId).emit('character_registered', { name: data.name, character: charData });
     emitSystem(gameId, { text: `📜 ${data.name} has joined the campaign.` });
 
-    // Auto-generate token if none provided (fire and forget)
+    // Auto-generate token if none provided
     if (!charData.token) {
+      io.to(gameId).emit('token_generating', { name: data.name });
       generateCharacterToken(data.name, charData).then(async (tokenUrl) => {
         if (tokenUrl) {
           charData.token = tokenUrl;
           gs.data.characters[data.name] = charData;
           await db.upsertCharacter(gameId, data.name, charData);
           emitCharacterToken(gameId, { name: data.name, token: tokenUrl });
+        } else {
+          io.to(gameId).emit('token_failed', { name: data.name });
         }
       });
     }
@@ -617,6 +654,21 @@ io.on('connection', (socket) => {
     emitSystem(gameId, { text: '🔄 Game has been reset. Characters preserved.' });
   });
 
+  socket.on('save_character', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    const char = gs.data.characters[data.name];
+    if (!char) return;
+    if (data.statsText !== undefined) char.statsText = data.statsText;
+    if (data.personality !== undefined) char.personality = data.personality;
+    if (data.standardActions !== undefined) char.standardActions = data.standardActions;
+    if (data.backstory !== undefined) char.backstory = data.backstory;
+    await db.upsertCharacter(gameId, data.name, char);
+    socket.emit('system', { text: `✅ ${data.name}'s character sheet saved.` });
+    io.to(gameId).emit('character_updated', { name: data.name, character: char });
+  });
+
   socket.on('catch_up', async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
@@ -708,6 +760,7 @@ const gameEngine = {
 
     // Auto-generate token
     if (!charData.token) {
+      io.to(gameId).emit('token_generating', { name });
       generateCharacterToken(name, charData).then(async (tokenUrl) => {
         if (tokenUrl) {
           charData.token = tokenUrl;
