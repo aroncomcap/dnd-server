@@ -21,8 +21,8 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const together = new Together({ apiKey: process.env.TOGETHER_API_KEY });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
-const TURN_DURATION = 3 * 60 * 1000;
-const IMAGE_COOLDOWN = 2; // generate image every N turns
+const DEFAULT_TURN_DURATION = 180; // seconds
+const IMAGE_COOLDOWN = 2;
 const MAX_CONTEXT_CHARS = 50000;
 
 // ── Per-game in-memory state ─────────────────────────────────────────────────
@@ -35,6 +35,7 @@ function getGameState(gameId) {
       turnTimer: null,
       turnCount: 0,
       imageUrl: null,
+      turnDuration: DEFAULT_TURN_DURATION,
     };
   }
   return games[gameId];
@@ -279,7 +280,7 @@ function startTurnTimer(gameId, gameConfig, playerName) {
     } catch (err) {
       emitSystem(gameId, { text: 'Error during auto-action.' });
     }
-  }, TURN_DURATION);
+  }, gs.turnDuration * 1000);
 }
 
 async function advanceTurn(gameId, gameConfig) {
@@ -290,7 +291,7 @@ async function advanceTurn(gameId, gameConfig) {
   const next = getCurrentPlayer(gameId);
   if (next) {
     const token = gd.characters[next]?.token || null;
-    emitTurnChange(gameId, { player: next, duration: TURN_DURATION, token });
+    emitTurnChange(gameId, { player: next, duration: gs.turnDuration * 1000, token });
     startTurnTimer(gameId, gameConfig, next);
   }
 }
@@ -404,6 +405,7 @@ io.on('connection', (socket) => {
       turnOrder: gs.data.turnOrder,
       currentPlayer: getCurrentPlayer(gameId),
       imageUrl: gs.imageUrl,
+      turnDuration: gs.turnDuration,
     });
   });
 
@@ -512,7 +514,7 @@ io.on('connection', (socket) => {
       const first = getCurrentPlayer(gameId);
       if (first) {
         const firstToken = gs.data.characters[first]?.token || null;
-        emitTurnChange(gameId, { player: first, duration: TURN_DURATION, token: firstToken });
+        emitTurnChange(gameId, { player: first, duration: gs.turnDuration * 1000, token: firstToken });
         startTurnTimer(gameId, gameConfig, first);
       }
     } catch (err) {
@@ -535,6 +537,36 @@ io.on('connection', (socket) => {
     await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
     io.to(gameId).emit('game_reset');
     emitSystem(gameId, { text: '🔄 Game has been reset. Characters preserved.' });
+  });
+
+  socket.on('skip_turn', async () => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    await gameEngine.skipTurn(gameId);
+  });
+
+  socket.on('set_timer', (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    gameEngine.setTimer(gameId, data.seconds);
+  });
+
+  socket.on('delete_character', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    await gameEngine.deleteCharacter(gameId, data.name);
+  });
+
+  socket.on('deactivate_character', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    await gameEngine.deactivateCharacter(gameId, data.name);
+  });
+
+  socket.on('activate_character', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    await gameEngine.activateCharacter(gameId, data.name);
   });
 
   socket.on('disconnect', () => {
@@ -633,6 +665,59 @@ const gameEngine = {
     await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
     io.to(gameId).emit('game_reset');
     emitSystem(gameId, { text: '🔄 Game has been reset. Characters preserved.' });
+  },
+
+  async skipTurn(gameId) {
+    const gs = getGameState(gameId);
+    clearTimeout(gs.turnTimer);
+    const current = getCurrentPlayer(gameId);
+    emitSystem(gameId, { text: `⏭️ ${current || 'Current player'}'s turn was skipped.` });
+    const gameConfig = await db.getGame(gameId);
+    await advanceTurn(gameId, gameConfig);
+    return { ok: true };
+  },
+
+  setTimer(gameId, seconds) {
+    const gs = getGameState(gameId);
+    gs.turnDuration = Math.max(10, Math.min(3600, seconds));
+    emitSystem(gameId, { text: `⏱️ Turn timer set to ${gs.turnDuration} seconds.` });
+    // Broadcast new duration to web clients
+    io.to(gameId).emit('timer_updated', { duration: gs.turnDuration });
+    return { ok: true, duration: gs.turnDuration };
+  },
+
+  async deleteCharacter(gameId, name) {
+    const gs = getGameState(gameId);
+    delete gs.data.characters[name];
+    gs.data.turnOrder = gs.data.turnOrder.filter(n => n !== name);
+    await db.pool.query('DELETE FROM characters WHERE game_id = $1 AND name = $2', [gameId, name]);
+    await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
+    io.to(gameId).emit('character_deleted', { name });
+    emitSystem(gameId, { text: `🗑️ ${name} has been removed from the campaign.` });
+    return { ok: true };
+  },
+
+  async deactivateCharacter(gameId, name) {
+    const gs = getGameState(gameId);
+    const idx = gs.data.turnOrder.indexOf(name);
+    if (idx !== -1) {
+      gs.data.turnOrder.splice(idx, 1);
+      await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
+      io.to(gameId).emit('character_deactivated', { name, turnOrder: gs.data.turnOrder });
+      emitSystem(gameId, { text: `💤 ${name} has been removed from the initiative order.` });
+    }
+    return { ok: true };
+  },
+
+  async activateCharacter(gameId, name) {
+    const gs = getGameState(gameId);
+    if (gs.data.characters[name] && !gs.data.turnOrder.includes(name)) {
+      gs.data.turnOrder.push(name);
+      await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
+      io.to(gameId).emit('character_activated', { name, turnOrder: gs.data.turnOrder });
+      emitSystem(gameId, { text: `⚔️ ${name} has rejoined the initiative order.` });
+    }
+    return { ok: true };
   },
 };
 

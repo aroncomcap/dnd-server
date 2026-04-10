@@ -55,6 +55,17 @@ function buildSubcommands(builder) {
       .setName('party')
       .setDescription('Show party members'))
     .addSubcommand(sub => sub
+      .setName('skip')
+      .setDescription('Skip the current player\'s turn'))
+    .addSubcommand(sub => sub
+      .setName('timer')
+      .setDescription('Set turn timer (seconds)')
+      .addIntegerOption(opt => opt.setName('seconds').setDescription('Seconds per turn (10-3600)').setRequired(true)))
+    .addSubcommand(sub => sub
+      .setName('claim')
+      .setDescription('Claim an existing character')
+      .addStringOption(opt => opt.setName('name').setDescription('Character name to play as').setRequired(true)))
+    .addSubcommand(sub => sub
       .setName('reset')
       .setDescription('Reset the game (keeps characters)'));
 }
@@ -116,12 +127,14 @@ function makeOptionButtons(options) {
   return [new ActionRowBuilder().addComponents(...rows)];
 }
 
-function makeTurnEmbed(playerName, token) {
+function makeTurnEmbed(playerName, token, durationMs) {
+  const seconds = Math.round((durationMs || 180000) / 1000);
+  const expiresAt = Math.floor((Date.now() + (durationMs || 180000)) / 1000);
   const embed = new EmbedBuilder()
     .setColor(0xF0C060)
     .setTitle(`⚔️ ${playerName}'s Turn`)
-    .setDescription('Choose an action above, or use `/tavern action` to describe your own.')
-    .setFooter({ text: '3 minute timer — Claude acts for you if time runs out' });
+    .setDescription(`Choose an action above, type in the channel, or use \`/tt action\`.\n\n⏱️ Timer: **${seconds}s** — expires <t:${expiresAt}:R>`)
+    .setFooter({ text: 'Claude acts for you if time runs out' });
   if (token && token.startsWith('http')) {
     embed.setThumbnail(token);
   }
@@ -325,6 +338,51 @@ client.on('interactionCreate', async (interaction) => {
   }
 
   // ── /tavern reset ──────────────────────────────────────────
+  else if (sub === 'skip') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) {
+      await interaction.reply({ content: 'Link this channel first.', ephemeral: true });
+      return;
+    }
+    await gameEngine.skipTurn(gameId);
+    await interaction.reply('⏭️ Turn skipped.');
+  }
+
+  else if (sub === 'timer') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) {
+      await interaction.reply({ content: 'Link this channel first.', ephemeral: true });
+      return;
+    }
+    const seconds = interaction.options.getInteger('seconds');
+    const result = gameEngine.setTimer(gameId, seconds);
+    await interaction.reply(`⏱️ Turn timer set to **${result.duration} seconds**.`);
+  }
+
+  else if (sub === 'claim') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) {
+      await interaction.reply({ content: 'Link this channel first.', ephemeral: true });
+      return;
+    }
+    const name = interaction.options.getString('name');
+    const gs = gameEngine.getGameState(gameId);
+    if (!gs.data.characters[name]) {
+      const available = Object.keys(gs.data.characters);
+      const list = available.length ? available.map(n => `\`${n}\``).join(', ') : 'none';
+      await interaction.reply({ content: `Character "${name}" not found. Available: ${list}`, ephemeral: true });
+      return;
+    }
+    await bindUser(gameId, interaction.user.id, name);
+    const char = gs.data.characters[name];
+    const embed = new EmbedBuilder()
+      .setColor(0xC8922A)
+      .setTitle(`🎭 Now playing as ${name}`)
+      .setDescription(char.statsText || 'No stats');
+    if (char.token) embed.setThumbnail(char.token);
+    await interaction.reply({ embeds: [embed] });
+  }
+
   else if (sub === 'reset') {
     const gameId = await db.getChannelGame(interaction.channelId);
     if (!gameId) {
@@ -389,7 +447,7 @@ async function onDmMessage(gameId, data) {
 
 async function onTurnChange(gameId, data) {
   await broadcastToChannels(gameId, async (channel) => {
-    const embed = makeTurnEmbed(data.player, data.token);
+    const embed = makeTurnEmbed(data.player, data.token, data.duration);
     await channel.send({ embeds: [embed] });
   });
 }

@@ -456,6 +456,47 @@
 
   .host-note { font-size: 0.8rem; color: var(--ink-light); font-style: italic; margin-top: 6px; }
 
+  .char-actions-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    clear: both;
+  }
+  .char-actions-row button {
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--parchment-dark);
+    background: transparent;
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.75rem;
+    color: var(--ink-light);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .char-actions-row button:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+  }
+  .char-actions-row .btn-del:hover {
+    border-color: var(--red);
+    color: var(--red);
+  }
+  .char-inactive { opacity: 0.5; }
+
+  .timer-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+  .timer-row input {
+    width: 80px;
+    text-align: center;
+    font-size: 0.9rem;
+    padding: 6px 8px;
+  }
+  .timer-row label { margin: 0; }
+
   /* ── PDF Upload ── */
   .upload-zone {
     border: 2px dashed var(--parchment-dark);
@@ -653,6 +694,7 @@
     <div class="or-divider" id="or-divider" style="display:none;">— or describe your own action —</div>
     <textarea id="action-input" placeholder="Describe what your character does…" rows="2"></textarea>
     <div class="action-row">
+      <button class="btn btn-ghost" id="btn-skip" style="flex:0.4;">⏭️ Skip</button>
       <button class="btn btn-primary" id="btn-send">Send Action</button>
     </div>
   </div>
@@ -722,6 +764,13 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
       ⚔️ Begin the Adventure
     </button>
 
+    <div class="timer-row">
+      <label>⏱️ Turn Timer:</label>
+      <input id="timer-input" type="number" min="10" max="3600" value="180"/>
+      <span class="host-note" style="margin:0;">seconds</span>
+      <button class="token-btn" id="btn-set-timer">Set</button>
+    </div>
+
     <button class="btn btn-danger" id="btn-reset" style="margin-top:10px;">
       🔄 Reset Game (keeps characters)
     </button>
@@ -769,6 +818,8 @@ const gameId = window.location.pathname.split('/game/')[1];
 let playerName = localStorage.getItem('playerName_' + gameId) || '';
 let currentPlayer = null;
 let gameConfig = null;
+let currentTurnOrder = [];
+let currentCharacters = {};
 const tokenCache = {}; // name -> token url
 
 if (!gameId) { window.location.href = '/'; }
@@ -911,10 +962,15 @@ socket.on('game_joined', (state) => {
   document.getElementById('game-title').textContent = `${state.game.name} · ${state.game.system.toUpperCase()}`;
   document.title = `⚔️ ${state.game.name} — Tavern Table`;
 
-  // Cache all tokens
+  // Cache state
+  currentTurnOrder = state.turnOrder || [];
+  currentCharacters = state.characters || {};
   Object.entries(state.characters).forEach(([name, c]) => {
     if (c.token) tokenCache[name] = c.token;
   });
+  if (state.turnDuration) {
+    document.getElementById('timer-input').value = state.turnDuration;
+  }
 
   chatLog.innerHTML = '';
   if (state.chatHistory.length === 0) {
@@ -988,6 +1044,8 @@ socket.on('scene_image', (data) => showSceneImage(data.url));
 
 socket.on('character_registered', (data) => {
   document.getElementById('char-status').textContent = `✅ ${data.name} registered!`;
+  currentCharacters[data.name] = data.character;
+  if (!currentTurnOrder.includes(data.name)) currentTurnOrder.push(data.name);
   if (data.character.token) tokenCache[data.name] = data.character.token;
   updatePartyCard(data.name, data.character);
   // Show token in preview if it's our character
@@ -1030,6 +1088,32 @@ socket.on('game_reset', () => {
   showOptions([]);
 });
 
+socket.on('character_deleted', (data) => {
+  const card = document.getElementById('card-' + data.name);
+  if (card) card.remove();
+  delete currentCharacters[data.name];
+  currentTurnOrder = currentTurnOrder.filter(n => n !== data.name);
+  if (playerName === data.name) {
+    playerName = '';
+    localStorage.removeItem('playerName_' + gameId);
+    document.getElementById('playing-as').style.display = 'none';
+  }
+});
+
+socket.on('character_deactivated', (data) => {
+  currentTurnOrder = data.turnOrder;
+  updateParty(currentCharacters);
+});
+
+socket.on('character_activated', (data) => {
+  currentTurnOrder = data.turnOrder;
+  updateParty(currentCharacters);
+});
+
+socket.on('timer_updated', (data) => {
+  document.getElementById('timer-input').value = data.duration;
+});
+
 // ── Party display ─────────────────────────────────────────────
 const partyList = document.getElementById('party-list');
 
@@ -1062,14 +1146,56 @@ function updatePartyCard(name, c) {
     <span>${statsHtml || 'No stats provided'}</span>
     <div style="clear:both;"></div>
   `;
-  // Click to take over character
-  existing.onclick = () => {
+  // Action buttons
+  const actionsRow = document.createElement('div');
+  actionsRow.className = 'char-actions-row';
+
+  const playBtn = document.createElement('button');
+  playBtn.textContent = '🎭 Play As';
+  playBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
     selectCharacter(name, c);
-    // Highlight active card
     document.querySelectorAll('.char-card').forEach(el => el.classList.remove('active-char'));
     existing.classList.add('active-char');
-  };
-  // Mark active if this is the current player
+  });
+  actionsRow.appendChild(playBtn);
+
+  // Check if in turn order
+  const gs = gameConfig; // we have gameConfig from game_joined
+  const inTurnOrder = currentTurnOrder.includes(name);
+
+  if (inTurnOrder) {
+    const deactBtn = document.createElement('button');
+    deactBtn.textContent = '💤 Bench';
+    deactBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      socket.emit('deactivate_character', { name });
+    });
+    actionsRow.appendChild(deactBtn);
+  } else {
+    const actBtn = document.createElement('button');
+    actBtn.textContent = '⚔️ Activate';
+    actBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      socket.emit('activate_character', { name });
+    });
+    actionsRow.appendChild(actBtn);
+    existing.classList.add('char-inactive');
+  }
+
+  const delBtn = document.createElement('button');
+  delBtn.textContent = '🗑️ Delete';
+  delBtn.className = 'btn-del';
+  delBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (confirm(`Delete ${name}? This cannot be undone.`)) {
+      socket.emit('delete_character', { name });
+    }
+  });
+  actionsRow.appendChild(delBtn);
+
+  existing.appendChild(actionsRow);
+
   if (name === playerName) existing.classList.add('active-char');
 }
 
@@ -1108,6 +1234,17 @@ function sendAction() {
   document.getElementById('action-input').value = '';
   showOptions([]);
 }
+
+// ── Skip turn ─────────────────────────────────────────────────
+document.getElementById('btn-skip').addEventListener('click', () => {
+  socket.emit('skip_turn');
+});
+
+// ── Timer control ─────────────────────────────────────────────
+document.getElementById('btn-set-timer').addEventListener('click', () => {
+  const seconds = parseInt(document.getElementById('timer-input').value) || 180;
+  socket.emit('set_timer', { seconds });
+});
 
 // ── Host controls ─────────────────────────────────────────────
 document.getElementById('btn-start').addEventListener('click', () => {
