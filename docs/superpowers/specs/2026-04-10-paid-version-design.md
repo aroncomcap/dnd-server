@@ -197,23 +197,89 @@ Simple page at `/purchase`:
 - Apple requires Sign in with Apple if any social login is offered (already included)
 - Google Play requires Google OAuth for streamlined billing (already included)
 
+## Admin & Testing Controls
+
+### Global Billing Toggle
+- Environment variable `BILLING_ENABLED=false` as master switch (default: off during testing)
+- Admin page at `/admin` for convenience — can flip billing on/off without redeploying
+- Admin access: user account with `is_admin` flag in the `users` table (set manually in DB or via first-user-is-admin pattern)
+
+### When Billing Is Off
+- All billing UI still visible but non-enforcing
+- Banner in header: "🧪 Test Mode — billing disabled"
+- Time tracking runs but limits are not enforced (no spectator mode, no pausing)
+- Good for testing the billing UI itself without blocking gameplay
+
+### Tester Credits — Direct
+- Admin page: enter email/username + hours to credit
+- Credits added to `paid_minutes_remaining` with a `credit_type: 'admin'` in purchase history
+- Credits expire after 1 year from grant date
+
+### Tester Credits — Promo Codes
+- Admin page: generate promo codes
+- Each code is single-use (one person, one redemption)
+- Default grant: 40 hours (2400 minutes)
+- Code format: `BETA-XXXXXX` (6 random alphanumeric chars)
+- Players redeem via `/redeem` page or `/tt redeem <code>` in Discord
+- Redeemed credits expire 1 year from redemption date
+
+### Data Model Additions
+
+```sql
+-- Add admin flag to users
+ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE;
+
+-- Promo codes
+CREATE TABLE promo_codes (
+  code TEXT PRIMARY KEY,
+  minutes_granted INT DEFAULT 2400, -- 40 hours
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  redeemed_by TEXT REFERENCES users(id),
+  redeemed_at TIMESTAMPTZ,
+  expires_at TIMESTAMPTZ -- 1 year from redemption
+);
+
+-- Add expiry tracking to purchases/credits
+ALTER TABLE purchases ADD COLUMN expires_at TIMESTAMPTZ;
+-- For admin credits and promo redemptions, set expires_at = created_at + 1 year
+```
+
+### Credit Expiry
+- Free monthly hours: reset on 1st of each month (existing behavior)
+- Purchased hours: never expire
+- Admin-credited hours: expire 1 year from grant date
+- Promo code hours: expire 1 year from redemption date
+- Billing ticker deducts from soonest-expiring credits first
+
 ## Implementation Phases
 
 ### Phase 1: Auth + Billing Core (build first)
-- User accounts with all 4 auth providers
-- Balance tracking
-- Billing ticker
-- Spectator mode
-- Stripe/RevenueCat integration for web purchases
+- User accounts with all 4 auth providers (Passport.js)
+- Balance tracking (user_balances table)
+- Billing ticker (1-minute server-side deduction)
+- Spectator mode (5-min watch window on expiry)
+- Global billing toggle (env var + admin flag)
+- Admin page (`/admin`) for billing toggle, direct credits, promo code generation
 
-### Phase 2: UI + Polish
-- Header balance indicator
-- Purchase page
-- Host tab billing controls
-- Spectator mode banner
-- Discord balance commands
+### Phase 2: Credits + Promo Codes
+- Direct credit granting via admin page
+- Promo code generation, redemption page (`/redeem`), Discord `/tt redeem`
+- Credit expiry logic (1 year, soonest-expiring deducted first)
+- "Test Mode" banner when billing disabled
 
-### Phase 3: App Store Prep (future)
-- RevenueCat app store products
+### Phase 3: Payment Integration
+- RevenueCat + Stripe for web purchases
+- Purchase page (`/purchase`) with product cards
+- Webhook for successful payments → credit balance
+- Host tab billing controls (billing mode, balance display)
+
+### Phase 4: UI + Polish
+- Header balance indicator (green/yellow/red)
+- Spectator mode banner with countdown
+- Discord `/tt balance`, `/tt addtime` commands
+- Warning notifications at 30min/10min/1min
+
+### Phase 5: App Store Prep (future)
+- RevenueCat app store products ($1.49/hr tier)
 - React Native or PWA wrapper
 - App store submission
