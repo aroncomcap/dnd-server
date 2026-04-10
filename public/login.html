@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Tavern Table — Sign In</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --parchment: #f5ead6;
+    --parchment-dark: #e8d5b0;
+    --ink: #2c1a0e;
+    --ink-light: #5c3d1e;
+    --gold: #c8922a;
+    --gold-light: #f0c060;
+    --red: #8b2020;
+    --shadow: rgba(44,26,14,0.35);
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a0f05;
+    background-image:
+      radial-gradient(ellipse at 20% 80%, #2d1a08 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, #2d1a08 0%, transparent 50%);
+    font-family: 'Crimson Pro', serif;
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 1.6rem;
+    color: var(--gold-light);
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 30px rgba(200,146,42,0.6);
+    margin-bottom: 4px;
+  }
+  header h1 a {
+    color: inherit;
+    text-decoration: none;
+  }
+  header h1 a:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--gold);
+  }
+  header p {
+    color: var(--parchment-dark);
+    font-size: 0.95rem;
+    font-style: italic;
+  }
+
+  .container { width: 100%; max-width: 440px; }
+
+  .panel {
+    background: var(--parchment);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: 0 4px 20px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.4);
+    border: 1px solid var(--parchment-dark);
+    margin-bottom: 16px;
+  }
+
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--parchment-dark);
+  }
+  .tab {
+    flex: 1;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--ink-light);
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    opacity: 0.5;
+    transition: all 0.2s;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+  }
+  .tab:hover { opacity: 0.8; }
+  .tab.active {
+    opacity: 1;
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+  }
+
+  /* ── Form Elements ── */
+  label {
+    font-size: 0.85rem;
+    color: var(--ink-light);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
+    margin-top: 12px;
+  }
+  label:first-of-type { margin-top: 0; }
+
+  input {
+    width: 100%;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-family: 'Crimson Pro', serif;
+    font-size: 1rem;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(200,146,42,0.2);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+    width: 100%;
+    margin-top: 16px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #c8922a, #f0c060, #c8922a);
+    color: #0d0600;
+    box-shadow: 0 4px 12px rgba(200,146,42,0.4);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(200,146,42,0.5); }
+  .btn-primary:active { transform: translateY(0); }
+
+  /* ── Error / Success Messages ── */
+  .error-msg {
+    background: rgba(139,32,32,0.1);
+    border: 1px solid rgba(139,32,32,0.3);
+    border-radius: 8px;
+    color: var(--red);
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+    display: none;
+  }
+  .error-msg.visible { display: block; }
+
+  /* ── Divider ── */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+    color: var(--ink-light);
+    font-size: 0.8rem;
+    opacity: 0.6;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--parchment-dark);
+  }
+
+  /* ── OAuth Buttons ── */
+  .btn-oauth {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 11px 16px;
+    border-radius: 8px;
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    margin-bottom: 10px;
+  }
+  .btn-oauth:last-child { margin-bottom: 0; }
+  .btn-oauth:hover { transform: translateY(-1px); }
+  .btn-oauth:active { transform: translateY(0); }
+
+  .btn-google {
+    background: transparent;
+    border: 1.5px solid #4285f4;
+    color: var(--ink);
+  }
+  .btn-google:hover {
+    background: rgba(66,133,244,0.08);
+    box-shadow: 0 4px 12px rgba(66,133,244,0.2);
+  }
+
+  .btn-discord {
+    background: transparent;
+    border: 1.5px solid #5865f2;
+    color: var(--ink);
+  }
+  .btn-discord:hover {
+    background: rgba(88,101,242,0.08);
+    box-shadow: 0 4px 12px rgba(88,101,242,0.2);
+  }
+
+  .btn-oauth svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  /* ── Form section visibility ── */
+  .form-section { display: none; }
+  .form-section.active { display: block; }
+
+  /* ── Back link ── */
+  .back-link {
+    display: block;
+    text-align: center;
+    color: var(--parchment-dark);
+    font-size: 0.85rem;
+    margin-top: 16px;
+    text-decoration: none;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+  }
+  .back-link:hover { opacity: 1; color: var(--gold-light); }
+
+  /* ── Responsive ── */
+  @media (min-width: 640px) {
+    header h1 { font-size: 2rem; }
+    header p { font-size: 1.1rem; }
+    .panel { padding: 28px; }
+  }
+  @media (min-width: 1024px) {
+    header h1 { font-size: 2.4rem; }
+    .btn { padding: 14px 24px; font-size: 0.85rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1><a href="/">Tavern Table</a></h1>
+  <p>Sign in to track your balance & superpowers</p>
+</header>
+
+<div class="container">
+  <div class="panel">
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" data-tab="login">Login</button>
+      <button class="tab" data-tab="register">Register</button>
+    </div>
+
+    <!-- Error display -->
+    <div class="error-msg" id="error-msg"></div>
+
+    <!-- Login Form -->
+    <div class="form-section active" id="form-login">
+      <label>Email</label>
+      <input id="login-email" type="email" placeholder="adventurer@tavern.com" autocomplete="email"/>
+
+      <label>Password</label>
+      <input id="login-password" type="password" placeholder="Your secret passphrase" autocomplete="current-password"/>
+
+      <button class="btn btn-primary" id="btn-login">Login</button>
+    </div>
+
+    <!-- Register Form -->
+    <div class="form-section" id="form-register">
+      <label>Display Name</label>
+      <input id="reg-name" type="text" placeholder="Sir Lancelot" autocomplete="name"/>
+
+      <label>Email</label>
+      <input id="reg-email" type="email" placeholder="adventurer@tavern.com" autocomplete="email"/>
+
+      <label>Password</label>
+      <input id="reg-password" type="password" placeholder="At least 8 characters" autocomplete="new-password"/>
+
+      <label>Confirm Password</label>
+      <input id="reg-confirm" type="password" placeholder="Repeat your passphrase" autocomplete="new-password"/>
+
+      <button class="btn btn-primary" id="btn-register">Create Account</button>
+    </div>
+
+    <!-- OAuth divider -->
+    <div class="divider">or continue with</div>
+
+    <!-- OAuth Buttons -->
+    <a href="/auth/google" class="btn-oauth btn-google">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.97 10.97 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+      Continue with Google
+    </a>
+
+    <a href="/auth/discord" class="btn-oauth btn-discord">
+      <svg viewBox="0 0 24 24"><path fill="#5865F2" d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>
+      Continue with Discord
+    </a>
+  </div>
+
+  <a href="/" class="back-link">Back to Lobby</a>
+</div>
+
+<script>
+// ── Tab switching ──
+const tabs = document.querySelectorAll('.tab');
+const forms = document.querySelectorAll('.form-section');
+const errorEl = document.getElementById('error-msg');
+
+tabs.forEach(tab => {
+  tab.addEventListener('click', () => {
+    tabs.forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    forms.forEach(f => f.classList.remove('active'));
+    document.getElementById('form-' + tab.dataset.tab).classList.add('active');
+    hideError();
+  });
+});
+
+function showError(msg) {
+  errorEl.textContent = msg;
+  errorEl.classList.add('visible');
+}
+function hideError() {
+  errorEl.textContent = '';
+  errorEl.classList.remove('visible');
+}
+
+// ── Check URL params for OAuth errors ──
+const params = new URLSearchParams(window.location.search);
+if (params.get('error')) {
+  const errorMap = {
+    google_failed: 'Google sign-in failed. Please try again.',
+    discord_failed: 'Discord sign-in failed. Please try again.',
+    oauth_failed: 'OAuth sign-in failed. Please try again.',
+  };
+  showError(errorMap[params.get('error')] || 'Sign-in failed: ' + params.get('error'));
+}
+
+// ── Login ──
+document.getElementById('btn-login').addEventListener('click', async () => {
+  hideError();
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+
+  if (!email || !password) { showError('Please fill in all fields.'); return; }
+
+  try {
+    const res = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      window.location.href = '/';
+    } else {
+      showError(data.error || 'Login failed.');
+    }
+  } catch (err) {
+    showError('Network error. Please try again.');
+  }
+});
+
+// ── Register ──
+document.getElementById('btn-register').addEventListener('click', async () => {
+  hideError();
+  const name = document.getElementById('reg-name').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const password = document.getElementById('reg-password').value;
+  const confirm = document.getElementById('reg-confirm').value;
+
+  if (!name || !email || !password || !confirm) { showError('Please fill in all fields.'); return; }
+  if (password.length < 8) { showError('Password must be at least 8 characters.'); return; }
+  if (password !== confirm) { showError('Passwords do not match.'); return; }
+
+  try {
+    const res = await fetch('/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      window.location.href = '/';
+    } else {
+      showError(data.error || 'Registration failed.');
+    }
+  } catch (err) {
+    showError('Network error. Please try again.');
+  }
+});
+
+// ── Enter key submits ──
+document.getElementById('login-password').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-login').click();
+});
+document.getElementById('reg-confirm').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-register').click();
+});
+</script>
+</body>
+</html>

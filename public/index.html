@@ -197,6 +197,42 @@
     .game-card { margin-bottom: 0; }
   }
 
+  /* ── Auth Bar ── */
+  .auth-bar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 10px 20px;
+    gap: 12px;
+    z-index: 100;
+  }
+  .auth-bar .user-name {
+    color: var(--parchment-dark);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .auth-bar a, .auth-bar button {
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gold);
+    background: none;
+    border: 1px solid rgba(200,146,42,0.3);
+    border-radius: 6px;
+    padding: 5px 14px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .auth-bar a:hover, .auth-bar button:hover {
+    background: rgba(200,146,42,0.1);
+    border-color: var(--gold);
+  }
+
   @media (min-width: 1024px) {
     .container { max-width: 800px; }
     body { justify-content: center; }
@@ -208,6 +244,8 @@
 </style>
 </head>
 <body>
+
+<div class="auth-bar" id="auth-bar"></div>
 
 <header>
   <h1>⚔️ Tavern Table</h1>
@@ -301,6 +339,29 @@ document.getElementById('btn-create').addEventListener('click', async () => {
 });
 
 loadGames();
+
+// ── Auth status ──
+(async function checkAuth() {
+  const bar = document.getElementById('auth-bar');
+  try {
+    const res = await fetch('/auth/me');
+    if (res.ok) {
+      const user = await res.json();
+      bar.innerHTML = `
+        <span class="user-name">Welcome, ${user.name || user.email}</span>
+        <button id="btn-logout">Logout</button>
+      `;
+      document.getElementById('btn-logout').addEventListener('click', async () => {
+        await fetch('/auth/logout', { method: 'POST' });
+        window.location.reload();
+      });
+    } else {
+      bar.innerHTML = '<a href="/login.html">Login</a>';
+    }
+  } catch {
+    bar.innerHTML = '<a href="/login.html">Login</a>';
+  }
+})();
 </script>
 </body>
 </html>
