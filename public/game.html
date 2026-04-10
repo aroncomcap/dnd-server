@@ -531,6 +531,35 @@
 
   .hidden { display: none !important; }
 
+  /* ── Map ── */
+  .map-level-btn, .map-level-btn-mobile {
+    flex: 1;
+    padding: 4px;
+    background: #3d2510;
+    border: 1px solid #c8922a44;
+    border-radius: 4px;
+    color: #c8922a;
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.7rem;
+    cursor: pointer;
+    text-align: center;
+  }
+  .map-level-btn.active, .map-level-btn-mobile.active {
+    background: #c8922a;
+    color: #0d0600;
+    font-weight: bold;
+  }
+  #map-badge {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: #f0c060;
+    border-radius: 50%;
+    margin-left: 2px;
+    visibility: hidden;
+  }
+  #map-badge.active { visibility: visible; }
+
   /* ── Character Picker Overlay ── */
   #char-picker {
     position: fixed;
@@ -845,6 +874,20 @@
     #char-picker .picker-panel {
       max-width: 500px;
     }
+
+    /* ── Map sidebar on desktop ── */
+    #screen-game.has-map.active {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      grid-template-rows: auto 1fr auto;
+      gap: 16px;
+      max-width: 1200px;
+    }
+    #screen-game.has-map #map-sidebar {
+      display: block;
+      grid-column: 2;
+      grid-row: 2;
+    }
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -899,6 +942,17 @@
   <div id="scene-panel">
     <img id="scene-img" src="" alt="Scene"/>
     <div class="scene-overlay"></div>
+  </div>
+
+  <div id="map-sidebar" style="display:none;">
+    <div class="panel" style="height:100%;display:flex;flex-direction:column;padding:8px;">
+      <div style="display:flex;gap:4px;margin-bottom:6px;">
+        <button class="map-level-btn active" data-level="world">🌍 World</button>
+        <button class="map-level-btn" data-level="location">🏰 Location</button>
+        <button class="map-level-btn" data-level="detail">🚪 Detail</button>
+      </div>
+      <div id="map-container" style="flex:1;min-height:200px;"></div>
+    </div>
   </div>
 
   <div class="panel" id="chat-panel" style="flex:1; display:flex; flex-direction:column;">
@@ -1032,6 +1086,18 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
   </div>
 </div>
 
+<!-- ── MAP SCREEN (mobile) ──────────────────────────────────── -->
+<div id="screen-map" class="screen">
+  <div class="panel" style="flex:1;display:flex;flex-direction:column;padding:8px;">
+    <div style="display:flex;gap:4px;margin-bottom:6px;">
+      <button class="map-level-btn-mobile active" data-level="world">🌍 World</button>
+      <button class="map-level-btn-mobile" data-level="location">🏰 Location</button>
+      <button class="map-level-btn-mobile" data-level="detail">🚪 Detail</button>
+    </div>
+    <div id="map-container-mobile" style="flex:1;min-height:300px;"></div>
+  </div>
+</div>
+
 <!-- ── HOST SCREEN ─────────────────────────────────────────── -->
 <div id="screen-host" class="screen">
   <div class="panel">
@@ -1057,6 +1123,19 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--ink-light);">
       <span>💀 Deadly + Treasure</span>
       <span>😊 Easy</span>
+    </div>
+
+    <label style="margin-top:12px;">🗺️ Map Style</label>
+    <select id="map-style-select">
+      <option value="parchment">📜 Parchment & Ink</option>
+      <option value="dark" selected>🌑 Dark & Glowing</option>
+      <option value="tactical">⚔️ Tactical Grid</option>
+    </select>
+
+    <label style="margin-top:8px;">🗺️ Manual Reveal</label>
+    <div style="display:flex;gap:6px;">
+      <input id="reveal-location-input" type="text" placeholder="Location name to reveal" style="flex:1;font-size:0.85rem;padding:6px 8px;"/>
+      <button class="token-btn" id="btn-reveal-location">👁 Reveal</button>
     </div>
 
     <label style="margin-top:12px;">🤖 AI Model</label>
@@ -1136,12 +1215,16 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
   <button data-screen="world">
     <span class="nav-icon">🗺️</span>World
   </button>
+  <button data-screen="map">
+    <span class="nav-icon">🗺️</span><span id="map-badge"></span>Map
+  </button>
   <button data-screen="host">
     <span class="nav-icon">👑</span>Host
   </button>
 </nav>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="/map-renderer.js"></script>
 <script>
 const socket = io();
 const gameId = window.location.pathname.split('/game/')[1];
@@ -1396,6 +1479,14 @@ socket.on('game_joined', (state) => {
   if (pendingOptions.length && (!pendingForPlayer || (me && pendingForPlayer.toLowerCase() === me))) {
     showOptions(pendingOptions);
   }
+
+  // Initialize map
+  initMap();
+  if (state.mapState && state.mapState.playerLocation) {
+    updateMap(state.mapState);
+  }
+  if (mapRenderer) mapRenderer.onNodeClick = onMapNodeClick;
+  if (mapRendererMobile) mapRendererMobile.onNodeClick = onMapNodeClick;
 });
 
 socket.on('error_msg', (data) => {
@@ -1880,6 +1971,75 @@ ferocitySlider.addEventListener('change', () => {
 socket.on('ferocity_updated', (data) => {
   ferocitySlider.value = data.ferocity;
   ferocityLabel.textContent = `${data.ferocity}/5 — ${ferocityLabels[data.ferocity]}`;
+});
+
+// ── Map ──────────────────────────────────────────────────────
+let mapRenderer = null;
+let mapRendererMobile = null;
+
+function initMap() {
+  const container = document.getElementById('map-container');
+  const containerMobile = document.getElementById('map-container-mobile');
+  if (container) mapRenderer = new MapRenderer(container, 'dark');
+  if (containerMobile) mapRendererMobile = new MapRenderer(containerMobile, 'dark');
+}
+
+function updateMap(mapState) {
+  if (mapRenderer) mapRenderer.update(mapState);
+  if (mapRendererMobile) mapRendererMobile.update(mapState);
+  // Show sidebar on desktop
+  if (mapState.playerLocation) {
+    document.getElementById('screen-game').classList.add('has-map');
+    document.getElementById('map-sidebar').style.display = 'block';
+  }
+}
+
+socket.on('map_update', (mapState) => {
+  updateMap(mapState);
+  // Flash badge on mobile
+  const badge = document.getElementById('map-badge');
+  if (badge) badge.classList.add('active');
+});
+
+socket.on('map_inline', (data) => {
+  addMsg('system', `🗺️ Entered: ${data.location}`);
+});
+
+socket.on('map_style_changed', (data) => {
+  if (mapRenderer) mapRenderer.setStyle(data.style);
+  if (mapRendererMobile) mapRendererMobile.setStyle(data.style);
+});
+
+// Level tab clicks
+document.querySelectorAll('.map-level-btn, .map-level-btn-mobile').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const level = btn.dataset.level;
+    btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    if (mapRenderer) mapRenderer.setLevel(level);
+    if (mapRendererMobile) mapRendererMobile.setLevel(level);
+  });
+});
+
+// Node click → travel request
+function onMapNodeClick(name) {
+  const me = getMyName();
+  if (me && isMyTurnCheck()) {
+    document.getElementById('action-input').value = `Travel to ${name}`;
+    sendAction();
+  }
+}
+
+// ── Map Host Settings ─────────────────────────────────────────
+document.getElementById('map-style-select').addEventListener('change', () => {
+  socket.emit('set_map_style', { style: document.getElementById('map-style-select').value });
+});
+
+document.getElementById('btn-reveal-location').addEventListener('click', () => {
+  const name = document.getElementById('reveal-location-input').value.trim();
+  if (!name) return;
+  socket.emit('reveal_location', { name });
+  document.getElementById('reveal-location-input').value = '';
 });
 
 // ── Host controls ─────────────────────────────────────────────
