@@ -801,45 +801,36 @@
       margin: 0 auto;
     }
 
-    /* ── Game screen: 2-column layout ── */
+    /* ── Game screen: single column by default, 2-col when scene exists ── */
     #screen-game.active {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* When scene image is visible, switch to 2-column */
+    #screen-game.has-scene.active {
       display: grid;
       grid-template-columns: 3fr 2fr;
       grid-template-rows: auto 1fr auto;
       gap: 16px;
       align-items: start;
+      max-width: 1200px;
     }
 
-    /* Playing-as banner spans full width */
-    #playing-as {
-      grid-column: 1 / -1;
-    }
+    #screen-game.has-scene #playing-as { grid-column: 1 / -1; }
+    #screen-game.has-scene #chat-panel { grid-column: 1; grid-row: 2; min-height: 0; }
+    #screen-game.has-scene #scene-panel { grid-column: 2; grid-row: 2; }
+    #screen-game.has-scene #scene-panel img { height: 360px; }
+    #screen-game.has-scene #action-area { grid-column: 1 / -1; grid-row: 3; }
 
-    /* Chat panel: left column, fills vertical space */
-    #chat-panel {
-      grid-column: 1;
-      grid-row: 2;
-      min-height: 0;
-    }
-
-    /* Chat log: no fixed height cap, fill available space */
     #chat-log {
       max-height: 70vh;
     }
 
-    /* Scene + info sidebar: right column */
-    #scene-panel {
-      grid-column: 2;
-      grid-row: 2;
-    }
-    #scene-panel img {
-      height: 360px;
-    }
-
-    /* Action area spans full bottom */
     #action-area {
-      grid-column: 1 / -1;
-      grid-row: 3;
       padding: 20px 24px;
     }
     #action-area textarea {
@@ -929,6 +920,7 @@
 <header>
   <h1><a href="/">⚔️ Tavern Table</a></h1>
   <div id="game-title"></div>
+  <div id="deploy-time" style="font-size:0.5rem; color:var(--parchment-dark); opacity:0.4;"></div>
   <div id="turn-banner"><img id="turn-token" src="" alt=""/>— <span id="turn-name">?</span>'s Turn —</div>
   <div id="timer-bar"></div>
 </header>
@@ -1162,6 +1154,12 @@ const tokenCache = {}; // name -> token url
 
 if (!gameId) { window.location.href = '/'; }
 
+// Fetch deploy time
+fetch('/api/deploy-time').then(r => r.json()).then(d => {
+  const dt = new Date(d.deployTime);
+  document.getElementById('deploy-time').textContent = `deployed ${dt.toLocaleDateString()} ${dt.toLocaleTimeString()}`;
+}).catch(() => {});
+
 // ── Navigation ────────────────────────────────────────────────
 document.querySelectorAll('nav button').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -1261,6 +1259,7 @@ function showSceneImage(url) {
   sceneImg.onload = () => {
     scenePanel.style.display = 'block';
     sceneImg.style.opacity = '1';
+    document.getElementById('screen-game').classList.add('has-scene');
   };
 }
 
@@ -1293,22 +1292,30 @@ function setTurn(name, token) {
   updateActionArea();
 }
 
+function getMyName() {
+  // Try multiple sources for the player's character name
+  return (playerName || document.getElementById('c-name')?.value || '').trim();
+}
+
+function isMyTurnCheck() {
+  if (!currentPlayer) return true; // no turn set yet, show controls
+  const current = currentPlayer.trim().toLowerCase();
+  const me = getMyName().toLowerCase();
+  return me && current === me;
+}
+
 function updateActionArea() {
   const myTurnControls = document.getElementById('my-turn-controls');
   const waitingMsg = document.getElementById('waiting-msg');
   const waitingName = document.getElementById('waiting-name');
-  // Case-insensitive comparison and trim
-  const current = (currentPlayer || '').trim().toLowerCase();
-  const me = (playerName || '').trim().toLowerCase();
-  const isMyTurn = !currentPlayer || (me && current === me);
-  if (isMyTurn) {
+  if (isMyTurnCheck()) {
     myTurnControls.style.display = 'block';
     waitingMsg.style.display = 'none';
   } else {
     myTurnControls.style.display = 'none';
     waitingMsg.style.display = 'block';
     waitingName.textContent = currentPlayer || '...';
-    showOptions([]); // clear any stale options
+    showOptions([]);
   }
 }
 
@@ -1391,9 +1398,10 @@ socket.on('dm_message', (data) => {
   wrap.appendChild(body);
   chatLog.appendChild(wrap);
   chatLog.scrollTop = chatLog.scrollHeight;
-  // Only show options to the active player (case-insensitive)
+  // Only show options to the active player
   if (data.options && data.options.length) {
-    const forMe = !data.forPlayer || (playerName && data.forPlayer.trim().toLowerCase() === playerName.trim().toLowerCase());
+    const me = getMyName().toLowerCase();
+    const forMe = !data.forPlayer || (me && data.forPlayer.trim().toLowerCase() === me);
     if (forMe) {
       showOptions(data.options);
     } else {

@@ -10,6 +10,8 @@ const pdfParse = require('pdf-parse');
 const db = require('./db');
 const discord = require('./discord-bot');
 
+const DEPLOY_TIME = new Date().toISOString();
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
@@ -395,7 +397,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   const model = gameConfig?.model || 'claude-haiku-4-5-20251001';
   const response = await anthropic.messages.create({
     model,
-    max_tokens: 1024,
+    max_tokens: 2048,
     system: buildSystemPrompt(gameId, gameConfig),
     messages,
   });
@@ -601,6 +603,10 @@ app.post('/api/games/:id/model', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+app.get('/api/deploy-time', (req, res) => {
+  res.json({ deployTime: DEPLOY_TIME });
 });
 
 app.get('/api/costs', (req, res) => {
