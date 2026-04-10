@@ -204,7 +204,6 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    max-height: calc(100dvh - 260px);
     padding-right: 4px;
   }
   #chat-log::-webkit-scrollbar { width: 4px; }
@@ -703,8 +702,7 @@
     /* Scene image taller on tablet */
     #scene-panel img { height: 280px; }
 
-    /* Chat log more room */
-    #chat-log { max-height: calc(100dvh - 220px); }
+    /* Chat log — flex handles height */
 
     /* Action area more spacious */
     #action-area { padding: 16px; }
@@ -812,14 +810,25 @@
       max-width: 1400px;
     }
 
-    #screen-game.has-scene #chat-panel { grid-column: 1; grid-row: 1; min-height: 0; }
+    #screen-game.has-scene #chat-panel { grid-column: 1; grid-row: 1 / 3; min-height: 0; }
     #screen-game.has-scene #scene-panel { grid-column: 2; grid-row: 1; }
     #screen-game.has-scene #scene-panel img { height: 360px; }
-    #screen-game.has-scene #action-area { grid-column: 1 / -1; grid-row: 2; }
+    #screen-game.has-scene #action-area { grid-column: 1 / -1; grid-row: 3; }
 
-    #chat-log {
-      max-height: calc(100dvh - 180px);
+    /* When BOTH scene and map are present */
+    #screen-game.has-scene.has-map.active {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      grid-template-rows: auto 1fr auto;
+      gap: 16px;
+      max-width: 1400px;
     }
+    #screen-game.has-scene.has-map #scene-panel { grid-column: 2; grid-row: 1; }
+    #screen-game.has-scene.has-map #chat-panel { grid-column: 1; grid-row: 1 / 3; min-height: 0; }
+    #screen-game.has-scene.has-map #map-sidebar { grid-column: 2; grid-row: 2; }
+    #screen-game.has-scene.has-map #action-area { grid-column: 1 / -1; grid-row: 3; }
+
+    /* Chat log — flex handles height */
 
     #action-area {
       padding: 20px 24px;
@@ -883,20 +892,20 @@
       gap: 16px;
       max-width: 1200px;
     }
+    #screen-game.has-map #chat-panel { grid-column: 1; grid-row: 1 / 3; min-height: 0; }
     #screen-game.has-map #map-sidebar {
       display: block;
       grid-column: 2;
       grid-row: 2;
     }
+    #screen-game.has-map #action-area { grid-column: 1 / -1; grid-row: 3; }
   }
 
   /* ══════════════════════════════════════════════════════════
      WIDE DESKTOP  (1400px+)
      ══════════════════════════════════════════════════════════ */
   @media (min-width: 1400px) {
-    #chat-log {
-      max-height: 75vh;
-    }
+    /* Chat log — flex handles height */
 
     #scene-panel img {
       height: 420px;
@@ -925,6 +934,9 @@
     <span id="deploy-time" style="font-size:0.6rem;color:var(--parchment-dark);opacity:0.5;"></span>
   </div>
   <div id="turn-banner"><img id="turn-token" src="" alt=""/><span>— <span id="turn-name">?</span>'s Turn —</span><span id="playing-as-inline" style="margin-left:auto;font-family:'Crimson Pro',serif;font-size:0.6rem;color:var(--parchment-dark);opacity:0.7;"></span></div>
+  <div id="playing-as-bar" style="display:none; text-align:center; padding:2px 8px; font-size:0.65rem; color:var(--parchment-dark); background:rgba(13,6,0,0.5);">
+    Playing as <span id="playing-as-text"></span> <span id="pa-switch" style="cursor:pointer;color:var(--gold);opacity:0.6;margin-left:6px;">(switch)</span>
+  </div>
   <div id="timer-bar"></div>
 </header>
 
@@ -1393,11 +1405,6 @@ function updateActionArea() {
   const myTurnControls = document.getElementById('my-turn-controls');
   const waitingMsg = document.getElementById('waiting-msg');
   const waitingName = document.getElementById('waiting-name');
-  // If playerName is empty but there's exactly one character, auto-select it
-  if (!getMyName() && Object.keys(currentCharacters).length === 1) {
-    const onlyName = Object.keys(currentCharacters)[0];
-    selectCharacter(onlyName, currentCharacters[onlyName]);
-  }
   if (isMyTurnCheck()) {
     myTurnControls.style.display = 'block';
     waitingMsg.style.display = 'none';
@@ -1405,7 +1412,6 @@ function updateActionArea() {
     myTurnControls.style.display = 'none';
     waitingMsg.style.display = 'block';
     waitingName.textContent = currentPlayer || '...';
-    showOptions([]);
   }
 }
 
@@ -1536,6 +1542,7 @@ socket.on('dm_message', (data) => {
   }
   // Update world data
   if (data.world) updateWorldPanel(data.world);
+  updateActionArea();
 });
 
 socket.on('player_message', (data) => addMsg('player', data.text, data.player, data.token));
@@ -1608,6 +1615,7 @@ socket.on('character_deleted', (data) => {
     playerName = '';
     localStorage.removeItem('playerName_' + gameId);
     document.getElementById('playing-as-inline').textContent = '';
+    document.getElementById('playing-as-bar').style.display = 'none';
   }
 });
 
@@ -2127,6 +2135,8 @@ function updateWorldPanel(world) {
 // ── Character Picker & Playing-As ─────────────────────────────
 function showPlayingAs(name, char) {
   document.getElementById('playing-as-inline').textContent = 'Playing as ' + name;
+  document.getElementById('playing-as-text').textContent = name;
+  document.getElementById('playing-as-bar').style.display = 'block';
 }
 
 function showCharacterPicker(characters) {
@@ -2214,7 +2224,16 @@ document.getElementById('playing-as-inline').addEventListener('click', () => {
   playerName = '';
   localStorage.removeItem('playerName_' + gameId);
   document.getElementById('playing-as-inline').textContent = '';
+  document.getElementById('playing-as-bar').style.display = 'none';
   // Emit a re-join to get fresh state
+  socket.emit('join_game', gameId);
+});
+
+document.getElementById('pa-switch').addEventListener('click', () => {
+  playerName = '';
+  localStorage.removeItem('playerName_' + gameId);
+  document.getElementById('playing-as-inline').textContent = '';
+  document.getElementById('playing-as-bar').style.display = 'none';
   socket.emit('join_game', gameId);
 });
 
