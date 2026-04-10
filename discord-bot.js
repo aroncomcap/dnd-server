@@ -72,6 +72,15 @@ function buildSubcommands(builder) {
       .setName('world')
       .setDescription('Show known locations and NPCs'))
     .addSubcommand(sub => sub
+      .setName('style')
+      .setDescription('Set narration style')
+      .addStringOption(opt => opt.setName('level').setDescription('How detailed?').setRequired(true)
+        .addChoices(
+          { name: '📖 Verbose (rich, detailed)', value: 'verbose' },
+          { name: '📝 Medium (balanced)', value: 'medium' },
+          { name: '⚡ Terse (quick, minimal)', value: 'terse' },
+        )))
+    .addSubcommand(sub => sub
       .setName('model')
       .setDescription('Switch AI model (haiku=fast, sonnet=balanced, opus=smartest)')
       .addStringOption(opt => opt.setName('level').setDescription('Model level').setRequired(true)
@@ -484,6 +493,18 @@ client.on('interactionCreate', async (interaction) => {
         { name: '🏆 Accomplishments', value: accText.slice(0, 1024) }
       );
     await interaction.reply({ embeds: [embed] });
+  }
+
+  else if (sub === 'style') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) {
+      await interaction.reply({ content: 'Link this channel first.', ephemeral: true });
+      return;
+    }
+    const level = interaction.options.getString('level');
+    gameEngine.setFerocity(gameId, level);
+    const labels = { verbose: '📖 Verbose', medium: '📝 Medium', terse: '⚡ Terse' };
+    await interaction.reply(`📝 Narration style set to **${labels[level] || level}**`);
   }
 
   else if (sub === 'model') {

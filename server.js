@@ -36,6 +36,9 @@ function getGameState(gameId) {
       turnCount: 0,
       imageUrl: null,
       turnDuration: DEFAULT_TURN_DURATION,
+      ferocity: 'verbose',
+      idleTurns: 0,
+      paused: false,
     };
   }
   return games[gameId];
@@ -106,27 +109,49 @@ ${contextBlock}
 CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 
+NARRATION STYLE: ${gs.ferocity || 'verbose'}
+${gs.ferocity === 'terse' ? '- Keep responses to 2-3 short sentences max. Just the essential action and result.' :
+  gs.ferocity === 'medium' ? '- Keep responses to a short paragraph (3-5 sentences). Hit the key beats without excessive description.' :
+  '- Narrate vividly with rich atmosphere (short paragraphs for mobile readability). Use dramatic but readable prose.'}
+
 RULES:
-- Narrate vividly and concisely for a mobile screen (short paragraphs).
-- Track HP, conditions, and resources. Apply game rules accurately.
+- Track HP, conditions, spells, powers, and resources accurately. Apply game rules correctly.
 - When acting for an absent player, weigh their standard actions and personality heavily, but adapt to context.
-- Keep the story moving. Use dramatic but readable prose. Add atmosphere.
+- Keep the story moving.
 - If campaign source material is provided above, use it to guide the adventure, encounters, NPCs, and lore.
 
+SPELLS, POWERS & RESOURCES:
+- Track all spells, powers, abilities, and limited-use resources for each character.
+- When a spell/power is cast or used, note the expenditure. When rested or restored, note the recovery.
+- Include current spell slots, power points, rune points, or whatever the system uses in character updates.
+- If a character tries to use a spent resource, inform them it's unavailable.
+
+TREASURE & LOOT:
+- When encounters include treasure, distribute it as a published module would — a mix of coins, mundane items, and occasional magical items appropriate to the party's level/power.
+- Magical items should be rare and exciting. Mundane treasure should be realistic for the setting.
+- Always announce treasure clearly so players can divide it.
+
+CHARACTER ADVANCEMENT:
+- Track experience points (D&D 5e), skill improvement rolls (RuneQuest), or whatever advancement mechanic the system uses.
+- Award XP/advancement after combat, quest completion, and clever roleplay as the system specifies.
+- When a character reaches a level-up threshold or earns a skill increase:
+  1. Announce it prominently: "🎉 [NAME] has leveled up to Level X!" or "🎉 [NAME]'s Sword skill increases to 80%!"
+  2. Include the full updated stats in CHAR_UPDATES
+  3. Add the advancement to ACCOMPLISHMENTS
+
+COMBAT:
+- Run combat with proper initiative, attack rolls, damage, and tactical options.
+- When a significant enemy is defeated (boss, tough monster, named NPC), include a special scene description:
+  Put "KILLSHOT:" before the scene description to trigger a dramatic illustration.
+  Example: KILLSHOT: Kael drives his flaming sword through the dragon's chest as lightning crackles around them, the beast collapsing in a shower of sparks
+
 FORMATTING — SKILL ROLLS & GAME MECHANICS:
-- Any time there is a skill check, saving throw, attack roll, damage roll, or other game mechanic, put it on its own line with a blank line before and after, wrapped in **double asterisks** for bold. Example:
-
-Some narration text here.
-
-**🎲 DC 14 Dexterity Saving Throw — Kael rolls a 16. Success!**
-
-More narration continues.
+- Any time there is a skill check, saving throw, attack roll, damage roll, or other game mechanic, put it on its own line with a blank line before and after, wrapped in **double asterisks** for bold.
 
 ACTION OPTIONS:
-- At the end of EVERY response (except auto-actions), present exactly 4 action choices for the next player, plus indicate they can type anything.
-- At least one option must be a wild/reckless/creative move (mark with 🔥).
-- At least one option must be a witty quip or clever social move (mark with 💬).
-- Use this EXACT format at the end of your message — the lines after ---OPTIONS--- are parsed by the client:
+- At the end of EVERY response (except auto-actions), present exactly 4 action choices for the next player.
+- At least one wild/reckless move (🔥) and one witty/social move (💬).
+- Use this EXACT format:
 
 ---OPTIONS---
 1. 🗡️ [a combat or practical action]
@@ -135,52 +160,31 @@ ACTION OPTIONS:
 4. 💬 [a witty comment, taunt, or clever social move]
 
 WORLD TRACKING:
-- Maintain a running list of notable locations and NPCs the party has discovered or been told about.
-- At the end of every response, AFTER the scene block, include an updated list using this EXACT format:
+- Maintain a running list of notable locations, NPCs, and accomplishments.
+- At the end of every response, AFTER the scene block, include:
 
 ---WORLD---
 LOCATIONS:
-- [Location Name] | [Brief description] | [Approximate distance/travel time from current position]
-...
+- [Location Name] | [Brief description] | [Distance/travel time from current position]
 NPCS:
-- [NPC Name] | [Brief description] | [Current location or last known location]
-...
-
-Only include locations and NPCs that have been introduced in the story so far. Add new ones as they appear. Remove ones that are no longer relevant (e.g., destroyed locations, dead NPCs).
-
-ACCOMPLISHMENTS:
-- After the NPCS section, include an accomplishments section tracking major achievements for each character.
-- Only add entries when something significant happens: a major quest completed, a powerful foe defeated, an important discovery, a heroic deed, etc.
-- Use this format:
-
+- [NPC Name] | [Brief description] | [Current/last known location]
 ACCOMPLISHMENTS:
 - [Character Name] | [Achievement description]
-...
-
-CHARACTER SHEET UPDATES:
-- If a player asks to update their character sheet, backstory, stats, personality, or any character detail, make the change and include it in a special block.
-- Also include updates when story events change a character (level up, new items, stat changes, injuries, etc.)
-- Use this EXACT format after the ACCOMPLISHMENTS section:
-
 CHAR_UPDATES:
 - [Character Name] | [field] | [new value]
 
 Valid fields: statsText, personality, backstory, standardActions
-Example: - Kael | statsText | Level 6 Human Ranger, HP 48, STR 16 DEX 15 CON 13 INT 10 WIS 14 CHA 8, now wielding Flameblade
+Include CHAR_UPDATES whenever: leveling up, gaining items, learning spells, stat changes, spell slot usage/recovery, skill improvements.
 
 TRAVEL & MOVEMENT:
-- When characters want to travel to a distant location, narrate the journey realistically.
-- Consider distance, mode of travel (on foot, mounted, by boat, etc.), terrain, and weather.
-- Multi-turn journeys should involve encounters, discoveries, or events along the way.
-- If a player says "go directly to [location]" or "skip travel to [location]", fast-forward the journey with a brief summary and arrive immediately.
-- Otherwise, each travel turn covers a realistic distance and the party may face random encounters, environmental hazards, or interesting discoveries en route.
+- Narrate journeys realistically with distance, terrain, mode of travel.
+- Multi-turn travel may involve encounters. "Go directly to [location]" fast-forwards.
 
 SCENE DESCRIPTION:
-- At the end of every response, AFTER the options block, include a brief visual scene description for image generation.
-- Use this EXACT format:
+- At the end of every response, AFTER the options block, include a scene description:
 
 ---SCENE---
-[A single sentence describing the current visual scene, suitable as an image generation prompt. Include the setting, lighting, characters' positions, and any dramatic action. Use a painterly fantasy art style.]`;
+[One sentence describing the visual scene for image generation. Painterly fantasy art style. No text.]`;
 }
 
 // ── Parsing ──────────────────────────────────────────────────────────────────
@@ -233,6 +237,13 @@ function parseResponse(text) {
     narration = narration.slice(0, sceneIdx).trim();
   }
 
+  // Check for killshot scene (always generate image for these)
+  let isKillshot = false;
+  if (scene && scene.startsWith('KILLSHOT:')) {
+    scene = scene.slice(9).trim();
+    isKillshot = true;
+  }
+
   // Extract options
   const optionsMarker = '---OPTIONS---';
   const optIdx = narration.indexOf(optionsMarker);
@@ -244,7 +255,7 @@ function parseResponse(text) {
     narration = narration.slice(0, optIdx).trim();
   }
 
-  return { narration, options, scene, world };
+  return { narration, options, scene, world, isKillshot };
 }
 
 // ── Character Token Generation ───────────────────────────────────────────────
@@ -254,7 +265,7 @@ async function generateCharacterToken(name, charData) {
     const desc = [charData.statsText, charData.personality, charData.backstory].filter(Boolean).join('. ');
     const prompt = `Fantasy RPG character portrait token, circular frame, dark background. Character: ${name}. ${desc.slice(0, 600)}. Detailed face and upper body, dramatic lighting, painterly style. No text or words.`;
     const response = await together.images.generate({
-      model: 'black-forest-labs/FLUX.1-schnell-Free',
+      model: 'black-forest-labs/FLUX.1-schnell',
       prompt: prompt.slice(0, 1000),
       width: 512,
       height: 512,
@@ -278,7 +289,7 @@ async function generateSceneImage(scene, gameConfig) {
     const style = gameConfig.image_style || 'fantasy illustration';
     const prompt = `${style}: ${scene}. No text or words in the image.`;
     const response = await together.images.generate({
-      model: 'black-forest-labs/FLUX.1-schnell-Free',
+      model: 'black-forest-labs/FLUX.1-schnell',
       prompt: prompt.slice(0, 1000),
       width: 1024,
       height: 768,
@@ -376,22 +387,39 @@ function startTurnTimer(gameId, gameConfig, playerName) {
     emitSystem(gameId, { text: `⏰ ${playerName} ran out of time. Claude is acting for them...` });
 
     try {
-      const { narration, options, scene, world } = await callClaude(gameId, gameConfig, autoPrompt, playerName);
+      const { narration, options, scene, world, isKillshot } = await callClaude(gameId, gameConfig, autoPrompt, playerName);
       const gs2 = getGameState(gameId);
       const nextIdx = (gs2.data.currentTurnIndex + 1) % (gs2.data.turnOrder.length || 1);
       const nextPlayer = gs2.data.turnOrder[nextIdx] || null;
       emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName, forPlayer: nextPlayer, world });
-      await maybeGenerateImage(gameId, gameConfig, scene);
-      advanceTurn(gameId, gameConfig);
+      await maybeGenerateImage(gameId, gameConfig, scene, isKillshot);
+      advanceTurn(gameId, gameConfig, false);
     } catch (err) {
       emitSystem(gameId, { text: 'Error during auto-action.' });
     }
   }, gs.turnDuration * 1000);
 }
 
-async function advanceTurn(gameId, gameConfig) {
+async function advanceTurn(gameId, gameConfig, wasHumanAction = false) {
   const gs = getGameState(gameId);
   const gd = gs.data;
+
+  // Track idle turns
+  if (wasHumanAction) {
+    gs.idleTurns = 0;
+  } else {
+    gs.idleTurns = (gs.idleTurns || 0) + 1;
+  }
+
+  // Pause after 5 consecutive idle turns
+  if (gs.idleTurns >= 5) {
+    gs.paused = true;
+    clearTimeout(gs.turnTimer);
+    emitSystem(gameId, { text: '⏸️ Game paused — no human actions for 5 turns. Use /tt start or tap Begin to resume.' });
+    io.to(gameId).emit('game_paused');
+    return;
+  }
+
   gd.currentTurnIndex = (gd.currentTurnIndex + 1) % (gd.turnOrder.length || 1);
   await db.saveTurnState(gameId, gd.currentTurnIndex, gd.turnOrder);
   const next = getCurrentPlayer(gameId);
@@ -402,10 +430,11 @@ async function advanceTurn(gameId, gameConfig) {
   }
 }
 
-async function maybeGenerateImage(gameId, gameConfig, scene) {
+async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false) {
   const gs = getGameState(gameId);
   gs.turnCount++;
-  if (gs.turnCount % IMAGE_COOLDOWN === 0 && scene) {
+  const shouldGenerate = isKillshot || (gs.turnCount % IMAGE_COOLDOWN === 0 && scene);
+  if (shouldGenerate && scene) {
     io.to(gameId).emit('scene_generating');
     generateSceneImage(scene, gameConfig).then(url => {
       if (url) {
@@ -607,12 +636,12 @@ io.on('connection', (socket) => {
 
     try {
       const gameConfig = await db.getGame(gameId);
-      const { narration, options, scene, world } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
+      const { narration, options, scene, world, isKillshot } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
       const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
       const nextPlayer = gs.data.turnOrder[nextIdx] || null;
       emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
-      await maybeGenerateImage(gameId, gameConfig, scene);
-      await advanceTurn(gameId, gameConfig);
+      await maybeGenerateImage(gameId, gameConfig, scene, isKillshot);
+      await advanceTurn(gameId, gameConfig, true);
     } catch (err) {
       socket.emit('system', { text: 'Error communicating with the DM. Try again.' });
     }
@@ -699,6 +728,12 @@ io.on('connection', (socket) => {
     await gameEngine.skipTurn(gameId);
   });
 
+  socket.on('set_ferocity', (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    gameEngine.setFerocity(gameId, data.level);
+  });
+
   socket.on('set_timer', (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
@@ -741,14 +776,14 @@ const gameEngine = {
     clearTimeout(gs.turnTimer);
 
     const gameConfig = await db.getGame(gameId);
-    const { narration, options, scene, world } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
+    const { narration, options, scene, world, isKillshot } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
     const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
     const nextPlayer = gs.data.turnOrder[nextIdx] || null;
     emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
     const playerToken = gs.data.characters[playerName]?.token || null;
     io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });
-    await maybeGenerateImage(gameId, gameConfig, scene);
-    await advanceTurn(gameId, gameConfig);
+    await maybeGenerateImage(gameId, gameConfig, scene, isKillshot);
+    await advanceTurn(gameId, gameConfig, true);
     return { ok: true };
   },
 
@@ -792,6 +827,8 @@ const gameEngine = {
       gs.data = await db.loadGameData(gameId);
     }
     const gs = getGameState(gameId);
+    gs.paused = false;
+    gs.idleTurns = 0;
     const { narration, options, scene, world } = await callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.');
     const firstPlayer = getCurrentPlayer(gameId);
     emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world });
@@ -866,8 +903,18 @@ const gameEngine = {
     const current = getCurrentPlayer(gameId);
     emitSystem(gameId, { text: `⏭️ ${current || 'Current player'}'s turn was skipped.` });
     const gameConfig = await db.getGame(gameId);
-    await advanceTurn(gameId, gameConfig);
+    await advanceTurn(gameId, gameConfig, false);
     return { ok: true };
+  },
+
+  setFerocity(gameId, level) {
+    const gs = getGameState(gameId);
+    const valid = ['verbose', 'medium', 'terse'];
+    if (!valid.includes(level)) return { error: 'Invalid ferocity level' };
+    gs.ferocity = level;
+    emitSystem(gameId, { text: `📝 Narration style set to **${level}**.` });
+    io.to(gameId).emit('ferocity_updated', { ferocity: level });
+    return { ok: true, ferocity: level };
   },
 
   setTimer(gameId, seconds) {

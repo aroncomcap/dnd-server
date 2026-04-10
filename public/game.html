@@ -1003,6 +1003,11 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <label>Backstory (brief)</label>
     <textarea id="c-backstory" placeholder="Raised in the north, exiled knight…"></textarea>
 
+    <label>✨ Spells, Powers & Resources</label>
+    <div id="c-spells" style="min-height:40px; background:rgba(255,255,255,0.3); border-radius:8px; padding:10px; font-size:0.85rem; color:var(--ink-light);">
+      <em>Tracked automatically during play.</em>
+    </div>
+
     <label>🏆 Accomplishments</label>
     <div id="c-accomplishments" style="min-height:40px; background:rgba(255,255,255,0.3); border-radius:8px; padding:10px; font-size:0.85rem; color:var(--ink-light);">
       <em>No accomplishments yet — play to earn them!</em>
@@ -1053,6 +1058,13 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <button class="btn btn-primary" id="btn-start" style="margin-top:10px;">
       ⚔️ Begin the Adventure
     </button>
+
+    <label style="margin-top:12px;">📝 Narration Style</label>
+    <select id="ferocity-select">
+      <option value="verbose">📖 Verbose (rich, detailed)</option>
+      <option value="medium">📝 Medium (balanced)</option>
+      <option value="terse">⚡ Terse (quick, minimal)</option>
+    </select>
 
     <label style="margin-top:12px;">🤖 AI Model</label>
     <select id="model-select">
@@ -1700,6 +1712,15 @@ document.getElementById('model-select').addEventListener('change', async () => {
   }
 });
 
+// ── Ferocity selector ─────────────────────────────────────────
+document.getElementById('ferocity-select').addEventListener('change', () => {
+  socket.emit('set_ferocity', { level: document.getElementById('ferocity-select').value });
+});
+
+socket.on('ferocity_updated', (data) => {
+  document.getElementById('ferocity-select').value = data.ferocity;
+});
+
 // ── Host controls ─────────────────────────────────────────────
 document.getElementById('btn-start').addEventListener('click', () => {
   const prompt = document.getElementById('host-prompt').value.trim();
@@ -1820,6 +1841,16 @@ function prefillCharacterForm(name, char) {
   document.getElementById('c-actions').value = char.standardActions || '';
   document.getElementById('c-backstory').value = char.backstory || '';
   if (char.token) showTokenPreview(char.token);
+  // Update spells/powers from stats text (Claude embeds them)
+  const spellsDiv = document.getElementById('c-spells');
+  const statsText = char.statsText || '';
+  // Look for spell/power related lines
+  const spellLines = statsText.split('\n').filter(l =>
+    /spell|slot|power|rune|magic|mana|ability|cantrip/i.test(l)
+  );
+  if (spellLines.length) {
+    spellsDiv.innerHTML = spellLines.map(l => l.trim()).join('<br/>');
+  }
   // Update accomplishments from world data
   const accDiv = document.getElementById('c-accomplishments');
   const worldAcc = document.querySelectorAll('#world-accomplishments .world-item');
