@@ -1,9 +1,9 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const fs = require('fs');
 const path = require('path');
 const Anthropic = require('@anthropic-ai/sdk');
+const db = require('./db');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,21 +14,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// ── Persistence ──────────────────────────────────────────────────────────────
-const DATA_FILE = path.join(__dirname, 'game_data.json');
-
-function loadData() {
-  if (fs.existsSync(DATA_FILE)) {
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-  }
-  return { characters: {}, chatHistory: [], currentTurnIndex: 0, turnOrder: [] };
-}
-
-function saveData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-}
-
-let gameData = loadData();
+// ── In-memory cache (loaded from DB on boot, written through on changes) ─────
+let gameData = { characters: {}, chatHistory: [], currentTurnIndex: 0, turnOrder: [] };
 let turnTimer = null;
 const TURN_DURATION = 3 * 60 * 1000; // 3 minutes
 
@@ -93,7 +80,7 @@ async function callClaude(userMessage, actingAs = null) {
   if (gameData.chatHistory.length > 80) {
     gameData.chatHistory = gameData.chatHistory.slice(-80);
   }
-  saveData(gameData);
+  await db.saveChatHistory(gameData.chatHistory);
   return reply;
 }
 
@@ -118,9 +105,9 @@ function startTurnTimer(playerName) {
   }, TURN_DURATION);
 }
 
-function advanceTurn() {
+async function advanceTurn() {
   gameData.currentTurnIndex = (gameData.currentTurnIndex + 1) % (gameData.turnOrder.length || 1);
-  saveData(gameData);
+  await db.saveTurnState(gameData.currentTurnIndex, gameData.turnOrder);
   const next = getCurrentPlayer();
   if (next) {
     io.emit('turn_change', { player: next, duration: TURN_DURATION });
@@ -141,8 +128,8 @@ io.on('connection', (socket) => {
   });
 
   // Register / update character
-  socket.on('register_character', (data) => {
-    gameData.characters[data.name] = {
+  socket.on('register_character', async (data) => {
+    const charData = {
       level: data.level || 1,
       class: data.class || 'Fighter',
       race: data.race || 'Human',
@@ -152,11 +139,13 @@ io.on('connection', (socket) => {
       standardActions: data.standardActions || '',
       backstory: data.backstory || '',
     };
+    gameData.characters[data.name] = charData;
     if (!gameData.turnOrder.includes(data.name)) {
       gameData.turnOrder.push(data.name);
     }
-    saveData(gameData);
-    io.emit('character_registered', { name: data.name, character: gameData.characters[data.name] });
+    await db.upsertCharacter(data.name, charData);
+    await db.saveTurnState(gameData.currentTurnIndex, gameData.turnOrder);
+    io.emit('character_registered', { name: data.name, character: charData });
     io.emit('system', { text: `📜 ${data.name} has joined the campaign.` });
   });
 
@@ -176,7 +165,7 @@ io.on('connection', (socket) => {
     try {
       const reply = await callClaude(`${playerName}: ${action}`);
       io.emit('dm_message', { text: reply, auto: false });
-      advanceTurn();
+      await advanceTurn();
     } catch (err) {
       socket.emit('system', { text: 'Error communicating with the DM. Try again.' });
     }
@@ -199,11 +188,12 @@ io.on('connection', (socket) => {
   });
 
   // Reset game (host)
-  socket.on('reset_game', () => {
+  socket.on('reset_game', async () => {
     clearTimeout(turnTimer);
     gameData.chatHistory = [];
     gameData.currentTurnIndex = 0;
-    saveData(gameData);
+    await db.saveChatHistory(gameData.chatHistory);
+    await db.saveTurnState(gameData.currentTurnIndex, gameData.turnOrder);
     io.emit('game_reset');
     io.emit('system', { text: '🔄 Game has been reset. Characters preserved.' });
   });
@@ -215,6 +205,17 @@ io.on('connection', (socket) => {
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`D&D Server running on http://localhost:${PORT}`);
+
+async function boot() {
+  await db.initDB();
+  gameData = await db.loadGameData();
+  console.log(`Loaded ${Object.keys(gameData.characters).length} characters from DB`);
+  server.listen(PORT, () => {
+    console.log(`D&D Server running on http://localhost:${PORT}`);
+  });
+}
+
+boot().catch((err) => {
+  console.error('Failed to start:', err);
+  process.exit(1);
 });
