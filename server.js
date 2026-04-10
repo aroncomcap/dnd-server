@@ -13,6 +13,7 @@ const db = require('./db');
 const discord = require('./discord-bot');
 const { MapGraph, processMapHint } = require('./map-engine');
 const { router: authRouter, authMiddleware, requireAuth, requireAdmin } = require('./auth');
+const { BillingTicker } = require('./billing');
 
 const DEPLOY_TIME = new Date().toISOString();
 
@@ -30,6 +31,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const together = new Together({ apiKey: process.env.TOGETHER_API_KEY });
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+const billingTicker = new BillingTicker(io, db);
 
 const DEFAULT_TURN_DURATION = 180; // seconds
 const IMAGE_COOLDOWN = 2;
@@ -722,6 +725,10 @@ io.on('connection', (socket) => {
 
     socket.join(gameId);
     socket.gameId = gameId;
+    // Attach userId from auth handshake (if available) for billing
+    if (socket.handshake.auth?.userId) {
+      socket.userId = socket.handshake.auth.userId;
+    }
 
     // Load from DB if not cached
     if (!games[gameId]) {
@@ -815,6 +822,13 @@ io.on('connection', (socket) => {
     if (!gameId) return;
 
     const { playerName, action } = data;
+
+    // Block spectators from taking actions
+    if (socket.userId && billingTicker.isSpectator(gameId, socket.userId)) {
+      socket.emit('system', { text: 'You are in spectator mode. Add time to resume control.' });
+      return;
+    }
+
     const current = getCurrentPlayer(gameId);
 
     if (current && current !== playerName) {
@@ -868,6 +882,8 @@ io.on('connection', (socket) => {
         emitTurnChange(gameId, { player: first, duration: gs.turnDuration * 1000, token: firstToken });
         startTurnTimer(gameId, gameConfig, first);
       }
+      // Start billing ticker for this game
+      billingTicker.startForGame(gameId, gameConfig.host_user_id, gs);
     } catch (err) {
       socket.emit('system', { text: 'Failed to start the game.' });
     }
@@ -878,6 +894,7 @@ io.on('connection', (socket) => {
     const gameId = socket.gameId;
     if (!gameId) return;
 
+    billingTicker.stopForGame(gameId);
     const gs = getGameState(gameId);
     clearTimeout(gs.turnTimer);
     gs.data.chatHistory = [];
@@ -1063,7 +1080,8 @@ io.on('connection', (socket) => {
           if (gs) {
             clearTimeout(gs.turnTimer);
             gs.turnTimer = null;
-            console.log(`All clients left ${gameId} — timer stopped`);
+            billingTicker.stopForGame(gameId);
+            console.log(`All clients left ${gameId} — timer and billing stopped`);
           }
         }
       }, 5000); // 5s grace period for reconnects
