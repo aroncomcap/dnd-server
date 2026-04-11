@@ -289,8 +289,63 @@ async function getUserBalance(userId) {
   return rows[0] || null;
 }
 
+async function checkAndResetFree(userId) {
+  const { rows } = await pool.query(
+    `UPDATE user_balances
+     SET free_minutes_remaining = 300,
+         free_reset_date = (DATE_TRUNC('month', NOW()) + INTERVAL '1 month')::DATE
+     WHERE user_id = $1 AND free_reset_date <= CURRENT_DATE
+     RETURNING *`,
+    [userId]
+  );
+  return rows.length > 0; // true if reset happened
+}
+
+async function expireOldCredits(userId) {
+  // Find expired admin/promo purchase records
+  const { rows } = await pool.query(
+    `SELECT id, minutes_credited FROM purchases
+     WHERE user_id = $1 AND expires_at IS NOT NULL AND expires_at < NOW()
+     AND credit_type IN ('admin', 'promo')`,
+    [userId]
+  );
+
+  if (!rows.length) return 0;
+
+  // Sum up expired minutes and deduct from paid_minutes_remaining
+  let totalExpired = rows.reduce((sum, r) => sum + r.minutes_credited, 0);
+
+  // Don't deduct more than they have
+  const balance = await getUserBalance(userId);
+  const toDeduct = Math.min(totalExpired, balance.paid_minutes_remaining);
+
+  if (toDeduct > 0) {
+    await pool.query(
+      'UPDATE user_balances SET paid_minutes_remaining = paid_minutes_remaining - $1 WHERE user_id = $2',
+      [toDeduct, userId]
+    );
+  }
+
+  // Mark these purchases as expired so they aren't processed again
+  await pool.query(
+    `UPDATE purchases SET credit_type = 'expired'
+     WHERE user_id = $1 AND expires_at IS NOT NULL AND expires_at < NOW()
+     AND credit_type IN ('admin', 'promo')`,
+    [userId]
+  );
+
+  return toDeduct;
+}
+
 async function deductMinutes(userId, minutes) {
-  // Deduct free minutes first, then paid
+  // Reset free minutes if the monthly reset date has passed
+  await checkAndResetFree(userId);
+
+  // Deduct free minutes first, then paid.
+  // NOTE: Within paid minutes, ideally we'd deduct from soonest-expiring credits
+  // first (per-purchase tracking). For now we treat paid_minutes_remaining as a
+  // single pool — the expireOldCredits() function handles bulk removal of expired
+  // admin/promo credits, which is sufficient for the common case.
   const balance = await getUserBalance(userId);
   if (!balance) return null;
 
@@ -324,6 +379,37 @@ async function creditMinutes(userId, minutes, { provider = 'admin', providerTxId
     `UPDATE user_balances SET paid_minutes_remaining = paid_minutes_remaining + $2 WHERE user_id = $1`,
     [userId, minutes]
   );
+}
+
+async function redeemPromoCode(userId, code) {
+  const { rows } = await pool.query('SELECT * FROM promo_codes WHERE code = $1', [code]);
+  if (!rows.length) return { error: 'Invalid promo code' };
+  if (rows[0].redeemed_by) return { error: 'This code has already been redeemed' };
+
+  const minutes = rows[0].minutes_granted;
+  const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 1 year
+
+  // Mark redeemed
+  await pool.query(
+    'UPDATE promo_codes SET redeemed_by = $1, redeemed_at = NOW(), expires_at = $2 WHERE code = $3',
+    [userId, expiresAt, code]
+  );
+
+  // Credit balance
+  await pool.query(
+    'UPDATE user_balances SET paid_minutes_remaining = paid_minutes_remaining + $1 WHERE user_id = $2',
+    [minutes, userId]
+  );
+
+  // Record in purchases
+  await pool.query(
+    `INSERT INTO purchases (id, user_id, provider, minutes_credited, credit_type, expires_at)
+     VALUES ($1, $2, 'promo', $3, 'promo', $4)`,
+    [crypto.randomUUID(), userId, minutes, expiresAt]
+  );
+
+  const balance = await getUserBalance(userId);
+  return { success: true, minutesCredited: minutes, balance };
 }
 
 async function resetFreeMinutes() {
@@ -371,6 +457,9 @@ module.exports = {
   getUserBalance,
   deductMinutes,
   creditMinutes,
+  redeemPromoCode,
   resetFreeMinutes,
+  checkAndResetFree,
+  expireOldCredits,
   listUsers,
 };

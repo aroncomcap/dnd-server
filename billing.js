@@ -117,6 +117,13 @@ class BillingTicker {
     }
 
     for (const userId of userIds) {
+      // Run expiry checks once per hour (every 60 ticks) to avoid per-tick DB overhead
+      this._expiryTickCount = (this._expiryTickCount || 0) + 1;
+      if (this._expiryTickCount % 60 === 0) {
+        await this.db.checkAndResetFree(userId);
+        await this.db.expireOldCredits(userId);
+      }
+
       const balance = await this.db.getUserBalance(userId);
       if (!balance) continue;
 
