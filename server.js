@@ -1403,6 +1403,54 @@ io.on('connection', (socket) => {
     }
   });
 
+  // OOC (Out of Character) message
+  socket.on('ooc_message', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const { playerName, message } = data;
+
+    try {
+      const gs = getGameState(gameId);
+      const gameConfig = await db.getGame(gameId);
+      const oocPrompt = `[OOC from ${playerName}]: ${message}\n\nThis is an out-of-character instruction about rules, setting, or gameplay. Acknowledge briefly and adjust accordingly. Do NOT advance the turn or narrate an action. Do NOT include ---OPTIONS--- or ---SCENE--- blocks. Just respond to the instruction.`;
+
+      const response = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 256,
+        system: [{ type: "text", text: buildTrimmedPrompt(gameId, gameConfig), cache_control: { type: "ephemeral" } }],
+        messages: [...gs.data.chatHistory, { role: 'user', content: oocPrompt }],
+      });
+
+      const reply = response.content[0].text;
+      const inputTokens = response.usage?.input_tokens || 0;
+      const outputTokens = response.usage?.output_tokens || 0;
+      logCost({ gameId, model: 'claude-haiku-4-5-20251001', inputTokens, outputTokens,
+        cost: estimateCost('claude-haiku-4-5-20251001', inputTokens, outputTokens), type: 'ooc' });
+
+      // Save OOC exchanges in history so Claude remembers
+      gs.data.chatHistory.push(
+        { role: 'user', content: `[OOC: ${message}]` },
+        { role: 'assistant', content: `[OOC acknowledged: ${reply}]` }
+      );
+      await db.saveChatHistory(gameId, gs.data.chatHistory);
+
+      // Broadcast to all players
+      io.to(gameId).emit('ooc_message', { player: playerName, message, reply });
+      discord.onSystem(gameId, { text: `💭 [OOC] ${playerName}: ${message}\n💭 [GM]: ${reply}` }).catch(() => {});
+
+      // Add 1 minute to current turn timer
+      if (gs.turnTimer) {
+        clearTimeout(gs.turnTimer);
+        const currentPlayer = getCurrentPlayer(gameId);
+        if (currentPlayer) {
+          startTurnTimer(gameId, gameConfig, currentPlayer);
+        }
+      }
+    } catch (err) {
+      socket.emit('system', { text: 'Error processing OOC message.' });
+    }
+  });
+
   // DM start
   socket.on('dm_start', async (data) => {
     const gameId = socket.gameId;
@@ -1869,6 +1917,44 @@ const gameEngine = {
     // Broadcast new duration to web clients
     io.to(gameId).emit('timer_updated', { duration: gs.turnDuration });
     return { ok: true, duration: gs.turnDuration };
+  },
+
+  async oocMessage(gameId, playerName, message) {
+    const gs = getGameState(gameId);
+    const gameConfig = await db.getGame(gameId);
+    const oocPrompt = `[OOC from ${playerName}]: ${message}\n\nThis is an out-of-character instruction about rules, setting, or gameplay. Acknowledge briefly and adjust accordingly. Do NOT advance the turn or narrate an action. Do NOT include ---OPTIONS--- or ---SCENE--- blocks. Just respond to the instruction.`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      system: [{ type: "text", text: buildTrimmedPrompt(gameId, gameConfig), cache_control: { type: "ephemeral" } }],
+      messages: [...gs.data.chatHistory, { role: 'user', content: oocPrompt }],
+    });
+
+    const reply = response.content[0].text;
+    const inputTokens = response.usage?.input_tokens || 0;
+    const outputTokens = response.usage?.output_tokens || 0;
+    logCost({ gameId, model: 'claude-haiku-4-5-20251001', inputTokens, outputTokens,
+      cost: estimateCost('claude-haiku-4-5-20251001', inputTokens, outputTokens), type: 'ooc' });
+
+    gs.data.chatHistory.push(
+      { role: 'user', content: `[OOC: ${message}]` },
+      { role: 'assistant', content: `[OOC acknowledged: ${reply}]` }
+    );
+    await db.saveChatHistory(gameId, gs.data.chatHistory);
+
+    io.to(gameId).emit('ooc_message', { player: playerName, message, reply });
+
+    // Add 1 minute to current turn timer
+    if (gs.turnTimer) {
+      clearTimeout(gs.turnTimer);
+      const currentPlayer = getCurrentPlayer(gameId);
+      if (currentPlayer) {
+        startTurnTimer(gameId, gameConfig, currentPlayer);
+      }
+    }
+
+    return { ok: true, reply };
   },
 
   async deleteCharacter(gameId, name) {

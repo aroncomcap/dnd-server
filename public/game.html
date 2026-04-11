@@ -95,11 +95,11 @@
 
   #screen-game {
     overflow: hidden;
-    display: flex;
-    flex-direction: column;
+    padding-bottom: 0;
   }
   #screen-game.active {
-    /* No height calc — flex:1 + min-height:0 fills remaining space */
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
   }
   #chat-panel { overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -780,7 +780,7 @@
     .world-item { margin-bottom: 0; }
 
     #screen-char .panel, #screen-host .panel, #screen-party .panel, #screen-world .panel {
-      max-width: 600px;
+      max-width: 800px;
       margin: 0 auto;
     }
 
@@ -886,7 +886,7 @@
 
     /* ── Character & Host screens: constrain width, center ── */
     #screen-char .panel, #screen-host .panel, #screen-party .panel, #screen-world .panel {
-      max-width: 700px;
+      max-width: 1000px;
       margin: 0 auto;
     }
 
@@ -1014,6 +1014,7 @@
       <div class="action-row">
         <button class="btn btn-ghost" id="btn-skip" style="flex:0.3;">⏭️ Skip</button>
         <button class="btn btn-ghost" id="btn-catchup" style="flex:0.4;">📜 Catch Up</button>
+        <button class="btn btn-ghost" id="btn-ooc" style="flex:0.3;">💭 OOC</button>
         <button class="btn btn-primary" id="btn-send">Send Action</button>
       </div>
     </div>
@@ -2132,10 +2133,21 @@ document.getElementById('action-input').addEventListener('keydown', e => {
 });
 
 function sendAction() {
-  const action = document.getElementById('action-input').value.trim();
+  const input = document.getElementById('action-input');
+  const action = input.value.trim();
   const name = playerName || document.getElementById('c-name').value.trim();
   if (!action) return;
   if (!name) { alert('Set your player name in the Host tab first.'); return; }
+  // OOC mode or /ooc prefix
+  if (input.dataset.oocMode === 'true' || action.startsWith('/ooc ')) {
+    const msg = action.startsWith('/ooc ') ? action.slice(5) : action;
+    sendOOC(msg);
+    input.value = '';
+    input.dataset.oocMode = '';
+    input.placeholder = 'Describe what your character does…';
+    input.style.borderColor = '';
+    return;
+  }
   // Immediately echo the action in chat so player sees it was received
   addMsg('player', action, getMyName());
   window._lastSentAction = action;
@@ -2177,6 +2189,39 @@ document.getElementById('btn-catchup').addEventListener('click', () => {
 
 socket.on('catch_up_result', (data) => {
   addMsg('dm', data.summary, '📜 Catch-Up Summary');
+});
+
+// ── OOC (Out of Character) ─────────────────────────────────────
+document.getElementById('btn-ooc').addEventListener('click', () => {
+  const input = document.getElementById('action-input');
+  if (!input.value.trim()) {
+    input.placeholder = 'Type OOC message (rules, instructions, meta)...';
+    input.dataset.oocMode = 'true';
+    input.style.borderColor = '#c8922a';
+  } else {
+    sendOOC(input.value.trim());
+    input.value = '';
+    input.dataset.oocMode = '';
+    input.placeholder = 'Describe what your character does…';
+    input.style.borderColor = '';
+  }
+});
+
+function sendOOC(message) {
+  const name = getMyName();
+  if (!name || !message) return;
+  socket.emit('ooc_message', { playerName: name, message });
+  addMsg('system', `💭 [OOC] ${name}: ${message}`);
+}
+
+socket.on('ooc_message', (data) => {
+  // Don't double-show if we sent it
+  if (data.player !== getMyName()) {
+    addMsg('system', `💭 [OOC] ${data.player}: ${data.message}`);
+  }
+  if (data.reply) {
+    addMsg('system', `💭 [GM OOC]: ${data.reply}`);
+  }
 });
 
 // ── Timer control ─────────────────────────────────────────────

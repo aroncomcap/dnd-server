@@ -122,7 +122,11 @@ function buildSubcommands(builder) {
       .setDescription('Check your remaining playtime'))
     .addSubcommand(sub => sub
       .setName('addtime')
-      .setDescription('Get link to add playtime'));
+      .setDescription('Get link to add playtime'))
+    .addSubcommand(sub => sub
+      .setName('ooc')
+      .setDescription('Out-of-character message (rules, instructions)')
+      .addStringOption(opt => opt.setName('message').setDescription('Your OOC message').setRequired(true)));
 }
 
 const commands = [
@@ -706,6 +710,28 @@ else if (sub === 'map') {
     await interaction.reply({ embeds: [embed], ephemeral: true });
   }
 
+  else if (sub === 'ooc') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) {
+      await interaction.reply({ content: 'Link this channel first with `/tavern join`.', ephemeral: true });
+      return;
+    }
+    const message = interaction.options.getString('message');
+    const charName = await getCharName(gameId, interaction.user.id);
+    const senderName = charName || interaction.user.displayName || interaction.user.username;
+    await interaction.deferReply();
+    try {
+      const result = await gameEngine.oocMessage(gameId, senderName, message);
+      const embed = new EmbedBuilder()
+        .setColor(0xC8922A)
+        .setAuthor({ name: `💭 OOC — ${senderName}` })
+        .setDescription(`**${senderName}:** ${message}\n\n**GM:** ${result.reply}`);
+      await interaction.editReply({ embeds: [embed] });
+    } catch (err) {
+      await interaction.editReply('Error processing OOC message.');
+    }
+  }
+
   else if (sub === 'reset') {
     const gameId = await db.getChannelGame(interaction.channelId);
     if (!gameId) {
@@ -730,6 +756,20 @@ client.on('messageCreate', async (message) => {
 
   const text = message.content.trim();
   if (!text || text.startsWith('/')) return; // Ignore empty or commands
+
+  // Handle OOC prefix in plain messages
+  if (text.toLowerCase().startsWith('ooc ') || text.toLowerCase().startsWith('ooc:')) {
+    const oocMsg = text.replace(/^ooc[:\s]+/i, '').trim();
+    if (oocMsg) {
+      try {
+        const result = await gameEngine.oocMessage(gameId, charName, oocMsg);
+        await message.reply({ content: `💭 **GM OOC:** ${result.reply}`, allowedMentions: { repliedUser: false } });
+      } catch (err) {
+        // Silently fail
+      }
+    }
+    return;
+  }
 
   try {
     const result = await gameEngine.playerAction(gameId, charName, text);
