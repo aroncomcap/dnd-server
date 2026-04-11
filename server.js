@@ -666,7 +666,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     { role: 'user', content: prefix + userMessage },
   ];
 
-  const model = gameConfig?.model || 'claude-haiku-4-5-20251001';
+  const model = 'claude-haiku-4-5-20251001';
   const maxTokens = gs.verbosity === 'terse' ? 512 : gs.verbosity === 'brief' ? 1024 : 2048;
   const hasHistory = gd.chatHistory.some(m => m.role === 'assistant');
   const systemPrompt = hasHistory ? buildTrimmedPrompt(gameId, gameConfig) : buildSystemPrompt(gameId, gameConfig);
@@ -926,17 +926,6 @@ app.post('/api/games/:id/upload-pdf', upload.array('pdfs', 10), async (req, res)
   }
 });
 
-app.post('/api/games/:id/model', async (req, res) => {
-  try {
-    const { model } = req.body;
-    const valid = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6'];
-    if (!valid.includes(model)) return res.status(400).json({ error: 'Invalid model' });
-    await db.pool.query('UPDATE games SET model = $1 WHERE id = $2', [model, req.params.id]);
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 app.get('/api/deploy-time', (req, res) => {
   res.json({ deployTime: DEPLOY_TIME });

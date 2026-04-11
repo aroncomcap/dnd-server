@@ -1196,14 +1196,7 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
       <button class="token-btn" id="btn-reveal-location">👁 Reveal</button>
     </div>
 
-    <label style="margin-top:12px;">🤖 AI Model</label>
-    <select id="model-select">
-      <option value="claude-haiku-4-5-20251001">⚡ Haiku (fast, cheap)</option>
-      <option value="claude-sonnet-4-6">⚖️ Sonnet (balanced)</option>
-    </select>
-    <p class="host-note" id="model-status"></p>
-
-    <label style="margin-top:12px;">🎭 Three Pillars of Play</label>
+<label style="margin-top:12px;">🎭 Three Pillars of Play</label>
     <div style="display:flex;gap:8px;align-items:center;">
       <div style="flex:1;text-align:center;">
         <div style="font-size:0.7rem;color:var(--ink-light);">🗺️ Explore</div>
@@ -1569,10 +1562,7 @@ socket.on('game_joined', (state) => {
   if (state.turnDuration) {
     document.getElementById('timer-input').value = state.turnDuration;
   }
-  if (state.game.model) {
-    document.getElementById('model-select').value = state.game.model;
-  }
-  if (state.ferocity != null) {
+if (state.ferocity != null) {
     const fs = document.getElementById('ferocity-slider');
     const fl = document.getElementById('ferocity-label');
     const ferocityLabels = { 1: '💀 Extremely Deadly', 2: '⚔️ Very Dangerous', 3: '⚖️ Balanced', 4: '🛡️ Light', 5: '😊 Easy' };
@@ -2187,18 +2177,6 @@ document.getElementById('btn-set-timer').addEventListener('click', () => {
   socket.emit('set_timer', { seconds });
 });
 
-// ── Model selector ────────────────────────────────────────────
-document.getElementById('model-select').addEventListener('change', async () => {
-  const model = document.getElementById('model-select').value;
-  const res = await fetch(`/api/games/${gameId}/model`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model }),
-  });
-  if (res.ok) {
-    document.getElementById('model-status').textContent = '✅ Model updated.';
-  }
-});
 
 // ── Pillars selector ──────────────────────────────────────────
 document.getElementById('btn-set-pillars').addEventListener('click', () => {

@@ -103,15 +103,7 @@ function buildSubcommands(builder) {
       .setDescription('Set encounter danger level (1=deadly+treasure, 5=easy)')
       .addIntegerOption(opt => opt.setName('level').setDescription('1-5 (1=extremely deadly, 5=easy)').setRequired(true)
         .setMinValue(1).setMaxValue(5)))
-    .addSubcommand(sub => sub
-      .setName('model')
-      .setDescription('Switch AI model (haiku=fast, sonnet=balanced, opus=smartest)')
-      .addStringOption(opt => opt.setName('level').setDescription('Model level').setRequired(true)
-        .addChoices(
-          { name: '⚡ Haiku (fast, cheap)', value: 'claude-haiku-4-5-20251001' },
-          { name: '⚖️ Sonnet (balanced)', value: 'claude-sonnet-4-6' },
-        )))
-    .addSubcommand(sub => sub
+.addSubcommand(sub => sub
       .setName('reset')
       .setDescription('Reset the game (keeps characters)'))
     .addSubcommand(sub => sub
@@ -605,22 +597,7 @@ client.on('interactionCreate', async (interaction) => {
     await interaction.reply(`🔥 Ferocity set to **${level}/5** — ${labels[level]}`);
   }
 
-  else if (sub === 'model') {
-    const gameId = await db.getChannelGame(interaction.channelId);
-    if (!gameId) {
-      await interaction.reply({ content: 'Link this channel first.', ephemeral: true });
-      return;
-    }
-    const model = interaction.options.getString('level');
-    await db.pool.query('UPDATE games SET model = $1 WHERE id = $2', [model, gameId]);
-    const labels = {
-      'claude-haiku-4-5-20251001': '⚡ Haiku (fast)',
-      'claude-sonnet-4-6': '⚖️ Sonnet (balanced)',
-    };
-    await interaction.reply(`🤖 AI model switched to **${labels[model] || model}**`);
-  }
-
-  else if (sub === 'map') {
+else if (sub === 'map') {
     const gameId = await db.getChannelGame(interaction.channelId);
     if (!gameId) {
       await interaction.reply({ content: 'Link this channel first.', ephemeral: true });
