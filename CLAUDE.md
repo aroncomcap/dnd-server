@@ -1,4 +1,5 @@
 # Tavern Table — CLAUDE.md
+<!-- Last updated: 2026-04-11 -->
 
 ## Project Overview
 Multiplayer RPG game server with AI Game Master (Claude as DM). Express.js + Socket.io + PostgreSQL on Railway. Discord bot integration.
