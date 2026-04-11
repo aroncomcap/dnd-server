@@ -175,6 +175,57 @@ ${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, n
   gs.ferocity <= 4 ? '- Encounters are light challenges. Enemies are beatable without much risk. Modest treasure rewards.' :
   '- Encounters are easy and forgiving. Enemies are weak or few. Minimal treasure — mostly coins and mundane items.'}
 
+ENCOUNTER PACING & RESOURCES:
+${gs.ferocity <= 1 ? `- PACING (Deadly): 4-6 encounters per short rest. Short rest only after 3+ encounters. Long rest after 6-8 total encounters in an adventuring day. Encounters escalate sharply through the day: easy → medium → hard → deadly boss. The hardest encounter comes near the end of the adventuring day.` :
+  gs.ferocity <= 2 ? `- PACING (Dangerous): 3-5 encounters per short rest. Short rest after 3+ encounters. Long rest after 6-7 total encounters in an adventuring day. Encounters escalate through the day: easy → medium → hard → boss. The hardest encounter comes near the end of the adventuring day.` :
+  gs.ferocity <= 3 ? `- PACING (Balanced): 3-4 encounters per short rest. Short rest after 3 encounters. Long rest after 5-6 total encounters in an adventuring day. Moderate escalation with the boss or hardest encounter later in the day.` :
+  gs.ferocity <= 4 ? `- PACING (Light): 2-3 encounters per short rest. Short rest after 2-3 encounters. Long rest after 4-5 total encounters in an adventuring day. Mostly flat difficulty with occasional spikes. Boss encounter still comes later in the day.` :
+  `- PACING (Easy): 1-2 encounters per short rest. Short rest after every 2 encounters. Long rest after 3-4 total encounters in an adventuring day. Flat difficulty with rare spikes. Boss encounter, if any, comes at the narrative climax.`}
+- RESOURCE TRACKING:
+${gameConfig.system === 'runequest' ?
+  `  * Track Rune Points, Magic Points, POW, and any single-use magical items (bound spirits, crystals, matrices with charges).
+  * Do NOT track mundane items like food, arrows, or basic supplies unless scarcity is a plot point.` :
+  `  * Track spell slots, HP, hit dice, and consumable MAGIC items (potions of healing, scrolls, wands with charges).
+  * Do NOT track mundane items like arrows, rations, torches, or basic supplies unless scarcity is a plot point.`}
+- REST MECHANICS:
+  * Offer rests when resources are depleted ("You could make camp here..." or "There's a sheltered alcove ahead...").
+  * Allow players to request rests anytime but with consequences: wandering monsters, time pressure, NPCs getting away, plot advancing without them.
+  * Give natural rests at narrative breaks: returning to town, chapter endings, safe havens, after a major victory.
+  * Mix all three approaches — proactive offers, player-requested with consequences, and narrative rests.
+- SKILL & SOCIAL CHALLENGES:
+  * Simple checks (single DC roll) for minor obstacles.
+  * Multi-roll skill challenges (X successes before Y failures, multiple players contribute) for major obstacles like navigating a trapped corridor, negotiating a peace treaty, or infiltrating a stronghold.
+  * IMPORTANT: Skill and social challenge failures MUST have MECHANICAL consequences — deplete hit points or spell slots as a proxy for the impact of failure (exhaustion, psychic damage, wasted resources).
+  * Skill/social outcomes can grant advantages or disadvantages in following combat: successful negotiation = fewer enemies, failed stealth = enemies are prepared and get a surprise round, etc.
+- TENSION ESCALATION:
+${gs.ferocity <= 2 ? `  * High ferocity: encounters escalate through the adventuring day (easy → medium → hard → boss). Each encounter should feel more dangerous than the last, with resources dwindling.` :
+  gs.ferocity <= 4 ? `  * Moderate ferocity: mostly consistent difficulty with a harder encounter or two mixed in. Boss or hardest encounter later in the day.` :
+  `  * Low ferocity: flat difficulty throughout. Occasional spikes for dramatic moments. Boss encounter at the narrative climax if at all.`}
+- TREASURE & LOOT (scaled by ferocity):
+${gs.ferocity <= 1 ? `  * Very generous: rare magic items, large gold hoards, powerful artifacts after boss fights. ~1 uncommon magic item per session, rare items every 2-3 sessions.` :
+  gs.ferocity <= 2 ? `  * Generous: good magic items and substantial gold. ~1 uncommon magic item per 1-2 sessions.` :
+  gs.ferocity <= 3 ? `  * Standard: published module treasure tables. ~1 uncommon magic item per 2-3 sessions.` :
+  gs.ferocity <= 4 ? `  * Modest: mostly coins with occasional uncommon magic items. ~1 uncommon per 3-4 sessions.` :
+  `  * Minimal: mostly coins and mundane items. Uncommon magic items are rare treats.`}
+  * Consumable magic items (potions, scrolls) should appear more frequently than permanent magic items.
+- ADVANCEMENT:
+${gameConfig.system === 'runequest' ?
+  `  * After each session, prompt skill improvement rolls for skills used during play. POW gain rolls after overcoming spiritual challenges.
+  * Track skill percentages in CHAR_UPDATES. When a skill increases, announce with 🎉 and include updated stats.` :
+gameConfig.system === 'dnd5e' ?
+  `  * Award XP after combat (based on monster CR), after quest completion, and for clever roleplay.
+  * Use milestone advancement — announce level-ups at narratively appropriate moments rather than strict XP counting.
+  * Track XP in CHAR_UPDATES. When a character levels up, announce with 🎉 and include full updated stats in CHAR_UPDATES and ACCOMPLISHMENTS.` :
+  `  * Follow the system's advancement mechanic. If unknown, use milestone advancement.
+  * When a character advances, announce with 🎉 and include updated stats in CHAR_UPDATES and ACCOMPLISHMENTS.`}
+- SYSTEM ADAPTATION:
+${gameConfig.system === 'runequest' ?
+  `  * Use "scenes" instead of "encounters" for pacing. POW/Rune Point/Magic Point depletion replaces spell slots. Check RuneQuest-specific pacing guidelines.` :
+gameConfig.system === 'dnd5e' ?
+  `  * Use standard D&D 5e adventuring day: encounter difficulty, spell slots, hit dice, short/long rest recovery.` :
+  `  * Adapt the challenge → rest cycle to this system's resource economy. Use the system's native terms for rests, resources, and recovery.`}
+- PILLAR DISTRIBUTION: Adhere loosely to the pillar weightings below, but be guided by the narrative arc. Try to catch up on the average distribution every two in-game days. Don't force it — let the story flow naturally.
+
 THREE PILLARS OF PLAY (target weighting):
 - Exploration: ${gs.pillars?.exploration ?? 33}% | Combat: ${gs.pillars?.combat ?? 33}% | Social: ${gs.pillars?.social ?? 34}%
 - Over the course of a session, aim for this ratio. If one pillar has been neglected, steer towards it.
@@ -351,6 +402,23 @@ ${catchphrases}
 
   const pillarsLine = `Pillars: E${gs.pillars?.exploration ?? 33}/C${gs.pillars?.combat ?? 33}/S${gs.pillars?.social ?? 34}. Include skill checks every 1-2 actions.`;
 
+  const pacingLine = `PACING: Ferocity ${gs.ferocity ?? 5}/5. ${
+    gs.ferocity <= 1 ? '4-6 encounters/short rest, long rest after 6-8.' :
+    gs.ferocity <= 2 ? '3-5 encounters/short rest, long rest after 6-7.' :
+    gs.ferocity <= 3 ? '3-4 encounters/short rest, long rest after 5-6.' :
+    gs.ferocity <= 4 ? '2-3 encounters/short rest, long rest after 4-5.' :
+    '1-2 encounters/short rest, long rest after 3-4.'} Track ${
+    gameConfig.system === 'runequest' ? 'Rune Points, Magic Points, POW, magic consumables' :
+    'spell slots, HP, hit dice, magic consumables'}. Skill failures cost HP/slots. Escalation: ${
+    gs.ferocity <= 2 ? 'sharp (easy→hard→boss)' :
+    gs.ferocity <= 4 ? 'moderate (flat with boss later)' :
+    'flat (rare spikes)'}. Treasure: ${
+    gs.ferocity <= 1 ? 'very generous' :
+    gs.ferocity <= 2 ? 'generous' :
+    gs.ferocity <= 3 ? 'standard' :
+    gs.ferocity <= 4 ? 'modest' :
+    'minimal'}. Award XP/milestones, announce level-ups with 🎉.`;
+
   return `${basePrompt}
 ${contextBlock}
 
@@ -362,6 +430,7 @@ ${summary}
 ${verbosityLine}
 ${ferocityLine}
 ${pillarsLine}
+${pacingLine}
 
 Only include ACCOMPLISHMENTS entries if something new was accomplished this turn. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, and MAP.
 
