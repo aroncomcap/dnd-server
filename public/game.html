@@ -28,12 +28,12 @@
       radial-gradient(ellipse at 80% 20%, #2d1a08 0%, transparent 50%);
     font-family: 'Crimson Pro', serif;
     color: var(--ink);
-    min-height: 100dvh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 45px;   /* space for fixed header */
-    padding-bottom: 50px; /* space for fixed nav */
+    overflow: hidden;
+    /* No padding-top/bottom — header and nav are in flex flow */
   }
 
   header {
@@ -42,10 +42,7 @@
     border-bottom: 2px solid var(--gold);
     padding: 6px 12px;
     text-align: center;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    flex-shrink: 0;
     z-index: 101;
   }
 
@@ -91,8 +88,8 @@
     width: 100%;
     padding: 8px;
     flex: 1;
+    min-height: 0; /* critical for flex children to shrink */
     overflow-y: auto;
-    padding-bottom: 60px;
   }
   .screen.active { display: flex; flex-direction: column; gap: 6px; }
 
@@ -100,10 +97,9 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding-bottom: 0;
   }
   #screen-game.active {
-    height: calc(100dvh - 105px); /* header ~60px + nav ~45px */
+    /* No height calc — flex:1 + min-height:0 fills remaining space */
     overflow: hidden;
   }
   #chat-panel { overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -404,6 +400,8 @@
     padding: 8px;
     box-shadow: 0 -2px 12px var(--shadow);
     border: 1px solid var(--parchment-dark);
+    max-height: 40vh; /* safety: don't let options push chat to nothing */
+    overflow-y: auto; /* scroll if options are very tall */
   }
   #action-area textarea {
     min-height: 44px;
@@ -419,11 +417,9 @@
     display: flex;
     background: #0d0600;
     border-top: 1px solid var(--gold);
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    flex-shrink: 0;
     z-index: 200;
+    order: 99; /* push nav to bottom of body flex */
   }
   nav button {
     flex: 1;
@@ -806,28 +802,16 @@
     }
     #game-title { font-size: 0.9rem; }
 
-    /* ── Nav becomes top bar on desktop ── */
+    /* ── Nav becomes top bar on desktop (below header, in flow) ── */
     nav {
       max-width: 100%;
-      position: fixed;
-      top: 45px; /* below fixed header */
-      bottom: auto;
       border-top: none;
       border-bottom: 1px solid var(--gold);
       justify-content: center;
       gap: 4px;
-      z-index: 200;
-      order: -1;
+      order: -1; /* place after header (order -2) but before screens */
     }
 
-    body {
-      padding-top: 90px;  /* header ~45px + nav ~45px */
-      padding-bottom: 0;  /* nav no longer at bottom */
-    }
-
-    #screen-game.active {
-      height: calc(100dvh - 90px); /* header ~45px + nav-as-top-bar ~45px */
-    }
     nav button {
       flex: 0 0 auto;
       flex-direction: row;
@@ -920,14 +904,16 @@
       grid-template-columns: 3fr 2fr;
       grid-template-rows: 1fr auto;
       gap: 16px;
-      align-items: start;
+      align-items: stretch;
       max-width: 1200px;
     }
-    #screen-game.has-map #chat-panel { grid-column: 1; grid-row: 1; min-height: 0; }
+    #screen-game.has-map #chat-panel { grid-column: 1; grid-row: 1; min-height: 0; overflow: hidden; }
     #screen-game.has-map #map-sidebar {
       display: block;
       grid-column: 2;
       grid-row: 1;
+      min-height: 0;
+      overflow-y: auto;
     }
     #screen-game.has-map #action-area { grid-column: 1 / -1; grid-row: 2; }
   }
@@ -1701,6 +1687,15 @@ socket.on('dm_message', (data) => {
   }
   if (!data.options || !data.options.length) {
     console.warn('NO OPTIONS in Claude response');
+    // Show fallback notice if it's my turn and no options were provided
+    if (isMyTurnCheck()) {
+      const notice = document.createElement('div');
+      notice.style.cssText = 'text-align:center;padding:8px;color:var(--gold);font-size:0.8rem;font-style:italic;';
+      notice.textContent = '(No action options provided \u2014 type your own action below)';
+      document.getElementById('options-area').innerHTML = '';
+      document.getElementById('options-area').appendChild(notice);
+      document.getElementById('or-divider').style.display = 'none';
+    }
   }
   // Update world data
   if (data.world) updateWorldPanel(data.world);
