@@ -1064,6 +1064,32 @@ app.patch('/api/admin/features/:id', requireAuth, requireAdmin, async (req, res)
   }
 });
 
+// ── Promo Code Redemption ─────────────────────────────────────────────────────
+app.post('/api/redeem', requireAuth, async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ error: 'Promo code is required' });
+    }
+    const result = await db.redeemPromoCode(req.user.id, code.trim().toUpperCase());
+    if (result.error) {
+      return res.status(400).json({ error: result.error });
+    }
+    res.json({
+      success: true,
+      minutesCredited: result.minutesCredited,
+      newBalance: result.balance.paid_minutes_remaining,
+    });
+  } catch (err) {
+    console.error('Redeem error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+app.get('/redeem', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'redeem.html'));
+});
+
 app.get('/admin', requireAuth, requireAdmin, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });

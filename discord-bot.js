@@ -120,7 +120,11 @@ function buildSubcommands(builder) {
     .addSubcommand(sub => sub
       .setName('reveal')
       .setDescription('Reveal a location on the map (GM)')
-      .addStringOption(opt => opt.setName('location').setDescription('Location to reveal').setRequired(true).setAutocomplete(true)));
+      .addStringOption(opt => opt.setName('location').setDescription('Location to reveal').setRequired(true).setAutocomplete(true)))
+    .addSubcommand(sub => sub
+      .setName('redeem')
+      .setDescription('Redeem a promo code')
+      .addStringOption(opt => opt.setName('code').setDescription('Promo code').setRequired(true)));
 }
 
 const commands = [
@@ -644,6 +648,34 @@ client.on('interactionCreate', async (interaction) => {
       await interaction.reply(`🗺️ Revealed **${name}** on the map.`);
     } else {
       await interaction.reply({ content: `Location "${name}" not found in map data.`, ephemeral: true });
+    }
+  }
+
+  else if (sub === 'redeem') {
+    const code = interaction.options.getString('code');
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      // Look up the user's Tavern Table account by Discord provider ID
+      const user = await db.getUserByProvider('discord', interaction.user.id);
+      if (!user) {
+        await interaction.editReply('You need a Tavern Table account to redeem codes. Register at the website first, then link your Discord account.');
+        return;
+      }
+      const result = await db.redeemPromoCode(user.id, code.trim().toUpperCase());
+      if (result.error) {
+        await interaction.editReply(`Failed to redeem: ${result.error}`);
+      } else {
+        const hours = Math.round(result.minutesCredited / 60);
+        const embed = new EmbedBuilder()
+          .setColor(0x2a5c2a)
+          .setTitle('Promo Code Redeemed!')
+          .setDescription(`**${result.minutesCredited} minutes** (${hours} hours) credited to your account.`)
+          .addFields({ name: 'Paid Balance', value: `${result.balance.paid_minutes_remaining} minutes`, inline: true });
+        await interaction.editReply({ embeds: [embed] });
+      }
+    } catch (err) {
+      console.error('Discord redeem error:', err);
+      await interaction.editReply('Error redeeming code. Please try again.');
     }
   }
 

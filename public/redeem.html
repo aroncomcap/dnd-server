@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Tavern Table — Redeem Code</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --parchment: #f5ead6;
+    --parchment-dark: #e8d5b0;
+    --ink: #2c1a0e;
+    --ink-light: #5c3d1e;
+    --gold: #c8922a;
+    --gold-light: #f0c060;
+    --red: #8b2020;
+    --green: #2a5c2a;
+    --shadow: rgba(44,26,14,0.35);
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a0f05;
+    background-image:
+      radial-gradient(ellipse at 20% 80%, #2d1a08 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, #2d1a08 0%, transparent 50%);
+    font-family: 'Crimson Pro', serif;
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 1.6rem;
+    color: var(--gold-light);
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 30px rgba(200,146,42,0.6);
+    margin-bottom: 4px;
+  }
+  header p {
+    color: var(--parchment-dark);
+    font-size: 0.95rem;
+    font-style: italic;
+  }
+
+  .panel {
+    background: var(--parchment);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    border-radius: var(--radius);
+    padding: 28px;
+    box-shadow: 0 4px 20px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.4);
+    border: 1px solid var(--parchment-dark);
+    width: 100%;
+    max-width: 440px;
+  }
+
+  .panel-title {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.85rem;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--parchment-dark);
+    text-align: center;
+  }
+
+  label {
+    font-size: 0.85rem;
+    color: var(--ink-light);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  input {
+    width: 100%;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: monospace;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--ink);
+    outline: none;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: center;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(200,146,42,0.2);
+  }
+  input::placeholder {
+    text-transform: none;
+    font-family: 'Crimson Pro', serif;
+    font-weight: 400;
+    letter-spacing: normal;
+    color: var(--ink-light);
+    opacity: 0.5;
+  }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px 20px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+    margin-top: 16px;
+    background: linear-gradient(135deg, #c8922a, #f0c060, #c8922a);
+    color: #0d0600;
+    box-shadow: 0 4px 12px rgba(200,146,42,0.4);
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(200,146,42,0.5); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .msg {
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    margin-top: 14px;
+    text-align: center;
+    display: none;
+  }
+  .msg-ok { background: rgba(42,92,42,0.12); color: var(--green); border: 1px solid rgba(42,92,42,0.2); }
+  .msg-err { background: rgba(139,32,32,0.1); color: var(--red); border: 1px solid rgba(139,32,32,0.15); }
+
+  .balance-row {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--parchment-dark);
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--ink-light);
+  }
+  .balance-row strong {
+    color: var(--ink);
+    font-size: 1.05rem;
+  }
+
+  .back-link {
+    color: var(--gold);
+    text-decoration: none;
+    font-size: 0.9rem;
+    display: inline-block;
+    margin-top: 20px;
+    text-align: center;
+    width: 100%;
+  }
+  .back-link:hover { color: var(--gold-light); }
+
+  @media (min-width: 640px) {
+    header h1 { font-size: 2rem; }
+    .panel { padding: 32px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tavern Table</h1>
+  <p>Redeem a Promo Code</p>
+</header>
+
+<div class="panel">
+  <div class="panel-title">Enter Your Code</div>
+
+  <label for="code-input">Promo Code</label>
+  <input id="code-input" type="text" placeholder="e.g. BETA-XXXX-XXXX" maxlength="30" autocomplete="off"/>
+
+  <button class="btn" id="btn-redeem">Redeem Code</button>
+
+  <div class="msg msg-ok" id="msg-ok"></div>
+  <div class="msg msg-err" id="msg-err"></div>
+
+  <div class="balance-row">
+    Your balance: <strong id="balance-display">--</strong> paid minutes
+  </div>
+</div>
+
+<a href="/" class="back-link">&larr; Back to Lobby</a>
+
+<script>
+(async () => {
+  // Auth check
+  try {
+    const res = await fetch('/auth/me');
+    if (!res.ok) { window.location.href = '/auth/login'; return; }
+    const data = await res.json();
+    if (!data.user) { window.location.href = '/auth/login'; return; }
+    // Load balance
+    loadBalance();
+  } catch {
+    window.location.href = '/auth/login';
+  }
+})();
+
+async function loadBalance() {
+  try {
+    const res = await fetch('/auth/me');
+    if (!res.ok) return;
+    const data = await res.json();
+    const bal = data.balance;
+    if (bal) {
+      document.getElementById('balance-display').textContent =
+        (bal.free_minutes_remaining || 0) + (bal.paid_minutes_remaining || 0);
+    }
+  } catch {}
+}
+
+const codeInput = document.getElementById('code-input');
+const btnRedeem = document.getElementById('btn-redeem');
+const msgOk = document.getElementById('msg-ok');
+const msgErr = document.getElementById('msg-err');
+
+function hideMessages() {
+  msgOk.style.display = 'none';
+  msgErr.style.display = 'none';
+}
+
+btnRedeem.addEventListener('click', async () => {
+  hideMessages();
+  const code = codeInput.value.trim();
+  if (!code) {
+    msgErr.textContent = 'Please enter a promo code.';
+    msgErr.style.display = 'block';
+    return;
+  }
+
+  btnRedeem.disabled = true;
+  btnRedeem.textContent = 'Redeeming...';
+
+  try {
+    const res = await fetch('/api/redeem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      const hours = Math.round(data.minutesCredited / 60);
+      msgOk.textContent = `${data.minutesCredited} minutes (${hours} hours) credited to your account!`;
+      msgOk.style.display = 'block';
+      document.getElementById('balance-display').textContent = data.newBalance;
+      codeInput.value = '';
+    } else {
+      msgErr.textContent = data.error || 'Failed to redeem code.';
+      msgErr.style.display = 'block';
+    }
+  } catch (err) {
+    msgErr.textContent = 'Network error. Please try again.';
+    msgErr.style.display = 'block';
+  }
+
+  btnRedeem.disabled = false;
+  btnRedeem.textContent = 'Redeem Code';
+});
+
+// Allow Enter key to submit
+codeInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') btnRedeem.click();
+});
+</script>
+</body>
+</html>
