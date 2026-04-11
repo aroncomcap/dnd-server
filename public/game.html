@@ -101,7 +101,7 @@
     flex-direction: column;
   }
   #screen-game.active {
-    height: calc(100dvh - 115px); /* header ~70px (with turn banner) + nav ~45px */
+    height: calc(100dvh - 150px); /* header ~35px + turn banner ~25px + timer 4px + scene tabs ~35px + nav ~45px */
     overflow: hidden;
   }
   #chat-panel { overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -334,15 +334,16 @@
   }
 
   .msg-dm .mechanic {
-    display: block;
+    display: inline-block;
     font-weight: 700;
     color: var(--gold-light);
-    margin: 8px 0;
-    padding: 6px 10px;
+    margin: 2px 0;
+    padding: 3px 8px;
     background: rgba(200,146,42,0.12);
-    border-left: 3px solid var(--gold);
-    border-radius: 0 6px 6px 0;
-    font-size: 0.9rem;
+    border-left: 2px solid var(--gold);
+    border-radius: 0 4px 4px 0;
+    font-size: 0.8rem;
+    line-height: 1.3;
   }
 
   /* ── Action Options ── */
@@ -1342,7 +1343,10 @@ function renderDmText(text) {
     const trimmed = line.trim();
     if (/^\*\*(.+)\*\*$/.test(trimmed)) {
       const inner = trimmed.slice(2, -2);
-      return `<span class="mechanic">${inner}</span>`;
+      let color = '';
+      if (/\bhit\b|success/i.test(inner)) color = 'color:#4a8';
+      else if (/\bmiss\b|fail/i.test(inner)) color = 'color:#c44';
+      return `<span class="mechanic" style="${color}">${inner}</span>`;
     }
     return line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   }).join('<br/>');

@@ -239,6 +239,8 @@ Format: position | name | initiative/SR value | type (PC/Enemy/NPC)
 
 FORMATTING — SKILL ROLLS & GAME MECHANICS:
 - Any time there is a skill check, saving throw, attack roll, damage roll, or other game mechanic, put it on its own line with a blank line before and after, wrapped in **double asterisks** for bold.
+- Combine attack and damage rolls on a single line when possible: "**🎲 Melee Attack — rolls 17. HIT! Damage: 1d8+2 = 9**"
+- Use "HIT" or "MISS" (caps) so the client can color-code them.
 
 ACTION OPTIONS:
 - At the end of EVERY response (except auto-actions), present exactly 4 action choices for the next player.
@@ -361,7 +363,30 @@ ${pillarsLine}
 
 Only include ACCOMPLISHMENTS entries if something new was accomplished this turn. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, and MAP.
 
-OUTPUT FORMAT: Narration, then ---OPTIONS--- (4 choices: 🗡️🛡️🔥💬), then ---SCENE--- (one sentence), then ---WORLD--- (LOCATIONS, NPCS, ACCOMPLISHMENTS, CHAR_UPDATES, TURN_ORDER if combat, MAP: current location). All sections mandatory.`;
+FORMATTING — SKILL ROLLS & GAME MECHANICS:
+- Combine attack and damage rolls on a single line when possible: "**🎲 Melee Attack — rolls 17. HIT! Damage: 1d8+2 = 9**"
+- Use "HIT" or "MISS" (caps) so the client can color-code them.
+
+MANDATORY OUTPUT (every single response, no exceptions):
+After your narration, you MUST include ALL of these blocks in this exact order:
+
+---OPTIONS---
+1. 🗡️ [combat/practical action for the next player]
+2. 🛡️ [defensive/cautious action]
+3. 🔥 [wild/reckless/creative move]
+4. 💬 [witty quip or clever social move]
+
+---SCENE---
+[One sentence scene description for image generation]
+
+---WORLD---
+LOCATIONS:
+- [Name] | [Description] | [Distance]
+NPCS:
+- [Name] | [Description] | [Location]
+MAP: [Current location name]
+
+If you omit ---OPTIONS--- the game breaks. NEVER skip it.`;
 }
 
 // ── Parsing (single-pass, order-independent) ─────────────────────────────────
