@@ -14,12 +14,27 @@ const discord = require('./discord-bot');
 const { MapGraph, processMapHint } = require('./map-engine');
 const { router: authRouter, authMiddleware, requireAuth, requireAdmin } = require('./auth');
 const { BillingTicker } = require('./billing');
+const payments = require('./payments');
 
 const DEPLOY_TIME = new Date().toISOString();
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
+
+// Stripe webhook must come BEFORE express.json() to receive raw body
+app.post('/api/webhooks/stripe',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    try {
+      const result = await payments.handleWebhook(req.body, req.headers['stripe-signature']);
+      res.json(result);
+    } catch (err) {
+      console.error('Webhook error:', err.message);
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
 
 app.use(express.json());
 app.use(cookieParser());
@@ -1083,6 +1098,25 @@ app.post('/api/redeem', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Redeem error:', err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ── Purchase / Payments ──────────────────────────────────────────────────────
+app.get('/purchase', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'purchase.html'));
+});
+
+app.post('/api/purchase', requireAuth, async (req, res) => {
+  try {
+    if (!payments.isConfigured()) {
+      return res.status(503).json({ error: 'Payments not configured yet. Use promo codes.' });
+    }
+    const { productId } = req.body;
+    const returnUrl = `${req.protocol}://${req.get('host')}`;
+    const session = await payments.createCheckoutSession(req.user.id, productId, returnUrl);
+    res.json({ url: session.url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

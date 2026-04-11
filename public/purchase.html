@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>⚔️ Tavern Table — Buy Playtime</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --parchment: #f5ead6;
+    --parchment-dark: #e8d5b0;
+    --ink: #2c1a0e;
+    --ink-light: #5c3d1e;
+    --gold: #c8922a;
+    --gold-light: #f0c060;
+    --red: #8b2020;
+    --green: #2a6b2a;
+    --shadow: rgba(44,26,14,0.35);
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #1a0f05;
+    background-image:
+      radial-gradient(ellipse at 20% 80%, #2d1a08 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, #2d1a08 0%, transparent 50%);
+    font-family: 'Crimson Pro', serif;
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 1.6rem;
+    color: var(--gold-light);
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 30px rgba(200,146,42,0.6);
+    margin-bottom: 4px;
+  }
+  header p {
+    color: var(--parchment-dark);
+    font-size: 0.95rem;
+    font-style: italic;
+  }
+
+  .container { width: 100%; max-width: 700px; }
+
+  .panel {
+    background: var(--parchment);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: 0 4px 20px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.4);
+    border: 1px solid var(--parchment-dark);
+    margin-bottom: 16px;
+  }
+
+  .panel-title {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.8rem;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--parchment-dark);
+  }
+
+  /* ── Balance Display ── */
+  .balance-display {
+    text-align: center;
+    padding: 16px;
+  }
+  .balance-display .balance-amount {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 2rem;
+    color: var(--gold);
+    margin-bottom: 4px;
+  }
+  .balance-display .balance-label {
+    font-size: 0.9rem;
+    color: var(--ink-light);
+  }
+  .balance-breakdown {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: var(--ink-light);
+  }
+
+  /* ── Product Cards ── */
+  .products-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  @media (min-width: 520px) {
+    .products-grid { grid-template-columns: 1fr 1fr 1fr; }
+  }
+
+  .product-card {
+    background: linear-gradient(135deg, #2c1a0e, #3d2510);
+    border: 2px solid var(--gold);
+    border-radius: 10px;
+    padding: 20px 16px;
+    text-align: center;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .product-card:hover {
+    border-color: var(--gold-light);
+    box-shadow: 0 4px 20px rgba(200,146,42,0.3);
+    transform: translateY(-2px);
+  }
+  .product-card.best-value::before {
+    content: 'BEST VALUE';
+    position: absolute;
+    top: 10px;
+    right: -28px;
+    background: var(--gold);
+    color: #0d0600;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.55rem;
+    font-weight: 700;
+    padding: 3px 32px;
+    transform: rotate(35deg);
+    letter-spacing: 0.05em;
+  }
+  .product-name {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.8rem;
+    color: var(--gold-light);
+    margin-bottom: 8px;
+  }
+  .product-hours {
+    font-size: 2.2rem;
+    font-weight: 600;
+    color: var(--parchment);
+    line-height: 1;
+  }
+  .product-hours small {
+    font-size: 0.9rem;
+    color: var(--parchment-dark);
+    font-weight: 300;
+  }
+  .product-price {
+    font-size: 1.3rem;
+    color: var(--gold);
+    font-weight: 600;
+    margin: 10px 0 4px;
+  }
+  .product-unit {
+    font-size: 0.75rem;
+    color: var(--parchment-dark);
+    margin-bottom: 14px;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+    width: 100%;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #c8922a, #f0c060, #c8922a);
+    color: #0d0600;
+    box-shadow: 0 4px 12px rgba(200,146,42,0.4);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(200,146,42,0.5); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* ── Status Messages ── */
+  .status-msg {
+    text-align: center;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .status-msg.success {
+    background: rgba(42,107,42,0.15);
+    color: var(--green);
+    border: 1px solid rgba(42,107,42,0.3);
+  }
+  .status-msg.canceled {
+    background: rgba(139,32,32,0.1);
+    color: var(--red);
+    border: 1px solid rgba(139,32,32,0.2);
+  }
+  .status-msg.info {
+    background: rgba(200,146,42,0.1);
+    color: var(--ink-light);
+    border: 1px solid rgba(200,146,42,0.3);
+  }
+
+  /* ── Auth Bar ── */
+  .auth-bar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 10px 20px;
+    gap: 12px;
+    z-index: 100;
+  }
+  .auth-bar .user-name {
+    color: var(--parchment-dark);
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .auth-bar a, .auth-bar button {
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--gold);
+    background: none;
+    border: 1px solid rgba(200,146,42,0.3);
+    border-radius: 6px;
+    padding: 5px 14px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .auth-bar a:hover, .auth-bar button:hover {
+    background: rgba(200,146,42,0.1);
+    border-color: var(--gold);
+  }
+
+  .back-link {
+    display: inline-block;
+    color: var(--gold);
+    text-decoration: none;
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+    transition: color 0.2s;
+  }
+  .back-link:hover { color: var(--gold-light); }
+
+  @media (min-width: 640px) {
+    header h1 { font-size: 2rem; }
+    header p { font-size: 1.1rem; }
+    .panel { padding: 24px; }
+  }
+  @media (min-width: 1024px) {
+    body { justify-content: center; }
+    header { margin-bottom: 32px; margin-top: 40px; }
+    header h1 { font-size: 2.4rem; }
+    .panel { padding: 28px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="auth-bar" id="auth-bar"></div>
+
+<header>
+  <h1>⚔️ Buy Playtime</h1>
+  <p>Fuel your adventures with more hours</p>
+</header>
+
+<div class="container">
+  <a href="/" class="back-link">← Back to Lobby</a>
+
+  <div id="status-area"></div>
+
+  <!-- Balance -->
+  <div class="panel" id="balance-panel" style="display:none;">
+    <div class="panel-title">💰 Your Balance</div>
+    <div class="balance-display">
+      <div class="balance-amount" id="total-minutes">--</div>
+      <div class="balance-label">minutes remaining</div>
+      <div class="balance-breakdown">
+        <span>Free: <strong id="free-mins">--</strong></span>
+        <span>Paid: <strong id="paid-mins">--</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Products -->
+  <div class="panel" id="products-panel" style="display:none;">
+    <div class="panel-title">🛒 Playtime Packages</div>
+    <div class="products-grid" id="products-grid"></div>
+  </div>
+
+  <!-- Not configured message -->
+  <div class="panel" id="not-configured" style="display:none;">
+    <div class="panel-title">🔮 Coming Soon</div>
+    <p style="text-align:center; color:var(--ink-light); padding:20px 0;">
+      Payments coming soon. Use <a href="/redeem" style="color:var(--gold);">promo codes</a> for now.
+    </p>
+  </div>
+</div>
+
+<script>
+const PRODUCTS = {
+  playtime_1hr:  { minutes: 60,   priceInCents: 100,  name: '1 Hour',  hours: '1', unit: '$1.00/hr' },
+  playtime_5hr:  { minutes: 300,  priceInCents: 450,  name: '5 Hours', hours: '5', unit: '$0.90/hr', bestValue: false },
+  playtime_20hr: { minutes: 1200, priceInCents: 1500, name: '20 Hours', hours: '20', unit: '$0.75/hr', bestValue: true },
+};
+
+let currentUser = null;
+
+// ── Check URL params for success/canceled ──
+const params = new URLSearchParams(window.location.search);
+const statusArea = document.getElementById('status-area');
+if (params.get('success') === 'true') {
+  statusArea.innerHTML = '<div class="status-msg success">✅ Payment successful! Your playtime has been added.</div>';
+  // Clean URL
+  window.history.replaceState({}, '', '/purchase');
+} else if (params.get('canceled') === 'true') {
+  statusArea.innerHTML = '<div class="status-msg canceled">Payment was canceled. No charge was made.</div>';
+  window.history.replaceState({}, '', '/purchase');
+}
+
+// ── Auth check ──
+async function checkAuth() {
+  try {
+    const res = await fetch('/auth/me');
+    if (!res.ok) {
+      window.location.href = '/login.html';
+      return;
+    }
+    currentUser = await res.json();
+
+    // Render auth bar
+    const bar = document.getElementById('auth-bar');
+    bar.innerHTML = `
+      <span class="user-name">Welcome, ${currentUser.name || currentUser.email}</span>
+      <button id="btn-logout">Logout</button>
+    `;
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+      await fetch('/auth/logout', { method: 'POST' });
+      window.location.href = '/login.html';
+    });
+
+    await loadBalance();
+    await loadProducts();
+  } catch {
+    window.location.href = '/login.html';
+  }
+}
+
+async function loadBalance() {
+  try {
+    const res = await fetch('/auth/me');
+    if (!res.ok) return;
+    const user = await res.json();
+    const balance = user.balance;
+    if (!balance) return;
+
+    const total = (balance.free_minutes_remaining || 0) + (balance.paid_minutes_remaining || 0);
+    document.getElementById('total-minutes').textContent = total.toLocaleString();
+    document.getElementById('free-mins').textContent = (balance.free_minutes_remaining || 0).toLocaleString();
+    document.getElementById('paid-mins').textContent = (balance.paid_minutes_remaining || 0).toLocaleString();
+    document.getElementById('balance-panel').style.display = '';
+  } catch (e) {
+    console.error('Failed to load balance:', e);
+  }
+}
+
+async function loadProducts() {
+  const grid = document.getElementById('products-grid');
+  grid.innerHTML = '';
+
+  for (const [id, prod] of Object.entries(PRODUCTS)) {
+    const card = document.createElement('div');
+    card.className = 'product-card' + (prod.bestValue ? ' best-value' : '');
+    card.innerHTML = `
+      <div class="product-name">${prod.name}</div>
+      <div class="product-hours">${prod.hours} <small>hr${prod.hours === '1' ? '' : 's'}</small></div>
+      <div class="product-price">$${(prod.priceInCents / 100).toFixed(2)}</div>
+      <div class="product-unit">${prod.unit}</div>
+      <button class="btn btn-primary" data-product="${id}">⚔️ Buy Now</button>
+    `;
+    grid.appendChild(card);
+  }
+
+  document.getElementById('products-panel').style.display = '';
+
+  // Attach buy handlers
+  grid.querySelectorAll('[data-product]').forEach(btn => {
+    btn.addEventListener('click', () => handleBuy(btn.dataset.product));
+  });
+}
+
+async function handleBuy(productId) {
+  const btn = document.querySelector(`[data-product="${productId}"]`);
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Redirecting...';
+
+  try {
+    const res = await fetch('/api/purchase', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productId }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      if (res.status === 503) {
+        // Stripe not configured
+        document.getElementById('products-panel').style.display = 'none';
+        document.getElementById('not-configured').style.display = '';
+        return;
+      }
+      throw new Error(data.error || 'Purchase failed');
+    }
+
+    // Redirect to Stripe Checkout
+    window.location.href = data.url;
+  } catch (err) {
+    statusArea.innerHTML = `<div class="status-msg canceled">${err.message}</div>`;
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
+checkAuth();
+</script>
+</body>
+</html>
