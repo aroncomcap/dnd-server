@@ -14,8 +14,24 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const db = require('./db');
 
+const rateLimit = require('express-rate-limit');
+
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 attempts per window
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+  standardHeaders: true,
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 registrations per hour per IP
+  message: { error: 'Too many registrations. Try again later.' },
+  standardHeaders: true,
+});
 const JWT_EXPIRY = '7d';
 const BCRYPT_ROUNDS = 12;
 
@@ -149,7 +165,7 @@ if (process.env.DISCORD_CLIENT_ID) {
 
 // ── Routes: Email/Password ──────────────────────────────────────────────────
 
-router.post('/auth/register', async (req, res) => {
+router.post('/auth/register', registerLimiter, async (req, res) => {
   try {
     const { email, password, displayName } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
@@ -178,7 +194,7 @@ router.post('/auth/register', async (req, res) => {
   }
 });
 
-router.post('/auth/login', (req, res, next) => {
+router.post('/auth/login', loginLimiter, (req, res, next) => {
   passport.authenticate('local', { session: false }, (err, user, info) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!user) return res.status(401).json({ error: info?.message || 'Invalid credentials' });
@@ -229,4 +245,4 @@ router.get('/auth/discord/callback', (req, res, next) => {
   })(req, res, next);
 });
 
-module.exports = { router, authMiddleware, requireAuth, requireAdmin, generateToken };
+module.exports = { router, authMiddleware, requireAuth, requireAdmin, generateToken, jwtSecret: JWT_SECRET };

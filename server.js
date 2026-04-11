@@ -18,6 +18,8 @@ const payments = require('./payments');
 
 const DEPLOY_TIME = new Date().toISOString();
 
+function truncate(str, max) { return str ? String(str).slice(0, max) : ''; }
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
@@ -45,7 +47,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const together = new Together({ apiKey: process.env.TOGETHER_API_KEY });
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PDF files are allowed'), false);
+    }
+  },
+});
 
 const billingTicker = new BillingTicker(io, db);
 
@@ -1077,9 +1089,10 @@ app.get('/api/games', async (req, res) => {
   }
 });
 
-app.post('/api/games', async (req, res) => {
+app.post('/api/games', requireAuth, async (req, res) => {
   try {
-    const { name, system } = req.body;
+    const { system } = req.body;
+    const name = truncate(req.body.name, 100);
     const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
       || crypto.randomBytes(4).toString('hex');
     await db.createGame(id, name, system || 'dnd5e');
@@ -1090,7 +1103,7 @@ app.post('/api/games', async (req, res) => {
   }
 });
 
-app.post('/api/games/:id/upload-pdf', upload.array('pdfs', 10), async (req, res) => {
+app.post('/api/games/:id/upload-pdf', requireAuth, upload.array('pdfs', 10), async (req, res) => {
   try {
     const game = await db.getGame(req.params.id);
     if (!game) return res.status(404).json({ error: 'Game not found' });
@@ -1128,6 +1141,20 @@ app.post('/api/games/:id/upload-pdf', upload.array('pdfs', 10), async (req, res)
 });
 
 
+app.get('/health', async (req, res) => {
+  try {
+    await db.pool.query('SELECT 1');
+    res.json({
+      status: 'ok',
+      uptime: process.uptime(),
+      memory: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + 'MB',
+      games: Object.keys(games).length,
+    });
+  } catch (err) {
+    res.status(503).json({ status: 'error', error: err.message });
+  }
+});
+
 app.get('/api/deploy-time', (req, res) => {
   res.json({ deployTime: DEPLOY_TIME });
 });
@@ -1143,7 +1170,7 @@ app.get('/api/costs', (req, res) => {
   res.json({ ...summary, games: games_detail, recentCalls: costLog.slice(-20) });
 });
 
-app.delete('/api/games/:id', async (req, res) => {
+app.delete('/api/games/:id', requireAuth, async (req, res) => {
   try {
     const gameId = req.params.id;
     const gs = games[gameId];
@@ -1342,6 +1369,48 @@ app.get('/game/:gameId', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'game.html'));
 });
 
+// ── Idle game eviction (every 10 minutes) ─────────────────────────────────────
+setInterval(() => {
+  const now = Date.now();
+  for (const [gameId, gs] of Object.entries(games)) {
+    const clients = getConnectedClients(gameId);
+    if (clients === 0) {
+      if (!gs._lastActivity) gs._lastActivity = now;
+      if (now - gs._lastActivity > 3600000) { // 1 hour
+        clearTimeout(gs.turnTimer);
+        delete games[gameId];
+        console.log(`Evicted idle game from memory: ${gameId}`);
+      }
+    } else {
+      gs._lastActivity = now;
+    }
+  }
+}, 600000);
+
+// ── Socket.io Authentication Middleware ────────────────────────────────────────
+io.use((socket, next) => {
+  const cookieHeader = socket.handshake.headers.cookie;
+  if (cookieHeader) {
+    const cookies = cookieHeader.split(';').reduce((acc, c) => {
+      const [key, val] = c.trim().split('=');
+      acc[key] = val;
+      return acc;
+    }, {});
+    const token = cookies['tt_token'];
+    if (token) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || require('./auth').jwtSecret);
+        socket.userId = decoded.userId;
+        socket.userEmail = decoded.email;
+      } catch (e) {
+        // Invalid token — allow connection but mark as unauthenticated
+      }
+    }
+  }
+  next();
+});
+
 // ── Socket Events ─────────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
@@ -1404,11 +1473,12 @@ io.on('connection', (socket) => {
     const gs = getGameState(gameId);
     const existing = gs.data.characters[data.name];
 
+    data.name = truncate(data.name, 50);
     const charData = {
-      statsText: data.statsText || '',
-      personality: data.personality || 'Brave and curious',
-      standardActions: data.standardActions || '',
-      backstory: data.backstory || '',
+      statsText: truncate(data.statsText, 5000) || '',
+      personality: truncate(data.personality, 5000) || 'Brave and curious',
+      standardActions: truncate(data.standardActions, 5000) || '',
+      backstory: truncate(data.backstory, 5000) || '',
       token: data.token === null ? null : (data.token || (existing && existing.token) || null),
     };
 
@@ -1468,7 +1538,8 @@ io.on('connection', (socket) => {
     const gameId = socket.gameId;
     if (!gameId) return;
 
-    const { playerName, action } = data;
+    const playerName = data.playerName;
+    const action = truncate(data.action, 2000);
 
     // Block spectators from taking actions
     if (socket.userId && billingTicker.isSpectator(gameId, socket.userId)) {
@@ -1506,7 +1577,8 @@ io.on('connection', (socket) => {
   socket.on('ooc_message', async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    const { playerName, message } = data;
+    const { playerName } = data;
+    const message = truncate(data.message, 1000);
 
     try {
       const gs = getGameState(gameId);
@@ -1681,10 +1753,10 @@ io.on('connection', (socket) => {
     const gs = getGameState(gameId);
     const char = gs.data.characters[data.name];
     if (!char) return;
-    if (data.statsText !== undefined) char.statsText = data.statsText;
-    if (data.personality !== undefined) char.personality = data.personality;
-    if (data.standardActions !== undefined) char.standardActions = data.standardActions;
-    if (data.backstory !== undefined) char.backstory = data.backstory;
+    if (data.statsText !== undefined) char.statsText = truncate(data.statsText, 5000);
+    if (data.personality !== undefined) char.personality = truncate(data.personality, 5000);
+    if (data.standardActions !== undefined) char.standardActions = truncate(data.standardActions, 5000);
+    if (data.backstory !== undefined) char.backstory = truncate(data.backstory, 5000);
     await db.upsertCharacter(gameId, data.name, char);
     socket.emit('system', { text: `✅ ${data.name}'s character sheet saved.` });
     io.to(gameId).emit('character_updated', { name: data.name, character: char });

@@ -1285,6 +1285,11 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
 <script src="/socket.io/socket.io.js"></script>
 <script src="/map-renderer.js"></script>
 <script>
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 const socket = io();
 const gameId = window.location.pathname.split('/game/')[1];
 let playerName = localStorage.getItem('playerName_' + gameId) || '';
@@ -1390,6 +1395,7 @@ function showOptions(options) {
   options.forEach(opt => {
     const btn = document.createElement('button');
     btn.className = 'option-btn';
+    opt = escapeHtml(opt);
     btn.innerHTML = opt.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     btn.addEventListener('click', () => {
       document.getElementById('action-input').value = opt;
@@ -1510,7 +1516,7 @@ function updateActionArea() {
     // Player hasn't selected a character — show prompt to select
     myTurnControls.style.display = 'none';
     waitingMsg.style.display = 'block';
-    waitingName.innerHTML = '<strong>' + currentPlayer + '</strong> — <a href="#" onclick="document.querySelector(\'[data-screen=party]\').click(); return false;" style="color:var(--gold);">Select your character</a> to play';
+    waitingName.innerHTML = '<strong>' + escapeHtml(currentPlayer) + '</strong> — <a href="#" onclick="document.querySelector(\'[data-screen=party]\').click(); return false;" style="color:var(--gold);">Select your character</a> to play';
     return;
   }
 
@@ -1521,7 +1527,7 @@ function updateActionArea() {
     myTurnControls.style.display = 'none';
     waitingMsg.style.display = 'block';
     if (Object.keys(currentCharacters).includes(currentPlayer)) {
-      waitingName.innerHTML = `<strong>${currentPlayer}</strong>'s turn — <button onclick="selectCharacter('${currentPlayer}', currentCharacters['${currentPlayer}'])" style="background:var(--gold);color:#0d0600;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-family:'Cinzel Decorative',cursive;font-size:0.75rem;margin-left:6px;">Play as ${currentPlayer}</button>`;
+      waitingName.innerHTML = `<strong>${escapeHtml(currentPlayer)}</strong>'s turn — <button onclick="selectCharacter('${escapeHtml(currentPlayer)}', currentCharacters['${escapeHtml(currentPlayer)}'])" style="background:var(--gold);color:#0d0600;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-family:'Cinzel Decorative',cursive;font-size:0.75rem;margin-left:6px;">Play as ${escapeHtml(currentPlayer)}</button>`;
     } else {
       waitingName.textContent = currentPlayer;
     }
@@ -1542,7 +1548,7 @@ function updateTurnOrder(turnOrderData) {
     div.className = 'turn-order-item' +
       (item.name === currentPlayer ? ' active' : '') +
       (item.type?.toLowerCase() === 'enemy' ? ' enemy' : '');
-    div.innerHTML = `<span class="turn-num">${item.position}</span><span class="turn-name">${item.name}</span><span class="turn-value">${item.value || ''}</span>`;
+    div.innerHTML = `<span class="turn-num">${escapeHtml(String(item.position))}</span><span class="turn-name">${escapeHtml(item.name)}</span><span class="turn-value">${escapeHtml(item.value || '')}</span>`;
     list.appendChild(div);
   });
 }
@@ -1843,7 +1849,7 @@ function updatePartyCard(name, c) {
     : '';
   existing.innerHTML = `
     ${tokenImg}
-    <strong>${name}</strong><br/>
+    <strong>${escapeHtml(name)}</strong><br/>
     <span>${statsHtml || 'No stats provided'}</span>
     <div style="clear:both;"></div>
   `;
@@ -1996,7 +2002,7 @@ socket.on('world_art_failed', (data) => {
 function showLightbox(name, src) {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:500;display:flex;align-items:center;justify-content:center;flex-direction:column;cursor:pointer;';
-  overlay.innerHTML = `<img src="${src}" style="max-width:90%;max-height:80vh;border-radius:12px;border:2px solid var(--gold);"/><div style="color:var(--parchment-dark);margin-top:12px;font-family:'Cinzel Decorative',cursive;font-size:0.9rem;">${name}</div>`;
+  overlay.innerHTML = `<img src="${src}" style="max-width:90%;max-height:80vh;border-radius:12px;border:2px solid var(--gold);"/><div style="color:var(--parchment-dark);margin-top:12px;font-family:'Cinzel Decorative',cursive;font-size:0.9rem;">${escapeHtml(name)}</div>`;
   overlay.addEventListener('click', () => overlay.remove());
   document.body.appendChild(overlay);
 }
@@ -2409,7 +2415,7 @@ function updateWorldPanel(world) {
       const imgHtml = loc.imageUrl
         ? `<img class="world-thumb" src="${loc.imageUrl}" onclick="showLightbox('${loc.name.replace(/'/g, "\\'")}', this.src)"/>`
         : '';
-      el.innerHTML = `${imgHtml}<strong>${loc.name}</strong><br/><span>${loc.description}</span>${loc.distance ? `<br/><span style="font-size:0.75rem;color:var(--gold);">📏 ${loc.distance}</span>` : ''}<div style="clear:both;"></div>`;
+      el.innerHTML = `${imgHtml}<strong>${escapeHtml(loc.name)}</strong><br/><span>${escapeHtml(loc.description)}</span>${loc.distance ? `<br/><span style="font-size:0.75rem;color:var(--gold);">📏 ${escapeHtml(loc.distance)}</span>` : ''}<div style="clear:both;"></div>`;
       locDiv.appendChild(el);
     });
   } else {
@@ -2424,7 +2430,7 @@ function updateWorldPanel(world) {
       const imgHtml = npc.imageUrl
         ? `<img class="world-thumb" src="${npc.imageUrl}" onclick="showLightbox('${npc.name.replace(/'/g, "\\'")}', this.src)"/>`
         : '';
-      el.innerHTML = `${imgHtml}<strong>${npc.name}</strong><br/><span>${npc.description}</span>${npc.location ? `<br/><span style="font-size:0.75rem;color:var(--gold);">📍 ${npc.location}</span>` : ''}<div style="clear:both;"></div>`;
+      el.innerHTML = `${imgHtml}<strong>${escapeHtml(npc.name)}</strong><br/><span>${escapeHtml(npc.description)}</span>${npc.location ? `<br/><span style="font-size:0.75rem;color:var(--gold);">📍 ${escapeHtml(npc.location)}</span>` : ''}<div style="clear:both;"></div>`;
       npcDiv.appendChild(el);
     });
   } else {
@@ -2438,7 +2444,7 @@ function updateWorldPanel(world) {
     world.accomplishments.forEach(a => {
       const el = document.createElement('div');
       el.className = 'world-item';
-      el.innerHTML = `<strong>${a.character}</strong><br/><span>${a.achievement}</span>`;
+      el.innerHTML = `<strong>${escapeHtml(a.character)}</strong><br/><span>${escapeHtml(a.achievement)}</span>`;
       accDiv.appendChild(el);
     });
 
@@ -2470,7 +2476,7 @@ function showCharacterPicker(characters) {
       ? `<img src="${tkn}" alt="${name}"/>`
       : `<div class="picker-char-placeholder">🧙</div>`;
     const statsSnippet = (c.statsText || '').split('\n')[0].slice(0, 60);
-    row.innerHTML = `${imgHtml}<div><strong>${name}</strong><br/><span>${statsSnippet || 'No stats'}</span></div>`;
+    row.innerHTML = `${imgHtml}<div><strong>${escapeHtml(name)}</strong><br/><span>${escapeHtml(statsSnippet) || 'No stats'}</span></div>`;
     row.addEventListener('click', () => {
       selectCharacter(name, c);
       picker.style.display = 'none';

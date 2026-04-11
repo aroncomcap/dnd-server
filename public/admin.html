@@ -380,6 +380,11 @@
 </div>
 
 <script>
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ── Auth check ──────────────────────────────────────────────────────────────
 async function checkAdmin() {
   try {
@@ -426,9 +431,9 @@ async function loadUsers() {
   }
   tbody.innerHTML = allUsers.map(u => `
     <tr>
-      <td>${u.display_name || '—'}</td>
-      <td>${u.email || '—'}</td>
-      <td>${u.auth_provider || '—'}</td>
+      <td>${escapeHtml(u.display_name) || '—'}</td>
+      <td>${escapeHtml(u.email) || '—'}</td>
+      <td>${escapeHtml(u.auth_provider) || '—'}</td>
       <td>${u.free_minutes_remaining ?? '—'}</td>
       <td>${u.paid_minutes_remaining ?? '—'}</td>
       <td>${u.total_minutes_used ?? 0}</td>
@@ -440,7 +445,7 @@ async function loadUsers() {
   // Populate credit dropdown
   const sel = document.getElementById('credit-user');
   sel.innerHTML = allUsers.map(u =>
-    `<option value="${u.id}">${u.display_name || u.email} (${u.email})</option>`
+    `<option value="${escapeHtml(u.id)}">${escapeHtml(u.display_name || u.email)} (${escapeHtml(u.email)})</option>`
   ).join('');
 }
 
@@ -477,11 +482,11 @@ async function loadPromos() {
   }
   tbody.innerHTML = promos.map(p => `
     <tr>
-      <td class="promo-code">${p.code}</td>
+      <td class="promo-code">${escapeHtml(p.code)}</td>
       <td>${p.minutes_granted}</td>
       <td>${new Date(p.created_at).toLocaleDateString()}</td>
-      <td>${p.redeemed_by || '<em>unused</em>'}</td>
-      <td><button class="copy-btn" onclick="copyCode('${p.code}')">Copy</button></td>
+      <td>${p.redeemed_by ? escapeHtml(p.redeemed_by) : '<em>unused</em>'}</td>
+      <td><button class="copy-btn" onclick="copyCode('${escapeHtml(p.code)}')">Copy</button></td>
     </tr>
   `).join('');
 }
@@ -524,10 +529,10 @@ async function loadFeatures() {
     const statusClass = f.status || 'proposed';
     return `
       <tr>
-        <td>${f.title}</td>
-        <td style="font-size:0.8rem;color:var(--ink-light)">${desc}</td>
-        <td><span class="badge-status ${statusClass}" onclick="cycleStatus(${f.id}, '${f.status}')" title="Click to cycle status">${f.status}</span></td>
-        <td><span class="badge-priority ${f.priority}">${f.priority}</span></td>
+        <td>${escapeHtml(f.title)}</td>
+        <td style="font-size:0.8rem;color:var(--ink-light)">${escapeHtml(desc)}</td>
+        <td><span class="badge-status ${escapeHtml(statusClass)}" onclick="cycleStatus(${f.id}, '${escapeHtml(f.status)}')" title="Click to cycle status">${escapeHtml(f.status)}</span></td>
+        <td><span class="badge-priority ${escapeHtml(f.priority)}">${escapeHtml(f.priority)}</span></td>
         <td>${f.created_at ? new Date(f.created_at).toLocaleDateString() : '—'}</td>
       </tr>
     `;
