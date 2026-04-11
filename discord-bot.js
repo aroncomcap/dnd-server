@@ -126,7 +126,10 @@ function buildSubcommands(builder) {
     .addSubcommand(sub => sub
       .setName('ooc')
       .setDescription('Out-of-character message (rules, instructions)')
-      .addStringOption(opt => opt.setName('message').setDescription('Your OOC message').setRequired(true)));
+      .addStringOption(opt => opt.setName('message').setDescription('Your OOC message').setRequired(true)))
+    .addSubcommand(sub => sub
+      .setName('pregen')
+      .setDescription('Generate a party of 4 pre-made characters'));
 }
 
 const commands = [
@@ -740,6 +743,21 @@ else if (sub === 'map') {
     }
     await gameEngine.resetGame(gameId);
     await interaction.reply('🔄 Game has been reset. Characters preserved.');
+  }
+
+  else if (sub === 'pregen') {
+    const gameId = await db.getChannelGame(interaction.channelId);
+    if (!gameId) {
+      await interaction.reply({ content: 'Link this channel first.', ephemeral: true });
+      return;
+    }
+    await interaction.deferReply();
+    try {
+      const result = await gameEngine.generateParty(gameId);
+      await interaction.editReply(`🎲 Generated ${result.count} characters! Use \`/tt party\` to see them.`);
+    } catch (err) {
+      await interaction.editReply(`❌ Failed: ${err.message}`);
+    }
   }
 });
 

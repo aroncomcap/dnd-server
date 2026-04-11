@@ -1450,6 +1450,19 @@ io.on('connection', (socket) => {
     emitCharacterToken(gameId, { name, token });
   });
 
+  // Generate pre-made party
+  socket.on('generate_party', async () => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    try {
+      const result = await gameEngine.generateParty(gameId);
+      socket.emit('party_generated', { count: result.count });
+    } catch (err) {
+      console.error('Party generation failed:', err.message);
+      socket.emit('party_gen_failed', { error: err.message });
+    }
+  });
+
   // Player sends an action
   socket.on('player_action', async (data) => {
     const gameId = socket.gameId;
@@ -2086,6 +2099,121 @@ const gameEngine = {
       emitSystem(gameId, { text: `⚔️ ${name} has rejoined the initiative order.` });
     }
     return { ok: true };
+  },
+
+  async generateParty(gameId) {
+    const gameConfig = await db.getGame(gameId);
+    const gs = getGameState(gameId);
+
+    const system = gameConfig.system || 'dnd5e';
+    const hasContent = gameConfig.custom_context && gameConfig.custom_context.length > 100;
+
+    let levelGuidance = '';
+    if (hasContent) {
+      levelGuidance = `Campaign source material has been uploaded. Analyze it and set the party to the appropriate starting level for the LOWEST level adventure/module in the material. If you can identify the module (e.g., "Lost Mine of Phandelver" = level 1-5, start at 1), use that. Otherwise default to level 1.`;
+    }
+
+    let systemInstructions = '';
+    if (system === 'dnd5e') {
+      systemInstructions = `Create 4 D&D 5th Edition characters. For each:
+- Choose a distinct race and class (ensure party balance: at least 1 melee, 1 healer/support, 1 ranged/caster, 1 versatile)
+- Generate full ability scores (use standard array: 15,14,13,12,10,8 assigned appropriately for class)
+- Calculate HP based on class hit die + CON modifier at the appropriate level
+- List starting equipment appropriate to class and level
+- Include spell lists for casters (prepared spells or known spells)
+- Include any class features, subclass if level 3+
+${levelGuidance || 'Start at level 1.'}`;
+    } else if (system === 'runequest') {
+      systemInstructions = `Create 4 RuneQuest: Roleplaying in Glorantha characters. For each:
+- Choose a distinct homeland and occupation (ensure variety: warrior, priest, shaman/sorcerer, scout/thief)
+- Generate characteristics: STR, CON, SIZ, INT, POW, DEX, CHA (roll 3d6 or 2d6+6 as appropriate)
+- Set starting cult affiliations and Rune affinities
+- List key combat and non-combat skills with percentages
+- Include starting Rune magic and Spirit magic
+- Equipment appropriate to homeland and occupation
+${levelGuidance || 'Standard starting characters.'}`;
+    } else {
+      systemInstructions = `Create 4 characters appropriate for this RPG system. Ensure party balance (combat, support, skills, magic). Include full stats, equipment, and abilities. ${levelGuidance || 'Standard starting level.'}`;
+    }
+
+    const contextSnippet = hasContent ? gameConfig.custom_context.slice(0, 3000) : '';
+
+    const prompt = `${systemInstructions}
+
+${contextSnippet ? 'CAMPAIGN CONTEXT (use this to set level and flavor):\n' + contextSnippet + '\n' : ''}
+For each character, output in this EXACT format (4 characters total):
+
+---CHARACTER---
+NAME: [A fitting fantasy name]
+STATS: [Full stat block as a single text block — include level, race, class, HP, ability scores, AC, speed, proficiencies, equipment, spells if any, class features]
+PERSONALITY: [2-3 sentences — personality traits, ideals, bonds, flaws]
+ACTIONS: [Comma-separated standard actions: e.g., Attack with longsword, Cast Fireball, Dodge, Help ally]
+BACKSTORY: [3-4 sentences — origin, motivation, how they joined the party]
+
+Generate exactly 4 characters now.`;
+
+    const response = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 4000,
+      system: 'You are a character creation assistant for tabletop RPGs. Generate detailed, playable characters.',
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = response.content[0].text;
+
+    // Parse the characters
+    const charBlocks = text.split('---CHARACTER---').filter(b => b.trim());
+    let count = 0;
+
+    for (const block of charBlocks) {
+      const nameMatch = block.match(/NAME:\s*(.+)/i);
+      const statsMatch = block.match(/STATS:\s*([\s\S]*?)(?=PERSONALITY:|$)/i);
+      const personalityMatch = block.match(/PERSONALITY:\s*([\s\S]*?)(?=ACTIONS:|$)/i);
+      const actionsMatch = block.match(/ACTIONS:\s*([\s\S]*?)(?=BACKSTORY:|$)/i);
+      const backstoryMatch = block.match(/BACKSTORY:\s*([\s\S]*?)(?=---CHARACTER---|$)/i);
+
+      if (!nameMatch) continue;
+
+      const name = nameMatch[1].trim();
+      const charData = {
+        statsText: (statsMatch?.[1] || '').trim(),
+        personality: (personalityMatch?.[1] || '').trim(),
+        standardActions: (actionsMatch?.[1] || '').trim(),
+        backstory: (backstoryMatch?.[1] || '').trim(),
+        token: null,
+      };
+
+      gs.data.characters[name] = charData;
+      if (!gs.data.turnOrder.includes(name)) {
+        gs.data.turnOrder.push(name);
+      }
+      await db.upsertCharacter(gameId, name, charData);
+      io.to(gameId).emit('character_registered', { name, character: charData });
+      emitSystem(gameId, { text: `📜 ${name} has joined the campaign.` });
+
+      // Generate token async
+      io.to(gameId).emit('token_generating', { name });
+      generateCharacterToken(name, charData).then(async (tokenUrl) => {
+        if (tokenUrl) {
+          charData.token = tokenUrl;
+          gs.data.characters[name] = charData;
+          await db.upsertCharacter(gameId, name, charData);
+          emitCharacterToken(gameId, { name, token: tokenUrl });
+        }
+      });
+
+      count++;
+    }
+
+    await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
+
+    // Log cost
+    const inputTokens = response.usage?.input_tokens || 0;
+    const outputTokens = response.usage?.output_tokens || 0;
+    logCost({ gameId, model: 'claude-haiku-4-5-20251001', inputTokens, outputTokens,
+      cost: estimateCost('claude-haiku-4-5-20251001', inputTokens, outputTokens), type: 'party-gen' });
+
+    return { count };
   },
 };
 

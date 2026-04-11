@@ -1149,6 +1149,11 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <label style="margin-top:12px;">Opening Scene Prompt (optional)</label>
     <textarea id="host-prompt" style="min-height:80px;" placeholder="The party arrives at a fog-covered village…"></textarea>
 
+    <button class="btn btn-ghost" id="btn-pregen-party" style="margin-top:10px;">
+      🎲 Add Pre-Gen Party (4 characters)
+    </button>
+    <p class="host-note" id="pregen-status"></p>
+
     <button class="btn btn-primary" id="btn-start" style="margin-top:10px;">
       ⚔️ Begin the Adventure
     </button>
@@ -2359,6 +2364,22 @@ document.getElementById('btn-reveal-location').addEventListener('click', () => {
 });
 
 // ── Host controls ─────────────────────────────────────────────
+document.getElementById('btn-pregen-party').addEventListener('click', () => {
+  document.getElementById('pregen-status').textContent = '🎲 Generating party...';
+  document.getElementById('btn-pregen-party').disabled = true;
+  socket.emit('generate_party');
+});
+
+socket.on('party_generated', (data) => {
+  document.getElementById('pregen-status').textContent = `✅ ${data.count} characters created!`;
+  document.getElementById('btn-pregen-party').disabled = false;
+});
+
+socket.on('party_gen_failed', (data) => {
+  document.getElementById('pregen-status').textContent = `❌ ${data.error}`;
+  document.getElementById('btn-pregen-party').disabled = false;
+});
+
 document.getElementById('btn-start').addEventListener('click', () => {
   const prompt = document.getElementById('host-prompt').value.trim();
   socket.emit('dm_start', { prompt });
