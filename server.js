@@ -1080,6 +1080,22 @@ app.patch('/api/admin/features/:id', requireAuth, requireAdmin, async (req, res)
 });
 
 // ── Promo Code Redemption ─────────────────────────────────────────────────────
+app.get('/api/balance', requireAuth, async (req, res) => {
+  try {
+    const balance = await db.getUserBalance(req.user.id);
+    if (!balance) {
+      return res.json({ freeMinutes: 0, paidMinutes: 0 });
+    }
+    res.json({
+      freeMinutes: balance.free_minutes_remaining,
+      paidMinutes: balance.paid_minutes_remaining,
+    });
+  } catch (err) {
+    console.error('Balance fetch error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.post('/api/redeem', requireAuth, async (req, res) => {
   try {
     const { code } = req.body;
@@ -1459,6 +1475,18 @@ io.on('connection', (socket) => {
     const gameId = socket.gameId;
     if (!gameId) return;
     gameEngine.setTimer(gameId, data.seconds);
+  });
+
+  socket.on('set_billing_mode', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const mode = data.mode === 'player_pays' ? 'player_pays' : 'host_pays';
+    try {
+      await db.pool.query('UPDATE games SET billing_mode = $1 WHERE id = $2', [mode, gameId]);
+      io.to(gameId).emit('system', { text: `Billing mode changed to: ${mode === 'host_pays' ? 'Host Pays' : 'Each Player Pays'}` });
+    } catch (err) {
+      console.error('Set billing mode error:', err);
+    }
   });
 
   socket.on('delete_character', async (data) => {

@@ -124,7 +124,13 @@ function buildSubcommands(builder) {
     .addSubcommand(sub => sub
       .setName('redeem')
       .setDescription('Redeem a promo code')
-      .addStringOption(opt => opt.setName('code').setDescription('Promo code').setRequired(true)));
+      .addStringOption(opt => opt.setName('code').setDescription('Promo code').setRequired(true)))
+    .addSubcommand(sub => sub
+      .setName('balance')
+      .setDescription('Check your remaining playtime'))
+    .addSubcommand(sub => sub
+      .setName('addtime')
+      .setDescription('Get link to add playtime'));
 }
 
 const commands = [
@@ -677,6 +683,50 @@ client.on('interactionCreate', async (interaction) => {
       console.error('Discord redeem error:', err);
       await interaction.editReply('Error redeeming code. Please try again.');
     }
+  }
+
+  else if (sub === 'balance') {
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      const user = await db.getUserByProvider('discord', interaction.user.id);
+      if (!user) {
+        await interaction.editReply('You need a Tavern Table account to check balance. Register at the website first, then link your Discord account.');
+        return;
+      }
+      const balance = await db.getUserBalance(user.id);
+      if (!balance) {
+        await interaction.editReply('No balance found. Your account may not have been set up yet.');
+        return;
+      }
+      const free = balance.free_minutes_remaining || 0;
+      const paid = balance.paid_minutes_remaining || 0;
+      const total = free + paid;
+      const hours = Math.floor(total / 60);
+      const mins = total % 60;
+      const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+      const color = total <= 10 ? 0xcc3333 : total <= 30 ? 0xc8922a : 0x2a5c2a;
+      const embed = new EmbedBuilder()
+        .setColor(color)
+        .setTitle('⏱️ Your Playtime Balance')
+        .setDescription(`**${timeStr}** remaining`)
+        .addFields(
+          { name: 'Free', value: `${free} min`, inline: true },
+          { name: 'Paid', value: `${paid} min`, inline: true },
+        );
+      await interaction.editReply({ embeds: [embed] });
+    } catch (err) {
+      console.error('Discord balance error:', err);
+      await interaction.editReply('Error checking balance. Please try again.');
+    }
+  }
+
+  else if (sub === 'addtime') {
+    const baseUrl = process.env.BASE_URL || 'https://taverntable.app';
+    const embed = new EmbedBuilder()
+      .setColor(0xC8922A)
+      .setTitle('💳 Add Playtime')
+      .setDescription(`[Click here to purchase playtime](${baseUrl}/purchase)\n\nYou can also use \`/tt redeem <code>\` if you have a promo code.`);
+    await interaction.reply({ embeds: [embed], ephemeral: true });
   }
 
   else if (sub === 'reset') {

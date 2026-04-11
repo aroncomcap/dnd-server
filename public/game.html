@@ -934,6 +934,7 @@
     <span id="game-title" style="font-family:'Crimson Pro',serif;font-size:0.7rem;color:var(--parchment-dark);opacity:0.8;"></span>
     <span style="margin:0 8px;color:var(--parchment-dark);opacity:0.3;">|</span>
     <span id="deploy-time" style="font-size:0.6rem;color:var(--parchment-dark);opacity:0.5;"></span>
+    <span id="balance-display" style="font-size:0.55rem;margin-left:8px;"></span>
   </div>
   <div id="turn-banner">
     <img id="turn-token" src="" alt=""/>
@@ -980,6 +981,12 @@
     <div id="chat-log">
       <div class="msg msg-system">Awaiting the adventure to begin…</div>
     </div>
+  </div>
+
+  <div id="spectator-banner" style="display:none; background:linear-gradient(135deg,#8b2020,#aa3030); color:#fff; padding:10px 16px; border-radius:8px; text-align:center; margin-bottom:8px;">
+    <div style="font-family:'Cinzel Decorative',cursive;font-size:0.75rem;">&#9203; Time Expired</div>
+    <div style="font-size:0.85rem;margin:4px 0;">Claude is playing for you. <span id="spectator-countdown"></span></div>
+    <a href="/purchase" style="display:inline-block;background:var(--gold);color:#0d0600;padding:6px 16px;border-radius:6px;font-family:'Cinzel Decorative',cursive;font-size:0.7rem;text-decoration:none;margin-top:4px;">Add Time</a>
   </div>
 
   <div id="action-area">
@@ -1210,6 +1217,19 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <label style="margin-top:16px;">My Player Name (for sending actions)</label>
     <input id="player-name-input" type="text" placeholder="Enter your character name"/>
     <p class="host-note">Or select from party below. This is a fallback — use the picker on the Game screen.</p>
+  </div>
+
+  <!-- Billing Controls -->
+  <div class="panel" style="margin-top:12px;">
+    <div class="panel-title">&#128176; Billing</div>
+    <div id="billing-test-banner" style="display:none;background:#2a4a2a;color:#8f8;padding:6px 12px;border-radius:6px;font-size:0.8rem;margin-bottom:8px;text-align:center;">&#129514; Test Mode &mdash; billing disabled</div>
+    <div id="billing-info" style="font-size:0.85rem;color:var(--ink-light);">Loading...</div>
+    <label style="margin-top:8px;">Billing Mode</label>
+    <select id="billing-mode-select">
+      <option value="host_pays">Host Pays (you cover all players)</option>
+      <option value="player_pays">Each Player Pays</option>
+    </select>
+    <a href="/purchase" class="btn btn-primary" style="margin-top:10px;text-decoration:none;text-align:center;display:block;">&#128179; Add Time</a>
   </div>
 
   <!-- PDF Upload -->
@@ -2573,6 +2593,127 @@ async function uploadPDFs(files) {
   }
   pdfInput.value = '';
 }
+
+// ── Billing UI ────────────────────────────────────────────────
+
+// Task 12: Balance display in header
+function updateBalanceDisplay(data) {
+  const el = document.getElementById('balance-display');
+  if (!el) return;
+  const free = data?.freeMinutes ?? data?.free ?? 0;
+  const paid = data?.paidMinutes ?? data?.paid ?? 0;
+  const total = free + paid;
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+  const text = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+  let color = '#2a5c2a'; // green
+  if (total <= 10) color = '#cc3333'; // red
+  else if (total <= 30) color = '#c8922a'; // yellow/gold
+  el.style.color = color;
+  el.textContent = total > 0 ? `\u23F1${text}` : '';
+}
+
+socket.on('balance_update', (data) => updateBalanceDisplay(data));
+
+// Fetch balance on load
+fetch('/api/balance', { credentials: 'same-origin' })
+  .then(r => r.ok ? r.json() : null)
+  .then(data => {
+    if (data) updateBalanceDisplay(data);
+  })
+  .catch(() => {});
+
+// Task 13: Spectator mode
+let spectatorInterval = null;
+
+socket.on('spectator_mode', (data) => {
+  document.getElementById('spectator-banner').style.display = 'block';
+  document.getElementById('my-turn-controls').style.display = 'none';
+  document.getElementById('waiting-msg').style.display = 'none';
+  // Start countdown from 5 minutes
+  let remaining = 300;
+  const countdownEl = document.getElementById('spectator-countdown');
+  if (spectatorInterval) clearInterval(spectatorInterval);
+  spectatorInterval = setInterval(() => {
+    remaining--;
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    countdownEl.textContent = `(${m}:${s.toString().padStart(2, '0')} until pause)`;
+    if (remaining <= 0) clearInterval(spectatorInterval);
+  }, 1000);
+});
+
+socket.on('spectator_restored', () => {
+  document.getElementById('spectator-banner').style.display = 'none';
+  if (spectatorInterval) { clearInterval(spectatorInterval); spectatorInterval = null; }
+  updateActionArea();
+});
+
+socket.on('billing_pause', () => {
+  if (spectatorInterval) { clearInterval(spectatorInterval); spectatorInterval = null; }
+  const banner = document.getElementById('spectator-banner');
+  banner.style.display = 'block';
+  banner.innerHTML = `
+    <div style="font-family:'Cinzel Decorative',cursive;font-size:0.85rem;">\u23F8\uFE0F Game Paused</div>
+    <div style="font-size:0.85rem;margin:8px 0;">Add time to continue your adventure.</div>
+    <a href="/purchase" style="display:inline-block;background:var(--gold);color:#0d0600;padding:8px 20px;border-radius:6px;font-family:'Cinzel Decorative',cursive;font-size:0.75rem;text-decoration:none;">Add Time</a>
+  `;
+  document.getElementById('my-turn-controls').style.display = 'none';
+  document.getElementById('waiting-msg').style.display = 'none';
+});
+
+socket.on('billing_warning', (data) => {
+  const level = data.level || 'warning';
+  const mins = data.minutesRemaining || 0;
+  const icon = level === 'critical' ? '\u26A0\uFE0F' : level === 'urgent' ? '\u23F3' : '\u2139\uFE0F';
+  addMsg('system', `${icon} ${mins} minute${mins !== 1 ? 's' : ''} of playtime remaining.`);
+});
+
+// Task 14: Host billing controls
+function updateBillingInfo(data) {
+  const el = document.getElementById('billing-info');
+  if (!el) return;
+  const free = data?.freeMinutes ?? data?.free ?? 0;
+  const paid = data?.paidMinutes ?? data?.paid ?? 0;
+  const total = free + paid;
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+  el.innerHTML = `
+    <strong>Free:</strong> ${free} min &middot; <strong>Paid:</strong> ${paid} min<br/>
+    <strong>Total:</strong> ${hours > 0 ? hours + 'h ' : ''}${mins}m remaining
+  `;
+}
+
+// Refresh billing info when Host tab is opened
+document.querySelector('[data-screen="host"]').addEventListener('click', () => {
+  fetch('/api/balance', { credentials: 'same-origin' })
+    .then(r => r.ok ? r.json() : null)
+    .then(data => {
+      if (data) {
+        updateBillingInfo(data);
+        updateBalanceDisplay(data);
+      }
+    })
+    .catch(() => {});
+});
+
+// Also update host billing on balance_update events
+socket.on('balance_update', (data) => updateBillingInfo(data));
+
+// Billing mode selector
+document.getElementById('billing-mode-select').addEventListener('change', (e) => {
+  socket.emit('set_billing_mode', { mode: e.target.value });
+});
+
+// Check billing status (test mode banner)
+fetch('/api/admin/billing-status', { credentials: 'same-origin' })
+  .then(r => r.ok ? r.json() : null)
+  .then(data => {
+    if (data && !data.enabled) {
+      document.getElementById('billing-test-banner').style.display = 'block';
+    }
+  })
+  .catch(() => {});
 
 // ── Debug panel ───────────────────────────────────────────────
 const debugLog = [];
