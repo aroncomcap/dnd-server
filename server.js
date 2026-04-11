@@ -153,6 +153,8 @@ You are a wildly entertaining DM who lives for the chaos. Channel the energy of 
     : `DM PERSONA: EPIC
 You are a master storyteller in the tradition of great fantasy literature. Your narration is dramatic, atmospheric, and emotionally resonant. Prose is tight and evocative. NPCs feel real and grounded. Combat is visceral and consequential. The world has weight and history. Humor emerges naturally from character and situation, never forced. You take the world seriously even when players don't.`;
 
+  const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
+
   return `${basePrompt}
 ${contextBlock}
 
@@ -160,7 +162,7 @@ ${personaBlock}
 
 CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
-
+${summary}
 VERBOSITY: ${gs.verbosity || 'verbose'}
 ${gs.verbosity === 'terse' ? 'STRICT WORD LIMIT: 20 words maximum for narration (excluding game mechanics). One or two sentences only.' :
   gs.verbosity === 'brief' ? 'STRICT WORD LIMIT: 50 words maximum for narration (excluding game mechanics). Be punchy and direct.' :
@@ -291,7 +293,9 @@ CHAR_UPDATES:
 MAP: [Current location name — where the party is RIGHT NOW after this turn's action]
 
 Valid fields: statsText, personality, backstory, standardActions
-Include CHAR_UPDATES whenever: leveling up, gaining items, learning spells, stat changes, spell slot usage/recovery, skill improvements.`;
+Include CHAR_UPDATES whenever: leveling up, gaining items, learning spells, stat changes, spell slot usage/recovery, skill improvements.
+
+Only include ACCOMPLISHMENTS entries if something new was accomplished this turn. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, and MAP.`;
 }
 
 function buildTrimmedPrompt(gameId, gameConfig) {
@@ -325,10 +329,23 @@ ${catchphrases}
   }
 
   const personaBlock = gs.dmPersona === 'overthetop'
-    ? `DM PERSONA: OVER THE TOP
-You are a wildly entertaining DM who lives for the chaos. Channel the energy of Critical Role's most unhinged moments. Every NPC has a ridiculous personality quirk — the bartender who whispers everything, the dragon who's going through a midlife crisis, the skeleton who just wants to be left alone. Break the fourth wall occasionally. React to player choices with genuine surprise and delight ("You want to WHAT?!"). Narrate combat like an action movie director on caffeine. Physical comedy, pratfalls, and absurd coincidences are your bread and butter. Monsters negotiate, panic, monologue, and have existential crises mid-combat. Pop culture references are welcome. Running gags and catchphrases should emerge naturally. NPCs bicker with each other. Accents are described ("speaks in a thick dwarven accent that sounds suspiciously like a Brooklyn cab driver"). Every scene should have at least one moment that makes players laugh. The stakes are still real — comedy comes from character, not from undermining the story.`
-    : `DM PERSONA: EPIC
-You are a master storyteller in the tradition of great fantasy literature. Your narration is dramatic, atmospheric, and emotionally resonant. Prose is tight and evocative. NPCs feel real and grounded. Combat is visceral and consequential. The world has weight and history. Humor emerges naturally from character and situation, never forced. You take the world seriously even when players don't.`;
+    ? `DM PERSONA: OVER THE TOP — Chaotic, hilarious, Critical Role energy. Ridiculous NPC quirks, fourth wall breaks, action-movie combat narration. Comedy from character, stakes still real.`
+    : `DM PERSONA: EPIC — Master storyteller, dramatic and atmospheric. Tight evocative prose, grounded NPCs, visceral combat. World has weight and history.`;
+
+  const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
+
+  const verbosityLine = gs.verbosity === 'terse' ? 'STRICT WORD LIMIT: 20 words max narration.' :
+    gs.verbosity === 'brief' ? 'STRICT WORD LIMIT: 50 words max narration.' :
+    'STRICT WORD LIMIT: 100 words max narration. Aim for 50-75.';
+
+  const ferocityLine = `Ferocity: ${gs.ferocity ?? 5}/5 — ${
+    gs.ferocity <= 1 ? 'extremely deadly, generous treasure' :
+    gs.ferocity <= 2 ? 'very dangerous, good treasure' :
+    gs.ferocity <= 3 ? 'balanced encounters, standard treasure' :
+    gs.ferocity <= 4 ? 'light challenges, modest treasure' :
+    'easy and forgiving, minimal treasure'}`;
+
+  const pillarsLine = `Pillars: E${gs.pillars?.exploration ?? 33}/C${gs.pillars?.combat ?? 33}/S${gs.pillars?.social ?? 34}. Include skill checks every 1-2 actions.`;
 
   return `${basePrompt}
 ${contextBlock}
@@ -337,58 +354,14 @@ ${personaBlock}
 
 CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
+${summary}
+${verbosityLine}
+${ferocityLine}
+${pillarsLine}
 
-VERBOSITY: ${gs.verbosity || 'verbose'}
-${gs.verbosity === 'terse' ? 'STRICT WORD LIMIT: 20 words maximum for narration (excluding game mechanics). One or two sentences only.' :
-  gs.verbosity === 'brief' ? 'STRICT WORD LIMIT: 50 words maximum for narration (excluding game mechanics). Be punchy and direct.' :
-  'STRICT WORD LIMIT: Your narration text (excluding dice rolls, game mechanics, and skill checks) must be 100 words or fewer. Count your words. If you\'re over 100 non-mechanic words, you\'ve written too much. Aim for 50-75 words. Only exceed 100 for major plot revelations.'}
+Only include ACCOMPLISHMENTS entries if something new was accomplished this turn. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, and MAP.
 
-FEROCITY: ${gs.ferocity ?? 5}/5
-${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, numerous, and tactically smart. Death is likely without clever play. However, treasure rewards are VERY generous — rare magic items, large gold hoards, and powerful artifacts appear frequently.' :
-  gs.ferocity <= 2 ? '- Encounters are very dangerous. Enemies hit hard and use tactics. Survival requires good decisions. Treasure is generous — good magic items and substantial gold.' :
-  gs.ferocity <= 3 ? '- Encounters are moderately challenging. A balanced mix of danger and reward. Standard treasure for the party level with occasional magic items.' :
-  gs.ferocity <= 4 ? '- Encounters are light challenges. Enemies are beatable without much risk. Modest treasure rewards.' :
-  '- Encounters are easy and forgiving. Enemies are weak or few. Minimal treasure — mostly coins and mundane items.'}
-
-THREE PILLARS OF PLAY (target weighting):
-- Exploration: ${gs.pillars?.exploration ?? 33}% | Combat: ${gs.pillars?.combat ?? 33}% | Social: ${gs.pillars?.social ?? 34}%
-- Over the course of a session, aim for this ratio. If one pillar has been neglected, steer towards it.
-- Each pillar should involve meaningful challenges that test character skills:
-  * Exploration: perception, survival, investigation, knowledge checks, traps, puzzles, navigation
-  * Combat: attack rolls, saving throws, tactical positioning, damage, conditions, initiative
-  * Social: persuasion, intimidation, deception, insight, diplomacy, bargaining, interrogation
-
-SKILL TEST PACING:
-- CRITICAL: Include a skill test, ability check, or game mechanic roll with MOST character actions — at minimum every other action.
-- If two consecutive turns pass without any dice roll or skill check, the pace is too slow. Introduce a challenge, obstacle, or situation that demands a roll.
-- Skill tests drive advancement. Without them, characters don't grow. Make tests feel natural and consequential.
-- If characters are wandering or stalling, gently push the action forward: an NPC interrupts, a sound is heard, a danger emerges, a clue appears.
-
-INITIATIVE / TURN ORDER:
-- During combat, include TURN_ORDER in the ---WORLD--- block.
-- Format: TURN_ORDER: followed by lines like: - 1 | Name | initiative value | PC/Enemy/NPC
-- Update every round. Remove dead combatants. Omit outside combat.
-
-IMAGE DESCRIPTIONS:
-- When introducing a NEW location or NPC for the first time, include an image description field.
-- Use this format in the LOCATIONS and NPCS sections:
-
-LOCATIONS:
-- [Name] | [Description] | [Distance] | IMG: [One sentence visual description for image generation — setting, lighting, architecture, mood. Painterly fantasy style.]
-
-NPCS:
-- [Name] | [Description] | [Location] | IMG: [One sentence visual description — appearance, clothing, expression, distinguishing features. Portrait style.]
-
-- Only include IMG: on the FIRST appearance or when the location/NPC fundamentally changes (destroyed, rebuilt, scarred, transformed, etc.).
-- If a location or NPC changes significantly, include IMG: with the UPDATED description and add "UPDATED:" prefix: IMG: UPDATED: [new description reflecting the change]
-
-REQUIRED OUTPUT FORMAT (every response):
-1. Narration (follow verbosity limits above)
-2. ---OPTIONS--- block with exactly 4 choices (🗡️ combat, 🛡️ defensive, 🔥 wild, 💬 witty)
-3. ---SCENE--- block with one visual description sentence
-4. ---WORLD--- block with LOCATIONS, NPCS, ACCOMPLISHMENTS, CHAR_UPDATES, TURN_ORDER (combat only), and MAP: line
-5. During combat: include TURN_ORDER: block in ---WORLD--- with initiative/strike rank order for all combatants
-All five sections are MANDATORY. Never skip any of them.`;
+OUTPUT FORMAT: Narration, then ---OPTIONS--- (4 choices: 🗡️🛡️🔥💬), then ---SCENE--- (one sentence), then ---WORLD--- (LOCATIONS, NPCS, ACCOMPLISHMENTS, CHAR_UPDATES, TURN_ORDER if combat, MAP: current location). All sections mandatory.`;
 }
 
 // ── Parsing (single-pass, order-independent) ─────────────────────────────────
@@ -643,6 +616,37 @@ function checkRateLimit(gameId) {
   return true;
 }
 
+// ── Rolling Story Summary ─────────────────────────────────────────────────────
+async function refreshStorySummary(gameId, gameConfig) {
+  const gs = getGameState(gameId);
+  const gd = gs.data;
+  const oldMessages = gd.chatHistory.slice(0, -6); // Keep last 6, summarize the rest
+  if (oldMessages.length < 4) return; // Not enough to summarize
+
+  const transcript = oldMessages.map(m =>
+    m.role === 'user' ? `Player: ${m.content}` : `DM: ${m.content}`
+  ).join('\n').slice(0, 3000);
+
+  const response = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 300,
+    system: 'Summarize this RPG session in 150 words. Focus on: current quest, recent events, unresolved tensions, character status. Be concise.',
+    messages: [{ role: 'user', content: transcript }],
+  });
+
+  const inputTokens = response.usage?.input_tokens || 0;
+  const outputTokens = response.usage?.output_tokens || 0;
+  logCost({ gameId, model: 'claude-haiku-4-5-20251001', inputTokens, outputTokens,
+    cost: estimateCost('claude-haiku-4-5-20251001', inputTokens, outputTokens), type: 'story-summary' });
+
+  gs.storySummary = response.content[0].text;
+  // Trim history to just the last 6 messages
+  gd.chatHistory = gd.chatHistory.slice(-6);
+  await db.saveChatHistory(gameId, gd.chatHistory);
+  await db.setState(gameId, 'storySummary', gs.storySummary);
+  console.log('Story summary refreshed for', gameId);
+}
+
 // ── Claude Call (scoped to a game) ───────────────────────────────────────────
 async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   // Rate limit check
@@ -674,7 +678,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   const response = await anthropic.messages.create({
     model,
     max_tokens: maxTokens,
-    system: systemPrompt,
+    system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
     messages,
   });
   const elapsed = Date.now() - startTime;
@@ -688,40 +692,77 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   logCost({ gameId, model, inputTokens, outputTokens, cost, type: actingAs ? 'auto-action' : 'player-action' });
   console.log(`API call: ${model} | ${inputTokens}in/${outputTokens}out | $${cost.toFixed(4)} | ${elapsed}ms | ${actingAs ? 'auto' : 'human'}`);
 
+  const narrativeOnly = reply.split('---OPTIONS---')[0].split('---SCENE---')[0].split('---WORLD---')[0].trim();
   gd.chatHistory.push(
     { role: 'user', content: prefix + userMessage },
-    { role: 'assistant', content: reply }
+    { role: 'assistant', content: narrativeOnly }
   );
-  if (gd.chatHistory.length > 30) {
-    gd.chatHistory = gd.chatHistory.slice(-30);
+  if (gd.chatHistory.length > 16) {
+    gd.chatHistory = gd.chatHistory.slice(-16);
   }
-  await db.saveChatHistory(gameId, gd.chatHistory);
 
   const parsed = parseResponse(reply);
 
-  // Save world data if present
+  // Process map hint (synchronous graph update)
+  const mapResult = processMapHint(gs.mapGraph, parsed.worldRaw, parsed.world?.locations);
+
+  // Apply character sheet updates in memory first
   if (parsed.world) {
     gs.world = parsed.world;
-    await db.setState(gameId, 'world', parsed.world);
-
-    // Apply character sheet updates
     if (parsed.world.charUpdates && parsed.world.charUpdates.length) {
       for (const update of parsed.world.charUpdates) {
         const char = gd.characters[update.character];
         if (char && ['statsText', 'personality', 'backstory', 'standardActions'].includes(update.field)) {
           char[update.field] = update.value;
-          await db.upsertCharacter(gameId, update.character, char);
-          io.to(gameId).emit('character_updated', {
-            name: update.character,
-            field: update.field,
-            value: update.value,
-            character: char,
-          });
         }
       }
     }
+  }
 
-    // Queue world art generation for new locations/NPCs with image prompts
+  // Emit socket events FIRST so the player gets the response immediately
+  if (parsed.world?.charUpdates?.length) {
+    for (const update of parsed.world.charUpdates) {
+      const char = gd.characters[update.character];
+      if (char && ['statsText', 'personality', 'backstory', 'standardActions'].includes(update.field)) {
+        io.to(gameId).emit('character_updated', {
+          name: update.character,
+          field: update.field,
+          value: update.value,
+          character: char,
+        });
+      }
+    }
+  }
+  if (mapResult.moved) {
+    io.to(gameId).emit('map_update', gs.mapGraph.toJSON());
+    if (mapResult.isNew) {
+      io.to(gameId).emit('map_inline', {
+        location: mapResult.location,
+        mapState: gs.mapGraph.toJSON(),
+      });
+    }
+  }
+
+  // Parallelize all DB writes
+  const dbOps = [db.saveChatHistory(gameId, gd.chatHistory)];
+  if (parsed.world) {
+    dbOps.push(db.setState(gameId, 'world', gs.world));
+    if (parsed.world.charUpdates && parsed.world.charUpdates.length) {
+      for (const update of parsed.world.charUpdates) {
+        const char = gd.characters[update.character];
+        if (char && ['statsText', 'personality', 'backstory', 'standardActions'].includes(update.field)) {
+          dbOps.push(db.upsertCharacter(gameId, update.character, char));
+        }
+      }
+    }
+  }
+  if (mapResult.moved) {
+    dbOps.push(db.setState(gameId, 'map', gs.mapGraph.toJSON()));
+  }
+  await Promise.all(dbOps);
+
+  // Queue world art generation for new locations/NPCs with image prompts
+  if (parsed.world) {
     const artQueue = [];
     for (const loc of (parsed.world.locations || [])) {
       if (loc.imagePrompt) {
@@ -741,25 +782,17 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
         }
       }
     }
-    // Generate art async (fire and forget, max 2 at a time)
     for (const item of artQueue.slice(0, 2)) {
       generateWorldArt(gameId, item).catch(err => console.error('Art gen failed:', err.message));
     }
   }
 
-  // Process map hint
-  const mapResult = processMapHint(gs.mapGraph, parsed.worldRaw, parsed.world?.locations);
-  if (mapResult.moved) {
-    await db.setState(gameId, 'map', gs.mapGraph.toJSON());
-    io.to(gameId).emit('map_update', gs.mapGraph.toJSON());
-    if (mapResult.isNew) {
-      io.to(gameId).emit('map_inline', {
-        location: mapResult.location,
-        mapState: gs.mapGraph.toJSON(),
-      });
-    }
+  // Check if we need to refresh the rolling summary
+  if (gd.chatHistory.length >= 14) {
+    refreshStorySummary(gameId, gameConfig).catch(console.error);
   }
 
+  parsed.mapMoved = mapResult.moved;
   return parsed;
 }
 
@@ -801,12 +834,12 @@ function startTurnTimer(gameId, gameConfig, playerName) {
     emitSystem(gameId, { text: `⏰ ${playerName} ran out of time. Claude is acting for them...` });
 
     try {
-      const { narration, options, scene, world, isKillshot } = await callClaude(gameId, gameConfig, autoPrompt, playerName);
+      const { narration, options, scene, world, isKillshot, mapMoved } = await callClaude(gameId, gameConfig, autoPrompt, playerName);
       const gs2 = getGameState(gameId);
       const nextIdx = (gs2.data.currentTurnIndex + 1) % (gs2.data.turnOrder.length || 1);
       const nextPlayer = gs2.data.turnOrder[nextIdx] || null;
       emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName, forPlayer: nextPlayer, world });
-      await maybeGenerateImage(gameId, gameConfig, scene, isKillshot);
+      await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved);
       advanceTurn(gameId, gameConfig, false);
     } catch (err) {
       emitSystem(gameId, { text: 'Error during auto-action.' });
@@ -844,11 +877,11 @@ async function advanceTurn(gameId, gameConfig, wasHumanAction = false) {
   }
 }
 
-async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false) {
+async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false, mapMoved = false) {
+  if (!scene) return;
   const gs = getGameState(gameId);
   gs.turnCount++;
-  const shouldGenerate = isKillshot || (gs.turnCount % IMAGE_COOLDOWN === 0 && scene);
-  if (shouldGenerate && scene) {
+  if (isKillshot || mapMoved) {
     io.to(gameId).emit('scene_generating');
     generateSceneImage(scene, gameConfig).then(url => {
       if (url) {
@@ -1171,6 +1204,7 @@ io.on('connection', (socket) => {
       gs.verbosity = await db.getState(gameId, 'verbosity', 'verbose');
       gs.pillars = await db.getState(gameId, 'pillars', { exploration: 33, combat: 33, social: 34 });
       gs.dmPersona = await db.getState(gameId, 'dmPersona', 'epic');
+      gs.storySummary = await db.getState(gameId, 'storySummary', null);
     }
 
     const gs = getGameState(gameId);
@@ -1276,11 +1310,11 @@ io.on('connection', (socket) => {
 
     try {
       const gameConfig = await db.getGame(gameId);
-      const { narration, options, scene, world, isKillshot } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
+      const { narration, options, scene, world, isKillshot, mapMoved } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
       const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
       const nextPlayer = gs.data.turnOrder[nextIdx] || null;
       emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
-      await maybeGenerateImage(gameId, gameConfig, scene, isKillshot);
+      await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved);
       await advanceTurn(gameId, gameConfig, true);
     } catch (err) {
       socket.emit('system', { text: 'Error communicating with the DM. Try again.' });
@@ -1333,6 +1367,7 @@ io.on('connection', (socket) => {
     gs.data.currentTurnIndex = 0;
     gs.turnCount = 0;
     gs.imageUrl = null;
+    gs.storySummary = null;
     await db.saveChatHistory(gameId, gs.data.chatHistory);
     await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
     io.to(gameId).emit('game_reset');
@@ -1552,13 +1587,13 @@ const gameEngine = {
     clearTimeout(gs.turnTimer);
 
     const gameConfig = await db.getGame(gameId);
-    const { narration, options, scene, world, isKillshot } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
+    const { narration, options, scene, world, isKillshot, mapMoved } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
     const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
     const nextPlayer = gs.data.turnOrder[nextIdx] || null;
     emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
     const playerToken = gs.data.characters[playerName]?.token || null;
     io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });
-    await maybeGenerateImage(gameId, gameConfig, scene, isKillshot);
+    await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved);
     await advanceTurn(gameId, gameConfig, true);
     return { ok: true };
   },
@@ -1631,6 +1666,7 @@ const gameEngine = {
     gs.data.currentTurnIndex = 0;
     gs.turnCount = 0;
     gs.imageUrl = null;
+    gs.storySummary = null;
     await db.saveChatHistory(gameId, gs.data.chatHistory);
     await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
     io.to(gameId).emit('game_reset');
@@ -1664,7 +1700,7 @@ const gameEngine = {
       .slice(0, 8000);
 
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: 'claude-haiku-4-5-20251001',
       max_tokens: 600,
       system: `Summarize what happened in this RPG session in 400 words or less. Focus on key events, combat outcomes, discoveries, and story developments. Write from a third-person perspective. Be vivid but concise.`,
       messages: [{ role: 'user', content: `Summarize what ${playerName} missed:\n\n${transcript}` }],
@@ -1672,8 +1708,8 @@ const gameEngine = {
 
     const inputTokens = response.usage?.input_tokens || 0;
     const outputTokens = response.usage?.output_tokens || 0;
-    logCost({ gameId, model: 'claude-sonnet-4-6', inputTokens, outputTokens,
-      cost: estimateCost('claude-sonnet-4-6', inputTokens, outputTokens), type: 'catch-up' });
+    logCost({ gameId, model: 'claude-haiku-4-5-20251001', inputTokens, outputTokens,
+      cost: estimateCost('claude-haiku-4-5-20251001', inputTokens, outputTokens), type: 'catch-up' });
 
     return { summary: response.content[0].text };
   },
