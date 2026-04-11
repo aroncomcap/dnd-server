@@ -266,7 +266,9 @@ OUTPUT FORMAT (use this EXACT order at the end of every response):
 4. 💬 [a witty comment, taunt, or clever social move]
 
 ---SCENE---
-[One sentence describing the visual scene for image generation. Painterly fantasy art style. No text.]
+ACTION: [what's physically happening right now - 5-10 words]
+MOOD: [1-3 words - e.g., tense, triumphant, eerie]
+NPC: [name of any NPC in the scene, or "none"]
 
 ---WORLD---
 LOCATIONS:
@@ -377,7 +379,9 @@ After your narration, you MUST include ALL of these blocks in this exact order:
 4. 💬 [witty quip or clever social move]
 
 ---SCENE---
-[One sentence scene description for image generation]
+ACTION: [what's physically happening right now - 5-10 words]
+MOOD: [1-3 words - e.g., tense, triumphant, eerie]
+NPC: [name of any NPC in the scene, or "none"]
 
 ---WORLD---
 LOCATIONS:
@@ -419,12 +423,23 @@ function parseResponse(text) {
     .map(line => line.replace(/^\d+\.\s*/, '').trim())
     .filter(Boolean) : [];
 
-  // Parse scene + killshot
-  let scene = sceneRaw || null;
+  // Parse scene (new structured format) + killshot
+  let scene = null;
   let isKillshot = false;
-  if (scene && scene.startsWith('KILLSHOT:')) {
-    scene = scene.slice(9).trim();
-    isKillshot = true;
+  if (sceneRaw) {
+    const actionMatch = sceneRaw.match(/ACTION:\s*(.+)/i);
+    const moodMatch = sceneRaw.match(/MOOD:\s*(.+)/i);
+    const npcMatch = sceneRaw.match(/NPC:\s*(.+)/i);
+    const actionText = actionMatch?.[1]?.trim() || sceneRaw.trim();
+    if (actionText.startsWith('KILLSHOT:')) {
+      isKillshot = true;
+    }
+    scene = {
+      action: actionText.replace(/^KILLSHOT:\s*/i, '').trim(),
+      mood: moodMatch?.[1]?.trim() || '',
+      npc: npcMatch?.[1]?.trim() || 'none',
+      raw: sceneRaw.trim(),
+    };
   }
 
   // Parse world
@@ -496,6 +511,8 @@ async function generateCharacterToken(name, charData) {
   if (!process.env.TOGETHER_API_KEY) return null;
   try {
     const desc = [charData.statsText, charData.personality, charData.backstory].filter(Boolean).join('. ');
+    // Store visual description for composite scene generation
+    charData.visualDesc = desc;
     const prompt = `Fantasy RPG character portrait token, circular frame, dark background. Character: ${name}. ${desc.slice(0, 600)}. Detailed face and upper body, dramatic lighting, painterly style. No text or words.`;
     const response = await together.images.generate({
       model: 'black-forest-labs/FLUX.1-schnell',
@@ -515,17 +532,48 @@ async function generateCharacterToken(name, charData) {
   }
 }
 
-// ── Image Generation (Together AI / FLUX) ────────────────────────────────────
-async function generateSceneImage(scene, gameConfig) {
-  if (!process.env.TOGETHER_API_KEY || !scene) return null;
+// ── Composite Scene Image Generation (Together AI / FLUX) ─────────────────────
+async function generateCompositeScene(gameId, sceneData, gameConfig) {
+  if (!process.env.TOGETHER_API_KEY) return null;
+  const gs = getGameState(gameId);
+
+  // Global style prefix for consistency
+  const stylePrefix = 'Dark fantasy oil painting, dramatic chiaroscuro lighting, muted earth tones with gold accents, highly detailed.';
+
+  // Get current location visual description
+  const currentLoc = gs.mapGraph?.playerLocation;
+  const locEntry = gs.world?.locations?.find(l => l.name === currentLoc);
+  const locDesc = locEntry?.visualDesc || locEntry?.description || '';
+
+  // Get active character visual description
+  const currentChar = getCurrentPlayer(gameId);
+  const charData = currentChar ? gs.data.characters[currentChar] : null;
+  const charDesc = charData?.visualDesc || '';
+
+  // Get relevant NPC if mentioned in scene
+  let npcDesc = '';
+  if (sceneData.npc && sceneData.npc.toLowerCase() !== 'none') {
+    const npcEntry = gs.world?.npcs?.find(n => n.name.toLowerCase().includes(sceneData.npc.toLowerCase()));
+    npcDesc = npcEntry?.visualDesc || npcEntry?.description || '';
+  }
+
+  // Compose prompt
+  const parts = [stylePrefix];
+  if (locDesc) parts.push(`Setting: ${locDesc}`);
+  if (charDesc) parts.push(`Main character: ${charDesc}`);
+  if (npcDesc) parts.push(`Also present: ${npcDesc}`);
+  parts.push(`Action: ${sceneData.action || 'dramatic moment'}`);
+  if (sceneData.mood) parts.push(`Mood: ${sceneData.mood}`);
+  parts.push('No text or words in the image.');
+
+  const prompt = parts.join('. ').slice(0, 1000);
+
   try {
-    const style = gameConfig.image_style || 'fantasy illustration';
-    const prompt = `${style}: ${scene}. No text or words in the image.`;
     const response = await together.images.generate({
       model: 'black-forest-labs/FLUX.1-schnell',
-      prompt: prompt.slice(0, 1000),
-      width: 1024,
-      height: 768,
+      prompt,
+      width: 768,
+      height: 512,
       steps: 4,
       n: 1,
       response_format: 'b64_json',
@@ -534,9 +582,17 @@ async function generateSceneImage(scene, gameConfig) {
     if (!b64) return null;
     return `data:image/png;base64,${b64}`;
   } catch (err) {
-    console.error('Image generation failed:', err.message);
+    console.error('Composite scene failed:', err.message);
     return null;
   }
+}
+
+function shouldGenerateImage(gameId, sceneData, mapMoved, isKillshot) {
+  if (isKillshot) return true;
+  if (mapMoved) return true;
+  // Generate if a named NPC is present in the scene
+  if (sceneData.npc && sceneData.npc.toLowerCase() !== 'none') return true;
+  return false;
 }
 
 // ── World Art Generation (Together AI / FLUX) ─────────────────────────────────
@@ -574,6 +630,7 @@ async function generateWorldArt(gameId, item) {
     if (entry) {
       entry.imageUrl = imageUrl;
       entry.imageState = 'done';
+      entry.visualDesc = item.prompt;
       await db.setState(gameId, 'world', gs.world);
     }
 
@@ -906,9 +963,9 @@ async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false,
   if (!scene) return;
   const gs = getGameState(gameId);
   gs.turnCount++;
-  if (isKillshot || mapMoved) {
+  if (shouldGenerateImage(gameId, scene, mapMoved, isKillshot)) {
     io.to(gameId).emit('scene_generating');
-    generateSceneImage(scene, gameConfig).then(url => {
+    generateCompositeScene(gameId, scene, gameConfig).then(url => {
       if (url) {
         gs.imageUrl = url;
         emitSceneImage(gameId, { url });
@@ -1360,10 +1417,14 @@ io.on('connection', (socket) => {
       emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world });
       // Always generate image for the opening scene
       if (scene) {
-        generateSceneImage(scene, gameConfig).then(url => {
+        io.to(gameId).emit('scene_generating');
+        generateCompositeScene(gameId, scene, gameConfig).then(url => {
           if (url) {
             gs.imageUrl = url;
             emitSceneImage(gameId, { url });
+            logCost({ gameId, model: 'FLUX', inputTokens: 0, outputTokens: 0, cost: IMAGE_COST, type: 'scene-image' });
+          } else {
+            io.to(gameId).emit('scene_gen_failed');
           }
         });
       }
@@ -1669,10 +1730,14 @@ const gameEngine = {
     const firstPlayer = getCurrentPlayer(gameId);
     emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world });
     if (scene) {
-      generateSceneImage(scene, gameConfig).then(url => {
+      io.to(gameId).emit('scene_generating');
+      generateCompositeScene(gameId, scene, gameConfig).then(url => {
         if (url) {
           gs.imageUrl = url;
           emitSceneImage(gameId, { url });
+          logCost({ gameId, model: 'FLUX', inputTokens: 0, outputTokens: 0, cost: IMAGE_COST, type: 'scene-image' });
+        } else {
+          io.to(gameId).emit('scene_gen_failed');
         }
       });
     }
