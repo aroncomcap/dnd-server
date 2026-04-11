@@ -387,6 +387,7 @@ REQUIRED OUTPUT FORMAT (every response):
 2. ---OPTIONS--- block with exactly 4 choices (🗡️ combat, 🛡️ defensive, 🔥 wild, 💬 witty)
 3. ---SCENE--- block with one visual description sentence
 4. ---WORLD--- block with LOCATIONS, NPCS, ACCOMPLISHMENTS, CHAR_UPDATES, TURN_ORDER (combat only), and MAP: line
+5. During combat: include TURN_ORDER: block in ---WORLD--- with initiative/strike rank order for all combatants
 All five sections are MANDATORY. Never skip any of them.`;
 }
 

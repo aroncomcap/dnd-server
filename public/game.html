@@ -49,8 +49,8 @@
   #game-title {
     font-family: 'Crimson Pro', serif;
     font-size: 0.7rem;
-    color: var(--parchment-dark);
-    opacity: 0.8;
+    color: #e8d5b0;
+    opacity: 1;
   }
 
   #turn-banner {
@@ -91,8 +91,8 @@
   }
   .screen.active { display: flex; flex-direction: column; gap: 6px; }
 
-  #screen-game { overflow: hidden; }
-  #chat-panel { overflow: hidden; flex: 1; min-height: 0; }
+  #screen-game { overflow: hidden; display: flex; flex-direction: column; }
+  #chat-panel { overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
   .panel {
     background: var(--parchment);
@@ -200,6 +200,7 @@
   /* ── Chat ── */
   #chat-log {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
@@ -931,16 +932,16 @@
   <div style="text-align:center;">
     <span style="font-family:'Cinzel Decorative',cursive;font-size:0.8rem;color:var(--gold-light);letter-spacing:0.05em;">⚔️ Tavern Table</span>
     <span style="margin:0 8px;color:var(--parchment-dark);opacity:0.3;">|</span>
-    <span id="game-title" style="font-family:'Crimson Pro',serif;font-size:0.7rem;color:var(--parchment-dark);opacity:0.8;"></span>
+    <span id="game-title" style="font-family:'Crimson Pro',serif;font-size:0.7rem;color:#e8d5b0;opacity:1;"></span>
     <span style="margin:0 8px;color:var(--parchment-dark);opacity:0.3;">|</span>
-    <span id="deploy-time" style="font-size:0.6rem;color:var(--parchment-dark);opacity:0.5;"></span>
+    <span id="deploy-time" style="font-size:0.6rem;color:#c8922a;opacity:0.7;"></span>
     <span id="balance-display" style="font-size:0.55rem;margin-left:8px;"></span>
   </div>
   <div id="turn-banner">
     <img id="turn-token" src="" alt=""/>
     <span>— <span id="turn-name">?</span>'s Turn —</span>
     <span style="color:var(--parchment-dark);opacity:0.4;">|</span>
-    <span id="playing-as-inline" style="font-family:'Crimson Pro',serif;font-size:0.6rem;color:var(--parchment-dark);opacity:0.7;cursor:pointer;"></span>
+    <span id="playing-as-inline" style="font-family:'Crimson Pro',serif;font-size:0.6rem;color:#e8d5b0;opacity:0.8;cursor:pointer;"></span>
   </div>
   <div id="timer-bar"></div>
 </header>
@@ -976,7 +977,7 @@
     </div>
   </div>
 
-  <div class="panel" id="chat-panel" style="flex:1; display:flex; flex-direction:column;">
+  <div class="panel" id="chat-panel" style="flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden;">
     <div class="panel-title">📖 The Story</div>
     <div id="chat-log">
       <div class="msg msg-system">Awaiting the adventure to begin…</div>
@@ -1452,6 +1453,10 @@ function setTurn(name, token) {
   } else {
     turnToken.style.display = 'none';
   }
+  // Auto-switch to active character if it's in our known characters
+  if (currentPlayer && currentCharacters[currentPlayer] && !isMyTurnCheck()) {
+    selectCharacter(currentPlayer, currentCharacters[currentPlayer]);
+  }
   updateActionArea();
 }
 
@@ -1496,11 +1501,7 @@ function updateActionArea() {
     myTurnControls.style.display = 'none';
     waitingMsg.style.display = 'block';
     if (Object.keys(currentCharacters).includes(currentPlayer)) {
-      waitingName.innerHTML = `<strong>${currentPlayer}</strong> — <a href="#" id="switch-to-active" style="color:var(--gold);">Switch to ${currentPlayer}?</a>`;
-      document.getElementById('switch-to-active')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        selectCharacter(currentPlayer, currentCharacters[currentPlayer]);
-      });
+      waitingName.innerHTML = `<strong>${currentPlayer}</strong>'s turn — <button onclick="selectCharacter('${currentPlayer}', currentCharacters['${currentPlayer}'])" style="background:var(--gold);color:#0d0600;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-family:'Cinzel Decorative',cursive;font-size:0.65rem;margin-left:6px;">Play as ${currentPlayer}</button>`;
     } else {
       waitingName.textContent = currentPlayer;
     }
