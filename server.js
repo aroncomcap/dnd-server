@@ -162,9 +162,9 @@ CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 
 VERBOSITY: ${gs.verbosity || 'verbose'}
-${gs.verbosity === 'terse' ? '- Keep non-mechanic narration to 20 words max. Action and result only.' :
-  gs.verbosity === 'brief' ? '- Keep non-mechanic narration to 50 words max. Just the key beats.' :
-  '- Keep non-mechanic narration to 100 words max. Skill rolls, combat results, and game mechanics don\'t count toward this limit. Bias towards 50-75 words unless there\'s a significant plot point.'}
+${gs.verbosity === 'terse' ? 'STRICT WORD LIMIT: 20 words maximum for narration (excluding game mechanics). One or two sentences only.' :
+  gs.verbosity === 'brief' ? 'STRICT WORD LIMIT: 50 words maximum for narration (excluding game mechanics). Be punchy and direct.' :
+  'STRICT WORD LIMIT: Your narration text (excluding dice rolls, game mechanics, and skill checks) must be 100 words or fewer. Count your words. If you\'re over 100 non-mechanic words, you\'ve written too much. Aim for 50-75 words. Only exceed 100 for major plot revelations.'}
 
 FEROCITY: ${gs.ferocity ?? 5}/5
 ${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, numerous, and tactically smart. Death is likely without clever play. However, treasure rewards are VERY generous — rare magic items, large gold hoards, and powerful artifacts appear frequently.' :
@@ -339,9 +339,9 @@ CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 
 VERBOSITY: ${gs.verbosity || 'verbose'}
-${gs.verbosity === 'terse' ? '- Keep non-mechanic narration to 20 words max. Action and result only.' :
-  gs.verbosity === 'brief' ? '- Keep non-mechanic narration to 50 words max. Just the key beats.' :
-  '- Keep non-mechanic narration to 100 words max. Skill rolls, combat results, and game mechanics don\'t count toward this limit. Bias towards 50-75 words unless there\'s a significant plot point.'}
+${gs.verbosity === 'terse' ? 'STRICT WORD LIMIT: 20 words maximum for narration (excluding game mechanics). One or two sentences only.' :
+  gs.verbosity === 'brief' ? 'STRICT WORD LIMIT: 50 words maximum for narration (excluding game mechanics). Be punchy and direct.' :
+  'STRICT WORD LIMIT: Your narration text (excluding dice rolls, game mechanics, and skill checks) must be 100 words or fewer. Count your words. If you\'re over 100 non-mechanic words, you\'ve written too much. Aim for 50-75 words. Only exceed 100 for major plot revelations.'}
 
 FEROCITY: ${gs.ferocity ?? 5}/5
 ${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, numerous, and tactically smart. Death is likely without clever play. However, treasure rewards are VERY generous — rare magic items, large gold hoards, and powerful artifacts appear frequently.' :
@@ -670,12 +670,14 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   const maxTokens = gs.verbosity === 'terse' ? 512 : gs.verbosity === 'brief' ? 1024 : 2048;
   const hasHistory = gd.chatHistory.some(m => m.role === 'assistant');
   const systemPrompt = hasHistory ? buildTrimmedPrompt(gameId, gameConfig) : buildSystemPrompt(gameId, gameConfig);
+  const startTime = Date.now();
   const response = await anthropic.messages.create({
     model,
     max_tokens: maxTokens,
     system: systemPrompt,
     messages,
   });
+  const elapsed = Date.now() - startTime;
 
   const reply = response.content[0].text;
 
@@ -684,14 +686,14 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   const outputTokens = response.usage?.output_tokens || 0;
   const cost = estimateCost(model, inputTokens, outputTokens);
   logCost({ gameId, model, inputTokens, outputTokens, cost, type: actingAs ? 'auto-action' : 'player-action' });
-  console.log(`API call: ${model} | ${inputTokens}in/${outputTokens}out | $${cost.toFixed(4)} | ${actingAs ? 'auto' : 'human'}`);
+  console.log(`API call: ${model} | ${inputTokens}in/${outputTokens}out | $${cost.toFixed(4)} | ${elapsed}ms | ${actingAs ? 'auto' : 'human'}`);
 
   gd.chatHistory.push(
     { role: 'user', content: prefix + userMessage },
     { role: 'assistant', content: reply }
   );
-  if (gd.chatHistory.length > 80) {
-    gd.chatHistory = gd.chatHistory.slice(-80);
+  if (gd.chatHistory.length > 30) {
+    gd.chatHistory = gd.chatHistory.slice(-30);
   }
   await db.saveChatHistory(gameId, gd.chatHistory);
 

@@ -32,6 +32,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    padding-top: 45px;   /* space for fixed header */
+    padding-bottom: 50px; /* space for fixed nav */
   }
 
   header {
@@ -40,9 +42,11 @@
     border-bottom: 2px solid var(--gold);
     padding: 6px 12px;
     text-align: center;
-    position: sticky;
+    position: fixed;
     top: 0;
-    z-index: 100;
+    left: 0;
+    right: 0;
+    z-index: 101;
   }
 
   #game-title {
@@ -91,7 +95,15 @@
   }
   .screen.active { display: flex; flex-direction: column; gap: 6px; }
 
-  #screen-game { overflow: hidden; display: flex; flex-direction: column; }
+  #screen-game {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  #screen-game.active {
+    height: calc(100dvh - 95px); /* header ~45px + nav ~50px */
+    overflow: hidden;
+  }
   #chat-panel { overflow: hidden; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 
   .panel {
@@ -403,8 +415,11 @@
     display: flex;
     background: #0d0600;
     border-top: 1px solid var(--gold);
-    position: sticky;
+    position: fixed;
     bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
   }
   nav button {
     flex: 1;
@@ -790,8 +805,8 @@
     /* ── Nav becomes top bar on desktop ── */
     nav {
       max-width: 100%;
-      position: sticky;
-      top: 0;
+      position: fixed;
+      top: 45px; /* below fixed header */
       bottom: auto;
       border-top: none;
       border-bottom: 1px solid var(--gold);
@@ -799,6 +814,15 @@
       gap: 4px;
       z-index: 99;
       order: -1;
+    }
+
+    body {
+      padding-top: 90px;  /* header ~45px + nav ~45px */
+      padding-bottom: 0;  /* nav no longer at bottom */
+    }
+
+    #screen-game.active {
+      height: calc(100dvh - 90px);
     }
     nav button {
       flex: 0 0 auto;
