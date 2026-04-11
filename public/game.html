@@ -28,8 +28,7 @@
       radial-gradient(ellipse at 80% 20%, #2d1a08 0%, transparent 50%);
     font-family: 'Crimson Pro', serif;
     color: var(--ink);
-    height: 100dvh;
-    overflow: hidden;
+    min-height: 100dvh;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -49,8 +48,8 @@
   #game-title {
     font-family: 'Crimson Pro', serif;
     font-size: 0.7rem;
-    color: #e8d5b0;
-    opacity: 1;
+    color: #f5ead6 !important;
+    opacity: 1 !important;
   }
 
   #turn-banner {
@@ -88,6 +87,7 @@
     width: 100%;
     padding: 8px;
     flex: 1;
+    overflow-y: auto;
   }
   .screen.active { display: flex; flex-direction: column; gap: 6px; }
 
@@ -931,10 +931,10 @@
 <header>
   <div style="text-align:center;">
     <span style="font-family:'Cinzel Decorative',cursive;font-size:0.8rem;color:var(--gold-light);letter-spacing:0.05em;">⚔️ Tavern Table</span>
-    <span style="margin:0 8px;color:var(--parchment-dark);opacity:0.3;">|</span>
-    <span id="game-title" style="font-family:'Crimson Pro',serif;font-size:0.7rem;color:#e8d5b0;opacity:1;"></span>
-    <span style="margin:0 8px;color:var(--parchment-dark);opacity:0.3;">|</span>
-    <span id="deploy-time" style="font-size:0.6rem;color:#c8922a;opacity:0.7;"></span>
+    <span style="margin:0 8px;color:#c8922a;">|</span>
+    <span id="game-title" style="font-family:'Crimson Pro',serif;font-size:0.7rem;color:#f5ead6;opacity:1;"></span>
+    <span style="margin:0 8px;color:#c8922a;">|</span>
+    <span id="deploy-time" style="font-size:0.6rem;color:#f0c060;opacity:1;"></span>
     <span id="balance-display" style="font-size:0.55rem;margin-left:8px;"></span>
   </div>
   <div id="turn-banner">
