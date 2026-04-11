@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const Anthropic = require('@anthropic-ai/sdk');
 const Together = require('together-ai');
 const multer = require('multer');
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 const cookieParser = require('cookie-parser');
 const passport = require('passport');
 const db = require('./db');
@@ -1097,7 +1097,8 @@ app.post('/api/games/:id/upload-pdf', upload.array('pdfs', 10), async (req, res)
 
     let allText = game.custom_context || '';
     for (const file of req.files) {
-      const data = await pdfParse(file.buffer);
+      const parser = new PDFParse({ data: file.buffer });
+      const data = await parser.getText();
       allText += `\n\n--- ${file.originalname} ---\n${data.text}`;
     }
 
