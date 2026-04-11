@@ -159,6 +159,11 @@ ${catchphrases}
     }
   }
 
+  const rulesCorrections = gs.rulesCorrections || [];
+  const houseRules = rulesCorrections.length
+    ? `\nHOUSE RULES & CORRECTIONS (follow strictly):\n${rulesCorrections.map(r => '- ' + r.text).join('\n')}\n`
+    : '';
+
   const personaBlock = gs.dmPersona === 'overthetop'
     ? `DM PERSONA: OVER THE TOP
 You are a wildly entertaining DM who lives for the chaos. Channel the energy of Critical Role's most unhinged moments. Every NPC has a ridiculous personality quirk — the bartender who whispers everything, the dragon who's going through a midlife crisis, the skeleton who just wants to be left alone. Break the fourth wall occasionally. React to player choices with genuine surprise and delight ("You want to WHAT?!"). Narrate combat like an action movie director on caffeine. Physical comedy, pratfalls, and absurd coincidences are your bread and butter. Monsters negotiate, panic, monologue, and have existential crises mid-combat. Pop culture references are welcome. Running gags and catchphrases should emerge naturally. NPCs bicker with each other. Accents are described ("speaks in a thick dwarven accent that sounds suspiciously like a Brooklyn cab driver"). Every scene should have at least one moment that makes players laugh. The stakes are still real — comedy comes from character, not from undermining the story.`
@@ -169,7 +174,7 @@ You are a master storyteller in the tradition of great fantasy literature. Your 
 
   return `${basePrompt}
 ${contextBlock}
-
+${houseRules}
 ${personaBlock}
 
 CHARACTERS IN THIS CAMPAIGN:
@@ -410,6 +415,11 @@ ${catchphrases}
     }
   }
 
+  const rulesCorrections = gs.rulesCorrections || [];
+  const houseRules = rulesCorrections.length
+    ? `\nHOUSE RULES & CORRECTIONS (follow strictly):\n${rulesCorrections.map(r => '- ' + r.text).join('\n')}\n`
+    : '';
+
   const personaBlock = gs.dmPersona === 'overthetop'
     ? `DM PERSONA: OVER THE TOP — Chaotic, hilarious, Critical Role energy. Ridiculous NPC quirks, fourth wall breaks, action-movie combat narration. Comedy from character, stakes still real.`
     : `DM PERSONA: EPIC — Master storyteller, dramatic and atmospheric. Tight evocative prose, grounded NPCs, visceral combat. World has weight and history.`;
@@ -449,7 +459,7 @@ Level-ups: ask player for ALL choices (ASI, subclass, spells, feats) before appl
 
   return `${basePrompt}
 ${contextBlock}
-
+${houseRules}
 ${personaBlock}
 
 CHARACTERS IN THIS CAMPAIGN:
@@ -1109,11 +1119,18 @@ app.post('/api/games/:id/upload-pdf', requireAuth, upload.array('pdfs', 10), asy
     if (!game) return res.status(404).json({ error: 'Game not found' });
 
     let allText = game.custom_context || '';
+    const uploads = await db.getState(req.params.id, 'pdf_uploads', []);
     for (const file of req.files) {
       const parser = new PDFParse({ data: file.buffer });
       const data = await parser.getText();
       allText += `\n\n--- ${file.originalname} ---\n${data.text}`;
+      uploads.push({
+        filename: file.originalname,
+        chars: data.text.length,
+        uploadedAt: new Date().toISOString(),
+      });
     }
+    await db.setState(req.params.id, 'pdf_uploads', uploads);
 
     await db.updateGameContext(game.id, allText);
 
@@ -1140,6 +1157,68 @@ app.post('/api/games/:id/upload-pdf', requireAuth, upload.array('pdfs', 10), asy
   }
 });
 
+
+// ── Rules Corrections API ──────────────────────────────────────────────────────
+app.get('/api/games/:id/rules', async (req, res) => {
+  const rules = await db.getRulesCorrections(req.params.id);
+  res.json(rules);
+});
+
+app.post('/api/games/:id/rules', requireAuth, async (req, res) => {
+  const { text, category } = req.body;
+  if (!text || !text.trim()) return res.status(400).json({ error: 'Text required' });
+  const rule = await db.addRuleCorrection(req.params.id, text.trim().slice(0, 200), category);
+  res.json(rule);
+});
+
+app.patch('/api/rules/:id', requireAuth, async (req, res) => {
+  const { text } = req.body;
+  if (!text || !text.trim()) return res.status(400).json({ error: 'Text required' });
+  await db.updateRuleCorrection(req.params.id, text.trim().slice(0, 200));
+  res.json({ success: true });
+});
+
+app.delete('/api/rules/:id', requireAuth, async (req, res) => {
+  await db.deleteRuleCorrection(req.params.id);
+  res.json({ success: true });
+});
+
+// ── PDF Management API ─────────────────────────────────────────────────────────
+app.get('/api/games/:id/pdfs', async (req, res) => {
+  const pdfs = await db.getState(req.params.id, 'pdf_uploads', []);
+  res.json(pdfs);
+});
+
+app.delete('/api/games/:id/pdf/:index', requireAuth, async (req, res) => {
+  const gameId = req.params.id;
+  const index = parseInt(req.params.index);
+  const game = await db.getGame(gameId);
+  if (!game) return res.status(404).json({ error: 'Not found' });
+
+  const uploads = await db.getState(gameId, 'pdf_uploads', []);
+  if (index < 0 || index >= uploads.length) return res.status(400).json({ error: 'Invalid index' });
+
+  const removed = uploads.splice(index, 1)[0];
+  await db.setState(gameId, 'pdf_uploads', uploads);
+
+  // Remove the PDF section from custom_context by filename marker
+  let context = game.custom_context || '';
+  const marker = `--- ${removed.filename} ---`;
+  const startIdx = context.indexOf(marker);
+  if (startIdx !== -1) {
+    // Find the start of this section (include preceding \n\n)
+    const sectionStart = Math.max(0, context.lastIndexOf('\n\n', startIdx));
+    const nextMarker = context.indexOf('\n\n---', startIdx + marker.length);
+    if (nextMarker !== -1) {
+      context = context.slice(0, sectionStart) + context.slice(nextMarker);
+    } else {
+      context = context.slice(0, sectionStart);
+    }
+    await db.updateGameContext(gameId, context.trim());
+  }
+
+  res.json({ success: true });
+});
 
 app.get('/health', async (req, res) => {
   try {
@@ -1445,6 +1524,8 @@ io.on('connection', (socket) => {
     }
 
     const gs = getGameState(gameId);
+    gs.rulesCorrections = await db.getRulesCorrections(gameId);
+
     socket.emit('game_joined', {
       game,
       chatHistory: gs.data.chatHistory,
@@ -1461,6 +1542,7 @@ io.on('connection', (socket) => {
       verbosity: gs.verbosity,
       pillars: gs.pillars,
       dmPersona: gs.dmPersona,
+      pdfUploads: await db.getState(gameId, 'pdf_uploads', []),
     });
   });
 
@@ -1521,11 +1603,12 @@ io.on('connection', (socket) => {
   });
 
   // Generate pre-made party
-  socket.on('generate_party', async () => {
+  socket.on('generate_party', async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
     try {
-      const result = await gameEngine.generateParty(gameId);
+      const direction = (data && data.direction) ? truncate(data.direction, 500) : '';
+      const result = await gameEngine.generateParty(gameId, direction);
       socket.emit('party_generated', { count: result.count });
     } catch (err) {
       console.error('Party generation failed:', err.message);
@@ -1609,6 +1692,10 @@ io.on('connection', (socket) => {
       io.to(gameId).emit('ooc_message', { player: playerName, message, reply });
       discord.onSystem(gameId, { text: `💭 [OOC] ${playerName}: ${message}\n💭 [GM]: ${reply}` }).catch(() => {});
 
+      // Auto-save OOC instruction as a rules correction
+      await db.addRuleCorrection(gameId, message.slice(0, 200), 'ooc');
+      gs.rulesCorrections = await db.getRulesCorrections(gameId);
+
       // Add 1 minute to current turn timer
       if (gs.turnTimer) {
         clearTimeout(gs.turnTimer);
@@ -1620,6 +1707,14 @@ io.on('connection', (socket) => {
     } catch (err) {
       socket.emit('system', { text: 'Error processing OOC message.' });
     }
+  });
+
+  // Rules updated (refresh cache)
+  socket.on('rules_updated', async () => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    gs.rulesCorrections = await db.getRulesCorrections(gameId);
   });
 
   // DM start
@@ -2173,7 +2268,7 @@ const gameEngine = {
     return { ok: true };
   },
 
-  async generateParty(gameId) {
+  async generateParty(gameId, direction) {
     const gameConfig = await db.getGame(gameId);
     const gs = getGameState(gameId);
 
@@ -2210,10 +2305,15 @@ ${levelGuidance || 'Standard starting characters.'}`;
 
     const contextSnippet = hasContent ? gameConfig.custom_context.slice(0, 3000) : '';
 
-    const prompt = `${systemInstructions}
+    let directionBlock = '';
+    if (direction) {
+      directionBlock = `PLAYER DIRECTION: ${direction}\nFollow these instructions for party composition, level, and number of characters.\n\n`;
+    }
+
+    const prompt = `${directionBlock}${systemInstructions}
 
 ${contextSnippet ? 'CAMPAIGN CONTEXT (use this to set level and flavor):\n' + contextSnippet + '\n' : ''}
-For each character, output in this EXACT format (4 characters total):
+For each character, output in this EXACT format (generate the number of characters specified in the direction, or 4 by default):
 
 ---CHARACTER---
 NAME: [A fitting fantasy name]
@@ -2222,7 +2322,7 @@ PERSONALITY: [2-3 sentences — personality traits, ideals, bonds, flaws]
 ACTIONS: [Comma-separated standard actions: e.g., Attack with longsword, Cast Fireball, Dodge, Help ally]
 BACKSTORY: [3-4 sentences — origin, motivation, how they joined the party]
 
-Generate exactly 4 characters now.`;
+Generate the characters now.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',

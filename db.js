@@ -105,6 +105,18 @@ async function initDB() {
     ALTER TABLE games ADD COLUMN IF NOT EXISTS host_user_id TEXT;
   `);
 
+  // ── Rules Corrections table ──────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS rules_corrections (
+      id SERIAL PRIMARY KEY,
+      game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      text TEXT NOT NULL,
+      category TEXT DEFAULT 'general',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `);
+
   // ── Feature Requests table ──────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS feature_requests (
@@ -438,6 +450,28 @@ async function listUsers() {
   return rows;
 }
 
+// ── Rules Corrections ─────────────────────────────────────────────────────────
+async function getRulesCorrections(gameId) {
+  const { rows } = await pool.query('SELECT * FROM rules_corrections WHERE game_id = $1 ORDER BY created_at', [gameId]);
+  return rows;
+}
+
+async function addRuleCorrection(gameId, text, category) {
+  const { rows } = await pool.query(
+    'INSERT INTO rules_corrections (game_id, text, category) VALUES ($1, $2, $3) RETURNING *',
+    [gameId, text, category || 'general']
+  );
+  return rows[0];
+}
+
+async function updateRuleCorrection(id, text) {
+  await pool.query('UPDATE rules_corrections SET text = $1, updated_at = NOW() WHERE id = $2', [text, id]);
+}
+
+async function deleteRuleCorrection(id) {
+  await pool.query('DELETE FROM rules_corrections WHERE id = $1', [id]);
+}
+
 module.exports = {
   pool,
   initDB,
@@ -468,4 +502,8 @@ module.exports = {
   checkAndResetFree,
   expireOldCredits,
   listUsers,
+  getRulesCorrections,
+  addRuleCorrection,
+  updateRuleCorrection,
+  deleteRuleCorrection,
 };
