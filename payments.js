@@ -40,12 +40,11 @@ async function handleWebhook(payload, sig) {
   if (!stripe) throw new Error('Stripe not configured');
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-  let event;
-  if (endpointSecret) {
-    event = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
-  } else {
-    event = JSON.parse(payload);
+  if (!endpointSecret) {
+    throw new Error('Stripe webhook secret not configured — refusing to process unverified webhook');
   }
+  let event;
+  event = stripe.webhooks.constructEvent(payload, sig, endpointSecret);
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
