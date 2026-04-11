@@ -128,6 +128,12 @@ async function initDB() {
     )
     ON CONFLICT (title) DO NOTHING;
   `);
+  await pool.query(`
+    INSERT INTO feature_requests (title, description, status, priority) VALUES
+    ('DALL-E 3 for key moments', 'Use DALL-E 3 ($0.04/img) for killshots and boss introductions for higher quality dramatic images. Keep FLUX ($0.003/img) for routine scenes. ~$0.20/session extra for 3-4 key moments.', 'proposed', 'low'),
+    ('img2img with character reference', 'When Together AI adds img2img support for FLUX.1-schnell, pass actual character token images as references for visual consistency. Currently using text visualDesc anchoring.', 'proposed', 'medium')
+    ON CONFLICT (title) DO NOTHING;
+  `);
 }
 
 // ── Games ────────────────────────────────────────────────────────────────────
