@@ -267,6 +267,21 @@ CHARACTER ADVANCEMENT:
   2. Include the full updated stats in CHAR_UPDATES
   3. Add the advancement to ACCOMPLISHMENTS
 
+LEVEL-UP CHOICES:
+- When a character levels up, CHECK the game system for level-specific choices:
+  * D&D 5e: Ability Score Improvement (ASI) at levels 4, 8, 12, 16, 19 — ask player to choose +2 to one ability or +1 to two abilities, OR a feat
+  * D&D 5e: Subclass choice at level 3 (and sometimes 1 or 2 depending on class)
+  * D&D 5e: Class-specific choices (Fighting Style, Eldritch Invocations, Metamagic, etc.)
+  * D&D 5e: Spell selection for prepared/known casters at each level
+  * RuneQuest: Rune affinity choices, cult advancement, new Rune spells
+- PAUSE and ask the player for their choice before applying the level-up. Use a clear format:
+  "🎉 [NAME] reaches Level [X]! You need to make these choices:
+   1. [Choice description — e.g., 'Ability Score Improvement: +2 to one ability, +1 to two, or choose a feat']
+   2. [Choice description — e.g., 'Choose a new 3rd-level spell']
+   Use /ooc or type your choices."
+- Do NOT auto-assign ability scores, subclasses, feats, or spells. Always ask the player.
+- Once the player responds (in-character or via /ooc), apply the choices and update the character sheet via CHAR_UPDATES.
+
 COMBAT:
 - Run combat with proper initiative, attack rolls, damage, and tactical options.
 - When a significant enemy is defeated (boss, tough monster, named NPC), include a special scene description:
@@ -417,7 +432,8 @@ ${catchphrases}
     gs.ferocity <= 2 ? 'generous' :
     gs.ferocity <= 3 ? 'standard' :
     gs.ferocity <= 4 ? 'modest' :
-    'minimal'}. Award XP/milestones, announce level-ups with 🎉.`;
+    'minimal'}. Award XP/milestones, announce level-ups with 🎉.
+Level-ups: ask player for ALL choices (ASI, subclass, spells, feats) before applying. Never auto-assign.`;
 
   return `${basePrompt}
 ${contextBlock}
