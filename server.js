@@ -1118,40 +1118,57 @@ app.post('/api/games/:id/upload-pdf', requireAuth, upload.array('pdfs', 10), asy
     const game = await db.getGame(req.params.id);
     if (!game) return res.status(404).json({ error: 'Game not found' });
 
-    let allText = game.custom_context || '';
-    const uploads = await db.getState(req.params.id, 'pdf_uploads', []);
+    const gameId = req.params.id;
+    const uploads = await db.getState(gameId, 'pdf_uploads', []);
+
     for (const file of req.files) {
       const parser = new PDFParse({ data: file.buffer });
       const data = await parser.getText();
-      allText += `\n\n--- ${file.originalname} ---\n${data.text}`;
+      const rawText = data.text.slice(0, 30000); // cap raw text for extraction call
+
+      // Extract structured summary via Haiku
+      console.log(`[PDF] Extracting summary for ${file.originalname} (${data.text.length} chars raw)...`);
+      const extractionResponse = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 2000,
+        system: 'You are a tabletop RPG content analyzer. Extract and organize the key information from this source material into a structured summary. Be comprehensive but concise.',
+        messages: [{ role: 'user', content: `Analyze this RPG source material and extract a structured summary covering:\n\n1. SETTING: World/region description, key themes, time period\n2. LOCATIONS: Name, description, notable features for each major location\n3. NPCS: Name, role, personality, motivations for each major NPC\n4. ENCOUNTERS: Key encounters/scenes with difficulty and rewards\n5. PLOT: Main quest hooks, story arc, key events\n6. RULES: Any custom rules, house rules, or system-specific modifications\n7. LOOT: Notable treasure, magic items, rewards\n8. LEVEL RANGE: Recommended character levels\n\nSource material:\n${rawText}` }],
+      });
+
+      const summary = extractionResponse.content[0].text;
+      const inputTokens = extractionResponse.usage?.input_tokens || 0;
+      const outputTokens = extractionResponse.usage?.output_tokens || 0;
+      console.log(`[PDF] Summary for ${file.originalname}: ${summary.length} chars (${inputTokens} in / ${outputTokens} out tokens)`);
+
       uploads.push({
         filename: file.originalname,
-        chars: data.text.length,
+        rawChars: data.text.length,
+        summary: summary,
+        summaryChars: summary.length,
         uploadedAt: new Date().toISOString(),
       });
     }
-    await db.setState(req.params.id, 'pdf_uploads', uploads);
 
-    await db.updateGameContext(game.id, allText);
+    await db.setState(gameId, 'pdf_uploads', uploads);
 
-    // TODO: PDF image extraction — pdf-parse doesn't extract images reliably.
-    // For now, image prompts come from Claude's first mention of each location/NPC.
-    // Future: use a PDF library that extracts images and associate them with nearby headers.
+    // Rebuild custom_context from all summaries (not raw text)
+    const allSummaries = uploads.map(u => `--- ${u.filename} ---\n${u.summary}`).join('\n\n');
+    await db.updateGameContext(game.id, allSummaries);
 
-    // Seed map with location names from PDF
-    const gs = getGameState(req.params.id);
+    // Seed map with location names from summaries
+    const gs = getGameState(gameId);
     const locationPattern = /(?:^|\n)(?:#{1,3}\s+)?([A-Z][A-Za-z\s''-]{2,30})(?:\n|$)/gm;
     let match;
-    const skip = /^(chapter|appendix|introduction|table|figure|page|index|contents|credits|about|section|part|summary|overview)/i;
-    while ((match = locationPattern.exec(allText)) !== null) {
+    const skip = /^(chapter|appendix|introduction|table|figure|page|index|contents|credits|about|section|part|summary|overview|setting|locations|npcs|encounters|plot|rules|loot|level)/i;
+    while ((match = locationPattern.exec(allSummaries)) !== null) {
       const name = match[1].trim();
       if (!skip.test(name) && name.split(' ').length <= 5) {
         gs.mapGraph.addNode(name, { level: 'world', description: 'From campaign source' });
       }
     }
-    await db.setState(req.params.id, 'map', gs.mapGraph.toJSON());
+    await db.setState(gameId, 'map', gs.mapGraph.toJSON());
 
-    res.json({ success: true, totalChars: allText.length, files: req.files.map(f => f.originalname), mapNodes: Object.keys(gs.mapGraph.nodes).length });
+    res.json({ success: true, totalChars: allSummaries.length, files: req.files.map(f => f.originalname), mapNodes: Object.keys(gs.mapGraph.nodes).length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1198,26 +1215,87 @@ app.delete('/api/games/:id/pdf/:index', requireAuth, async (req, res) => {
   const uploads = await db.getState(gameId, 'pdf_uploads', []);
   if (index < 0 || index >= uploads.length) return res.status(400).json({ error: 'Invalid index' });
 
-  const removed = uploads.splice(index, 1)[0];
+  uploads.splice(index, 1);
   await db.setState(gameId, 'pdf_uploads', uploads);
 
-  // Remove the PDF section from custom_context by filename marker
-  let context = game.custom_context || '';
-  const marker = `--- ${removed.filename} ---`;
-  const startIdx = context.indexOf(marker);
-  if (startIdx !== -1) {
-    // Find the start of this section (include preceding \n\n)
-    const sectionStart = Math.max(0, context.lastIndexOf('\n\n', startIdx));
-    const nextMarker = context.indexOf('\n\n---', startIdx + marker.length);
-    if (nextMarker !== -1) {
-      context = context.slice(0, sectionStart) + context.slice(nextMarker);
-    } else {
-      context = context.slice(0, sectionStart);
-    }
-    await db.updateGameContext(gameId, context.trim());
-  }
+  // Rebuild custom_context from remaining summaries
+  const allSummaries = uploads.map(u => `--- ${u.filename} ---\n${u.summary || ''}`).join('\n\n');
+  await db.updateGameContext(gameId, allSummaries.trim());
 
   res.json({ success: true });
+});
+
+// Download individual PDF summary
+app.get('/api/games/:id/pdf/:index/download', async (req, res) => {
+  const uploads = await db.getState(req.params.id, 'pdf_uploads', []);
+  const index = parseInt(req.params.index);
+  if (index < 0 || index >= uploads.length) return res.status(404).json({ error: 'Not found' });
+  const pdf = uploads[index];
+
+  const content = JSON.stringify({
+    filename: pdf.filename,
+    summary: pdf.summary,
+    uploadedAt: pdf.uploadedAt,
+    exportedAt: new Date().toISOString(),
+    exportedFrom: req.params.id,
+  }, null, 2);
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="${pdf.filename.replace('.pdf', '')}-summary.json"`);
+  res.send(content);
+});
+
+// Download ALL summaries as one file
+app.get('/api/games/:id/pdfs/download-all', async (req, res) => {
+  const uploads = await db.getState(req.params.id, 'pdf_uploads', []);
+  const game = await db.getGame(req.params.id);
+
+  const content = JSON.stringify({
+    gameName: game?.name,
+    gameSystem: game?.system,
+    exportedAt: new Date().toISOString(),
+    materials: uploads.map(u => ({
+      filename: u.filename,
+      summary: u.summary,
+      uploadedAt: u.uploadedAt,
+    })),
+  }, null, 2);
+
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Content-Disposition', `attachment; filename="${req.params.id}-campaign-materials.json"`);
+  res.send(content);
+});
+
+// Import summaries from another game
+app.post('/api/games/:id/import-materials', requireAuth, async (req, res) => {
+  try {
+    const { materials } = req.body; // array of { filename, summary, uploadedAt }
+    if (!Array.isArray(materials)) return res.status(400).json({ error: 'Invalid format' });
+
+    const gameId = req.params.id;
+    const uploads = await db.getState(gameId, 'pdf_uploads', []);
+
+    for (const m of materials) {
+      uploads.push({
+        filename: m.filename || 'imported',
+        rawChars: 0,
+        summary: m.summary,
+        summaryChars: m.summary?.length || 0,
+        uploadedAt: m.uploadedAt || new Date().toISOString(),
+        imported: true,
+      });
+    }
+
+    await db.setState(gameId, 'pdf_uploads', uploads);
+
+    // Rebuild context
+    const allSummaries = uploads.map(u => `--- ${u.filename} ---\n${u.summary}`).join('\n\n');
+    await db.updateGameContext(gameId, allSummaries);
+
+    res.json({ success: true, count: materials.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/health', async (req, res) => {
