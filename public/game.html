@@ -1189,11 +1189,11 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <div class="panel-title">🎮 Session Setup</div>
     <p class="host-note">Use these controls to manage the session.</p>
 
-    <label style="margin-top:12px;">Opening Scene Prompt (optional)</label>
-    <textarea id="host-prompt" style="min-height:80px;" placeholder="The party arrives at a fog-covered village…"></textarea>
+    <label style="margin-top:12px;">Opening Scene Prompt <button class="btn" id="btn-shuffle-prompt" style="padding:2px 8px;font-size:0.7rem;vertical-align:middle;">🔀 Random</button></label>
+    <textarea id="host-prompt" style="min-height:80px;"></textarea>
 
-    <label style="margin-top:10px;">🎲 Party Direction (optional)</label>
-    <textarea id="pregen-direction" rows="2" placeholder="e.g., 'All dwarves, levels 3-5, focused on dungeon crawling' or 'A ragtag band of outcasts, 6 characters'"></textarea>
+    <label style="margin-top:10px;">🎲 Party Direction <button class="btn" id="btn-shuffle-party" style="padding:2px 8px;font-size:0.7rem;vertical-align:middle;">🔀 Random</button></label>
+    <textarea id="pregen-direction" rows="2"></textarea>
 
     <button class="btn btn-ghost" id="btn-pregen-party" style="margin-top:10px;">
       🎲 Add Pre-Gen Party
@@ -1639,8 +1639,72 @@ function updateTurnOrder(turnOrderData) {
 // ── Socket: Join game ─────────────────────────────────────────
 socket.emit('join_game', gameId);
 
+const RANDOM_PROMPTS = {
+  dnd5e: [
+    'The party wakes in a ruined temple with no memory of how they got there. Something is scratching behind the altar.',
+    'A merchant caravan has been ambushed on the road. Survivors beg for help as smoke rises from the wreckage.',
+    'The tavern door bursts open — a bloodied ranger stumbles in clutching a map and whispers "They\'re coming" before collapsing.',
+    'You stand at the entrance to the Caves of Chaos. Multiple cave mouths dot the ravine walls. Choose wisely.',
+    'A noble hires you to investigate disappearances in the sewers beneath the city. The reward is generous. Too generous.',
+    'Thunder shakes the mountain pass as you discover an ancient dwarven door, half-buried in a rockslide.',
+    'The village elder says the dragon hasn\'t attacked in a century — until last night. The fields are scorched.',
+  ],
+  runequest: [
+    'Your clan gathers at the Ernalda temple for Sacred Time. The omens are troubled — the harvest spirits are restless.',
+    'A Lunar patrol has been spotted near the clan tula. The tribal ring calls an emergency moot.',
+    'You\'re on a trading mission to Pavis when your caravan encounters a Praxian raiding party on the plains.',
+    'The local Issaries merchant has been found dead at the crossroads. His goods are untouched — only his soul is missing.',
+    'Wildfire season has come early. The clan\'s herds are threatened and the fire spirits won\'t respond to prayers.',
+  ],
+  custom: [
+    'You awaken in an unfamiliar place with nothing but the clothes on your back and a strange symbol burned into your palm.',
+    'The last transmission from the frontier outpost was three days ago. You\'ve been sent to investigate.',
+    'A mysterious stranger offers you a job — retrieve a package from a heavily guarded facility. No questions asked.',
+    'The festival turns deadly when creatures pour through a rift in the town square. Chaos erupts around you.',
+    'You\'ve been summoned by an ancient power to fulfill a prophecy none of you have heard of.',
+  ],
+};
+const RANDOM_PARTIES = {
+  dnd5e: [
+    '4 characters, levels 1-3, balanced party (fighter, rogue, cleric, wizard)',
+    'A band of dwarven mercenaries, 4 characters, all level 2, combat-focused',
+    '5 characters, level 1, ragtag group of misfits — unusual race/class combos welcome',
+    '3 characters, level 3, stealthy infiltration team (rogues, rangers, bards)',
+    '4 characters, level 2, holy crusaders on a righteous mission',
+    '4 characters, level 1, all from the same small village, no military training',
+  ],
+  runequest: [
+    '4 Sartarite adventurers from the Colymar tribe, varied occupations',
+    'A warband of Humakt devotees, 3 warriors seeking honor in battle',
+    '4 characters from different cults — Orlanth, Ernalda, Issaries, Lhankor Mhy',
+    '3 Praxian nomads from the Bison tribe, experienced raiders',
+  ],
+  custom: [
+    '4 characters, diverse backgrounds, balanced for exploration and combat',
+    '3 characters, specialists — a face, a fighter, and a thinker',
+    '5 characters, all beginners discovering their abilities for the first time',
+    '4 outcasts thrown together by circumstance, unlikely allies',
+  ],
+};
+function randomFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shufflePrompts(system) {
+  const s = system || 'dnd5e';
+  document.getElementById('host-prompt').value = randomFrom(RANDOM_PROMPTS[s] || RANDOM_PROMPTS.custom);
+  document.getElementById('pregen-direction').value = randomFrom(RANDOM_PARTIES[s] || RANDOM_PARTIES.custom);
+}
+document.getElementById('btn-shuffle-prompt').addEventListener('click', () => {
+  const s = gameConfig?.system || 'dnd5e';
+  document.getElementById('host-prompt').value = randomFrom(RANDOM_PROMPTS[s] || RANDOM_PROMPTS.custom);
+});
+document.getElementById('btn-shuffle-party').addEventListener('click', () => {
+  const s = gameConfig?.system || 'dnd5e';
+  document.getElementById('pregen-direction').value = randomFrom(RANDOM_PARTIES[s] || RANDOM_PARTIES.custom);
+});
+
 socket.on('game_joined', (state) => {
   gameConfig = state.game;
+  // Populate random prompts on first load (if fields are empty)
+  if (!document.getElementById('host-prompt').value) shufflePrompts(state.game.system);
   document.getElementById('game-title').textContent = `${state.game.name} · ${state.game.system.toUpperCase()} |`;
   document.title = `⚔️ ${state.game.name} — Tavern Table`;
 
