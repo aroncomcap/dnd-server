@@ -1926,7 +1926,7 @@ if (state.ferocity != null) {
   updateParty(state.characters);
   if (state.currentPlayer) setTurn(state.currentPlayer);
   updateActionArea();
-  if (state.imageUrl) showSceneImage(state.imageUrl);
+  if (state.imageUrl) showSceneImage(state.imageUrl, state.imageLabel);
 
   // Auto-reconnect or show character picker
   const charNames = Object.keys(state.characters);

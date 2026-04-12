@@ -1183,7 +1183,7 @@ function startTurnTimer(gameId, gameConfig, playerName) {
       const nextIdx = (gs2.data.currentTurnIndex + 1) % (gs2.data.turnOrder.length || 1);
       const nextPlayer = gs2.data.turnOrder[nextIdx] || null;
       emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName, forPlayer: nextPlayer, world });
-      await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved);
+      await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration);
       advanceTurn(gameId, gameConfig, false);
     } catch (err) {
       emitSystem(gameId, { text: 'Error during auto-action.' });
@@ -1221,13 +1221,16 @@ async function advanceTurn(gameId, gameConfig, wasHumanAction = false) {
   }
 }
 
-async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false, mapMoved = false) {
+async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false, mapMoved = false, narration = '') {
   if (!scene) return;
   const gs = getGameState(gameId);
   gs.turnCount++;
+  // Detect natural 20s and boss kills from narration text
+  const hasNat20 = /\brolls?\s*(a\s+)?natural\s+20\b|\brolls?\s+20\b|\bNAT\s*20\b|\bcritical\s+hit\b/i.test(narration);
+  if (hasNat20) isKillshot = true; // Force image for nat-20
   if (shouldGenerateImage(gameId, scene, mapMoved, isKillshot)) {
     io.to(gameId).emit('scene_generating');
-    const sceneLabel = isKillshot ? `KILLSHOT: ${scene.action}` :
+    const sceneLabel = isKillshot ? (hasNat20 ? `CRITICAL HIT! ${scene.action}` : `KILLSHOT: ${scene.action}`) :
       scene.npc && scene.npc.toLowerCase() !== 'none' ? scene.npc :
       scene.action || 'The adventure continues';
     generateCompositeScene(gameId, scene, gameConfig).then(url => {
@@ -1803,6 +1806,7 @@ io.on('connection', (socket) => {
       turnOrder: gs.data.turnOrder,
       currentPlayer: getCurrentPlayer(gameId),
       imageUrl: gs.imageUrl,
+      imageLabel: gs.imageLabel || null,
       turnDuration: gs.turnDuration,
       world: gs.world || { locations: [], npcs: [] },
       lastOptions: gs.lastOptions || [],
@@ -1931,7 +1935,7 @@ io.on('connection', (socket) => {
       const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
       const nextPlayer = gs.data.turnOrder[nextIdx] || null;
       emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
-      await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved);
+      await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration);
       await advanceTurn(gameId, gameConfig, true);
     } catch (err) {
       socket.emit('system', { text: 'Error communicating with the DM. Try again.' });
@@ -2013,11 +2017,13 @@ io.on('connection', (socket) => {
       emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world });
       // Always generate image for the opening scene
       if (scene) {
+        const openingLabel = scene.npc && scene.npc.toLowerCase() !== 'none' ? scene.npc : scene.action || 'The adventure begins';
         io.to(gameId).emit('scene_generating');
         generateCompositeScene(gameId, scene, gameConfig).then(url => {
           if (url) {
             gs.imageUrl = url;
-            emitSceneImage(gameId, { url });
+            gs.imageLabel = openingLabel;
+            emitSceneImage(gameId, { url, label: openingLabel });
             logCost({ gameId, model: 'FLUX', inputTokens: 0, outputTokens: 0, cost: IMAGE_COST, type: 'scene-image' });
           } else {
             io.to(gameId).emit('scene_gen_failed');
@@ -2275,7 +2281,7 @@ const gameEngine = {
     emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
     const playerToken = gs.data.characters[playerName]?.token || null;
     io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });
-    await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved);
+    await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration);
     await advanceTurn(gameId, gameConfig, true);
     return { ok: true };
   },
@@ -2326,11 +2332,13 @@ const gameEngine = {
     const firstPlayer = getCurrentPlayer(gameId);
     emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world });
     if (scene) {
+      const startLabel = scene.npc && scene.npc.toLowerCase() !== 'none' ? scene.npc : scene.action || 'The adventure begins';
       io.to(gameId).emit('scene_generating');
       generateCompositeScene(gameId, scene, gameConfig).then(url => {
         if (url) {
           gs.imageUrl = url;
-          emitSceneImage(gameId, { url });
+          gs.imageLabel = startLabel;
+          emitSceneImage(gameId, { url, label: startLabel });
           logCost({ gameId, model: 'FLUX', inputTokens: 0, outputTokens: 0, cost: IMAGE_COST, type: 'scene-image' });
         } else {
           io.to(gameId).emit('scene_gen_failed');
