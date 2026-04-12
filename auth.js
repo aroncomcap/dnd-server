@@ -32,6 +32,10 @@ const registerLimiter = rateLimit({
   message: { error: 'Too many registrations. Try again later.' },
   standardHeaders: true,
 });
+
+const ANON_JWT_EXPIRY = '24h';
+const MAX_ANON_SESSIONS_PER_IP = 3;
+
 const JWT_EXPIRY = '7d';
 const BCRYPT_ROUNDS = 12;
 
@@ -60,14 +64,22 @@ async function authMiddleware(req, res, next) {
   const token = req.cookies?.tt_token;
   if (!token) {
     req.user = null;
+    req.anonSession = null;
     return next();
   }
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = await db.getUserById(decoded.userId);
+    if (decoded.anonymous) {
+      req.user = null;
+      req.anonSession = await db.getAnonSession(decoded.anonId);
+    } else {
+      req.user = await db.getUserById(decoded.userId);
+      req.anonSession = null;
+    }
     next();
   } catch {
     req.user = null;
+    req.anonSession = null;
     next();
   }
 }
@@ -84,6 +96,27 @@ function requireAdmin(req, res, next) {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
+}
+
+// ── Anonymous Sessions ──────────────────────────────────────────────────────
+
+function generateAnonToken(anonId) {
+  return jwt.sign(
+    { anonId, anonymous: true },
+    JWT_SECRET,
+    { expiresIn: ANON_JWT_EXPIRY }
+  );
+}
+
+async function createAnonymousSession(ip) {
+  const count = await db.countRecentAnonSessions(ip);
+  if (count >= MAX_ANON_SESSIONS_PER_IP) {
+    return { error: 'Too many anonymous sessions. Please create an account.' };
+  }
+  const id = `anon_${crypto.randomUUID()}`;
+  await db.createAnonSession(id, ip);
+  const token = generateAnonToken(id);
+  return { id, token };
 }
 
 // ── Passport: Local Strategy (email/password) ────────────────────────────────
@@ -186,6 +219,30 @@ router.post('/auth/register', registerLimiter, async (req, res) => {
     });
 
     const user = await db.getUserById(id);
+
+    // Merge anonymous session if one exists
+    const anonToken = req.cookies?.tt_token;
+    if (anonToken) {
+      try {
+        const decoded = jwt.verify(anonToken, JWT_SECRET);
+        if (decoded.anonymous && decoded.anonId) {
+          const anonSession = await db.getAnonSession(decoded.anonId);
+          if (anonSession && !anonSession.converted_to_user_id) {
+            await db.convertAnonSession(decoded.anonId, id);
+            // Adjust welcome bonus: subtract anonymous playtime already used
+            const minutesUsed = anonSession.minutes_used || 0;
+            if (minutesUsed > 0) {
+              const remaining = Math.max(0, 600 - minutesUsed);
+              await db.pool.query(
+                'UPDATE user_balances SET free_minutes_remaining = $1 WHERE user_id = $2',
+                [remaining, id]
+              );
+            }
+          }
+        }
+      } catch { /* invalid anon token — ignore */ }
+    }
+
     const token = generateToken(user);
     setTokenCookie(res, token);
     res.json({ user: { id: user.id, email: user.email, displayName: user.display_name, isAdmin: user.is_admin } });
@@ -225,10 +282,31 @@ router.get('/auth/me', authMiddleware, (req, res) => {
 
 router.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'], session: false }));
 router.get('/auth/google/callback', (req, res, next) => {
-  passport.authenticate('google', { session: false }, (err, user) => {
+  passport.authenticate('google', { session: false }, async (err, user) => {
     if (err || !user) return res.redirect('/login.html?error=google_failed');
     const token = generateToken(user);
     setTokenCookie(res, token);
+    // Merge anonymous session
+    const anonCookie = req.cookies?.tt_token;
+    if (anonCookie) {
+      try {
+        const anonDecoded = jwt.verify(anonCookie, JWT_SECRET);
+        if (anonDecoded.anonymous && anonDecoded.anonId) {
+          const anonSession = await db.getAnonSession(anonDecoded.anonId);
+          if (anonSession && !anonSession.converted_to_user_id) {
+            await db.convertAnonSession(anonDecoded.anonId, user.id);
+            const minutesUsed = anonSession.minutes_used || 0;
+            if (minutesUsed > 0) {
+              const remaining = Math.max(0, 600 - minutesUsed);
+              await db.pool.query(
+                'UPDATE user_balances SET free_minutes_remaining = $1 WHERE user_id = $2',
+                [remaining, user.id]
+              );
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    }
     res.redirect('/');
   })(req, res, next);
 });
@@ -237,12 +315,37 @@ router.get('/auth/google/callback', (req, res, next) => {
 
 router.get('/auth/discord', passport.authenticate('discord', { session: false }));
 router.get('/auth/discord/callback', (req, res, next) => {
-  passport.authenticate('discord', { session: false }, (err, user) => {
+  passport.authenticate('discord', { session: false }, async (err, user) => {
     if (err || !user) return res.redirect('/login.html?error=discord_failed');
     const token = generateToken(user);
     setTokenCookie(res, token);
+    // Merge anonymous session
+    const anonCookie = req.cookies?.tt_token;
+    if (anonCookie) {
+      try {
+        const anonDecoded = jwt.verify(anonCookie, JWT_SECRET);
+        if (anonDecoded.anonymous && anonDecoded.anonId) {
+          const anonSession = await db.getAnonSession(anonDecoded.anonId);
+          if (anonSession && !anonSession.converted_to_user_id) {
+            await db.convertAnonSession(anonDecoded.anonId, user.id);
+            const minutesUsed = anonSession.minutes_used || 0;
+            if (minutesUsed > 0) {
+              const remaining = Math.max(0, 600 - minutesUsed);
+              await db.pool.query(
+                'UPDATE user_balances SET free_minutes_remaining = $1 WHERE user_id = $2',
+                [remaining, user.id]
+              );
+            }
+          }
+        }
+      } catch { /* ignore */ }
+    }
     res.redirect('/');
   })(req, res, next);
 });
 
-module.exports = { router, authMiddleware, requireAuth, requireAdmin, generateToken, jwtSecret: JWT_SECRET };
+module.exports = {
+  router, authMiddleware, requireAuth, requireAdmin,
+  generateToken, setTokenCookie, jwtSecret: JWT_SECRET,
+  createAnonymousSession, generateAnonToken,
+};
