@@ -307,7 +307,7 @@ router.get('/auth/google/callback', (req, res, next) => {
         }
       } catch { /* ignore */ }
     }
-    res.redirect('/');
+    res.redirect('/lobby');
   })(req, res, next);
 });
 
@@ -340,7 +340,7 @@ router.get('/auth/discord/callback', (req, res, next) => {
         }
       } catch { /* ignore */ }
     }
-    res.redirect('/');
+    res.redirect('/lobby');
   })(req, res, next);
 });
 
