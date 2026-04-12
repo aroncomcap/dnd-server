@@ -1190,6 +1190,7 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
   <!-- Panel 1: Session Setup -->
   <div class="panel">
     <div class="panel-title">🎮 Session Setup</div>
+    <div id="setup-pre-start">
     <p class="host-note">Use these controls to manage the session.</p>
 
     <label style="margin-top:12px;">Opening Scene Prompt <button class="btn" id="btn-shuffle-prompt" style="padding:2px 8px;font-size:0.7rem;vertical-align:middle;">🔀 Random</button></label>
@@ -1206,6 +1207,7 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <button class="btn btn-primary" id="btn-start" style="margin-top:10px;">
       ⚔️ Begin the Adventure
     </button>
+    </div>
 
     <button class="btn btn-danger" id="btn-reset" style="margin-top:10px;">
       🔄 Reset Game (keeps characters)
@@ -1331,6 +1333,154 @@ function escapeHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// ── Sound Effects (Web Audio API) ────────────────────────────
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+  return audioCtx;
+}
+
+function playTone(freq, duration, type = 'sine', volume = 0.15) {
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(volume, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + duration);
+}
+
+function playChime() {
+  // Soft bell chime — DM starts speaking
+  playTone(880, 0.3, 'sine', 0.12);
+  setTimeout(() => playTone(1320, 0.4, 'sine', 0.08), 100);
+}
+
+function playDiceRoll() {
+  // Rattling dice sound — player submits action
+  const ctx = getAudioCtx();
+  for (let i = 0; i < 6; i++) {
+    setTimeout(() => {
+      const freq = 200 + Math.random() * 800;
+      playTone(freq, 0.05, 'square', 0.06);
+    }, i * 30);
+  }
+  // Final landing thud
+  setTimeout(() => playTone(150, 0.15, 'triangle', 0.1), 200);
+}
+
+function playHit() {
+  // Satisfying impact — hit/success
+  playTone(200, 0.1, 'sawtooth', 0.12);
+  setTimeout(() => playTone(400, 0.15, 'sine', 0.1), 50);
+}
+
+function playMiss() {
+  // Whoosh — miss/fail
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(600, ctx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(100, ctx.currentTime + 0.3);
+  gain.gain.setValueAtTime(0.1, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.3);
+}
+
+function playTurnBell() {
+  // Tavern bell — your turn
+  playTone(660, 0.2, 'sine', 0.15);
+  setTimeout(() => playTone(880, 0.3, 'sine', 0.12), 150);
+  setTimeout(() => playTone(660, 0.2, 'sine', 0.08), 350);
+}
+
+function playOptionsAppear() {
+  // Cards dealt — soft clicks
+  setTimeout(() => playTone(1200, 0.04, 'square', 0.05), 0);
+  setTimeout(() => playTone(1400, 0.04, 'square', 0.05), 80);
+  setTimeout(() => playTone(1600, 0.04, 'square', 0.05), 160);
+}
+
+// Over the Top humorous variants
+function playChimeOTT() {
+  // Dramatic orchestral hit
+  playTone(220, 0.4, 'sawtooth', 0.1);
+  playTone(330, 0.4, 'sawtooth', 0.08);
+  playTone(440, 0.5, 'sawtooth', 0.06);
+  setTimeout(() => playTone(880, 0.3, 'sine', 0.12), 200);
+}
+
+function playDiceRollOTT() {
+  // Slot machine style
+  const ctx = getAudioCtx();
+  for (let i = 0; i < 10; i++) {
+    setTimeout(() => {
+      playTone(300 + i * 80, 0.04, 'square', 0.08);
+    }, i * 25);
+  }
+  // Jackpot ding
+  setTimeout(() => {
+    playTone(1200, 0.15, 'sine', 0.12);
+    playTone(1500, 0.2, 'sine', 0.1);
+  }, 300);
+}
+
+function playHitOTT() {
+  // Cartoon bonk
+  playTone(800, 0.05, 'square', 0.15);
+  setTimeout(() => playTone(200, 0.2, 'triangle', 0.12), 50);
+  setTimeout(() => playTone(100, 0.15, 'triangle', 0.08), 150);
+}
+
+function playMissOTT() {
+  // Sad trombone (wah wah)
+  const ctx = getAudioCtx();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(350, ctx.currentTime);
+  osc.frequency.setValueAtTime(330, ctx.currentTime + 0.2);
+  osc.frequency.setValueAtTime(310, ctx.currentTime + 0.4);
+  osc.frequency.setValueAtTime(200, ctx.currentTime + 0.6);
+  gain.gain.setValueAtTime(0.08, ctx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + 0.8);
+}
+
+function playTurnBellOTT() {
+  // Game show buzzer
+  playTone(440, 0.1, 'square', 0.12);
+  setTimeout(() => playTone(880, 0.1, 'square', 0.12), 100);
+  setTimeout(() => playTone(1760, 0.2, 'sine', 0.15), 200);
+}
+
+// Sound dispatcher — checks persona
+function isOTT() {
+  const sel = document.getElementById('persona-select');
+  return sel && sel.value === 'overthetop';
+}
+
+const sfx = {
+  chime: () => isOTT() ? playChimeOTT() : playChime(),
+  dice: () => isOTT() ? playDiceRollOTT() : playDiceRoll(),
+  hit: () => isOTT() ? playHitOTT() : playHit(),
+  miss: () => isOTT() ? playMissOTT() : playMiss(),
+  turn: () => isOTT() ? playTurnBellOTT() : playTurnBell(),
+  options: () => playOptionsAppear(),
+};
 
 const socket = io();
 const gameId = window.location.pathname.split('/game/')[1];
@@ -1490,6 +1640,7 @@ function showOptions(options) {
     area.appendChild(btn);
   });
   divider.style.display = 'block';
+  sfx.options();
 }
 
 // ── Scene Image ───────────────────────────────────────────────
@@ -1712,6 +1863,9 @@ document.getElementById('btn-shuffle-party').addEventListener('click', () => {
 
 socket.on('game_joined', (state) => {
   gameConfig = state.game;
+  // Hide session setup if adventure already started
+  const preStart = document.getElementById('setup-pre-start');
+  if (preStart) preStart.style.display = state.chatHistory.length > 0 ? 'none' : 'block';
   // Populate random prompts on first load (if fields are empty)
   if (!document.getElementById('host-prompt').value) shufflePrompts(state.game.system);
   document.getElementById('game-title').textContent = `${state.game.name} · ${state.game.system.toUpperCase()} |`;
@@ -1915,6 +2069,7 @@ socket.on('error_msg', (data) => {
 let lastMessageWasStreamed = false;
 
 socket.on('dm_stream_start', (data) => {
+  sfx.chime();
   lastMessageWasStreamed = true;
 
   // Remove thinking indicator
@@ -1956,6 +2111,8 @@ socket.on('dm_stream_end', (data) => {
   if (!body) return;
   // Replace plain text with fully formatted HTML
   body.innerHTML = renderDmText(data.narration);
+  if (/\bHIT\b/.test(data.narration)) sfx.hit();
+  else if (/\bMISS\b/.test(data.narration)) sfx.miss();
   body.removeAttribute('id');
 
   const wrap = document.getElementById('dm-stream-bubble');
@@ -2043,6 +2200,7 @@ socket.on('turn_change', (data) => {
   sendBtn.disabled = false;
   // "It's your turn!" notification
   if (isMyTurnCheck()) {
+    sfx.turn();
     const origTitle = document.title;
     document.title = '⚔️ YOUR TURN!';
     setTimeout(() => { document.title = origTitle; }, 3000);
@@ -2493,6 +2651,7 @@ document.getElementById('action-input').addEventListener('keydown', e => {
 });
 
 function sendAction() {
+  sfx.dice();
   const input = document.getElementById('action-input');
   const action = input.value.trim();
   const name = playerName || document.getElementById('c-name').value.trim();
@@ -2738,6 +2897,7 @@ socket.on('party_gen_failed', (data) => {
 document.getElementById('btn-start').addEventListener('click', () => {
   const prompt = document.getElementById('host-prompt').value.trim();
   socket.emit('dm_start', { prompt });
+  document.getElementById('setup-pre-start').style.display = 'none';
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelector('[data-screen="game"]').classList.add('active');
