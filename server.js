@@ -933,6 +933,29 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
 
   const parsed = parseResponse(reply);
 
+  // If no options were extracted and this isn't an auto-action, make a cheap follow-up call
+  if (parsed.options.length === 0 && !actingAs) {
+    try {
+      const nextPlayer = getCurrentPlayer(gameId);
+      const optionsResponse = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: `Given this narration from a ${gameConfig.system || 'D&D 5e'} game, suggest exactly 4 action options for ${nextPlayer || 'the next player'}. Output ONLY this format, nothing else:\n\n1. 🗡️ [combat/practical action]\n2. 🛡️ [defensive/cautious action]\n3. 🔥 [wild/reckless/creative move]\n4. 💬 [witty quip or clever social move]\n\nNarration: ${parsed.narration.slice(-500)}`,
+        }],
+      });
+      const optLines = optionsResponse.content[0].text.split('\n')
+        .filter(l => /^\d+\.\s/.test(l.trim()))
+        .map(l => l.replace(/^\d+\.\s*/, '').trim())
+        .filter(Boolean)
+        .slice(0, 6);
+      if (optLines.length >= 2) parsed.options = optLines;
+    } catch (e) {
+      console.warn('[options-fallback] failed:', e.message);
+    }
+  }
+
   // Process map hint (synchronous graph update)
   const mapResult = processMapHint(gs.mapGraph, parsed.worldRaw, parsed.world?.locations);
 
