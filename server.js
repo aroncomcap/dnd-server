@@ -344,12 +344,12 @@ WRITING STYLE:
 
 ACTION OPTIONS:
 - At the end of EVERY response (except auto-actions), present exactly 3 action choices for the next player.
-- Use this EXACT format:
+- Use this EXACT format with NUMBER EMOJIS (1️⃣ 2️⃣ 3️⃣) as delimiters:
 
 ---OPTIONS---
-1. 🗡️ [a combat or practical action]
-2. 🛡️ [a defensive or cautious action]
-3. 🔥 [a wild, reckless, or creative move]
+1️⃣ 🗡️ [a combat or practical action]
+2️⃣ 🛡️ [a defensive or cautious action]
+3️⃣ 🔥 [a wild, reckless, or creative move]
 
 TRAVEL & MOVEMENT:
 - Narrate journeys realistically with distance, terrain, mode of travel.
@@ -497,9 +497,9 @@ MANDATORY OUTPUT (every single response, no exceptions):
 After your narration, you MUST include ALL of these blocks in this exact order:
 
 ---OPTIONS---
-1. 🗡️ [combat/practical action for the next player]
-2. 🛡️ [defensive/cautious action]
-3. 🔥 [wild/reckless/creative move]
+1️⃣ 🗡️ [combat/practical action for the next player]
+2️⃣ 🛡️ [defensive/cautious action]
+3️⃣ 🔥 [wild/reckless/creative move]
 
 ---SCENE---
 ACTION: [what's physically happening right now - 5-10 words]
@@ -555,20 +555,21 @@ function parseResponse(text) {
     }
   }
 
-  // Parse options — only take numbered lines (1. 2. 3. 4.), ignore anything else that leaked in
+  // Parse options — match number emojis (1️⃣ 2️⃣ 3️⃣) or fallback to "1. " format
+  const numberEmojiRegex = /^[1-3]\uFE0F?\u20E3\s*/;
+  const numberedLineRegex = /^\d+\.\s/;
   let options = optionsRaw ? optionsRaw.split('\n')
-    .filter(line => /^\d+\.\s/.test(line.trim())) // ONLY lines starting with "1. ", "2. " etc.
-    .map(line => line.replace(/^\d+\.\s*/, '').trim())
+    .filter(line => numberEmojiRegex.test(line.trim()) || numberedLineRegex.test(line.trim()))
+    .map(line => line.replace(numberEmojiRegex, '').replace(numberedLineRegex, '').trim())
     .filter(Boolean)
-    .slice(0, 3) : []; // max 6 options
+    .slice(0, 3) : [];
 
-  // Fallback: extract options embedded in narration as bold text (e.g. "- **Option text**")
-  // Only match lines with emoji indicators (🗡️🛡️🔥💬) — these are real options, not status lines
+  // Fallback: extract options from narration — ONLY lines starting with number emojis (1️⃣ 2️⃣ 3️⃣)
   if (options.length === 0 && narration) {
-    const optionLineRegex = /^[ \t]*(?:[-•]|\d+\.)\s*(?:\*\*)?[\u{1F300}-\u{1FAFF}].*$/gmu;
+    const optionLineRegex = /^[ \t]*[1-3]\uFE0F?\u20E3\s*.+$/gmu;
     const matches = [...narration.matchAll(optionLineRegex)];
     if (matches.length >= 2) {
-      options = matches.map(m => m[0].replace(/^[\s\-•\d.]*\*?\*?/, '').replace(/\*\*/g, '').trim())
+      options = matches.map(m => m[0].replace(/^[\s]*[1-3]\uFE0F?\u20E3\s*/, '').trim())
         .filter(Boolean).slice(0, 3);
       let cleaned = narration;
       for (const m of matches) {
@@ -747,6 +748,9 @@ function shouldGenerateImage(gameId, sceneData, mapMoved, isKillshot) {
   if (mapMoved) return true;
   // Generate if a named NPC is present in the scene
   if (sceneData.npc && sceneData.npc.toLowerCase() !== 'none') return true;
+  // Generate every 3rd turn as a baseline (so players always see images)
+  const gs = getGameState(gameId);
+  if (gs.turnCount > 0 && gs.turnCount % 3 === 0) return true;
   return false;
 }
 
@@ -1014,7 +1018,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
         max_tokens: 200,
         messages: [{
           role: 'user',
-          content: `Given this narration from a ${gameConfig.system || 'D&D 5e'} game, suggest exactly 3 action options for ${nextPlayer || 'the next player'}. Output ONLY this format, nothing else:\n\n1. 🗡️ [combat/practical action]\n2. 🛡️ [defensive/cautious action]\n3. 🔥 [wild/reckless/creative move]\n\nNarration: ${parsed.narration.slice(-500)}`,
+          content: `Given this narration from a ${gameConfig.system || 'D&D 5e'} game, suggest exactly 3 action options for ${nextPlayer || 'the next player'}. Output ONLY this format with number emojis, nothing else:\n\n1️⃣ 🗡️ [combat/practical action]\n2️⃣ 🛡️ [defensive/cautious action]\n3️⃣ 🔥 [wild/reckless/creative move]\n\nNarration: ${parsed.narration.slice(-500)}`,
         }],
       });
       const optLines = optionsResponse.content[0].text.split('\n')
