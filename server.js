@@ -43,6 +43,16 @@ app.use(cookieParser());
 app.use(passport.initialize());
 app.use(authRouter);
 app.use(authMiddleware); // Attaches req.user to all requests (non-blocking)
+// Landing page at root
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+});
+
+// Lobby (was previously served as index.html at root)
+app.get('/lobby', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -539,11 +549,27 @@ function parseResponse(text) {
   }
 
   // Parse options — only take numbered lines (1. 2. 3. 4.), ignore anything else that leaked in
-  const options = optionsRaw ? optionsRaw.split('\n')
+  let options = optionsRaw ? optionsRaw.split('\n')
     .filter(line => /^\d+\.\s/.test(line.trim())) // ONLY lines starting with "1. ", "2. " etc.
     .map(line => line.replace(/^\d+\.\s*/, '').trim())
     .filter(Boolean)
     .slice(0, 6) : []; // max 6 options
+
+  // Fallback: extract options embedded in narration as bold text (e.g. "- **Option text**")
+  if (options.length === 0 && narration) {
+    // Match lines with bullet + bold or numbered + bold patterns
+    const optionLineRegex = /^[ \t]*(?:[-•]|\d+\.)\s*\*\*(.+?)\*\*.*/gm;
+    const matches = [...narration.matchAll(optionLineRegex)];
+    if (matches.length >= 2) {
+      options = matches.map(m => m[1].trim()).filter(Boolean).slice(0, 6);
+      // Strip matched option lines from narration
+      let cleaned = narration;
+      for (const m of matches) {
+        cleaned = cleaned.replace(m[0], '');
+      }
+      narration = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+    }
+  }
 
   // Parse scene (new structured format) + killshot
   let scene = null;
@@ -1488,6 +1514,24 @@ app.get('/api/balance', requireAuth, async (req, res) => {
   }
 });
 
+// Create anonymous session (called by game client when no auth)
+app.post('/api/anonymous-session', async (req, res) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  const { createAnonymousSession, setTokenCookie } = require('./auth');
+  const result = await createAnonymousSession(ip);
+  if (result.error) {
+    return res.status(429).json({ error: result.error });
+  }
+  // Set the anonymous JWT as cookie
+  res.cookie('tt_token', result.token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+  });
+  res.json({ anonId: result.id });
+});
+
 app.post('/api/redeem', requireAuth, async (req, res) => {
   try {
     const { code } = req.body;
@@ -1573,8 +1617,14 @@ io.use((socket, next) => {
       try {
         const jwt = require('jsonwebtoken');
         const decoded = jwt.verify(token, process.env.JWT_SECRET || require('./auth').jwtSecret);
-        socket.userId = decoded.userId;
-        socket.userEmail = decoded.email;
+        if (decoded.anonymous) {
+          socket.anonId = decoded.anonId;
+          socket.userId = null;
+        } else {
+          socket.userId = decoded.userId;
+          socket.userEmail = decoded.email;
+          socket.anonId = null;
+        }
       } catch (e) {
         // Invalid token — allow connection but mark as unauthenticated
       }
@@ -1716,6 +1766,18 @@ io.on('connection', (socket) => {
 
     const playerName = data.playerName;
     const action = truncate(data.action, 2000);
+
+    // Block anonymous users past 120-minute limit
+    if (socket.anonId && !socket.userId) {
+      const anonSession = await db.getAnonSession(socket.anonId);
+      if (anonSession && anonSession.minutes_used >= 120) {
+        socket.emit('signup_required', {
+          minutesUsed: anonSession.minutes_used,
+          message: 'Create a free account to keep playing. It takes 10 seconds.',
+        });
+        return;
+      }
+    }
 
     // Block spectators from taking actions
     if (socket.userId && billingTicker.isSpectator(gameId, socket.userId)) {
