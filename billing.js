@@ -6,6 +6,9 @@ const FULL_RATE_MINUTES = 1;          // 1 minute deducted per tick (= $1/hr)
 const SPECTATOR_WINDOW_MS = 5 * 60 * 1000; // 5 minutes of spectator before hard pause
 const WARNING_THRESHOLDS = [30, 10, 1]; // minutes remaining
 
+const SIGNUP_NUDGE_THRESHOLDS = [30, 60, 90]; // minutes — soft prompts
+const SIGNUP_HARD_GATE = 120;                  // minutes — must sign up
+
 function isBillingEnabled() {
   return process.env.BILLING_ENABLED === 'true';
 }
@@ -90,6 +93,33 @@ class BillingTicker {
     const room = this.io.sockets.adapter.rooms.get(gameId);
     const connectedCount = room ? room.size : 0;
     if (connectedCount === 0) return;
+
+    // Track anonymous playtime and emit signup nudges
+    const sockets = await this.io.in(gameId).fetchSockets();
+    for (const s of sockets) {
+      if (s.anonId && !s.userId) {
+        await this.db.updateAnonMinutes(s.anonId, 1);
+        const anonSession = await this.db.getAnonSession(s.anonId);
+        if (!anonSession) continue;
+        const used = anonSession.minutes_used;
+
+        // Soft nudges at 30/60/90 min
+        if (SIGNUP_NUDGE_THRESHOLDS.includes(used)) {
+          s.emit('signup_nudge', {
+            minutesUsed: used,
+            minutesUntilGate: SIGNUP_HARD_GATE - used,
+          });
+        }
+
+        // Hard gate at 120 min
+        if (used >= SIGNUP_HARD_GATE) {
+          s.emit('signup_required', {
+            minutesUsed: used,
+            message: 'Create a free account to keep playing. It takes 10 seconds.',
+          });
+        }
+      }
+    }
 
     const game = await this.db.getGame(gameId);
     if (!game) return;
