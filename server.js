@@ -502,33 +502,48 @@ If you omit ---OPTIONS--- the game breaks. NEVER skip it.`;
 
 // ── Parsing (single-pass, order-independent) ─────────────────────────────────
 function parseResponse(text) {
-  // Split on all three markers in one pass
-  const markers = ['---OPTIONS---', '---SCENE---', '---WORLD---'];
+  // Split on all three markers in one pass — flexible matching
   let narration = text;
   let optionsRaw = '';
   let sceneRaw = '';
   let worldRaw = '';
 
-  // Find all marker positions
-  const positions = markers.map(m => ({ marker: m, idx: text.indexOf(m) })).filter(p => p.idx !== -1);
+  // Find marker positions with flexible matching (case-insensitive, optional spaces)
+  const markerPatterns = [
+    { name: 'options', regex: /^-{3,}\s*OPTIONS\s*-{3,}/im },
+    { name: 'scene', regex: /^-{3,}\s*SCENE\s*-{3,}/im },
+    { name: 'world', regex: /^-{3,}\s*WORLD\s*-{3,}/im },
+  ];
+
+  const positions = [];
+  for (const mp of markerPatterns) {
+    const match = text.match(mp.regex);
+    if (match) {
+      positions.push({ name: mp.name, idx: match.index, len: match[0].length });
+    }
+  }
   positions.sort((a, b) => a.idx - b.idx);
 
   if (positions.length > 0) {
     narration = text.slice(0, positions[0].idx).trim();
+    // Clean trailing markdown artifacts
+    narration = narration.replace(/\n-{3,}\s*$/, '').replace(/\n\*{2,}\s*$/, '').trim();
     for (let i = 0; i < positions.length; i++) {
-      const start = positions[i].idx + positions[i].marker.length;
+      const start = positions[i].idx + positions[i].len;
       const end = i + 1 < positions.length ? positions[i + 1].idx : text.length;
       const block = text.slice(start, end).trim();
-      if (positions[i].marker === '---OPTIONS---') optionsRaw = block;
-      else if (positions[i].marker === '---SCENE---') sceneRaw = block;
-      else if (positions[i].marker === '---WORLD---') worldRaw = block;
+      if (positions[i].name === 'options') optionsRaw = block;
+      else if (positions[i].name === 'scene') sceneRaw = block;
+      else if (positions[i].name === 'world') worldRaw = block;
     }
   }
 
-  // Parse options
+  // Parse options — only take numbered lines (1. 2. 3. 4.), ignore anything else that leaked in
   const options = optionsRaw ? optionsRaw.split('\n')
+    .filter(line => /^\d+\.\s/.test(line.trim())) // ONLY lines starting with "1. ", "2. " etc.
     .map(line => line.replace(/^\d+\.\s*/, '').trim())
-    .filter(Boolean) : [];
+    .filter(Boolean)
+    .slice(0, 6) : []; // max 6 options
 
   // Parse scene (new structured format) + killshot
   let scene = null;
