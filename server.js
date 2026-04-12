@@ -1461,6 +1461,19 @@ app.post('/api/games/:id/import-materials', requireAuth, async (req, res) => {
   }
 });
 
+// Temporary cleanup endpoint — remove after use
+app.post('/api/cleanup-orphaned-games', async (req, res) => {
+  try {
+    const { rows: games } = await db.pool.query("SELECT id, name, host_user_id FROM games WHERE host_user_id IS NULL");
+    for (const g of games) {
+      await db.deleteGame(g.id);
+    }
+    res.json({ deleted: games.length, games: games.map(g => g.id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/health', async (req, res) => {
   try {
     await db.pool.query('SELECT 1');
