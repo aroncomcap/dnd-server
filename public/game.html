@@ -1306,6 +1306,20 @@ function escapeHtml(str) {
 
 const socket = io();
 const gameId = window.location.pathname.split('/game/')[1];
+
+// Check auth status — if not logged in, create anonymous session
+async function ensureSession() {
+  try {
+    const resp = await fetch('/auth/me');
+    const data = await resp.json();
+    if (!data.user) {
+      await fetch('/api/anonymous-session', { method: 'POST' });
+    }
+  } catch (e) {
+    console.warn('Session check failed:', e);
+  }
+}
+ensureSession();
 let playerName = localStorage.getItem('playerName_' + gameId) || '';
 let currentPlayer = null;
 let gameConfig = null;
@@ -1352,18 +1366,31 @@ const chatLog = document.getElementById('chat-log');
 function renderDmText(text) {
   const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const lines = escaped.split('\n');
-  const html = lines.map(line => {
+  const result = [];
+  let mechBuf = []; // buffer for consecutive mechanic lines
+
+  function flushMech() {
+    if (!mechBuf.length) return;
+    // Determine color from combined text
+    const combined = mechBuf.join(' — ');
+    let color = '';
+    if (/\bhit\b|success/i.test(combined)) color = 'color:#4a8';
+    else if (/\bmiss\b|fail/i.test(combined)) color = 'color:#c44';
+    result.push(`<span class="mechanic" style="${color}">${combined}</span>`);
+    mechBuf = [];
+  }
+
+  for (const line of lines) {
     const trimmed = line.trim();
     if (/^\*\*(.+)\*\*$/.test(trimmed)) {
-      const inner = trimmed.slice(2, -2);
-      let color = '';
-      if (/\bhit\b|success/i.test(inner)) color = 'color:#4a8';
-      else if (/\bmiss\b|fail/i.test(inner)) color = 'color:#c44';
-      return `<span class="mechanic" style="${color}">${inner}</span>`;
+      mechBuf.push(trimmed.slice(2, -2));
+    } else {
+      flushMech();
+      result.push(line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>'));
     }
-    return line.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  }).join('<br/>');
-  return html;
+  }
+  flushMech();
+  return result.join('<br/>');
 }
 
 function addMsg(type, text, label = '', token = null) {
@@ -2928,6 +2955,34 @@ document.querySelector('[data-screen="host"]').addEventListener('click', () => {
 // Also update host billing on balance_update events
 socket.on('balance_update', (data) => updateBillingInfo(data));
 
+socket.on('signup_nudge', (data) => {
+  const modal = document.getElementById('signup-modal');
+  const text = document.getElementById('signup-modal-text');
+  const dismiss = document.getElementById('signup-dismiss-btn');
+  dismiss.style.display = 'inline';
+  if (data.minutesUsed >= 90) {
+    text.textContent = 'You\u2019ve been playing for ' + Math.floor(data.minutesUsed / 60) + '+ hours! Sign up now \u2014 you\u2019ll need an account in ' + data.minutesUntilGate + ' minutes to keep playing.';
+  } else if (data.minutesUsed >= 60) {
+    text.textContent = 'Enjoying the adventure? Create a free account to save your progress and keep your 10 free hours.';
+  } else {
+    text.textContent = 'Create a free account to keep your characters, your story, and your 10 free hours.';
+  }
+  modal.style.display = 'flex';
+});
+
+socket.on('signup_required', (data) => {
+  const modal = document.getElementById('signup-modal');
+  const text = document.getElementById('signup-modal-text');
+  const dismiss = document.getElementById('signup-dismiss-btn');
+  text.textContent = 'Create a free account to keep playing. It takes 10 seconds.';
+  dismiss.style.display = 'none';
+  modal.style.display = 'flex';
+});
+
+socket.on('auth_upgraded', () => {
+  document.getElementById('signup-modal').style.display = 'none';
+});
+
 // Billing mode selector
 document.getElementById('billing-mode-select').addEventListener('change', (e) => {
   socket.emit('set_billing_mode', { mode: e.target.value });
@@ -2996,5 +3051,21 @@ document.getElementById('debug-toggle-close').addEventListener('click', () => {
   <div id="debug-content" style="line-height:1.6;"></div>
 </div>
 <div id="debug-toggle" style="position:fixed;bottom:50px;right:8px;background:rgba(0,0,0,0.6);color:#888;font-size:0.75rem;padding:3px 6px;border-radius:4px;cursor:pointer;z-index:300;">🐛</div>
+
+<!-- Signup Prompt Modal -->
+<div id="signup-modal" style="display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.85); align-items:center; justify-content:center;">
+  <div style="background:#2a1a0a; border:2px solid var(--gold); border-radius:16px; padding:32px; max-width:420px; width:90%; text-align:center;">
+    <h2 style="font-family:'Cinzel Decorative',cursive; color:var(--gold-light); font-size:1.3rem; margin-bottom:12px;">Save Your Adventure</h2>
+    <p id="signup-modal-text" style="color:var(--parchment); font-size:1rem; margin-bottom:24px;">
+      Create a free account to keep your characters, your story, and your 10 free hours.
+    </p>
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+      <a id="signup-google-btn" href="/auth/google" style="display:inline-block; padding:12px 20px; background:#4285f4; color:#fff; border-radius:8px; text-decoration:none; font-weight:600;">Continue with Google</a>
+      <a id="signup-discord-btn" href="/auth/discord" style="display:inline-block; padding:12px 20px; background:#5865F2; color:#fff; border-radius:8px; text-decoration:none; font-weight:600;">Continue with Discord</a>
+      <a id="signup-email-btn" href="/login.html" style="display:inline-block; padding:12px 20px; background:var(--gold); color:#1a0f05; border-radius:8px; text-decoration:none; font-weight:600;">Sign Up with Email</a>
+    </div>
+    <button id="signup-dismiss-btn" onclick="document.getElementById('signup-modal').style.display='none'" style="background:none; border:none; color:var(--parchment-dark); cursor:pointer; font-size:0.9rem; text-decoration:underline;">Maybe Later</button>
+  </div>
+</div>
 </body>
 </html>
