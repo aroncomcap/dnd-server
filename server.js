@@ -439,9 +439,9 @@ ${catchphrases}
 
   const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
 
-  const verbosityLine = gs.verbosity === 'terse' ? 'STRICT WORD LIMIT: 20 words max narration.' :
-    gs.verbosity === 'brief' ? 'STRICT WORD LIMIT: 50 words max narration.' :
-    'STRICT WORD LIMIT: 100 words max narration. Aim for 50-75.';
+  const verbosityLine = gs.verbosity === 'terse' ? 'ABSOLUTE HARD LIMIT: 20 words narration max. NO section headers. NO ## headings. Just 1-2 sentences of prose, dice rolls, then structured blocks.' :
+    gs.verbosity === 'brief' ? 'ABSOLUTE HARD LIMIT: 50 words narration max. NO section headers. NO ## headings. Prose paragraphs only, then structured blocks.' :
+    'WORD LIMIT: 100 words max narration. Aim for 50-75. NO ## headings in narration. Prose paragraphs only.';
 
   const ferocityLine = `Ferocity: ${gs.ferocity ?? 5}/5 — ${
     gs.ferocity <= 1 ? 'extremely deadly, generous treasure' :
@@ -905,7 +905,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   ];
 
   const model = 'claude-haiku-4-5-20251001';
-  const maxTokens = gs.verbosity === 'terse' ? 700 : gs.verbosity === 'brief' ? 1200 : 2500;
+  const maxTokens = gs.verbosity === 'terse' ? 500 : gs.verbosity === 'brief' ? 800 : 2500;
   const hasHistory = gd.chatHistory.some(m => m.role === 'assistant');
   const systemPrompt = hasHistory ? buildTrimmedPrompt(gameId, gameConfig) : buildSystemPrompt(gameId, gameConfig);
   const startTime = Date.now();
@@ -1023,6 +1023,20 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     } catch (e) {
       console.warn('[options-fallback] failed:', e.message);
     }
+  }
+
+  // Fallback: generate scene data if ---SCENE--- was missing
+  if (!parsed.scene && parsed.narration && !actingAs) {
+    const narrationSnippet = parsed.narration.slice(-300);
+    // Extract a brief scene description from the narration
+    const actionWords = narrationSnippet.match(/\b(?:attack|charge|cast|fight|enter|explore|sneak|flee|negotiate|search|climb|jump|run|dodge|block|heal|pray|steal|trap|ambush)\w*/i);
+    const action = actionWords ? actionWords[0] : 'adventuring';
+    parsed.scene = {
+      action: action + ' in progress',
+      mood: 'tense',
+      npc: 'none',
+      raw: `ACTION: ${action}\nMOOD: tense\nNPC: none`,
+    };
   }
 
   // Process map hint (synchronous graph update)
