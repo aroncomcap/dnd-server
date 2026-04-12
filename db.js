@@ -146,6 +146,19 @@ async function initDB() {
     ('img2img with character reference', 'When Together AI adds img2img support for FLUX.1-schnell, pass actual character token images as references for visual consistency. Currently using text visualDesc anchoring.', 'proposed', 'medium')
     ON CONFLICT (title) DO NOTHING;
   `);
+
+  // ── Anonymous Sessions ──────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS anonymous_sessions (
+      id TEXT PRIMARY KEY,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      minutes_used INT DEFAULT 0,
+      last_active TIMESTAMPTZ DEFAULT NOW(),
+      converted_to_user_id TEXT REFERENCES users(id),
+      ip_address TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_anon_sessions_ip ON anonymous_sessions(ip_address);
+  `);
 }
 
 // ── Games ────────────────────────────────────────────────────────────────────
@@ -272,9 +285,9 @@ async function createUser({ id, email, passwordHash, displayName, authProvider, 
        auth_provider_id = EXCLUDED.auth_provider_id`,
     [id, email, passwordHash, displayName, authProvider, authProviderId]
   );
-  // Create balance row if not exists
+  // Create balance row if not exists — 600 free minutes welcome bonus (10 hours)
   await pool.query(
-    `INSERT INTO user_balances (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING`,
+    `INSERT INTO user_balances (user_id, free_minutes_remaining) VALUES ($1, 600) ON CONFLICT (user_id) DO NOTHING`,
     [id]
   );
   // First user becomes admin
@@ -472,6 +485,42 @@ async function deleteRuleCorrection(id) {
   await pool.query('DELETE FROM rules_corrections WHERE id = $1', [id]);
 }
 
+// ── Anonymous Sessions ───────────────────────────────────────────────────────
+async function createAnonSession(id, ip) {
+  await pool.query(
+    'INSERT INTO anonymous_sessions (id, ip_address) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING',
+    [id, ip]
+  );
+}
+
+async function getAnonSession(id) {
+  const { rows } = await pool.query('SELECT * FROM anonymous_sessions WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+async function updateAnonMinutes(id, minutes) {
+  await pool.query(
+    `UPDATE anonymous_sessions SET minutes_used = minutes_used + $2, last_active = NOW() WHERE id = $1`,
+    [id, minutes]
+  );
+}
+
+async function convertAnonSession(anonId, userId) {
+  await pool.query(
+    'UPDATE anonymous_sessions SET converted_to_user_id = $1 WHERE id = $2',
+    [userId, anonId]
+  );
+}
+
+async function countRecentAnonSessions(ip) {
+  const { rows } = await pool.query(
+    `SELECT COUNT(*) as cnt FROM anonymous_sessions
+     WHERE ip_address = $1 AND created_at > NOW() - INTERVAL '24 hours'`,
+    [ip]
+  );
+  return parseInt(rows[0].cnt);
+}
+
 module.exports = {
   pool,
   initDB,
@@ -506,4 +555,9 @@ module.exports = {
   addRuleCorrection,
   updateRuleCorrection,
   deleteRuleCorrection,
+  createAnonSession,
+  getAnonSession,
+  updateAnonMinutes,
+  convertAnonSession,
+  countRecentAnonSessions,
 };
