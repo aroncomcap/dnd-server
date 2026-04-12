@@ -895,9 +895,9 @@
     }
     .world-item { margin-bottom: 0; }
 
-    /* ── Character & Host screens: constrain width, center ── */
+    /* ── Character & Host screens ── */
     #screen-char .panel, #screen-host .panel, #screen-party .panel, #screen-world .panel {
-      max-width: 1000px;
+      max-width: 100%;
       margin: 0 auto;
     }
 
@@ -1112,6 +1112,10 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
   <div class="panel">
     <div class="panel-title">🛡 Party Members</div>
     <div id="party-list"><p class="host-note">No adventurers registered yet.</p></div>
+    <div style="margin-top:10px;">
+      <button class="btn" id="btn-import-char" style="width:100%;">📥 Import Character from File</button>
+      <input type="file" id="import-char-input" accept=".json" style="display:none;" />
+    </div>
   </div>
   <div class="panel" style="margin-top:12px;">
     <div class="panel-title">📏 House Rules & Corrections</div>
@@ -1963,6 +1967,35 @@ socket.on('timer_updated', (data) => {
   document.getElementById('timer-input').value = data.duration;
 });
 
+// ── Character import ──────────────────────────────────────────
+document.getElementById('btn-import-char').addEventListener('click', () => {
+  document.getElementById('import-char-input').click();
+});
+document.getElementById('import-char-input').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const charData = JSON.parse(ev.target.result);
+      if (!charData.name) { alert('Invalid character file — no name found.'); return; }
+      socket.emit('register_character', {
+        name: charData.name,
+        statsText: charData.statsText || '',
+        personality: charData.personality || '',
+        standardActions: charData.standardActions || '',
+        backstory: charData.backstory || '',
+        catchphrases: charData.catchphrases || [],
+      });
+      selectCharacter(charData.name, charData);
+    } catch (err) {
+      alert('Failed to parse character file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
 // ── Party display ─────────────────────────────────────────────
 const partyList = document.getElementById('party-list');
 
@@ -2031,6 +2064,20 @@ function updatePartyCard(name, c) {
     actionsRow.appendChild(actBtn);
     existing.classList.add('char-inactive');
   }
+
+  const exportBtn = document.createElement('button');
+  exportBtn.textContent = '📤 Export';
+  exportBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const charData = { name, ...c };
+    const blob = new Blob([JSON.stringify(charData, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name.replace(/[^a-z0-9]/gi, '_') + '.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  actionsRow.appendChild(exportBtn);
 
   const delBtn = document.createElement('button');
   delBtn.textContent = '🗑️ Delete';
