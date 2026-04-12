@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>Tavern Table — Help & FAQ</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --parchment: #f5ead6;
+    --parchment-dark: #e8d5b0;
+    --ink: #2c1a0e;
+    --gold: #c8922a;
+    --gold-light: #f0c060;
+    --bg-dark: #1a0f05;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg-dark);
+    font-family: 'Crimson Pro', serif;
+    color: var(--parchment);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Top Nav ── */
+  .top-nav {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 200;
+    padding: 14px 24px;
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  .top-nav a {
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--gold);
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(200,146,42,0.35);
+    border-radius: 6px;
+    padding: 6px 16px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+    backdrop-filter: blur(4px);
+  }
+  .top-nav a:hover {
+    background: rgba(200,146,42,0.15);
+    border-color: var(--gold);
+    color: var(--gold-light);
+  }
+
+  /* ── Page Layout ── */
+  .page-wrap {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 80px 24px 60px;
+  }
+
+  .page-title {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 2rem;
+    color: var(--gold-light);
+    text-align: center;
+    letter-spacing: 0.04em;
+    text-shadow: 0 0 40px rgba(200,146,42,0.5);
+    margin-bottom: 8px;
+  }
+  .page-subtitle {
+    text-align: center;
+    font-style: italic;
+    color: var(--parchment-dark, #e8d5b0);
+    font-size: 1.05rem;
+    margin-bottom: 52px;
+  }
+
+  /* ── Section Heading ── */
+  .section-heading {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 1.1rem;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+    margin: 48px 0 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(200,146,42,0.3);
+  }
+
+  /* ── Explainer Cards ── */
+  .card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 8px;
+  }
+  @media (max-width: 640px) {
+    .card-grid { grid-template-columns: 1fr; }
+    .page-title { font-size: 1.4rem; }
+  }
+
+  .card {
+    background: rgba(245,234,214,0.05);
+    border: 1px solid rgba(200,146,42,0.25);
+    border-radius: 10px;
+    padding: 22px 24px;
+    transition: border-color 0.2s;
+  }
+  .card:hover {
+    border-color: rgba(200,146,42,0.5);
+  }
+  .card.full-width {
+    grid-column: 1 / -1;
+  }
+
+  .card-title {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.85rem;
+    color: var(--gold-light);
+    margin-bottom: 12px;
+    letter-spacing: 0.03em;
+  }
+
+  .card p {
+    font-size: 1rem;
+    line-height: 1.65;
+    color: var(--parchment);
+    opacity: 0.9;
+  }
+
+  .card ol, .card ul {
+    padding-left: 18px;
+    margin-top: 8px;
+  }
+  .card ol li, .card ul li {
+    font-size: 1rem;
+    line-height: 1.65;
+    color: var(--parchment);
+    opacity: 0.9;
+    margin-bottom: 4px;
+  }
+  .card ul li::marker { color: var(--gold); }
+
+  /* Pricing badges */
+  .price-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .price-badge {
+    background: rgba(200,146,42,0.12);
+    border: 1px solid rgba(200,146,42,0.35);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 0.92rem;
+    color: var(--gold-light);
+    white-space: nowrap;
+  }
+  .price-badge strong {
+    color: var(--parchment);
+  }
+
+  /* ── Divider ── */
+  .divider {
+    border: none;
+    border-top: 1px solid rgba(200,146,42,0.2);
+    margin: 52px 0 0;
+  }
+
+  /* ── FAQ Accordion ── */
+  .faq-section-label {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.95rem;
+    color: var(--gold);
+    margin: 36px 0 10px;
+    letter-spacing: 0.04em;
+  }
+
+  .accordion {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .faq-item {
+    background: rgba(245,234,214,0.04);
+    border: 1px solid rgba(200,146,42,0.18);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .faq-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+  }
+  .faq-header:hover {
+    background: rgba(200,146,42,0.08);
+  }
+  .faq-question {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gold-light);
+  }
+  .faq-chevron {
+    color: var(--gold);
+    font-size: 0.9rem;
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+    margin-left: 12px;
+  }
+  .faq-item.open .faq-chevron {
+    transform: rotate(180deg);
+  }
+
+  .faq-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+  .faq-body-inner {
+    padding: 0 20px 16px;
+    font-size: 0.97rem;
+    line-height: 1.7;
+    color: var(--parchment);
+    opacity: 0.85;
+    border-top: 1px solid rgba(200,146,42,0.12);
+    padding-top: 12px;
+  }
+
+  /* ── Footer ── */
+  .page-footer {
+    text-align: center;
+    margin-top: 64px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(200,146,42,0.15);
+    font-size: 0.88rem;
+    color: rgba(245,234,214,0.4);
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Top Navigation ── -->
+<nav class="top-nav">
+  <a href="/lobby">Back to Lobby</a>
+  <a href="/login.html">Login</a>
+</nav>
+
+<div class="page-wrap">
+
+  <h1 class="page-title">Help & FAQ</h1>
+  <p class="page-subtitle">Everything you need to know about Tavern Table</p>
+
+  <!-- ══════════════════════════════════
+       EXPLAINER SECTIONS
+  ══════════════════════════════════ -->
+
+  <h2 class="section-heading">What is Tavern Table?</h2>
+  <div class="card-grid">
+    <div class="card full-width">
+      <div class="card-title">An AI Dungeon Master for Your Table</div>
+      <p>Tavern Table is an AI Dungeon Master that runs your tabletop RPG in real time. No prep, no scheduling, no rulebook lookup. Create a game, bring friends (or play solo), and the AI handles everything — narration, NPCs, combat, dice rolls, maps, and scene images.</p>
+    </div>
+  </div>
+
+  <h2 class="section-heading">How a Game Works</h2>
+  <div class="card-grid">
+    <div class="card full-width">
+      <div class="card-title">Five Steps to Adventure</div>
+      <ol>
+        <li><strong>Create a game</strong> — pick a name and system (D&amp;D 5e, RuneQuest, or custom)</li>
+        <li><strong>Create your character</strong> — write stats from scratch, paste a sheet, or upload a PDF</li>
+        <li><strong>Hit "Begin Adventure"</strong> — the AI sets the scene</li>
+        <li><strong>Choose actions</strong> — pick from suggested options or type anything</li>
+        <li><strong>The story unfolds</strong> — the AI narrates, rolls dice, generates images, and draws maps</li>
+      </ol>
+    </div>
+  </div>
+
+  <h2 class="section-heading">What Can You Do?</h2>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Gameplay</div>
+      <ul>
+        <li>Fight monsters, explore dungeons, negotiate with NPCs</li>
+        <li>Upload any RPG sourcebook as a PDF — the AI learns your world</li>
+        <li>Play from the web or directly in Discord</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Customization</div>
+      <ul>
+        <li>Adjust difficulty, verbosity, and DM personality</li>
+        <li>Balance Exploration, Combat, and Social encounters</li>
+        <li>Share a game link and play with friends in real time</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2 class="section-heading">Pricing</h2>
+  <div class="card-grid">
+    <div class="card">
+      <div class="card-title">Free Tier</div>
+      <p>10 free hours when you sign up. Then 5 free hours every month, automatically.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Buy More Time</div>
+      <p>Need more? Purchase additional hours any time.</p>
+      <div class="price-row">
+        <span class="price-badge"><strong>1 hr</strong> — $1</span>
+        <span class="price-badge"><strong>5 hrs</strong> — $4.50</span>
+        <span class="price-badge"><strong>20 hrs</strong> — $15</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       FAQ ACCORDION
+  ══════════════════════════════════ -->
+
+  <hr class="divider"/>
+
+  <h2 class="section-heading" style="margin-top:40px;">Frequently Asked Questions</h2>
+
+  <!-- Getting Started -->
+  <div class="faq-section-label">Getting Started</div>
+  <div class="accordion">
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">How do I create a game?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Go to the lobby, enter a game name, pick your system, and click Create. The AI will be ready to begin as soon as your first player creates a character.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">Do I need an account?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">No. Play up to 2 hours without signing up. After that, create a free account to keep your characters and unlock your 10 free hours.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">How do I invite friends?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Share your game link. Anyone with the link can join and create a character — no account required to start playing.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Characters -->
+  <div class="faq-section-label">Characters</div>
+  <div class="accordion">
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">How do I create a character?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Go to the Character tab, fill in your name, stats, personality, and backstory. Or upload a character sheet PDF and the AI extracts everything automatically.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">Can I upload a character sheet PDF?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Yes. The AI reads your PDF and fills in your stats, abilities, and backstory. Most standard character sheet formats are supported.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">How do I switch characters?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Click "switch" in the turn banner at the top of the game screen.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gameplay -->
+  <div class="faq-section-label">Gameplay</div>
+  <div class="accordion">
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What are action options?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">After each DM turn, you see 4 suggested actions. Click one to take it, or type your own custom action — the AI responds to anything.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What does Skip do?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Skips your turn and passes to the next player. Useful if you need a moment or want the story to move on without your character acting.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What does OOC mean?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Out of Character. Send a message to other players that the DM ignores — great for side conversations, questions, or coordination without affecting the story.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What does Catch Up do?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Replays recent story events if you joined late or missed something. The AI summarizes what has happened so you can jump in without missing context.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What's the turn timer?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">The host can set a time limit per turn. When it expires, the AI acts for you so the game keeps moving. Configure it in the Host tab under Game Settings.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Settings -->
+  <div class="faq-section-label">Game Settings (Host Tab)</div>
+  <div class="accordion">
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What's verbosity?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Controls narration length. <strong>Terse</strong> (~20 words) is fast and punchy. <strong>Brief</strong> (~50 words) is balanced. <strong>Verbose</strong> (~100 words) is rich and literary.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What's ferocity?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Difficulty, rated 1–5. Lower ferocity means harder enemies and more treasure. Higher ferocity means a more forgiving, action-focused experience.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What are DM personas?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner"><strong>Epic</strong> gives you dramatic, literary narration. <strong>Over the Top</strong> brings comedic energy with a Critical Role flair — big personalities, big drama.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What are pillars?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Balance between the three pillars of D&amp;D: Exploration, Combat, and Social encounters. Slide each to shape the kind of adventure the AI generates.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What are rules corrections?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">House rules the AI follows every turn. Add them in the Party tab — things like "No friendly fire" or "Nat 20 always succeeds, no matter what."</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Maps & Images -->
+  <div class="faq-section-label">Maps & Images</div>
+  <div class="accordion">
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">How does the auto-map work?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">The AI tracks locations as the story unfolds and draws a map automatically. Three styles available: <strong>Parchment</strong>, <strong>Dark</strong>, and <strong>Tactical</strong>.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">When do scene images appear?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">At dramatic moments: entering new locations, meeting notable NPCs, the start of combat, and killshots. The AI decides when the moment is worthy of an image.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Discord -->
+  <div class="faq-section-label">Discord</div>
+  <div class="accordion">
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">How do I connect the Discord bot?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Invite the TotMTable bot to your server, then type <code>/tt link &lt;game-id&gt;</code> in the channel where you want to play.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What commands are available?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner"><code>/tt action</code>, <code>/tt skip</code>, <code>/tt ooc</code>, <code>/tt status</code>, <code>/tt balance</code>, <code>/tt redeem</code>. Type <code>/tt help</code> in Discord for the full list.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Billing -->
+  <div class="faq-section-label">Billing & Pricing</div>
+  <div class="accordion">
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">How does the free tier work?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">You get 10 free hours when you sign up. After that, 5 free hours are added to your account every month automatically.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">How do I buy more time?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Click "Add Time" in the lobby or go to the purchase page. Options: 1 hr ($1), 5 hrs ($4.50), 20 hrs ($15).</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What happens when time runs out?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">You'll receive warnings at 30, 10, and 1 minute remaining. At zero, there's a 5-minute spectator window before the game pauses. Purchase more time to resume instantly.</div>
+      </div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-header">
+        <span class="faq-question">What are promo codes?</span>
+        <span class="faq-chevron">▼</span>
+      </div>
+      <div class="faq-body">
+        <div class="faq-body-inner">Beta codes that grant free hours. Redeem at <a href="/redeem" style="color:var(--gold)">/redeem</a> on the web or with <code>/tt redeem &lt;code&gt;</code> in Discord.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    Tavern Table &mdash; May your rolls be ever in your favor.
+  </div>
+
+</div>
+
+<script>
+  // Accordion toggle
+  document.querySelectorAll('.faq-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const item = header.closest('.faq-item');
+      const body = item.querySelector('.faq-body');
+      const isOpen = item.classList.contains('open');
+
+      if (isOpen) {
+        item.classList.remove('open');
+        body.style.maxHeight = '0';
+      } else {
+        item.classList.add('open');
+        body.style.maxHeight = body.scrollHeight + 'px';
+      }
+    });
+  });
+</script>
+</body>
+</html>
