@@ -519,10 +519,11 @@ function parseResponse(text) {
   let worldRaw = '';
 
   // Find marker positions with flexible matching (case-insensitive, optional spaces)
+  // Also match markdown heading variants like "## OPTIONS" that the AI sometimes uses
   const markerPatterns = [
-    { name: 'options', regex: /^-{3,}\s*OPTIONS\s*-{3,}/im },
-    { name: 'scene', regex: /^-{3,}\s*SCENE\s*-{3,}/im },
-    { name: 'world', regex: /^-{3,}\s*WORLD\s*-{3,}/im },
+    { name: 'options', regex: /^(?:-{3,}\s*OPTIONS\s*-{3,}|#{1,3}\s*OPTIONS?\s*$)/im },
+    { name: 'scene', regex: /^(?:-{3,}\s*SCENE\s*-{3,}|#{1,3}\s*SCENE\s*$)/im },
+    { name: 'world', regex: /^(?:-{3,}\s*WORLD\s*-{3,}|#{1,3}\s*WORLD\s*$)/im },
   ];
 
   const positions = [];
@@ -901,7 +902,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   ];
 
   const model = 'claude-haiku-4-5-20251001';
-  const maxTokens = gs.verbosity === 'terse' ? 512 : gs.verbosity === 'brief' ? 1024 : 2048;
+  const maxTokens = gs.verbosity === 'terse' ? 700 : gs.verbosity === 'brief' ? 1200 : 2500;
   const hasHistory = gd.chatHistory.some(m => m.role === 'assistant');
   const systemPrompt = hasHistory ? buildTrimmedPrompt(gameId, gameConfig) : buildSystemPrompt(gameId, gameConfig);
   const startTime = Date.now();
@@ -922,16 +923,15 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   logCost({ gameId, model, inputTokens, outputTokens, cost, type: actingAs ? 'auto-action' : 'player-action' });
   console.log(`API call: ${model} | ${inputTokens}in/${outputTokens}out | $${cost.toFixed(4)} | ${elapsed}ms | ${actingAs ? 'auto' : 'human'}`);
 
-  const narrativeOnly = reply.split('---OPTIONS---')[0].split('---SCENE---')[0].split('---WORLD---')[0].trim();
+  const parsed = parseResponse(reply);
+
   gd.chatHistory.push(
     { role: 'user', content: prefix + userMessage },
-    { role: 'assistant', content: narrativeOnly }
+    { role: 'assistant', content: parsed.narration }
   );
   if (gd.chatHistory.length > 16) {
     gd.chatHistory = gd.chatHistory.slice(-16);
   }
-
-  const parsed = parseResponse(reply);
 
   // If no options were extracted and this isn't an auto-action, make a cheap follow-up call
   if (parsed.options.length === 0 && !actingAs) {
