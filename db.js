@@ -72,7 +72,7 @@ async function initDB() {
 
     CREATE TABLE IF NOT EXISTS user_balances (
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-      free_minutes_remaining INT DEFAULT 300,
+      free_minutes_remaining INT DEFAULT 600,
       paid_minutes_remaining INT DEFAULT 0,
       free_reset_date DATE DEFAULT (DATE_TRUNC('month', NOW()) + INTERVAL '1 month')::DATE,
       total_minutes_used INT DEFAULT 0
