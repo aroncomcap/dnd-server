@@ -1376,7 +1376,12 @@ playerNameInput.addEventListener('input', () => {
 const chatLog = document.getElementById('chat-log');
 
 function renderDmText(text) {
-  const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Strip markdown noise before escaping
+  let cleaned = text
+    .replace(/^#{1,3}\s*(NARRATION|NARRATIVE)\s*$/gim, '')  // ## NARRATION headers
+    .replace(/^-{3,}\s*$/gm, '')                             // --- dividers
+    .replace(/\n{3,}/g, '\n\n');                              // collapse 3+ newlines to 2
+  const escaped = cleaned.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const lines = escaped.split('\n');
   const result = [];
   let mechBuf = []; // buffer for consecutive mechanic lines

@@ -335,20 +335,19 @@ Format: position | name | initiative/SR value | type (PC/Enemy/NPC)
 - Outside of combat, omit the TURN_ORDER block entirely.
 
 FORMATTING — SKILL ROLLS & GAME MECHANICS:
-- Any time there is a skill check, saving throw, attack roll, damage roll, or other game mechanic, put it on its own line with a blank line before and after, wrapped in **double asterisks** for bold.
-- Combine attack and damage rolls on a single line when possible: "**🎲 Melee Attack — rolls 17. HIT! Damage: 1d8+2 = 9**"
+- ALL dice rolls, skill checks, attack rolls, damage, and HP updates MUST be on ONE SINGLE LINE wrapped in **double asterisks**.
+- NEVER split a roll across multiple lines. Combine everything: "**🎲 Acrobatics (DEX +2) — rolls 14. Damage: 1d4 = 2 🔥. HP: 12→10**"
 - Use "HIT" or "MISS" (caps) so the client can color-code them.
+- Keep narration as flowing prose paragraphs. Do NOT insert blank lines between every sentence.
 
 ACTION OPTIONS:
-- At the end of EVERY response (except auto-actions), present exactly 4 action choices for the next player.
-- At least one wild/reckless move (🔥) and one witty/social move (💬).
+- At the end of EVERY response (except auto-actions), present exactly 3 action choices for the next player.
 - Use this EXACT format:
 
 ---OPTIONS---
 1. 🗡️ [a combat or practical action]
 2. 🛡️ [a defensive or cautious action]
 3. 🔥 [a wild, reckless, or creative move]
-4. 💬 [a witty comment, taunt, or clever social move]
 
 TRAVEL & MOVEMENT:
 - Narrate journeys realistically with distance, terrain, mode of travel.
@@ -487,8 +486,9 @@ ${pacingLine}
 Only include ACCOMPLISHMENTS entries if something new was accomplished this turn. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, and MAP.
 
 FORMATTING — SKILL ROLLS & GAME MECHANICS:
-- Combine attack and damage rolls on a single line when possible: "**🎲 Melee Attack — rolls 17. HIT! Damage: 1d8+2 = 9**"
-- Use "HIT" or "MISS" (caps) so the client can color-code them.
+- ALL dice rolls MUST be ONE SINGLE LINE in **bold**: "**🎲 Acrobatics (DEX +2) — rolls 14. Damage: 1d4 = 2 🔥. HP: 12→10**"
+- NEVER split rolls across multiple lines. Use "HIT" or "MISS" (caps).
+- Write narration as flowing prose. No blank lines between sentences.
 
 MANDATORY OUTPUT (every single response, no exceptions):
 After your narration, you MUST include ALL of these blocks in this exact order:
@@ -497,7 +497,6 @@ After your narration, you MUST include ALL of these blocks in this exact order:
 1. 🗡️ [combat/practical action for the next player]
 2. 🛡️ [defensive/cautious action]
 3. 🔥 [wild/reckless/creative move]
-4. 💬 [witty quip or clever social move]
 
 ---SCENE---
 ACTION: [what's physically happening right now - 5-10 words]
@@ -558,7 +557,7 @@ function parseResponse(text) {
     .filter(line => /^\d+\.\s/.test(line.trim())) // ONLY lines starting with "1. ", "2. " etc.
     .map(line => line.replace(/^\d+\.\s*/, '').trim())
     .filter(Boolean)
-    .slice(0, 6) : []; // max 6 options
+    .slice(0, 3) : []; // max 6 options
 
   // Fallback: extract options embedded in narration as bold text (e.g. "- **Option text**")
   if (options.length === 0 && narration) {
@@ -566,7 +565,7 @@ function parseResponse(text) {
     const optionLineRegex = /^[ \t]*(?:[-•]|\d+\.)\s*\*\*(.+?)\*\*.*/gm;
     const matches = [...narration.matchAll(optionLineRegex)];
     if (matches.length >= 2) {
-      options = matches.map(m => m[1].trim()).filter(Boolean).slice(0, 6);
+      options = matches.map(m => m[1].trim()).filter(Boolean).slice(0, 3);
       // Strip matched option lines from narration
       let cleaned = narration;
       for (const m of matches) {
@@ -1011,14 +1010,14 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
         max_tokens: 200,
         messages: [{
           role: 'user',
-          content: `Given this narration from a ${gameConfig.system || 'D&D 5e'} game, suggest exactly 4 action options for ${nextPlayer || 'the next player'}. Output ONLY this format, nothing else:\n\n1. 🗡️ [combat/practical action]\n2. 🛡️ [defensive/cautious action]\n3. 🔥 [wild/reckless/creative move]\n4. 💬 [witty quip or clever social move]\n\nNarration: ${parsed.narration.slice(-500)}`,
+          content: `Given this narration from a ${gameConfig.system || 'D&D 5e'} game, suggest exactly 3 action options for ${nextPlayer || 'the next player'}. Output ONLY this format, nothing else:\n\n1. 🗡️ [combat/practical action]\n2. 🛡️ [defensive/cautious action]\n3. 🔥 [wild/reckless/creative move]\n\nNarration: ${parsed.narration.slice(-500)}`,
         }],
       });
       const optLines = optionsResponse.content[0].text.split('\n')
         .filter(l => /^\d+\.\s/.test(l.trim()))
         .map(l => l.replace(/^\d+\.\s*/, '').trim())
         .filter(Boolean)
-        .slice(0, 6);
+        .slice(0, 3);
       if (optLines.length >= 2) parsed.options = optLines;
     } catch (e) {
       console.warn('[options-fallback] failed:', e.message);
