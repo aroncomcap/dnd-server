@@ -267,6 +267,12 @@
       <option value="custom">Custom / Other System</option>
     </select>
 
+    <label style="margin-top:10px;">Opening Scene <button class="btn" id="btn-shuffle-scene" style="padding:2px 8px;font-size:0.7rem;vertical-align:middle;">🔀 Random</button></label>
+    <textarea id="scene-prompt" rows="2" style="width:100%;"></textarea>
+
+    <label style="margin-top:10px;">Party Direction <button class="btn" id="btn-shuffle-party" style="padding:2px 8px;font-size:0.7rem;vertical-align:middle;">🔀 Random</button></label>
+    <textarea id="party-direction" rows="2" style="width:100%;"></textarea>
+
     <button class="btn btn-primary" id="btn-create">⚔️ Create Game</button>
   </div>
 
@@ -324,9 +330,70 @@ async function loadGames() {
   });
 }
 
+// ── Random prompts by system ──
+const SCENE_PROMPTS = {
+  dnd5e: [
+    'The party wakes in a ruined temple with no memory of how they got there. Something scratches behind the altar.',
+    'A merchant caravan has been ambushed on the road. Survivors beg for help as smoke rises from the wreckage.',
+    'The tavern door bursts open — a bloodied ranger stumbles in clutching a map and whispers "They\'re coming."',
+    'You stand at the entrance to the Caves of Chaos. Multiple cave mouths dot the ravine walls.',
+    'A noble hires you to investigate disappearances in the sewers beneath the city.',
+    'Thunder shakes the mountain pass as you discover an ancient dwarven door, half-buried in a rockslide.',
+    'The village elder says the dragon hasn\'t attacked in a century — until last night.',
+  ],
+  runequest: [
+    'Your clan gathers at the Ernalda temple for Sacred Time. The omens are troubled.',
+    'A Lunar patrol has been spotted near the clan tula. The tribal ring calls an emergency moot.',
+    'You\'re on a trading mission to Pavis when your caravan encounters a Praxian raiding party.',
+    'Wildfire season has come early. The clan\'s herds are threatened and the fire spirits won\'t respond.',
+  ],
+  custom: [
+    'You awaken in an unfamiliar place with nothing but the clothes on your back and a strange symbol on your palm.',
+    'The last transmission from the frontier outpost was three days ago. You\'ve been sent to investigate.',
+    'A mysterious stranger offers you a job — retrieve a package from a heavily guarded facility.',
+    'The festival turns deadly when creatures pour through a rift in the town square.',
+  ],
+};
+const PARTY_PROMPTS = {
+  dnd5e: [
+    '4 characters, levels 1-3, balanced party (fighter, rogue, cleric, wizard)',
+    'A band of dwarven mercenaries, 4 characters, all level 2, combat-focused',
+    '5 characters, level 1, ragtag misfits — unusual race/class combos welcome',
+    '3 characters, level 3, stealthy infiltration team',
+    '4 characters, level 1, all from the same small village',
+  ],
+  runequest: [
+    '4 Sartarite adventurers from the Colymar tribe, varied occupations',
+    'A warband of Humakt devotees, 3 warriors seeking honor',
+    '4 characters from different cults — Orlanth, Ernalda, Issaries, Lhankor Mhy',
+  ],
+  custom: [
+    '4 characters, diverse backgrounds, balanced for exploration and combat',
+    '3 characters — a face, a fighter, and a thinker',
+    '4 outcasts thrown together by circumstance',
+  ],
+};
+function randomFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function shuffleScene() {
+  const s = document.getElementById('game-system').value;
+  document.getElementById('scene-prompt').value = randomFrom(SCENE_PROMPTS[s] || SCENE_PROMPTS.custom);
+}
+function shuffleParty() {
+  const s = document.getElementById('game-system').value;
+  document.getElementById('party-direction').value = randomFrom(PARTY_PROMPTS[s] || PARTY_PROMPTS.custom);
+}
+// Init with random values
+shuffleScene(); shuffleParty();
+document.getElementById('btn-shuffle-scene').addEventListener('click', shuffleScene);
+document.getElementById('btn-shuffle-party').addEventListener('click', shuffleParty);
+// Re-shuffle when system changes
+document.getElementById('game-system').addEventListener('change', () => { shuffleScene(); shuffleParty(); });
+
 document.getElementById('btn-create').addEventListener('click', async () => {
   const name = document.getElementById('game-name').value.trim();
   const system = document.getElementById('game-system').value;
+  const scenePrompt = document.getElementById('scene-prompt').value.trim();
+  const partyDirection = document.getElementById('party-direction').value.trim();
   if (!name) { alert('Enter a game name.'); return; }
 
   const res = await fetch('/api/games', {
@@ -335,7 +402,11 @@ document.getElementById('btn-create').addEventListener('click', async () => {
     body: JSON.stringify({ name, system }),
   });
   const game = await res.json();
-  window.location.href = '/game/' + game.id;
+  // Pass scene and party direction as URL params so game.html can auto-start
+  const params = new URLSearchParams();
+  if (scenePrompt) params.set('scene', scenePrompt);
+  if (partyDirection) params.set('party', partyDirection);
+  window.location.href = '/game/' + game.id + (params.toString() ? '?' + params.toString() : '');
 });
 
 // Ensure session exists (anonymous or authenticated) before loading games
