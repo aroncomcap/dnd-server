@@ -994,8 +994,9 @@
         <button class="map-level-btn" data-level="location">🏰 Location</button>
         <button class="map-level-btn" data-level="detail">🚪 Detail</button>
       </div>
-      <div id="scene-panel" style="flex:1;min-height:200px;">
+      <div id="scene-panel" style="flex:1;min-height:200px;position:relative;">
         <img id="scene-img" src="" alt="Scene"/>
+        <div id="scene-label" style="position:absolute;bottom:0;left:0;right:0;padding:6px 10px;background:linear-gradient(transparent,rgba(0,0,0,0.8));color:var(--gold-light);font-family:'Cinzel Decorative',cursive;font-size:0.75rem;text-align:center;display:none;"></div>
         <div class="scene-overlay"></div>
       </div>
       <div id="map-container" style="flex:1;min-height:200px;display:none;"></div>
@@ -1493,10 +1494,17 @@ function showOptions(options) {
 const scenePanel = document.getElementById('scene-panel');
 const sceneImg = document.getElementById('scene-img');
 
-function showSceneImage(url) {
+function showSceneImage(url, label) {
   if (!url) return;
   sceneImg.style.opacity = '0';
   sceneImg.src = url;
+  const labelEl = document.getElementById('scene-label');
+  if (label) {
+    labelEl.textContent = label;
+    labelEl.style.display = 'block';
+  } else {
+    labelEl.style.display = 'none';
+  }
   sceneImg.onload = () => {
     scenePanel.style.display = 'block';
     sceneImg.style.opacity = '1';
@@ -1504,7 +1512,6 @@ function showSceneImage(url) {
     screenGame.classList.add('has-scene');
     screenGame.classList.add('has-map');
     document.getElementById('map-sidebar').style.display = 'block';
-    // Switch to Scene tab
     switchSidebarTab('scene');
   };
 }
@@ -1814,40 +1821,85 @@ if (state.ferocity != null) {
   const autoScene = urlParams.get('scene');
   const autoParty = urlParams.get('party');
   if (autoScene && state.chatHistory.length === 0) {
-    // Set the prompts in the Host tab fields
     document.getElementById('host-prompt').value = autoScene;
     if (autoParty) document.getElementById('pregen-direction').value = autoParty;
-    // Auto-generate party then start adventure
-    if (autoParty) {
-      document.getElementById('pregen-status').textContent = '🎲 Generating party...';
-      socket.emit('generate_party', { direction: autoParty });
-      // Wait for party, then start
-      socket.once('party_generated', () => {
-        document.getElementById('pregen-status').textContent = '✅ Party created! Starting adventure...';
-        socket.emit('dm_start', { prompt: autoScene });
-        // Switch to Game tab
-        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.querySelector('[data-screen="game"]').classList.add('active');
-        document.getElementById('screen-game').classList.add('active');
-      });
-      socket.once('party_gen_failed', () => {
-        // Party gen failed — still start the adventure without pre-gen
-        socket.emit('dm_start', { prompt: autoScene });
-        document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.querySelector('[data-screen="game"]').classList.add('active');
-        document.getElementById('screen-game').classList.add('active');
-      });
-    } else {
-      // No party direction — just start
-      socket.emit('dm_start', { prompt: autoScene });
+
+    // Show humorous loading overlay
+    const loadingMessages = [
+      'Rolling for initiative...',
+      'Sharpening swords...',
+      'Brewing potions...',
+      'Consulting the oracle...',
+      'Haggling with the shopkeeper...',
+      'Feeding the tavern cat...',
+      'Polishing armor...',
+      'Memorizing spells...',
+      'Hiring henchmen...',
+      'Drawing the map...',
+      'Stocking the dungeon...',
+      'Waking the dragon...',
+      'Arguing about marching order...',
+      'Splitting the loot prematurely...',
+      'Checking for traps (poorly)...',
+      'Convincing the bard to stop singing...',
+    ];
+    const overlay = document.createElement('div');
+    overlay.id = 'loading-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:rgba(26,15,5,0.95);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;';
+    overlay.innerHTML = `
+      <div style="font-family:'Cinzel Decorative',cursive;font-size:1.4rem;color:var(--gold-light);margin-bottom:20px;">Preparing Your Adventure</div>
+      <div id="loading-msg" style="color:var(--parchment-dark);font-size:1.1rem;font-style:italic;min-height:1.5em;">${loadingMessages[0]}</div>
+      <div style="margin-top:24px;width:200px;height:4px;background:rgba(200,146,42,0.2);border-radius:2px;overflow:hidden;">
+        <div id="loading-bar" style="width:0%;height:100%;background:var(--gold);border-radius:2px;transition:width 0.5s;"></div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    let msgIdx = 0;
+    const msgInterval = setInterval(() => {
+      msgIdx = (msgIdx + 1) % loadingMessages.length;
+      const el = document.getElementById('loading-msg');
+      if (el) el.textContent = loadingMessages[msgIdx];
+    }, 2500);
+
+    function dismissLoading() {
+      clearInterval(msgInterval);
+      const ol = document.getElementById('loading-overlay');
+      if (ol) ol.remove();
+    }
+
+    function switchToGame() {
       document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
       document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
       document.querySelector('[data-screen="game"]').classList.add('active');
       document.getElementById('screen-game').classList.add('active');
     }
-    // Clean URL params
+
+    if (autoParty) {
+      const bar = document.getElementById('loading-bar');
+      if (bar) bar.style.width = '30%';
+      socket.emit('generate_party', { direction: autoParty });
+      socket.once('party_generated', () => {
+        if (bar) bar.style.width = '70%';
+        const el = document.getElementById('loading-msg');
+        if (el) el.textContent = 'Heroes assembled! The DM prepares...';
+        socket.emit('dm_start', { prompt: autoScene });
+        switchToGame();
+        // Dismiss after DM starts streaming
+        socket.once('dm_stream_start', () => { if (bar) bar.style.width = '100%'; setTimeout(dismissLoading, 500); });
+        // Fallback dismiss after 10s
+        setTimeout(dismissLoading, 10000);
+      });
+      socket.once('party_gen_failed', () => {
+        socket.emit('dm_start', { prompt: autoScene });
+        switchToGame();
+        setTimeout(dismissLoading, 1000);
+      });
+    } else {
+      socket.emit('dm_start', { prompt: autoScene });
+      switchToGame();
+      socket.once('dm_stream_start', () => setTimeout(dismissLoading, 500));
+      setTimeout(dismissLoading, 10000);
+    }
     window.history.replaceState({}, '', window.location.pathname);
   }
 });
@@ -1998,7 +2050,7 @@ socket.on('turn_change', (data) => {
   }
 });
 
-socket.on('scene_image', (data) => showSceneImage(data.url));
+socket.on('scene_image', (data) => showSceneImage(data.url, data.label));
 
 socket.on('character_registered', (data) => {
   document.getElementById('char-status').textContent = `✅ ${data.name} registered!`;

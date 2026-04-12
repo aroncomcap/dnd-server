@@ -1226,10 +1226,14 @@ async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false,
   gs.turnCount++;
   if (shouldGenerateImage(gameId, scene, mapMoved, isKillshot)) {
     io.to(gameId).emit('scene_generating');
+    const sceneLabel = isKillshot ? `KILLSHOT: ${scene.action}` :
+      scene.npc && scene.npc.toLowerCase() !== 'none' ? scene.npc :
+      scene.action || 'The adventure continues';
     generateCompositeScene(gameId, scene, gameConfig).then(url => {
       if (url) {
         gs.imageUrl = url;
-        emitSceneImage(gameId, { url });
+        gs.imageLabel = sceneLabel;
+        emitSceneImage(gameId, { url, label: sceneLabel });
         logCost({ gameId, model: 'FLUX', inputTokens: 0, outputTokens: 0, cost: IMAGE_COST, type: 'scene-image' });
       } else {
         io.to(gameId).emit('scene_gen_failed');
