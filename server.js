@@ -992,6 +992,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   console.log(`API call: ${model} | ${inputTokens}in/${outputTokens}out | $${cost.toFixed(4)} | ${elapsed}ms | ${actingAs ? 'auto' : 'human'}`);
 
   const parsed = parseResponse(reply);
+  console.log(`[stream-debug] state=${state} narration=${narrationText.length}ch structured=${structuredBuffer.length}ch options=${parsed.options.length} scene=${!!parsed.scene} world=${!!parsed.world}`);
 
   gd.chatHistory.push(
     { role: 'user', content: prefix + userMessage },
