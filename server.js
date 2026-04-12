@@ -334,11 +334,13 @@ Format: position | name | initiative/SR value | type (PC/Enemy/NPC)
 - Update this every round. Remove dead combatants.
 - Outside of combat, omit the TURN_ORDER block entirely.
 
-FORMATTING — SKILL ROLLS & GAME MECHANICS:
-- ALL dice rolls, skill checks, attack rolls, damage, and HP updates MUST be on ONE SINGLE LINE wrapped in **double asterisks**.
-- NEVER split a roll across multiple lines. Combine everything: "**🎲 Acrobatics (DEX +2) — rolls 14. Damage: 1d4 = 2 🔥. HP: 12→10**"
+WRITING STYLE:
+- Write narration as flowing prose PARAGRAPHS. Multiple sentences per paragraph. Do NOT put each sentence on its own line.
+- Do NOT use markdown headers (# or ##) in narration. No section labels. Just prose.
+- Be mechanically accurate. A cantrip is a simple attack, not an explosion. A shortsword strike doesn't cause shockwaves. Scale descriptions to the actual spell/action level.
+- Combine attack roll + damage + result on ONE line: "**🎲 Fire Bolt (INT +2, Prof +2) — rolls 19. HIT! 1d10 = 7 fire damage. Captain wounded (HP ~13/20)**"
 - Use "HIT" or "MISS" (caps) so the client can color-code them.
-- Keep narration as flowing prose paragraphs. Do NOT insert blank lines between every sentence.
+- Follow the dice roll line with 1-2 sentences of narration describing the result. That's it.
 
 ACTION OPTIONS:
 - At the end of EVERY response (except auto-actions), present exactly 3 action choices for the next player.
@@ -485,10 +487,11 @@ ${pacingLine}
 
 Only include ACCOMPLISHMENTS entries if something new was accomplished this turn. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, and MAP.
 
-FORMATTING — SKILL ROLLS & GAME MECHANICS:
-- ALL dice rolls MUST be ONE SINGLE LINE in **bold**: "**🎲 Acrobatics (DEX +2) — rolls 14. Damage: 1d4 = 2 🔥. HP: 12→10**"
-- NEVER split rolls across multiple lines. Use "HIT" or "MISS" (caps).
-- Write narration as flowing prose. No blank lines between sentences.
+WRITING STYLE:
+- Prose paragraphs only. NO markdown headers (# or ##). NO one-sentence-per-line.
+- Be mechanically accurate — scale descriptions to spell/action level.
+- Dice: ONE bold line per roll: "**🎲 Fire Bolt (INT +2) — rolls 19. HIT! 1d10 = 7 fire. Captain wounded (HP ~13/20)**"
+- Follow dice with 1-2 sentences of result narration. That's it.
 
 MANDATORY OUTPUT (every single response, no exceptions):
 After your narration, you MUST include ALL of these blocks in this exact order:
