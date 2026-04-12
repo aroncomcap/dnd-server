@@ -1455,8 +1455,8 @@ function showOptions(options) {
   options.forEach(opt => {
     const btn = document.createElement('button');
     btn.className = 'option-btn';
-    opt = escapeHtml(opt);
-    btn.innerHTML = opt.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    const escaped = escapeHtml(opt);
+    btn.innerHTML = escaped.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
     btn.addEventListener('click', () => {
       document.getElementById('action-input').value = opt;
       sendAction();
