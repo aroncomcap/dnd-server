@@ -1000,7 +1000,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     }
   }
 
-  // Parallelize all DB writes
+  // Fire-and-forget DB writes (don't block response to player)
   const dbOps = [db.saveChatHistory(gameId, gd.chatHistory)];
   if (parsed.world) {
     dbOps.push(db.setState(gameId, 'world', gs.world));
@@ -1016,7 +1016,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   if (mapResult.moved) {
     dbOps.push(db.setState(gameId, 'map', gs.mapGraph.toJSON()));
   }
-  await Promise.all(dbOps);
+  Promise.all(dbOps).catch(err => console.error('[db-write] Error:', err.message));
 
   // Queue world art generation for new locations/NPCs with image prompts
   if (parsed.world) {
@@ -1044,8 +1044,8 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     }
   }
 
-  // Check if we need to refresh the rolling summary
-  if (gd.chatHistory.length >= 14) {
+  // Refresh rolling summary every 50 turns (tracked via turnCount)
+  if (gs.turnCount > 0 && gs.turnCount % 50 === 0) {
     refreshStorySummary(gameId, gameConfig).catch(console.error);
   }
 
