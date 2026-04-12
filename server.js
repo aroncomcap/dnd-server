@@ -480,7 +480,6 @@ ${personaBlock}
 CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 ${summary}
-${verbosityLine}
 ${ferocityLine}
 ${pillarsLine}
 ${pacingLine}
@@ -513,7 +512,9 @@ NPCS:
 - [Name] | [Description] | [Location]
 MAP: [Current location name]
 
-If you omit ---OPTIONS--- the game breaks. NEVER skip it.`;
+If you omit ---OPTIONS---, ---SCENE---, or ---WORLD--- the game breaks. NEVER skip ANY of them.
+
+FINAL REMINDER — ${verbosityLine} This overrides everything above including DM persona. Count your words.`;
 }
 
 // ── Parsing (single-pass, order-independent) ─────────────────────────────────
