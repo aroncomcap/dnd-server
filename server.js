@@ -1149,11 +1149,15 @@ async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false,
 }
 
 // ── REST API ─────────────────────────────────────────────────────────────────
-app.get('/api/games', async (req, res) => {
+app.get('/api/games', authMiddleware, async (req, res) => {
   try {
+    const userId = req.user?.id || req.anonSession?.id || null;
     const gamesList = await db.listGames();
-    // Attach player count from in-memory
-    const enriched = gamesList.map(g => ({
+    // Only show games this user created (private by default)
+    const filtered = userId
+      ? gamesList.filter(g => g.host_user_id === userId)
+      : [];
+    const enriched = filtered.map(g => ({
       ...g,
       playerCount: Object.keys(getGameState(g.id).data.characters).length,
     }));
@@ -1170,6 +1174,11 @@ app.post('/api/games', authMiddleware, async (req, res) => {
     const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
       || crypto.randomBytes(4).toString('hex');
     await db.createGame(id, name, system || 'dnd5e');
+    // Set host_user_id (authenticated user or anonymous session)
+    const hostId = req.user?.id || req.anonSession?.id || null;
+    if (hostId) {
+      await db.pool.query('UPDATE games SET host_user_id = $1 WHERE id = $2', [hostId, id]);
+    }
     const game = await db.getGame(id);
     res.json(game);
   } catch (err) {

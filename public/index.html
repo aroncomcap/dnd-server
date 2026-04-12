@@ -272,7 +272,7 @@
 
   <!-- Active Games -->
   <div class="panel">
-    <div class="panel-title">🏰 Active Games</div>
+    <div class="panel-title">🏰 Your Games</div>
     <div id="games-list">
       <div class="empty-state">Loading...</div>
     </div>
@@ -292,7 +292,7 @@ async function loadGames() {
   const list = document.getElementById('games-list');
 
   if (!games.length) {
-    list.innerHTML = '<div class="empty-state">No games yet. Create one above!</div>';
+    list.innerHTML = '<div class="empty-state">No games yet. Create one above and share the link with friends!</div>';
     return;
   }
 
@@ -338,7 +338,17 @@ document.getElementById('btn-create').addEventListener('click', async () => {
   window.location.href = '/game/' + game.id;
 });
 
-loadGames();
+// Ensure session exists (anonymous or authenticated) before loading games
+(async function ensureSession() {
+  try {
+    const resp = await fetch('/auth/me');
+    const data = await resp.json();
+    if (!data.user) {
+      await fetch('/api/anonymous-session', { method: 'POST' });
+    }
+  } catch {}
+  loadGames();
+})();
 
 // ── Auth status ──
 (async function checkAuth() {
