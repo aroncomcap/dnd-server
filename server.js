@@ -1140,7 +1140,7 @@ app.get('/api/games', async (req, res) => {
   }
 });
 
-app.post('/api/games', requireAuth, async (req, res) => {
+app.post('/api/games', authMiddleware, async (req, res) => {
   try {
     const { system } = req.body;
     const name = truncate(req.body.name, 100);
