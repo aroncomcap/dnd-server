@@ -910,19 +910,84 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   const hasHistory = gd.chatHistory.some(m => m.role === 'assistant');
   const systemPrompt = hasHistory ? buildTrimmedPrompt(gameId, gameConfig) : buildSystemPrompt(gameId, gameConfig);
   const startTime = Date.now();
-  const response = await anthropic.messages.create({
-    model,
-    max_tokens: maxTokens,
-    system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
-    messages,
-  });
-  const elapsed = Date.now() - startTime;
 
-  const reply = response.content[0].text;
+  // Streaming state machine
+  let accumulatedText = '';
+  let narrationText = '';
+  let structuredBuffer = '';
+  let state = 'NARRATING'; // NARRATING or BUFFERING
+  let pendingTail = '';
+  const LOOKAHEAD = 30; // chars to hold back for marker detection
+  const markerRegex = /\n-{3,}\s*(?:OPTIONS|SCENE|WORLD)\s*-{3,}|\n#{1,3}\s*(?:OPTIONS?|SCENE|WORLD)\s*$/im;
+
+  // Emit stream start
+  io.to(gameId).emit('dm_stream_start', {
+    auto: !!actingAs,
+    player: actingAs || null,
+  });
+
+  let finalMessage;
+  try {
+    const stream = await anthropic.messages.stream({
+      model,
+      max_tokens: maxTokens,
+      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+      messages,
+    });
+
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta?.text) {
+        const delta = event.delta.text;
+        accumulatedText += delta;
+
+        if (state === 'NARRATING') {
+          pendingTail += delta;
+          const markerMatch = pendingTail.match(markerRegex);
+
+          if (markerMatch) {
+            // Flush everything before marker as narration
+            const safeText = pendingTail.slice(0, markerMatch.index);
+            if (safeText) {
+              io.to(gameId).emit('dm_stream_chunk', { text: safeText });
+              narrationText += safeText;
+            }
+            structuredBuffer = pendingTail.slice(markerMatch.index);
+            pendingTail = '';
+            state = 'BUFFERING';
+          } else if (pendingTail.length > LOOKAHEAD) {
+            const safeChunk = pendingTail.slice(0, -LOOKAHEAD);
+            io.to(gameId).emit('dm_stream_chunk', { text: safeChunk });
+            narrationText += safeChunk;
+            pendingTail = pendingTail.slice(-LOOKAHEAD);
+          }
+        } else {
+          structuredBuffer += delta;
+        }
+      }
+    }
+
+    // Flush remaining
+    if (state === 'NARRATING' && pendingTail) {
+      io.to(gameId).emit('dm_stream_chunk', { text: pendingTail });
+      narrationText += pendingTail;
+    }
+
+    finalMessage = await stream.finalMessage();
+  } catch (streamErr) {
+    console.error('[stream] Error during streaming:', streamErr.message);
+    io.to(gameId).emit('dm_stream_end', { narration: narrationText.trim() });
+    throw streamErr;
+  }
+
+  const elapsed = Date.now() - startTime;
+  const reply = accumulatedText;
+
+  // Emit stream end with final narration for re-rendering
+  io.to(gameId).emit('dm_stream_end', { narration: narrationText.trim() });
 
   // Log cost
-  const inputTokens = response.usage?.input_tokens || 0;
-  const outputTokens = response.usage?.output_tokens || 0;
+  const inputTokens = finalMessage.usage?.input_tokens || 0;
+  const outputTokens = finalMessage.usage?.output_tokens || 0;
   const cost = estimateCost(model, inputTokens, outputTokens);
   logCost({ gameId, model, inputTokens, outputTokens, cost, type: actingAs ? 'auto-action' : 'player-action' });
   console.log(`API call: ${model} | ${inputTokens}in/${outputTokens}out | $${cost.toFixed(4)} | ${elapsed}ms | ${actingAs ? 'auto' : 'human'}`);

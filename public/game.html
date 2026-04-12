@@ -1728,29 +1728,90 @@ socket.on('error_msg', (data) => {
   window.location.href = '/';
 });
 
-socket.on('dm_message', (data) => {
-  debugEvent('dm_message', 'options:' + (data.options?.length || 0) + ' for:' + (data.forPlayer || '?'));
-  console.log('dm_message received:', { hasOptions: !!data.options?.length, forPlayer: data.forPlayer, myName: getMyName(), optionCount: data.options?.length });
-  // Capture response time before clearing thinking indicator
-  let responseTime = '';
+// Track whether the current DM response was streamed
+let lastMessageWasStreamed = false;
+
+socket.on('dm_stream_start', (data) => {
+  lastMessageWasStreamed = true;
+
+  // Remove thinking indicator
   const timerEl = document.getElementById('thinking-timer');
-  if (timerEl) responseTime = timerEl.textContent;
-  // Clear thinking indicator
+  const responseTime = timerEl ? timerEl.textContent : '';
   const thinking = document.getElementById('thinking-indicator');
   if (thinking) thinking.remove();
   if (window._thinkingInterval) { clearInterval(window._thinkingInterval); window._thinkingInterval = null; }
+
+  // Create DM message bubble for streaming
   const wrap = document.createElement('div');
   wrap.classList.add('msg', 'msg-dm');
-  if (data.auto) wrap.classList.add('msg-auto');
+  wrap.id = 'dm-stream-bubble';
+
   const lbl = document.createElement('div');
   lbl.className = 'msg-label';
-  lbl.textContent = data.auto ? `🤖 Auto-action for ${data.player}` : `🎲 Game Master${responseTime ? ' \u00b7 ' + responseTime : ''}`;
+  lbl.innerHTML = data.auto
+    ? '🤖 Auto-action for ' + data.player
+    : '🎲 Game Master' + (responseTime ? ' \u00b7 ' + responseTime : '');
   wrap.appendChild(lbl);
+
   const body = document.createElement('div');
-  body.innerHTML = renderDmText(data.text);
+  body.id = 'dm-stream-body';
   wrap.appendChild(body);
+
   chatLog.appendChild(wrap);
   chatLog.scrollTop = chatLog.scrollHeight;
+});
+
+socket.on('dm_stream_chunk', (data) => {
+  const body = document.getElementById('dm-stream-body');
+  if (!body) return;
+  body.textContent += data.text;
+  chatLog.scrollTop = chatLog.scrollHeight;
+});
+
+socket.on('dm_stream_end', (data) => {
+  const body = document.getElementById('dm-stream-body');
+  if (!body) return;
+  // Replace plain text with fully formatted HTML
+  body.innerHTML = renderDmText(data.narration);
+  body.removeAttribute('id');
+
+  const wrap = document.getElementById('dm-stream-bubble');
+  if (wrap) wrap.removeAttribute('id');
+
+  chatLog.scrollTop = chatLog.scrollHeight;
+});
+
+socket.on('dm_message', (data) => {
+  debugEvent('dm_message', 'options:' + (data.options?.length || 0) + ' for:' + (data.forPlayer || '?'));
+  console.log('dm_message received:', { hasOptions: !!data.options?.length, forPlayer: data.forPlayer, myName: getMyName(), optionCount: data.options?.length });
+
+  if (lastMessageWasStreamed) {
+    // Narration was already rendered by stream handlers — just handle options/world
+    lastMessageWasStreamed = false;
+  } else {
+    // Reconnect / catch-up case — render the full message normally
+    // Capture response time before clearing thinking indicator
+    let responseTime = '';
+    const timerEl = document.getElementById('thinking-timer');
+    if (timerEl) responseTime = timerEl.textContent;
+    // Clear thinking indicator
+    const thinking = document.getElementById('thinking-indicator');
+    if (thinking) thinking.remove();
+    if (window._thinkingInterval) { clearInterval(window._thinkingInterval); window._thinkingInterval = null; }
+    const wrap = document.createElement('div');
+    wrap.classList.add('msg', 'msg-dm');
+    if (data.auto) wrap.classList.add('msg-auto');
+    const lbl = document.createElement('div');
+    lbl.className = 'msg-label';
+    lbl.textContent = data.auto ? `🤖 Auto-action for ${data.player}` : `🎲 Game Master${responseTime ? ' \u00b7 ' + responseTime : ''}`;
+    wrap.appendChild(lbl);
+    const body = document.createElement('div');
+    body.innerHTML = renderDmText(data.text);
+    wrap.appendChild(body);
+    chatLog.appendChild(wrap);
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
   // Save and show options — show if it's your turn, ignore forPlayer check
   if (data.options && data.options.length) {
     pendingOptions = data.options;
