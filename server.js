@@ -563,13 +563,13 @@ function parseResponse(text) {
     .slice(0, 3) : []; // max 6 options
 
   // Fallback: extract options embedded in narration as bold text (e.g. "- **Option text**")
+  // Only match lines with emoji indicators (🗡️🛡️🔥💬) — these are real options, not status lines
   if (options.length === 0 && narration) {
-    // Match lines with bullet + bold or numbered + bold patterns
-    const optionLineRegex = /^[ \t]*(?:[-•]|\d+\.)\s*\*\*(.+?)\*\*.*/gm;
+    const optionLineRegex = /^[ \t]*(?:[-•]|\d+\.)\s*(?:\*\*)?[\u{1F300}-\u{1FAFF}].*$/gmu;
     const matches = [...narration.matchAll(optionLineRegex)];
     if (matches.length >= 2) {
-      options = matches.map(m => m[1].trim()).filter(Boolean).slice(0, 3);
-      // Strip matched option lines from narration
+      options = matches.map(m => m[0].replace(/^[\s\-•\d.]*\*?\*?/, '').replace(/\*\*/g, '').trim())
+        .filter(Boolean).slice(0, 3);
       let cleaned = narration;
       for (const m of matches) {
         cleaned = cleaned.replace(m[0], '');
