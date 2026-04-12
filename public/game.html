@@ -1127,6 +1127,21 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
 
 <!-- ── WORLD SCREEN ────────────────────────────────────────── -->
 <div id="screen-world" class="screen">
+  <!-- Campaign Source Material (moved from Host tab) -->
+  <div class="panel">
+    <div class="panel-title">📚 Campaign Source Material</div>
+    <p class="host-note">Upload PDFs with campaign backgrounds, adventures, or rules. The AI GM will use these to run your game.</p>
+
+    <div class="upload-zone" id="upload-zone">
+      <div class="upload-icon">📄</div>
+      <p>Tap to upload PDFs or drag & drop</p>
+      <p style="font-size:0.75rem; opacity:0.7;">Max 50MB per file · Multiple files OK</p>
+    </div>
+    <input type="file" id="pdf-input" accept=".pdf" multiple style="display:none;"/>
+    <div class="upload-status" id="upload-status"></div>
+    <div id="pdf-list" style="margin-top:8px;"></div>
+  </div>
+
   <div class="panel">
     <div class="panel-title">🗺️ Known World</div>
     <div class="world-section-title">📍 Locations</div>
@@ -1164,8 +1179,10 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
 
 <!-- ── HOST SCREEN ─────────────────────────────────────────── -->
 <div id="screen-host" class="screen">
+
+  <!-- Panel 1: Session Setup -->
   <div class="panel">
-    <div class="panel-title">👑 Game Master Controls</div>
+    <div class="panel-title">🎮 Session Setup</div>
     <p class="host-note">Use these controls to manage the session.</p>
 
     <label style="margin-top:12px;">Opening Scene Prompt (optional)</label>
@@ -1182,6 +1199,15 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <button class="btn btn-primary" id="btn-start" style="margin-top:10px;">
       ⚔️ Begin the Adventure
     </button>
+
+    <button class="btn btn-danger" id="btn-reset" style="margin-top:10px;">
+      🔄 Reset Game (keeps characters)
+    </button>
+  </div>
+
+  <!-- Panel 2: Game Style -->
+  <div class="panel" style="margin-top:12px;">
+    <div class="panel-title">🎭 Game Style</div>
 
     <label style="margin-top:12px;">🎭 DM Persona</label>
     <select id="persona-select">
@@ -1203,20 +1229,7 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
       <span>😊 Easy</span>
     </div>
 
-    <label style="margin-top:12px;">🗺️ Map Style</label>
-    <select id="map-style-select">
-      <option value="parchment">📜 Parchment & Ink</option>
-      <option value="dark" selected>🌑 Dark & Glowing</option>
-      <option value="tactical">⚔️ Tactical Grid</option>
-    </select>
-
-    <label style="margin-top:8px;">🗺️ Manual Reveal</label>
-    <div style="display:flex;gap:6px;">
-      <input id="reveal-location-input" type="text" placeholder="Location name to reveal" style="flex:1;font-size:0.85rem;padding:6px 8px;"/>
-      <button class="token-btn" id="btn-reveal-location">👁 Reveal</button>
-    </div>
-
-<label style="margin-top:12px;">🎭 Three Pillars of Play</label>
+    <label style="margin-top:12px;">🎭 Three Pillars of Play</label>
     <div style="display:flex;gap:8px;align-items:center;">
       <div style="flex:1;text-align:center;">
         <div style="font-size:0.75rem;color:var(--ink-light);">🗺️ Explore</div>
@@ -1233,6 +1246,24 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
       <button class="token-btn" id="btn-set-pillars" style="align-self:flex-end;">Set</button>
     </div>
     <p class="host-note">Target balance of gameplay types (%)</p>
+  </div>
+
+  <!-- Panel 3: Map & Timing -->
+  <div class="panel" style="margin-top:12px;">
+    <div class="panel-title">🗺️ Map & Timing</div>
+
+    <label style="margin-top:12px;">🗺️ Map Style</label>
+    <select id="map-style-select">
+      <option value="parchment">📜 Parchment & Ink</option>
+      <option value="dark" selected>🌑 Dark & Glowing</option>
+      <option value="tactical">⚔️ Tactical Grid</option>
+    </select>
+
+    <label style="margin-top:8px;">🗺️ Manual Reveal</label>
+    <div style="display:flex;gap:6px;">
+      <input id="reveal-location-input" type="text" placeholder="Location name to reveal" style="flex:1;font-size:0.85rem;padding:6px 8px;"/>
+      <button class="token-btn" id="btn-reveal-location">👁 Reveal</button>
+    </div>
 
     <div class="timer-row">
       <label>⏱️ Turn Timer:</label>
@@ -1240,27 +1271,15 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
       <span class="host-note" style="margin:0;">seconds</span>
       <button class="token-btn" id="btn-set-timer">Set</button>
     </div>
-
-    <button class="btn btn-danger" id="btn-reset" style="margin-top:10px;">
-      🔄 Reset Game (keeps characters)
-    </button>
   </div>
 
-  <!-- Cost Monitor -->
+  <!-- Panel 4: Billing & Costs -->
   <div class="panel" style="margin-top:12px;">
-    <div class="panel-title">💰 Cost Monitor</div>
+    <div class="panel-title">💰 Billing & Costs</div>
     <div id="cost-display" style="font-size:0.85rem; color:var(--ink-light);">Loading...</div>
     <button class="token-btn" id="btn-refresh-costs" style="margin-top:8px;">🔄 Refresh</button>
 
-    <label style="margin-top:16px;">My Player Name (for sending actions)</label>
-    <input id="player-name-input" type="text" placeholder="Enter your character name"/>
-    <p class="host-note">Or select from party below. This is a fallback — use the picker on the Game screen.</p>
-  </div>
-
-  <!-- Billing Controls -->
-  <div class="panel" style="margin-top:12px;">
-    <div class="panel-title">&#128176; Billing</div>
-    <div id="billing-test-banner" style="display:none;background:#2a4a2a;color:#8f8;padding:6px 12px;border-radius:6px;font-size:0.8rem;margin-bottom:8px;text-align:center;">&#129514; Test Mode &mdash; billing disabled</div>
+    <div id="billing-test-banner" style="display:none;background:#2a4a2a;color:#8f8;padding:6px 12px;border-radius:6px;font-size:0.8rem;margin-top:12px;margin-bottom:8px;text-align:center;">&#129514; Test Mode &mdash; billing disabled</div>
     <div id="billing-info" style="font-size:0.85rem;color:var(--ink-light);">Loading...</div>
     <label style="margin-top:8px;">Billing Mode</label>
     <select id="billing-mode-select">
@@ -1268,22 +1287,12 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
       <option value="player_pays">Each Player Pays</option>
     </select>
     <a href="/purchase" class="btn btn-primary" style="margin-top:10px;text-decoration:none;text-align:center;display:block;">&#128179; Add Time</a>
+
+    <label style="margin-top:16px;">My Player Name (for sending actions)</label>
+    <input id="player-name-input" type="text" placeholder="Enter your character name"/>
+    <p class="host-note">Or select from party below. This is a fallback — use the picker on the Game screen.</p>
   </div>
 
-  <!-- PDF Upload -->
-  <div class="panel" style="margin-top:12px;">
-    <div class="panel-title">📚 Campaign Source Material</div>
-    <p class="host-note">Upload PDFs with campaign backgrounds, adventures, or rules. The AI GM will use these to run your game.</p>
-
-    <div class="upload-zone" id="upload-zone">
-      <div class="upload-icon">📄</div>
-      <p>Tap to upload PDFs or drag & drop</p>
-      <p style="font-size:0.75rem; opacity:0.7;">Max 50MB per file · Multiple files OK</p>
-    </div>
-    <input type="file" id="pdf-input" accept=".pdf" multiple style="display:none;"/>
-    <div class="upload-status" id="upload-status"></div>
-    <div id="pdf-list" style="margin-top:8px;"></div>
-  </div>
 </div>
 
 <!-- ── NAV ──────────────────────────────────────────────────── -->
