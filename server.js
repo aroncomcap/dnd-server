@@ -912,7 +912,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   ];
 
   const model = 'claude-haiku-4-5-20251001';
-  const maxTokens = gs.verbosity === 'terse' ? 500 : gs.verbosity === 'brief' ? 800 : 2500;
+  const maxTokens = gs.verbosity === 'terse' ? 900 : gs.verbosity === 'brief' ? 1200 : 2500;
   const hasHistory = gd.chatHistory.some(m => m.role === 'assistant');
   const systemPrompt = hasHistory ? buildTrimmedPrompt(gameId, gameConfig) : buildSystemPrompt(gameId, gameConfig);
   const startTime = Date.now();
