@@ -15,6 +15,10 @@ const { MapGraph, processMapHint } = require('./map-engine');
 const { router: authRouter, authMiddleware, requireAuth, requireAdmin } = require('./auth');
 const { BillingTicker } = require('./billing');
 const payments = require('./payments');
+const CombatEngine = require('./combat-engine');
+const { parseAction, parseOptions, parseActionWithAI, parseOptionsWithAI } = require('./action-parser');
+const { parseStatsText } = require('./stat-parser');
+const { getMonsterStats } = require('./monster-lookup');
 
 const DEPLOY_TIME = new Date().toISOString();
 
@@ -99,6 +103,8 @@ function getGameState(gameId) {
       paused: false,
       mapGraph: new MapGraph(),
       dmPersona: 'epic',
+      combatEngine: new CombatEngine(),
+      preTaggedOptions: null,
     };
   }
   return games[gameId];
@@ -324,6 +330,10 @@ INITIATIVE / TURN ORDER:
 - Include monsters/NPCs in the turn order.
 - Use this format in the ---WORLD--- block:
 
+ENEMIES (include when hostile creatures initiate combat):
+- [Display Name] | [count] | [monster-db-slug]
+For custom: - [Name] | [count] | custom | [hint]
+
 TURN_ORDER:
 - 1 | Judge | 18 | PC
 - 2 | Goblin Archer | 15 | Enemy
@@ -510,6 +520,8 @@ LOCATIONS:
 - [Name] | [Description] | [Distance]
 NPCS:
 - [Name] | [Description] | [Location]
+ENEMIES (when combat starts):
+- [Display Name] | [count] | [slug]
 MAP: [Current location name]
 
 If you omit ---OPTIONS---, ---SCENE---, or ---WORLD--- the game breaks. NEVER skip ANY of them.
@@ -657,10 +669,155 @@ function parseResponse(text) {
         }
       }
     }
+    // Parse ENEMIES block
+    const enemiesMatch = worldRaw.match(/ENEMIES:\n((?:- .+\n?)+)/i);
+    let enemies = [];
+    if (enemiesMatch) {
+      const enemyLines = enemiesMatch[1].trim().split('\n');
+      for (const line of enemyLines) {
+        const match = line.match(/^-\s*(.+?)\s*\|\s*(\d+)\s*\|\s*(.+?)(?:\s*\|\s*(.+))?$/);
+        if (match) {
+          enemies.push({
+            displayName: match[1].trim(),
+            count: parseInt(match[2], 10),
+            slug: match[3].trim(),
+            hint: match[4]?.trim() || null,
+          });
+        }
+      }
+    }
     world = { locations, npcs, accomplishments, charUpdates, turnOrder: turnOrder.length ? turnOrder : undefined };
+    if (enemies.length > 0) world.enemies = enemies;
   }
 
   return { narration, options, scene, world, isKillshot, worldRaw: worldRaw || '' };
+}
+
+// ── Combat Lifecycle ─────────────────────────────────────────────────────────
+async function initiateCombat(gameId, gameConfig, enemies) {
+  const gs = getGameState(gameId);
+  const system = gameConfig.system || 'dnd5e';
+  const enemyCombatants = [];
+
+  for (const entry of enemies) {
+    for (let i = 0; i < entry.count; i++) {
+      const stats = await getMonsterStats(gameId, system, entry.slug, {
+        db, anthropic, hint: entry.hint,
+      });
+      if (stats) {
+        const id = entry.count > 1 ? `${entry.slug}-${i + 1}` : entry.slug;
+        const name = entry.count > 1 ? `${entry.displayName} ${i + 1}` : entry.displayName;
+        enemyCombatants.push({ ...stats, id, name, type: 'Enemy' });
+      }
+    }
+  }
+  if (enemyCombatants.length === 0) return null;
+
+  const pcCombatants = [];
+  for (const [name, char] of Object.entries(gs.data.characters)) {
+    let combatStats = char.combatStats;
+    if (!combatStats) {
+      try {
+        combatStats = await parseStatsText(char.statsText || '', system, { anthropic });
+        char.combatStats = combatStats;
+        db.upsertCharacter(gameId, name, char).catch(() => {});
+      } catch (e) {
+        console.error(`Failed to parse combatStats for ${name}:`, e.message);
+        continue;
+      }
+    }
+    const id = name.toLowerCase().replace(/\s+/g, '-');
+    pcCombatants.push({ ...combatStats, id, name, type: 'PC' });
+  }
+
+  const state = gs.combatEngine.initCombat(pcCombatants, enemyCombatants, system);
+  io.to(gameId).emit('combat_started', {
+    initiativeOrder: state.initiativeOrder,
+    combatants: Object.fromEntries(
+      Object.entries(state.combatants).map(([id, c]) => [id, {
+        id, name: c.name, type: c.type,
+        hp: c.hp ?? c.totalHp, maxHp: c.maxHp ?? c.totalHp, ac: c.ac,
+        conditions: c.conditions || [],
+      }])
+    ),
+    round: state.round,
+  });
+  emitSystem(gameId, { text: '⚔️ Combat begins!' });
+  return state;
+}
+
+async function resolveEnemyTurns(gameId, gameConfig) {
+  const gs = getGameState(gameId);
+  const engine = gs.combatEngine;
+  if (!engine.state.active) return [];
+
+  const results = [];
+  const resolver = engine.getResolver();
+
+  while (true) {
+    const current = engine.getCurrentTurn();
+    if (!current || current.type !== 'Enemy') break;
+    if (resolver.checkDeath(current).status === 'dead') { engine.advanceTurn(); continue; }
+
+    const availableActions = resolver.getAvailableActions(current);
+    const pcs = Object.values(engine.state.combatants).filter(c => c.type === 'PC' && (c.hp > 0 || (c.totalHp && c.totalHp > 0)));
+
+    if (pcs.length === 0) break;
+
+    const tacticalPrompt = `Choose ONE action for ${current.name} (${current.hp ?? current.totalHp}/${current.maxHp ?? current.totalHp} HP).
+Reply ONLY: ACTION: ${current.id} [action-type] [target-id]
+Can: ${availableActions.slice(0, 6).map(a => a.label).join(', ')}
+Targets: ${pcs.map(p => `${p.name}(${p.id},${p.hp ?? p.totalHp}HP${p.concentrating ? ',conc:' + p.concentrating : ''})`).join(', ')}`;
+
+    let actionType = 'attack';
+    let targetId = pcs[0]?.id;
+
+    try {
+      const response = await anthropic.messages.create({
+        model: 'claude-haiku-4-5-20251001', max_tokens: 80,
+        messages: [{ role: 'user', content: tacticalPrompt }],
+      });
+      const text = response.content[0].text.trim();
+      const m = text.match(/ACTION:\s*\S+\s+(\S+)\s+(\S+)/);
+      if (m) { actionType = m[1]; targetId = m[2]; }
+    } catch (e) {
+      console.error('Enemy tactics error:', e.message);
+    }
+
+    const weaponName = current.weapons?.[0]?.name;
+    const result = engine.resolveAction({
+      type: actionType.startsWith('attack') ? 'attack' : actionType,
+      attackerId: current.id,
+      targetId,
+      weapon: weaponName,
+    });
+    if (result && !result.error) results.push(result);
+
+    if (engine.isCombatOver().over) break;
+    engine.advanceTurn();
+  }
+
+  return results;
+}
+
+function emitCombatUpdate(gameId) {
+  const gs = getGameState(gameId);
+  const engine = gs.combatEngine;
+  if (!engine.state.active) return;
+  io.to(gameId).emit('combat_update', {
+    round: engine.state.round,
+    turnIndex: engine.state.turnIndex,
+    currentTurn: engine.getCurrentTurn()?.id,
+    combatants: Object.fromEntries(
+      Object.entries(engine.state.combatants).map(([id, c]) => [id, {
+        id, name: c.name, type: c.type,
+        hp: c.hp ?? c.totalHp, maxHp: c.maxHp ?? c.totalHp, ac: c.ac,
+        conditions: c.conditions || [], concentrating: c.concentrating || null,
+      }])
+    ),
+    activeEffects: engine.state.activeEffects,
+    log: engine.state.log.slice(-10),
+  });
 }
 
 // ── Character Token Generation ───────────────────────────────────────────────
@@ -918,6 +1075,53 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   const systemPrompt = hasHistory ? buildTrimmedPrompt(gameId, gameConfig) : buildSystemPrompt(gameId, gameConfig);
   const startTime = Date.now();
 
+  // Combat routing — resolve player action + enemy turns before calling Claude
+  const combatActive = gs.combatEngine?.state?.active;
+  let combatContext = '';
+
+  if (combatActive) {
+    const combatCtx = {
+      combatants: gs.combatEngine.state.combatants,
+      preTaggedOptions: gs.preTaggedOptions || null,
+    };
+    const currentPlayerName = gs.data.turnOrder[gs.data.currentTurnIndex];
+    const playerId = currentPlayerName?.toLowerCase().replace(/\s+/g, '-');
+    const actionText = userMessage.replace(/^.*?:\s*/, '');
+
+    let parsedAction = parseAction(actionText, playerId, combatCtx);
+    if (!parsedAction) {
+      try {
+        parsedAction = await parseActionWithAI(actionText, playerId, combatCtx, anthropic);
+      } catch (e) { console.error('Action parse AI error:', e.message); }
+    }
+
+    if (parsedAction) {
+      const playerResult = gs.combatEngine.resolveAction(parsedAction);
+      gs.combatEngine.advanceTurn();
+      const enemyResults = await resolveEnemyTurns(gameId, gameConfig);
+      const allResults = [playerResult, ...enemyResults].filter(Boolean);
+      const resultLines = allResults.map(r => gs.combatEngine.formatResultForPrompt(r));
+
+      combatContext = `\n\n${gs.combatEngine.getCombatStateForPrompt()}\n\nRESOLVED THIS ROUND:\n${resultLines.join('\n')}\n\nNarrate these results in your DM persona. It is now ${gs.combatEngine.getCurrentTurn()?.name || 'the next player'}'s turn.`;
+
+      const overCheck = gs.combatEngine.isCombatOver();
+      if (overCheck.over) {
+        combatContext += `\n\nCOMBAT IS OVER: ${overCheck.reason === 'enemies_defeated' ? 'All enemies defeated. Narrate aftermath and loot.' : 'All PCs are down.'}`;
+        gs.combatEngine.endCombat();
+        io.to(gameId).emit('combat_ended', { reason: overCheck.reason });
+      }
+    }
+  }
+
+  const combatPromptInjection = combatActive ? `\n\nCOMBAT MODE — The server handles all dice rolls, damage calculation, and HP tracking. You MUST NOT invent dice results or change HP values. Narrate the pre-resolved results in RESOLVED THIS ROUND.\n- Use exact numbers provided. Format: **🎲 [desc] — rolls [total]. HIT/MISS! [damage]. [target] [HP]**\n- 1-2 sentences of flavor between rolls. Do NOT skip any result.\n- KILLSHOT: [scene] when a target reaches 0 HP.` : '';
+  const finalSystemPrompt = systemPrompt + combatPromptInjection;
+
+  // Rebuild messages with combatContext appended to user message
+  const messagesWithCombat = [
+    ...gd.chatHistory,
+    { role: 'user', content: prefix + userMessage + combatContext },
+  ];
+
   // Streaming state machine
   let accumulatedText = '';
   let narrationText = '';
@@ -938,8 +1142,8 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     const stream = await anthropic.messages.stream({
       model,
       max_tokens: maxTokens,
-      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
-      messages,
+      system: [{ type: "text", text: finalSystemPrompt, cache_control: { type: "ephemeral" } }],
+      messages: messagesWithCombat,
     });
 
     for await (const event of stream) {
@@ -1130,6 +1334,29 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
       generateWorldArt(gameId, item).catch(err => console.error('Art gen failed:', err.message));
     }
   }
+
+  // Initiate combat if ENEMIES detected
+  if (parsed.world?.enemies?.length > 0 && !gs.combatEngine.state.active) {
+    initiateCombat(gameId, gameConfig, parsed.world.enemies).catch(e => console.error('Combat init error:', e));
+  }
+
+  // Pre-parse options for next combat turn
+  if (gs.combatEngine.state.active && parsed.options?.length > 0) {
+    const nextPlayer = gs.combatEngine.getCurrentTurn();
+    if (nextPlayer) {
+      const combatCtx = { combatants: gs.combatEngine.state.combatants };
+      const tier1 = parseOptions(parsed.options, nextPlayer.id, combatCtx);
+      if (tier1.some(r => r === null)) {
+        parseOptionsWithAI(parsed.options, nextPlayer.id, combatCtx, anthropic)
+          .then(results => { gs.preTaggedOptions = results; }).catch(() => {});
+      } else {
+        gs.preTaggedOptions = tier1;
+      }
+    }
+  }
+
+  // Emit combat update
+  if (gs.combatEngine.state.active) emitCombatUpdate(gameId);
 
   // Refresh rolling summary every 50 turns (tracked via turnCount)
   if (gs.turnCount > 0 && gs.turnCount % 50 === 0) {
@@ -2162,22 +2389,22 @@ io.on('connection', (socket) => {
     await gameEngine.skipTurn(gameId);
   });
 
-  socket.on('set_pillars', (data) => {
+  socket.on('set_pillars', async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    gameEngine.setPillars(gameId, data.exploration || 33, data.combat || 33, data.social || 34);
+    await gameEngine.setPillars(gameId, data.exploration || 33, data.combat || 33, data.social || 34);
   });
 
-  socket.on('set_verbosity', (data) => {
+  socket.on('set_verbosity', async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    gameEngine.setVerbosity(gameId, data.level);
+    await gameEngine.setVerbosity(gameId, data.level);
   });
 
-  socket.on('set_ferocity', (data) => {
+  socket.on('set_ferocity', async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    gameEngine.setFerocity(gameId, data.level);
+    await gameEngine.setFerocity(gameId, data.level);
   });
 
   socket.on('set_dm_persona', async (data) => {
@@ -2239,6 +2466,16 @@ io.on('connection', (socket) => {
     const gs = getGameState(gameId);
     gs.mapStyle = data.style; // 'parchment' | 'dark' | 'tactical'
     io.to(gameId).emit('map_style_changed', { style: data.style });
+  });
+
+  socket.on('reaction_response', (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    const engine = gs.combatEngine;
+    if (!engine.state.pendingReaction) return;
+    engine.state.pendingReaction = null;
+    emitCombatUpdate(gameId);
   });
 
   socket.on('disconnect', () => {
