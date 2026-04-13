@@ -110,6 +110,7 @@ function getGameState(gameId) {
       encounterPlan: null,
       encounterPlanIndex: 0,
       difficultyCorrection: 1.0,
+      npcMemory: {},
     };
   }
   return games[gameId];
@@ -199,6 +200,18 @@ You are a master storyteller in the tradition of great fantasy literature. Your 
 
   const encounterPlanLine = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
 
+  const npcMemoryLines = Object.values(gs.npcMemory || {})
+    .filter(npc => npc.encounters?.length > 0)
+    .map(npc => {
+      const lastEnc = npc.encounters[npc.encounters.length - 1];
+      const status = lastEnc.survived ? (lastEnc.fled ? 'FLED' : 'SURVIVED') : 'DEFEATED';
+      const timesEncountered = npc.encounters.length;
+      return `${npc.name} (${status}, met ${timesEncountered}x): ${npc.personality || 'No notable personality'}`;
+    })
+    .slice(0, 5)
+    .join('\n');
+  const npcMemoryBlock = npcMemoryLines ? `\nRECURRING NPCs (these enemies have history with the party):\n${npcMemoryLines}\nIf any of these appear again, reference their past encounters and evolve their behavior.` : '';
+
   return `${basePrompt}
 ${contextBlock}
 ${houseRules}
@@ -208,6 +221,7 @@ CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 ${summary}
 ${encounterPlanLine}
+${npcMemoryBlock}
 VERBOSITY: ${gs.verbosity || 'verbose'}
 ${gs.verbosity === 'terse' ? `TERSE MODE — HARD CONSTRAINT:
 Maximum 3 sentences of narration, under 50 words. No atmosphere, no extended descriptions, no internal thoughts. State what happens, include any dice results, then structured blocks.
@@ -479,6 +493,18 @@ ${catchphrases}
 
   const encounterPlanLine = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
 
+  const npcMemoryLinesTrimmed = Object.values(gs.npcMemory || {})
+    .filter(npc => npc.encounters?.length > 0)
+    .map(npc => {
+      const lastEnc = npc.encounters[npc.encounters.length - 1];
+      const status = lastEnc.survived ? (lastEnc.fled ? 'FLED' : 'SURVIVED') : 'DEFEATED';
+      const timesEncountered = npc.encounters.length;
+      return `${npc.name} (${status}, met ${timesEncountered}x): ${npc.personality || 'No notable personality'}`;
+    })
+    .slice(0, 5)
+    .join('\n');
+  const npcMemoryBlockTrimmed = npcMemoryLinesTrimmed ? `\nRECURRING NPCs (these enemies have history with the party):\n${npcMemoryLinesTrimmed}\nIf any of these appear again, reference their past encounters and evolve their behavior.` : '';
+
   const pacingLine = `PACING: Ferocity ${gs.ferocity ?? 5}/5. ${
     gs.ferocity <= 1 ? '4-6 encounters/short rest, long rest after 6-8.' :
     gs.ferocity <= 2 ? '3-5 encounters/short rest, long rest after 6-7.' :
@@ -509,6 +535,7 @@ ${ferocityLine}
 ${pillarsLine}
 ${pacingLine}
 ${encounterPlanLine}
+${npcMemoryBlockTrimmed}
 
 Only include ACCOMPLISHMENTS entries if something new was accomplished this turn. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, and MAP.
 
@@ -1207,6 +1234,36 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
               }
             }
           }
+          // Save surviving/notable enemies to NPC memory
+          if (!gs.npcMemory) gs.npcMemory = {};
+          const combatants = gs.combatEngine.state.combatants || {};
+          for (const [id, c] of Object.entries(combatants)) {
+            if (c.type !== 'Enemy') continue;
+            const hp = c.hp ?? c.totalHp ?? 0;
+            const maxHp = c.maxHp ?? c.totalHp ?? 1;
+            const survived = hp > 0;
+            const wasSignificant = (c.personality || c.cr >= 2 || maxHp >= 30);
+
+            if (survived || wasSignificant) {
+              const key = c.name.toLowerCase().replace(/\s+\d+$/, ''); // Strip number suffix
+              if (!gs.npcMemory[key]) gs.npcMemory[key] = { encounters: [] };
+              gs.npcMemory[key].name = c.name;
+              gs.npcMemory[key].personality = c.personality || '';
+              gs.npcMemory[key].lastSeen = Date.now();
+              gs.npcMemory[key].encounters.push({
+                date: Date.now(),
+                survived,
+                hpRemaining: hp,
+                fled: (c.morale === 'cowardly' || c.morale === 'normal') && hp > 0 && hp < maxHp * 0.5,
+                roundsFought: gs.combatEngine.state.round,
+                partyMembersPresent: Object.values(combatants).filter(x => x.type === 'PC').map(x => x.name),
+              });
+              // Keep last 5 encounters
+              if (gs.npcMemory[key].encounters.length > 5) gs.npcMemory[key].encounters.shift();
+            }
+          }
+          db.setState(gameId, 'npcMemory', gs.npcMemory).catch(() => {});
+
           io.to(gameId).emit('combat_ended', { reason: overCheck.reason });
         }
       }
@@ -2135,6 +2192,7 @@ io.on('connection', (socket) => {
       gs.storySummary = await db.getState(gameId, 'storySummary', null);
       gs.combatHistory = await db.getState(gameId, 'combatHistory', {});
       gs.difficultyCorrection = await db.getState(gameId, 'difficultyCorrection', 1.0);
+      gs.npcMemory = await db.getState(gameId, 'npcMemory', {});
     }
 
     const gs = getGameState(gameId);
