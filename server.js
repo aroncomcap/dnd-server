@@ -1136,6 +1136,11 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   const LOOKAHEAD = 30; // chars to hold back for marker detection
   const markerRegex = /\n-{3,}\s*(?:OPTIONS|SCENE|WORLD)\s*-{3,}|\n#{1,3}\s*(?:OPTIONS?|SCENE|WORLD)\s*$/im;
 
+  // Word limit for streaming truncation (terse/brief)
+  const streamWordLimit = gs.verbosity === 'terse' ? 40 : gs.verbosity === 'brief' ? 80 : null;
+  let narrationWordCount = 0;
+  let narrationTruncated = false;
+
   // Emit stream start
   io.to(gameId).emit('dm_stream_start', {
     auto: !!actingAs,
@@ -1163,7 +1168,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
           if (markerMatch) {
             // Flush everything before marker as narration
             const safeText = pendingTail.slice(0, markerMatch.index);
-            if (safeText) {
+            if (safeText && !narrationTruncated) {
               io.to(gameId).emit('dm_stream_chunk', { text: safeText });
               narrationText += safeText;
             }
@@ -1172,8 +1177,30 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
             state = 'BUFFERING';
           } else if (pendingTail.length > LOOKAHEAD) {
             const safeChunk = pendingTail.slice(0, -LOOKAHEAD);
-            io.to(gameId).emit('dm_stream_chunk', { text: safeChunk });
-            narrationText += safeChunk;
+            // Check word limit before emitting
+            if (streamWordLimit && !narrationTruncated) {
+              const newWords = safeChunk.split(/\s+/).filter(Boolean).length;
+              if (narrationWordCount + newWords > streamWordLimit) {
+                // Truncate at sentence boundary within limit
+                const allNarration = narrationText + safeChunk;
+                const words = allNarration.split(/\s+/);
+                const limited = words.slice(0, streamWordLimit).join(' ');
+                const lastSentence = Math.max(limited.lastIndexOf('. '), limited.lastIndexOf('.\n'), limited.lastIndexOf('."'), limited.lastIndexOf('! '));
+                const cutNarration = lastSentence > limited.length * 0.3 ? limited.slice(0, lastSentence + 1) : limited;
+                // Emit only the new part (what we haven't sent yet)
+                const newPart = cutNarration.slice(narrationText.length);
+                if (newPart) io.to(gameId).emit('dm_stream_chunk', { text: newPart });
+                narrationText = cutNarration;
+                narrationTruncated = true;
+              } else {
+                narrationWordCount += newWords;
+                io.to(gameId).emit('dm_stream_chunk', { text: safeChunk });
+                narrationText += safeChunk;
+              }
+            } else if (!narrationTruncated) {
+              io.to(gameId).emit('dm_stream_chunk', { text: safeChunk });
+              narrationText += safeChunk;
+            }
             pendingTail = pendingTail.slice(-LOOKAHEAD);
           }
         } else {
@@ -1183,7 +1210,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     }
 
     // Flush remaining
-    if (state === 'NARRATING' && pendingTail) {
+    if (state === 'NARRATING' && pendingTail && !narrationTruncated) {
       io.to(gameId).emit('dm_stream_chunk', { text: pendingTail });
       narrationText += pendingTail;
     }
