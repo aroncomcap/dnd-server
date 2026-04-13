@@ -2294,6 +2294,7 @@ io.on('connection', (socket) => {
       const result = await gameEngine.generateParty(gameId, direction);
       socket.emit('party_generated', { count: result.count });
       // Auto-parse combatStats for the encounter designer
+      const gs = getGameState(gameId);
       const gameConfig = await db.getGame(gameId);
       const system = gameConfig?.system || 'dnd5e';
       for (const [name, char] of Object.entries(gs.data.characters)) {
