@@ -201,7 +201,7 @@ CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 ${summary}
 VERBOSITY: ${gs.verbosity || 'verbose'}
-${gs.verbosity === 'terse' ? 'STRICT WORD LIMIT: 20 words maximum for narration (excluding game mechanics). One or two sentences only.' :
+${gs.verbosity === 'terse' ? 'ABSOLUTE WORD LIMIT: 20 words MAXIMUM for narration. TWO SENTENCES MAX. No descriptions of environment, atmosphere, or sensory details. State only what happens mechanically. Example: "Brother Thornwick casts Light on a stone and descends the ladder. The sewer tunnel branches three ways."' :
   gs.verbosity === 'brief' ? 'STRICT WORD LIMIT: 50 words maximum for narration (excluding game mechanics). Be punchy and direct.' :
   'STRICT WORD LIMIT: Your narration text (excluding dice rolls, game mechanics, and skill checks) must be 100 words or fewer. Count your words. If you\'re over 100 non-mechanic words, you\'ve written too much. Aim for 50-75 words. Only exceed 100 for major plot revelations.'}
 
@@ -451,7 +451,7 @@ ${catchphrases}
 
   const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
 
-  const verbosityLine = gs.verbosity === 'terse' ? 'ABSOLUTE HARD LIMIT: 20 words narration max. NO section headers. NO ## headings. Just 1-2 sentences of prose, dice rolls, then structured blocks.' :
+  const verbosityLine = gs.verbosity === 'terse' ? 'ABSOLUTE HARD LIMIT: 20 words narration max. TWO SENTENCES MAX. No atmosphere, no sensory details, no descriptions. Just state what happens. Then structured blocks.' :
     gs.verbosity === 'brief' ? 'ABSOLUTE HARD LIMIT: 50 words narration max. NO section headers. NO ## headings. Prose paragraphs only, then structured blocks.' :
     'WORD LIMIT: 100 words max narration. Aim for 50-75. NO ## headings in narration. Prose paragraphs only.';
 
@@ -1070,7 +1070,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   ];
 
   const model = 'claude-haiku-4-5-20251001';
-  const maxTokens = gs.verbosity === 'terse' ? 900 : gs.verbosity === 'brief' ? 1200 : 2500;
+  const maxTokens = gs.verbosity === 'terse' ? 400 : gs.verbosity === 'brief' ? 800 : 2500;
   const hasHistory = gd.chatHistory.some(m => m.role === 'assistant');
   const systemPrompt = hasHistory ? buildTrimmedPrompt(gameId, gameConfig) : buildSystemPrompt(gameId, gameConfig);
   const startTime = Date.now();
@@ -1205,6 +1205,22 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
 
   const parsed = parseResponse(reply);
   console.log(`[stream-debug] state=${state} narration=${narrationText.length}ch structured=${structuredBuffer.length}ch options=${parsed.options.length} scene=${!!parsed.scene} world=${!!parsed.world}`);
+
+  // Enforce verbosity word limits server-side (AI frequently exceeds them)
+  if (parsed.narration && gs.verbosity) {
+    const wordLimit = gs.verbosity === 'terse' ? 40 : gs.verbosity === 'brief' ? 80 : null;
+    if (wordLimit) {
+      const words = parsed.narration.split(/\s+/);
+      if (words.length > wordLimit) {
+        // Find the last sentence boundary within the limit
+        const truncated = words.slice(0, wordLimit).join(' ');
+        const lastPeriod = Math.max(truncated.lastIndexOf('. '), truncated.lastIndexOf('.\n'), truncated.lastIndexOf('."'));
+        const lastExclaim = Math.max(truncated.lastIndexOf('! '), truncated.lastIndexOf('!\n'));
+        const cutPoint = Math.max(lastPeriod, lastExclaim);
+        parsed.narration = cutPoint > truncated.length * 0.3 ? truncated.slice(0, cutPoint + 1) : truncated + '...';
+      }
+    }
+  }
 
   gd.chatHistory.push(
     { role: 'user', content: prefix + userMessage },
