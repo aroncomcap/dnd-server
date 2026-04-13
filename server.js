@@ -2320,22 +2320,38 @@ io.on('connection', (socket) => {
       const direction = (data && data.direction) ? truncate(data.direction, 500) : '';
       const result = await gameEngine.generateParty(gameId, direction);
       socket.emit('party_generated', { count: result.count });
-      // Auto-parse combatStats for the encounter designer (async, emits party_ready when done)
+      // Auto-parse combatStats in parallel with retries
       const gs = getGameState(gameId);
       const gameConfig = await db.getGame(gameId);
       const system = gameConfig?.system || 'dnd5e';
-      let parsed = 0;
-      for (const [name, char] of Object.entries(gs.data.characters)) {
-        if (!char.combatStats && char.statsText) {
+
+      async function parseWithRetry(name, char, retries) {
+        for (let attempt = 0; attempt <= retries; attempt++) {
           try {
-            char.combatStats = await parseStatsText(char.statsText, system, { anthropic });
-            db.upsertCharacter(gameId, name, char).catch(() => {});
-            parsed++;
-          } catch (e) { console.error(`Auto-parse combatStats for ${name}:`, e.message); }
+            return await parseStatsText(char.statsText, system, { anthropic });
+          } catch (e) {
+            if (attempt === retries) console.error(`combatStats parse failed for ${name} after ${retries + 1} attempts:`, e.message);
+          }
+        }
+        return null;
+      }
+
+      const entries = Object.entries(gs.data.characters).filter(([, c]) => !c.combatStats && c.statsText);
+      const results2 = await Promise.allSettled(
+        entries.map(([name, char]) => parseWithRetry(name, char, 2))
+      );
+
+      let parsed = 0;
+      for (let i = 0; i < entries.length; i++) {
+        const [name, char] = entries[i];
+        if (results2[i].status === 'fulfilled' && results2[i].value) {
+          char.combatStats = results2[i].value;
+          db.upsertCharacter(gameId, name, char).catch(() => {});
+          parsed++;
         }
       }
-      console.log(`Parsed combatStats for ${parsed} characters in ${gameId}`);
-      // Include parsed combatStats so clients can analyze party power
+      console.log(`Parsed combatStats for ${parsed}/${entries.length} characters in ${gameId}`);
+
       const charStats = {};
       for (const [name, char] of Object.entries(gs.data.characters)) {
         if (char.combatStats) charStats[name] = char.combatStats;
