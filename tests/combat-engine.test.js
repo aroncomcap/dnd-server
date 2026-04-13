@@ -667,6 +667,67 @@ describe('CombatEngine', () => {
     });
   });
 
+  describe('getCombatSummary', () => {
+    it('returns per-character damage dealt and taken', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy({ ac: 1 })], 'dnd5e');
+      // Resolve an attack that will always hit (AC 1)
+      engine.resolveAction({ type: 'attack', attackerId: 'kael', targetId: 'goblin', weaponName: 'longsword' });
+      const summary = engine.getCombatSummary();
+      assert.ok(summary.rounds >= 1);
+      assert.ok(summary.characters['kael']);
+      assert.ok(summary.characters['goblin']);
+      assert.strictEqual(typeof summary.characters['kael'].damageDealt, 'number');
+      assert.strictEqual(typeof summary.characters['goblin'].damageTaken, 'number');
+    });
+
+    it('tracks healing from heal spells', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({ hp: 20 });
+      engine.initCombat([pc], [makeDnDEnemy()], 'dnd5e');
+      engine.resolveAction({
+        type: 'spell',
+        casterId: 'kael',
+        targetIds: ['kael'],
+        spellName: 'cure wounds',
+        slotLevel: 1,
+      });
+      const summary = engine.getCombatSummary();
+      assert.ok(summary.characters['kael'].healed > 0, 'healed should be > 0 after cure wounds');
+      assert.strictEqual(summary.characters['kael'].spellSlotsUsed, 1);
+    });
+
+    it('initializes all combatants with zero values', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const summary = engine.getCombatSummary();
+      assert.strictEqual(summary.characters['kael'].damageDealt, 0);
+      assert.strictEqual(summary.characters['kael'].damageTaken, 0);
+      assert.strictEqual(summary.characters['kael'].healed, 0);
+      assert.strictEqual(summary.characters['kael'].spellSlotsUsed, 0);
+      assert.strictEqual(summary.characters['goblin'].damageDealt, 0);
+      assert.strictEqual(summary.characters['goblin'].damageTaken, 0);
+    });
+
+    it('accumulates damage over multiple attacks', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy({ ac: 1, hp: 100, maxHp: 100 })], 'dnd5e');
+      engine.resolveAction({ type: 'attack', attackerId: 'kael', targetId: 'goblin', weaponName: 'longsword' });
+      engine.resolveAction({ type: 'attack', attackerId: 'kael', targetId: 'goblin', weaponName: 'longsword' });
+      const summary = engine.getCombatSummary();
+      // damageDealt should equal damageTaken (all hits land on goblin)
+      assert.strictEqual(summary.characters['kael'].damageDealt, summary.characters['goblin'].damageTaken);
+    });
+
+    it('returns correct rounds count', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      assert.strictEqual(engine.getCombatSummary().rounds, 1);
+      engine.state.round = 3;
+      assert.strictEqual(engine.getCombatSummary().rounds, 3);
+    });
+  });
+
   describe('getCombatStateForPrompt', () => {
     it('returns a string containing round number', () => {
       const engine = new CombatEngine();

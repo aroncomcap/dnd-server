@@ -199,6 +199,7 @@ class CombatEngine {
         const level = action.slotLevel || spell.level || 1;
         if (caster.spellSlots && caster.spellSlots[level] > 0) {
           this.state.combatants[action.casterId].spellSlots[level]--;
+          result.slotUsed = true;
         }
 
         // Apply healing
@@ -424,6 +425,107 @@ class CombatEngine {
       });
 
     return allEnemiesDead || allPCsDown;
+  }
+
+  // -------------------------------------------------------------------------
+  // getCombatSummary
+  // -------------------------------------------------------------------------
+
+  /**
+   * Return per-character damage/healing statistics accumulated from the combat log.
+   * @returns {{ rounds: number, characters: Object }}
+   */
+  getCombatSummary() {
+    // Initialize all combatants with zero stats
+    const characters = {};
+    for (const [id, c] of Object.entries(this.state.combatants)) {
+      characters[id] = {
+        name: c.name,
+        type: c.type,
+        damageDealt: 0,
+        damageTaken: 0,
+        healed: 0,
+        spellSlotsUsed: 0,
+      };
+    }
+
+    // Helper to ensure a character entry exists (guards against missing combatants)
+    const ensure = (id) => {
+      if (!characters[id]) {
+        const c = this.state.combatants[id];
+        characters[id] = {
+          name: c ? c.name : id,
+          type: c ? c.type : 'Unknown',
+          damageDealt: 0,
+          damageTaken: 0,
+          healed: 0,
+          spellSlotsUsed: 0,
+        };
+      }
+    };
+
+    for (const entry of this.state.log) {
+      // Track spell slot usage on any log entry that has slotUsed
+      if (entry.slotUsed) {
+        const casterId = entry.caster;
+        if (casterId) {
+          ensure(casterId);
+          characters[casterId].spellSlotsUsed++;
+        }
+      }
+
+      switch (entry.type) {
+        case 'attack': {
+          if (entry.hit && entry.totalDamage > 0) {
+            const attId = entry.attacker;
+            const tgtId = entry.target;
+            if (attId) { ensure(attId); characters[attId].damageDealt += entry.totalDamage; }
+            if (tgtId) { ensure(tgtId); characters[tgtId].damageTaken += entry.totalDamage; }
+          }
+          break;
+        }
+
+        case 'spell-save': {
+          const casterId = entry.caster;
+          for (const t of entry.targets || []) {
+            if (t.damage > 0) {
+              if (casterId) { ensure(casterId); characters[casterId].damageDealt += t.damage; }
+              if (t.id) { ensure(t.id); characters[t.id].damageTaken += t.damage; }
+            }
+          }
+          break;
+        }
+
+        case 'spell-attack': {
+          const casterId = entry.caster;
+          for (const atk of entry.attacks || []) {
+            if (atk.hit && atk.totalDamage > 0) {
+              if (casterId) { ensure(casterId); characters[casterId].damageDealt += atk.totalDamage; }
+              const tgtId = atk.target;
+              if (tgtId) { ensure(tgtId); characters[tgtId].damageTaken += atk.totalDamage; }
+            }
+          }
+          break;
+        }
+
+        case 'heal': {
+          const casterId = entry.caster;
+          if (casterId) {
+            ensure(casterId);
+            characters[casterId].healed += entry.totalHealing || 0;
+          }
+          break;
+        }
+
+        default:
+          break;
+      }
+    }
+
+    return {
+      rounds: this.state.round,
+      characters,
+    };
   }
 
   /**
