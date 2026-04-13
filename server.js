@@ -1278,7 +1278,10 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
       }
     } catch (combatErr) {
       // Combat engine error — fall back to normal AI processing (no combat context)
-      console.error('Combat engine error (falling back to AI):', combatErr.message, combatErr.stack?.split('\n').slice(0, 3).join(' | '));
+      const errDetail = `[${new Date().toISOString()}] Combat engine error: ${combatErr.message}\n${combatErr.stack}\n---\n`;
+      console.error('Combat engine error (falling back to AI):', combatErr.message, combatErr.stack?.split('\n').slice(0, 5).join(' | '));
+      // Persist to file so we can debug after log rotation
+      require('fs').appendFile('/tmp/combat-errors.log', errDetail, () => {});
       combatContext = '';
       // End combat gracefully so we don't keep crashing
       gs.combatEngine.endCombat();
