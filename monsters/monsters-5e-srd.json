@@ -120,7 +120,7 @@
       { "name": "bite", "attackMod": "str", "damage": "1d6", "damageType": "piercing", "properties": [] },
       { "name": "claw", "attackMod": "str", "damage": "2d6", "damageType": "slashing", "properties": [] }
     ],
-    "spells": [], "spellSlots": {}, "features": ["Keen Smell", "Regeneration"],
+    "spells": [], "spellSlots": {}, "features": ["Keen Smell", "Regeneration", "Multiattack (1 bite + 2 claws)"],
     "conditions": [],
     "resistances": [],
     "vulnerabilities": ["fire", "acid"],
@@ -134,7 +134,7 @@
       { "name": "beak", "attackMod": "str", "damage": "1d10", "damageType": "piercing", "properties": [] },
       { "name": "claws", "attackMod": "str", "damage": "2d8", "damageType": "slashing", "properties": [] }
     ],
-    "spells": [], "spellSlots": {}, "features": ["Keen Sight and Smell"],
+    "spells": [], "spellSlots": {}, "features": ["Keen Sight and Smell", "Multiattack (1 beak + 1 claws)"],
     "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
   },
   "giant-spider": {
@@ -210,7 +210,7 @@
       { "name": "claw", "attackMod": "str", "damage": "2d4", "damageType": "slashing", "properties": [] },
       { "name": "tail spikes", "attackMod": "dex", "damage": "2d4", "damageType": "piercing", "properties": ["ranged"], "range": "100/200" }
     ],
-    "spells": [], "spellSlots": {}, "features": [],
+    "spells": [], "spellSlots": {}, "features": ["Multiattack (1 bite + 2 claws or 3 tail spikes)"],
     "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
   },
   "young-green-dragon": {
@@ -222,7 +222,7 @@
       { "name": "claw", "attackMod": "str", "damage": "2d6", "damageType": "slashing", "properties": [] },
       { "name": "poison breath", "attackMod": null, "damage": "12d6", "damageType": "poison", "properties": ["cone", "recharge-5-6"], "save": { "ability": "con", "dc": 14 } }
     ],
-    "spells": [], "spellSlots": {}, "features": ["Amphibious", "Legendary Resistance (0/3 remaining)"],
+    "spells": [], "spellSlots": {}, "features": ["Amphibious", "Multiattack (1 bite + 2 claws)"],
     "conditions": [],
     "resistances": [],
     "vulnerabilities": [],
@@ -238,10 +238,478 @@
       { "name": "tail", "attackMod": "str", "damage": "2d8", "damageType": "bludgeoning", "properties": [] },
       { "name": "fire breath", "attackMod": null, "damage": "16d6", "damageType": "fire", "properties": ["cone", "recharge-5-6"], "save": { "ability": "dex", "dc": 21 } }
     ],
-    "spells": [], "spellSlots": {}, "features": ["Legendary Resistance (3/day)", "Legendary Actions"],
+    "spells": [], "spellSlots": {}, "features": ["Legendary Resistance (3/day)", "Legendary Actions", "Multiattack (1 bite + 2 claws)"],
     "conditions": [],
     "resistances": [],
     "vulnerabilities": [],
     "immunities": ["fire"]
+  },
+  "giant-rat": {
+    "name": "Giant Rat", "cr": 0.125, "ac": 12, "hp": 7, "maxHp": 7, "speed": 30,
+    "abilities": { "str": 7, "dex": 15, "con": 11, "int": 2, "wis": 10, "cha": 4 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "dex", "damage": "1d4", "damageType": "piercing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Keen Smell", "Pack Tactics"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "stirge": {
+    "name": "Stirge", "cr": 0.125, "ac": 14, "hp": 2, "maxHp": 2, "speed": 10,
+    "abilities": { "str": 4, "dex": 16, "con": 11, "int": 2, "wis": 8, "cha": 6 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "blood drain", "attackMod": "dex", "damage": "1d4", "damageType": "piercing", "properties": [], "note": "Attaches to target; drains 1d4+3 HP per turn while attached" }
+    ],
+    "spells": [], "spellSlots": {}, "features": [],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "flying-snake": {
+    "name": "Flying Snake", "cr": 0.125, "ac": 14, "hp": 5, "maxHp": 5, "speed": 30,
+    "abilities": { "str": 4, "dex": 18, "con": 11, "int": 2, "wis": 12, "cha": 5 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "dex", "damage": "1", "damageType": "piercing", "properties": [], "saveOnHit": { "ability": "con", "dc": 11, "effect": "poisoned", "damage": "3d4" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Flyby"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "imp": {
+    "name": "Imp", "cr": 1, "ac": 13, "hp": 10, "maxHp": 10, "speed": 20,
+    "abilities": { "str": 6, "dex": 17, "con": 13, "int": 11, "wis": 12, "cha": 14 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "sting", "attackMod": "dex", "damage": "1d4", "damageType": "piercing", "properties": [], "saveOnHit": { "ability": "con", "dc": 11, "effect": "poisoned", "damage": "3d4" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Shapechanger", "Devil's Sight", "Magic Resistance"],
+    "conditions": [],
+    "resistances": ["cold", "bludgeoning", "piercing", "slashing"],
+    "vulnerabilities": [],
+    "immunities": ["fire", "poison", "poisoned"]
+  },
+  "pseudodragon": {
+    "name": "Pseudodragon", "cr": 0.25, "ac": 13, "hp": 7, "maxHp": 7, "speed": 15,
+    "abilities": { "str": 6, "dex": 15, "con": 13, "int": 10, "wis": 12, "cha": 10 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "dex", "damage": "1d4", "damageType": "piercing", "properties": [] },
+      { "name": "sting", "attackMod": "dex", "damage": "1d4", "damageType": "piercing", "properties": [], "saveOnHit": { "ability": "con", "dc": 11, "effect": "poisoned", "note": "on fail, unconscious for 1 hour" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Keen Senses", "Magic Resistance", "Limited Telepathy"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "animated-armor": {
+    "name": "Animated Armor", "cr": 1, "ac": 18, "hp": 33, "maxHp": 33, "speed": 25,
+    "abilities": { "str": 14, "dex": 11, "con": 13, "int": 1, "wis": 3, "cha": 1 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "slam", "attackMod": "str", "damage": "1d6", "damageType": "bludgeoning", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Antimagic Susceptibility", "False Appearance", "Multiattack (2 slams)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["poison", "psychic", "blinded", "charmed", "deafened", "exhaustion", "frightened", "paralyzed", "petrified", "poisoned"]
+  },
+  "rug-of-smothering": {
+    "name": "Rug of Smothering", "cr": 2, "ac": 12, "hp": 33, "maxHp": 33, "speed": 10,
+    "abilities": { "str": 17, "dex": 14, "con": 10, "int": 1, "wis": 3, "cha": 1 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "smother", "attackMod": "str", "damage": "2d6", "damageType": "bludgeoning", "properties": [], "note": "Grapples target; restrained and unable to breathe while grappled" }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Antimagic Susceptibility", "Damage Transfer", "False Appearance"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["poison", "psychic", "blinded", "charmed", "deafened", "exhaustion", "frightened", "paralyzed", "petrified", "poisoned"]
+  },
+  "specter": {
+    "name": "Specter", "cr": 1, "ac": 12, "hp": 22, "maxHp": 22, "speed": 0,
+    "abilities": { "str": 1, "dex": 14, "con": 11, "int": 10, "wis": 10, "cha": 11 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "life drain", "attackMod": "dex", "damage": "3d6", "damageType": "necrotic", "properties": [], "saveOnHit": { "ability": "con", "dc": 10, "effect": "max_hp_reduction" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Incorporeal Movement", "Sunlight Sensitivity"],
+    "conditions": [],
+    "resistances": ["acid", "fire", "lightning", "thunder", "bludgeoning", "piercing", "slashing"],
+    "vulnerabilities": [],
+    "immunities": ["cold", "necrotic", "poison", "charmed", "exhaustion", "frightened", "grappled", "paralyzed", "petrified", "poisoned", "prone", "restrained"]
+  },
+  "shadow": {
+    "name": "Shadow", "cr": 0.5, "ac": 12, "hp": 16, "maxHp": 16, "speed": 40,
+    "abilities": { "str": 6, "dex": 14, "con": 13, "int": 6, "wis": 10, "cha": 8 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "strength drain", "attackMod": "dex", "damage": "2d6", "damageType": "necrotic", "properties": [], "saveOnHit": { "ability": "con", "dc": 11, "effect": "str_reduction" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Amorphous", "Shadow Stealth", "Sunlight Weakness"],
+    "conditions": [],
+    "resistances": ["acid", "fire", "lightning", "thunder", "bludgeoning", "piercing", "slashing"],
+    "vulnerabilities": [],
+    "immunities": ["cold", "necrotic", "poison", "exhaustion", "frightened", "grappled", "paralyzed", "petrified", "poisoned", "prone", "restrained"]
+  },
+  "hell-hound": {
+    "name": "Hell Hound", "cr": 3, "ac": 15, "hp": 45, "maxHp": 45, "speed": 50,
+    "abilities": { "str": 17, "dex": 12, "con": 14, "int": 6, "wis": 13, "cha": 6 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d6", "damageType": "piercing", "properties": [] },
+      { "name": "fire breath", "attackMod": null, "damage": "6d6", "damageType": "fire", "properties": ["cone", "recharge-5-6"], "save": { "ability": "dex", "dc": 12 } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Keen Hearing and Smell", "Pack Tactics"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["fire"]
+  },
+  "winter-wolf": {
+    "name": "Winter Wolf", "cr": 3, "ac": 13, "hp": 75, "maxHp": 75, "speed": 50,
+    "abilities": { "str": 18, "dex": 13, "con": 14, "int": 7, "wis": 12, "cha": 8 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d6", "damageType": "piercing", "properties": [], "saveOnHit": { "ability": "str", "dc": 14, "effect": "prone" } },
+      { "name": "cold breath", "attackMod": null, "damage": "10d8", "damageType": "cold", "properties": ["cone", "recharge-5-6"], "save": { "ability": "dex", "dc": 12 } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Keen Hearing and Smell", "Pack Tactics", "Snow Camouflage"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["cold"]
+  },
+  "werewolf": {
+    "name": "Werewolf", "cr": 3, "ac": 11, "hp": 58, "maxHp": 58, "speed": 30,
+    "abilities": { "str": 15, "dex": 13, "con": 14, "int": 10, "wis": 11, "cha": 10 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite (wolf or hybrid)", "attackMod": "str", "damage": "2d6", "damageType": "piercing", "properties": [], "saveOnHit": { "ability": "con", "dc": 12, "effect": "lycanthropy" } },
+      { "name": "claws (hybrid)", "attackMod": "str", "damage": "2d4", "damageType": "slashing", "properties": [] },
+      { "name": "spear (humanoid)", "attackMod": "str", "damage": "1d6", "damageType": "piercing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Shapechanger", "Keen Hearing and Smell", "Multiattack (1 bite + 2 claws in hybrid form)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["bludgeoning", "piercing", "slashing from nonmagical non-silvered weapons"]
+  },
+  "mummy": {
+    "name": "Mummy", "cr": 3, "ac": 11, "hp": 58, "maxHp": 58, "speed": 20,
+    "abilities": { "str": 16, "dex": 8, "con": 15, "int": 6, "wis": 10, "cha": 12 },
+    "saveProficiencies": ["wis"], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "rotting fist", "attackMod": "str", "damage": "2d6", "damageType": "bludgeoning", "properties": [], "saveOnHit": { "ability": "con", "dc": 12, "effect": "mummy_rot" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Multiattack (Dreadful Glare + 1 rotting fist)", "Dreadful Glare"],
+    "conditions": [],
+    "resistances": ["bludgeoning", "piercing", "slashing from nonmagical weapons"],
+    "vulnerabilities": ["fire"],
+    "immunities": ["necrotic", "poison", "charmed", "exhaustion", "frightened", "paralyzed", "poisoned"]
+  },
+  "phase-spider": {
+    "name": "Phase Spider", "cr": 3, "ac": 13, "hp": 32, "maxHp": 32, "speed": 30,
+    "abilities": { "str": 15, "dex": 15, "con": 12, "int": 6, "wis": 10, "cha": 6 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "dex", "damage": "1d10", "damageType": "piercing", "properties": [], "saveOnHit": { "ability": "con", "dc": 11, "effect": "poisoned", "damage": "4d8" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Ethereal Jaunt", "Spider Climb", "Web Walker"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "spectator": {
+    "name": "Spectator", "cr": 3, "ac": 14, "hp": 39, "maxHp": 39, "speed": 0,
+    "abilities": { "str": 8, "dex": 14, "con": 14, "int": 13, "wis": 14, "cha": 11 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "1d6", "damageType": "piercing", "properties": [] },
+      { "name": "eye ray", "attackMod": "dex", "damage": "3d6", "damageType": "varies", "properties": ["ranged"], "range": "90", "note": "4 random eye rays: Confusion, Paralyzing, Fear, Wounding" }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Multiattack (1 bite + 2 eye rays)", "Spell Reflection"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "wyvern": {
+    "name": "Wyvern", "cr": 6, "ac": 13, "hp": 110, "maxHp": 110, "speed": 20,
+    "abilities": { "str": 19, "dex": 10, "con": 16, "int": 5, "wis": 12, "cha": 6 },
+    "saveProficiencies": [], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d6", "damageType": "piercing", "properties": [] },
+      { "name": "claws", "attackMod": "str", "damage": "2d8", "damageType": "slashing", "properties": [] },
+      { "name": "stinger", "attackMod": "str", "damage": "2d6", "damageType": "piercing", "properties": [], "saveOnHit": { "ability": "con", "dc": 15, "effect": "poisoned", "damage": "7d6" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Multiattack (1 bite + 1 stinger or 1 claws + 1 stinger)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "water-elemental": {
+    "name": "Water Elemental", "cr": 5, "ac": 14, "hp": 114, "maxHp": 114, "speed": 30,
+    "abilities": { "str": 18, "dex": 14, "con": 18, "int": 5, "wis": 10, "cha": 8 },
+    "saveProficiencies": [], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "slam", "attackMod": "str", "damage": "2d8", "damageType": "bludgeoning", "properties": [] },
+      { "name": "whelm", "attackMod": "str", "damage": "2d8", "damageType": "bludgeoning", "properties": [], "saveOnHit": { "ability": "str", "dc": 15, "effect": "grappled" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Freeze", "Water Form", "Multiattack (2 slams)"],
+    "conditions": [],
+    "resistances": ["acid", "bludgeoning", "piercing", "slashing from nonmagical weapons"],
+    "vulnerabilities": [],
+    "immunities": ["poison", "exhaustion", "grappled", "paralyzed", "petrified", "poisoned", "prone", "restrained", "unconscious"]
+  },
+  "fire-elemental": {
+    "name": "Fire Elemental", "cr": 5, "ac": 13, "hp": 102, "maxHp": 102, "speed": 50,
+    "abilities": { "str": 10, "dex": 17, "con": 16, "int": 6, "wis": 10, "cha": 7 },
+    "saveProficiencies": [], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "touch", "attackMod": "dex", "damage": "2d6", "damageType": "fire", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Fire Form", "Illumination", "Water Susceptibility", "Multiattack (2 touches)"],
+    "conditions": [],
+    "resistances": ["bludgeoning", "piercing", "slashing from nonmagical weapons"],
+    "vulnerabilities": [],
+    "immunities": ["fire", "poison", "exhaustion", "grappled", "paralyzed", "petrified", "poisoned", "prone", "restrained", "unconscious"]
+  },
+  "air-elemental": {
+    "name": "Air Elemental", "cr": 5, "ac": 15, "hp": 90, "maxHp": 90, "speed": 0,
+    "abilities": { "str": 14, "dex": 20, "con": 14, "int": 6, "wis": 10, "cha": 6 },
+    "saveProficiencies": [], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "slam", "attackMod": "dex", "damage": "2d8", "damageType": "bludgeoning", "properties": [] },
+      { "name": "whirlwind", "attackMod": null, "damage": "2d8", "damageType": "bludgeoning", "properties": ["recharge-4-6"], "save": { "ability": "str", "dc": 13, "effect": "flung" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Air Form", "Multiattack (2 slams)"],
+    "conditions": [],
+    "resistances": ["lightning", "thunder", "bludgeoning", "piercing", "slashing from nonmagical weapons"],
+    "vulnerabilities": [],
+    "immunities": ["poison", "exhaustion", "grappled", "paralyzed", "petrified", "poisoned", "prone", "restrained", "unconscious"]
+  },
+  "earth-elemental": {
+    "name": "Earth Elemental", "cr": 5, "ac": 17, "hp": 126, "maxHp": 126, "speed": 30,
+    "abilities": { "str": 20, "dex": 8, "con": 20, "int": 5, "wis": 10, "cha": 5 },
+    "saveProficiencies": [], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "slam", "attackMod": "str", "damage": "2d8", "damageType": "bludgeoning", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Earth Glide", "Siege Monster", "Multiattack (2 slams)"],
+    "conditions": [],
+    "resistances": ["bludgeoning", "piercing", "slashing from nonmagical weapons"],
+    "vulnerabilities": ["thunder"],
+    "immunities": ["poison", "exhaustion", "paralyzed", "petrified", "poisoned", "unconscious"]
+  },
+  "stone-golem": {
+    "name": "Stone Golem", "cr": 10, "ac": 17, "hp": 178, "maxHp": 178, "speed": 30,
+    "abilities": { "str": 22, "dex": 9, "con": 20, "int": 3, "wis": 11, "cha": 1 },
+    "saveProficiencies": [], "proficiencyBonus": 4,
+    "weapons": [
+      { "name": "slam", "attackMod": "str", "damage": "3d8", "damageType": "bludgeoning", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Immutable Form", "Magic Resistance", "Magic Weapons", "Slow (recharge 5-6)", "Multiattack (2 slams)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["poison", "psychic", "bludgeoning", "piercing", "slashing from nonmagical weapons", "charmed", "exhaustion", "frightened", "paralyzed", "petrified", "poisoned"]
+  },
+  "young-black-dragon": {
+    "name": "Young Black Dragon", "cr": 7, "ac": 18, "hp": 127, "maxHp": 127, "speed": 40,
+    "abilities": { "str": 19, "dex": 14, "con": 17, "int": 12, "wis": 11, "cha": 15 },
+    "saveProficiencies": ["dex", "con", "wis", "cha"], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d10", "damageType": "piercing", "properties": [] },
+      { "name": "claw", "attackMod": "str", "damage": "2d6", "damageType": "slashing", "properties": [] },
+      { "name": "acid breath", "attackMod": null, "damage": "11d8", "damageType": "acid", "properties": ["line", "recharge-5-6"], "save": { "ability": "dex", "dc": 14 } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Amphibious", "Multiattack (1 bite + 2 claws)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["acid"]
+  },
+  "young-white-dragon": {
+    "name": "Young White Dragon", "cr": 6, "ac": 17, "hp": 133, "maxHp": 133, "speed": 40,
+    "abilities": { "str": 18, "dex": 10, "con": 18, "int": 6, "wis": 11, "cha": 12 },
+    "saveProficiencies": ["dex", "con", "wis", "cha"], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d10", "damageType": "piercing", "properties": [] },
+      { "name": "claw", "attackMod": "str", "damage": "2d6", "damageType": "slashing", "properties": [] },
+      { "name": "cold breath", "attackMod": null, "damage": "10d8", "damageType": "cold", "properties": ["cone", "recharge-5-6"], "save": { "ability": "con", "dc": 15 } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Ice Walk", "Multiattack (1 bite + 2 claws)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["cold"]
+  },
+  "young-blue-dragon": {
+    "name": "Young Blue Dragon", "cr": 9, "ac": 18, "hp": 152, "maxHp": 152, "speed": 40,
+    "abilities": { "str": 21, "dex": 10, "con": 19, "int": 14, "wis": 13, "cha": 17 },
+    "saveProficiencies": ["dex", "con", "wis", "cha"], "proficiencyBonus": 4,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d10", "damageType": "piercing", "properties": [] },
+      { "name": "claw", "attackMod": "str", "damage": "2d6", "damageType": "slashing", "properties": [] },
+      { "name": "lightning breath", "attackMod": null, "damage": "12d10", "damageType": "lightning", "properties": ["line", "recharge-5-6"], "save": { "ability": "dex", "dc": 16 } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Multiattack (1 bite + 2 claws)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["lightning"]
+  },
+  "mind-flayer": {
+    "name": "Mind Flayer", "cr": 7, "ac": 15, "hp": 71, "maxHp": 71, "speed": 30,
+    "abilities": { "str": 11, "dex": 12, "con": 12, "int": 19, "wis": 17, "cha": 17 },
+    "saveProficiencies": ["int", "wis", "cha"], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "tentacles", "attackMod": "int", "damage": "2d10", "damageType": "psychic", "properties": [], "saveOnHit": { "ability": "int", "dc": 15, "effect": "stunned" } },
+      { "name": "extract brain", "attackMod": "str", "damage": "10d10", "damageType": "piercing", "properties": [], "note": "Only usable on stunned, grappled target" }
+    ],
+    "spells": ["detect thoughts", "levitate", "plane shift", "dominate monster"],
+    "spellSlots": {},
+    "features": ["Magic Resistance", "Innate Spellcasting (Psionics)", "Mind Blast (recharge 5-6)", "Multiattack (1 tentacles + extract brain if stunned)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "vampire": {
+    "name": "Vampire", "cr": 13, "ac": 16, "hp": 144, "maxHp": 144, "speed": 30,
+    "abilities": { "str": 18, "dex": 18, "con": 18, "int": 17, "wis": 15, "cha": 18 },
+    "saveProficiencies": ["dex", "wis", "cha"], "proficiencyBonus": 5,
+    "weapons": [
+      { "name": "unarmed strike", "attackMod": "str", "damage": "1d8", "damageType": "bludgeoning", "properties": [] },
+      { "name": "bite", "attackMod": "dex", "damage": "1d6", "damageType": "piercing", "properties": [], "note": "Also drains 3d6 HP to heal vampire; reduces max HP" }
+    ],
+    "spells": [], "spellSlots": {},
+    "features": ["Shapechanger", "Legendary Resistance (3/day)", "Legendary Actions", "Misty Escape", "Regeneration", "Spider Climb", "Vampire Weaknesses", "Charm", "Children of the Night", "Multiattack (2 unarmed strikes or 1 unarmed + bite)"],
+    "conditions": [],
+    "resistances": ["necrotic", "bludgeoning", "piercing", "slashing from nonmagical weapons"],
+    "vulnerabilities": [],
+    "immunities": []
+  },
+  "roper": {
+    "name": "Roper", "cr": 5, "ac": 20, "hp": 93, "maxHp": 93, "speed": 10,
+    "abilities": { "str": 18, "dex": 8, "con": 17, "int": 7, "wis": 16, "cha": 6 },
+    "saveProficiencies": [], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "4d8", "damageType": "piercing", "properties": [] },
+      { "name": "tendril", "attackMod": "str", "damage": "0", "damageType": "none", "properties": [], "saveOnHit": { "ability": "str", "dc": 15, "effect": "grappled", "note": "4 tendrils; grappled target is restrained" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["False Appearance", "Grasping Tendrils", "Spider Climb", "Multiattack (4 tendrils + 1 bite)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": ["fire"],
+    "immunities": []
+  },
+  "hydra": {
+    "name": "Hydra", "cr": 8, "ac": 15, "hp": 172, "maxHp": 172, "speed": 30,
+    "abilities": { "str": 20, "dex": 12, "con": 20, "int": 2, "wis": 10, "cha": 7 },
+    "saveProficiencies": [], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "1d10", "damageType": "piercing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Hold Breath", "Multiple Heads (5)", "Reactive Heads", "Wakeful", "Multiattack (number of bites = number of heads)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "frost-giant": {
+    "name": "Frost Giant", "cr": 8, "ac": 15, "hp": 138, "maxHp": 138, "speed": 40,
+    "abilities": { "str": 23, "dex": 9, "con": 21, "int": 9, "wis": 10, "cha": 12 },
+    "saveProficiencies": ["con", "wis", "cha"], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "greataxe", "attackMod": "str", "damage": "3d12", "damageType": "slashing", "properties": ["two-handed"] },
+      { "name": "rock", "attackMod": "str", "damage": "4d10", "damageType": "bludgeoning", "properties": ["ranged"], "range": "60/240" }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Multiattack (2 greataxe)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["cold"]
+  },
+  "fire-giant": {
+    "name": "Fire Giant", "cr": 9, "ac": 18, "hp": 162, "maxHp": 162, "speed": 30,
+    "abilities": { "str": 25, "dex": 9, "con": 23, "int": 10, "wis": 14, "cha": 13 },
+    "saveProficiencies": ["dex", "con", "cha"], "proficiencyBonus": 4,
+    "weapons": [
+      { "name": "greatsword", "attackMod": "str", "damage": "6d6", "damageType": "slashing", "properties": ["two-handed"] },
+      { "name": "rock", "attackMod": "str", "damage": "4d10", "damageType": "bludgeoning", "properties": ["ranged"], "range": "60/240" }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Multiattack (2 greatsword)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["fire"]
+  },
+  "ancient-black-dragon": {
+    "name": "Ancient Black Dragon", "cr": 21, "ac": 22, "hp": 367, "maxHp": 367, "speed": 40,
+    "abilities": { "str": 27, "dex": 14, "con": 25, "int": 16, "wis": 15, "cha": 19 },
+    "saveProficiencies": ["dex", "con", "wis", "cha"], "proficiencyBonus": 7,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d10", "damageType": "piercing", "properties": [] },
+      { "name": "claw", "attackMod": "str", "damage": "2d6", "damageType": "slashing", "properties": [] },
+      { "name": "tail", "attackMod": "str", "damage": "2d8", "damageType": "bludgeoning", "properties": [] },
+      { "name": "acid breath", "attackMod": null, "damage": "15d8", "damageType": "acid", "properties": ["line", "recharge-5-6"], "save": { "ability": "dex", "dc": 22 } }
+    ],
+    "spells": [], "spellSlots": {},
+    "features": ["Amphibious", "Legendary Resistance (3/day)", "Legendary Actions", "Lair Actions", "Multiattack (1 bite + 2 claws)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["acid"]
+  },
+  "beholder": {
+    "name": "Beholder", "cr": 13, "ac": 18, "hp": 180, "maxHp": 180, "speed": 0,
+    "abilities": { "str": 10, "dex": 14, "con": 18, "int": 17, "wis": 15, "cha": 17 },
+    "saveProficiencies": ["int", "wis", "cha"], "proficiencyBonus": 5,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "4d6", "damageType": "piercing", "properties": [] },
+      { "name": "eye ray", "attackMod": "int", "damage": "varies", "damageType": "varies", "properties": ["ranged"], "range": "120", "note": "10 random eye rays: Charm, Paralyze, Fear, Slow, Enervation, Telekinetic, Sleep, Petrification, Disintegration, Death" }
+    ],
+    "spells": [], "spellSlots": {},
+    "features": ["Antimagic Cone", "Legendary Resistance (3/day)", "Legendary Actions", "Lair Actions", "Multiattack (1 bite + 3 eye rays)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["prone"]
+  },
+  "lich": {
+    "name": "Lich", "cr": 21, "ac": 17, "hp": 135, "maxHp": 135, "speed": 30,
+    "abilities": { "str": 11, "dex": 16, "con": 16, "int": 20, "wis": 14, "cha": 16 },
+    "saveProficiencies": ["con", "int", "wis"], "proficiencyBonus": 7,
+    "weapons": [
+      { "name": "paralyzing touch", "attackMod": "int", "damage": "3d6", "damageType": "cold", "properties": [], "saveOnHit": { "ability": "con", "dc": 18, "effect": "paralyzed" } }
+    ],
+    "spells": ["magic missile", "detect magic", "thunderwave", "mirror image", "misty step", "counterspell", "lightning bolt", "blight", "dimension door", "banishment", "cloudkill", "globe of invulnerability", "disintegrate", "power word stun", "power word kill"],
+    "spellSlots": { "1": 4, "2": 3, "3": 3, "4": 3, "5": 3, "6": 1, "7": 1, "8": 1, "9": 1 },
+    "features": ["Legendary Resistance (3/day)", "Legendary Actions", "Rejuvenation", "Turn Resistance", "Spellcasting (Int, DC 20, +12)"],
+    "conditions": [],
+    "resistances": ["cold", "lightning", "necrotic", "bludgeoning", "piercing", "slashing from nonmagical weapons"],
+    "vulnerabilities": [],
+    "immunities": ["poison", "bludgeoning piercing slashing from nonmagical weapons", "charmed", "exhaustion", "frightened", "paralyzed", "poisoned"]
+  },
+  "pit-fiend": {
+    "name": "Pit Fiend", "cr": 20, "ac": 19, "hp": 300, "maxHp": 300, "speed": 30,
+    "abilities": { "str": 26, "dex": 14, "con": 24, "int": 22, "wis": 18, "cha": 24 },
+    "saveProficiencies": ["dex", "con", "wis"], "proficiencyBonus": 6,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "4d6", "damageType": "piercing", "properties": [], "saveOnHit": { "ability": "con", "dc": 21, "effect": "poisoned" } },
+      { "name": "claw", "attackMod": "str", "damage": "2d8", "damageType": "slashing", "properties": [] },
+      { "name": "mace", "attackMod": "str", "damage": "2d6", "damageType": "bludgeoning", "properties": [] },
+      { "name": "tail", "attackMod": "str", "damage": "2d8", "damageType": "bludgeoning", "properties": [] }
+    ],
+    "spells": ["detect magic", "fireball", "hold monster", "wall of fire"],
+    "spellSlots": {},
+    "features": ["Fear Aura", "Legendary Resistance (3/day)", "Magic Resistance", "Magic Weapons", "Innate Spellcasting", "Multiattack (1 bite + 1 claw + 1 mace + 1 tail)"],
+    "conditions": [],
+    "resistances": ["cold", "bludgeoning", "piercing", "slashing from nonmagical weapons"],
+    "vulnerabilities": [],
+    "immunities": ["fire", "poison", "poisoned"]
+  },
+  "kraken": {
+    "name": "Kraken", "cr": 23, "ac": 18, "hp": 472, "maxHp": 472, "speed": 20,
+    "abilities": { "str": 30, "dex": 11, "con": 25, "int": 22, "wis": 18, "cha": 20 },
+    "saveProficiencies": ["str", "dex", "con", "int", "wis"], "proficiencyBonus": 7,
+    "weapons": [
+      { "name": "tentacle", "attackMod": "str", "damage": "3d6", "damageType": "bludgeoning", "properties": [], "saveOnHit": { "ability": "dex", "dc": 23, "effect": "grappled" } },
+      { "name": "bite", "attackMod": "str", "damage": "3d8", "damageType": "piercing", "properties": [] },
+      { "name": "lightning storm", "attackMod": null, "damage": "8d8", "damageType": "lightning", "properties": ["ranged", "recharge-5-6"], "save": { "ability": "dex", "dc": 23 }, "range": "120" }
+    ],
+    "spells": [], "spellSlots": {},
+    "features": ["Amphibious", "Freedom of Movement", "Legendary Resistance (3/day)", "Legendary Actions", "Lair Actions", "Siege Monster", "Multiattack (3 tentacles + 1 bite or 3 tentacles + lightning storm)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["lightning", "bludgeoning", "piercing", "slashing from nonmagical weapons", "frightened", "paralyzed"]
   }
 }

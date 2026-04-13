@@ -246,5 +246,220 @@
     "runeSpells": ["Berserk"],
     "spiritSpells": ["Strength", "Bladesharp"],
     "strikeRank": 5
+  },
+  "dragonewt": {
+    "name": "Dragonewt",
+    "characteristics": { "str": 15, "con": 13, "siz": 14, "int": 14, "pow": 16, "dex": 15, "cha": 10 },
+    "hitLocations": {
+      "head":      { "hp": 5, "maxHp": 5, "armor": 5 },
+      "left-arm":  { "hp": 4, "maxHp": 4, "armor": 4 },
+      "right-arm": { "hp": 4, "maxHp": 4, "armor": 4 },
+      "chest":     { "hp": 6, "maxHp": 6, "armor": 6 },
+      "abdomen":   { "hp": 5, "maxHp": 5, "armor": 6 },
+      "tail":      { "hp": 5, "maxHp": 5, "armor": 4 },
+      "left-leg":  { "hp": 5, "maxHp": 5, "armor": 4 },
+      "right-leg": { "hp": 5, "maxHp": 5, "armor": 4 }
+    },
+    "totalHp": 14,
+    "weapons": [
+      { "name": "klanth (curved blade)", "skill": 75, "damage": "1d8+1+1d4", "sr": 5 },
+      { "name": "tail lash", "skill": 50, "damage": "1d6+1d4", "sr": 7 }
+    ],
+    "skills": { "dodge": 45, "listen": 60, "scan": 65, "dragonewt lore": 80 },
+    "conditions": [],
+    "runePoints": 4, "maxRunePoints": 4, "magicPoints": 16, "maxMagicPoints": 16,
+    "runeSpells": ["Breath of Fire", "Scale Ward"],
+    "spiritSpells": ["Bladesharp", "Protection", "Detect Magic"],
+    "strikeRank": 5,
+    "note": "Draconic being; reincarnates on death if spiritually advanced enough"
+  },
+  "dream-dragon": {
+    "name": "Dream Dragon",
+    "characteristics": { "str": 30, "con": 20, "siz": 40, "int": 20, "pow": 25, "dex": 14, "cha": 18 },
+    "hitLocations": {
+      "head":       { "hp": 9, "maxHp": 9, "armor": 10 },
+      "neck":       { "hp": 8, "maxHp": 8, "armor": 10 },
+      "left-wing":  { "hp": 10, "maxHp": 10, "armor": 8 },
+      "right-wing": { "hp": 10, "maxHp": 10, "armor": 8 },
+      "chest":      { "hp": 12, "maxHp": 12, "armor": 12 },
+      "abdomen":    { "hp": 11, "maxHp": 11, "armor": 12 },
+      "tail":       { "hp": 10, "maxHp": 10, "armor": 10 },
+      "left-leg":   { "hp": 9, "maxHp": 9, "armor": 10 },
+      "right-leg":  { "hp": 9, "maxHp": 9, "armor": 10 }
+    },
+    "totalHp": 30,
+    "weapons": [
+      { "name": "bite", "skill": 80, "damage": "4d8+4d6", "sr": 6 },
+      { "name": "claw", "skill": 85, "damage": "3d6+4d6", "sr": 4 },
+      { "name": "dream breath", "skill": 90, "damage": "special", "sr": 2, "note": "Cone 30m; POW vs POW or target falls into magical sleep for 1d6 hours" }
+    ],
+    "skills": { "dodge": 25, "listen": 90, "scan": 95, "dragonewt lore": 100 },
+    "conditions": [],
+    "runePoints": 10, "maxRunePoints": 10, "magicPoints": 25, "maxMagicPoints": 25,
+    "runeSpells": ["Breathe Fire", "Dragon's Might", "True Dragonform"],
+    "spiritSpells": [],
+    "strikeRank": 2,
+    "note": "True dragon; flying; legendary creature of Gloranthan mythology"
+  },
+  "allosaur": {
+    "name": "Allosaur",
+    "characteristics": { "str": 30, "con": 18, "siz": 35, "int": 3, "pow": 10, "dex": 12, "cha": 5 },
+    "hitLocations": {
+      "head":      { "hp": 7, "maxHp": 7, "armor": 2 },
+      "left-arm":  { "hp": 6, "maxHp": 6, "armor": 2 },
+      "right-arm": { "hp": 6, "maxHp": 6, "armor": 2 },
+      "chest":     { "hp": 10, "maxHp": 10, "armor": 3 },
+      "abdomen":   { "hp": 9, "maxHp": 9, "armor": 3 },
+      "tail":      { "hp": 8, "maxHp": 8, "armor": 2 },
+      "left-leg":  { "hp": 8, "maxHp": 8, "armor": 2 },
+      "right-leg": { "hp": 8, "maxHp": 8, "armor": 2 }
+    },
+    "totalHp": 27,
+    "weapons": [
+      { "name": "bite", "skill": 70, "damage": "4d8+4d6", "sr": 7 },
+      { "name": "claw", "skill": 60, "damage": "2d6+4d6", "sr": 5 },
+      { "name": "tail lash", "skill": 45, "damage": "2d8+4d6", "sr": 9 }
+    ],
+    "skills": { "dodge": 15, "listen": 45, "scan": 50, "track": 60 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 10, "maxMagicPoints": 10,
+    "runeSpells": [], "spiritSpells": [],
+    "strikeRank": 6
+  },
+  "disease-spirit": {
+    "name": "Disease Spirit",
+    "characteristics": { "str": 0, "con": 0, "siz": 0, "int": 10, "pow": 18, "dex": 0, "cha": 6 },
+    "hitLocations": {
+      "spirit-form": { "hp": 18, "maxHp": 18, "armor": 0 }
+    },
+    "totalHp": 18,
+    "weapons": [
+      { "name": "disease touch", "skill": 80, "damage": "special", "sr": 1, "note": "POW vs POW; on fail, victim contracts disease (POT 15, 1d6 CON loss per day)" }
+    ],
+    "skills": { "spirit combat": 80, "sneak": 90, "scan": 60 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 18, "maxMagicPoints": 18,
+    "runeSpells": [], "spiritSpells": ["Disruption"],
+    "strikeRank": 1,
+    "note": "Immaterial; only affected by spirit combat or magic. Seeks hosts to spread disease."
+  },
+  "air-elemental-medium": {
+    "name": "Air Elemental (Medium)",
+    "characteristics": { "str": 16, "con": 0, "siz": 20, "int": 6, "pow": 16, "dex": 20, "cha": 0 },
+    "hitLocations": {
+      "body": { "hp": 16, "maxHp": 16, "armor": 0 }
+    },
+    "totalHp": 16,
+    "weapons": [
+      { "name": "wind buffet", "skill": 75, "damage": "2d6+1d6", "sr": 3, "note": "Knockback on large damage: STR vs SIZ or fall" },
+      { "name": "whirlwind", "skill": 60, "damage": "1d8", "sr": 2, "note": "Engulfs target; suffers 1d8 per SR while inside" }
+    ],
+    "skills": { "dodge": 60, "scan": 50 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 16, "maxMagicPoints": 16,
+    "runeSpells": [], "spiritSpells": [],
+    "strikeRank": 3,
+    "note": "Summoned air elemental; immune to physical weapons, vulnerable to Earth Rune magic"
+  },
+  "earth-elemental-medium": {
+    "name": "Earth Elemental (Medium)",
+    "characteristics": { "str": 28, "con": 0, "siz": 28, "int": 4, "pow": 12, "dex": 6, "cha": 0 },
+    "hitLocations": {
+      "body": { "hp": 20, "maxHp": 20, "armor": 10 }
+    },
+    "totalHp": 20,
+    "weapons": [
+      { "name": "slam", "skill": 70, "damage": "3d6+4d6", "sr": 9, "note": "Engulf attack on large target: trapped in earth, take 1d10 per SR" }
+    ],
+    "skills": { "dodge": 10, "scan": 30 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 12, "maxMagicPoints": 12,
+    "runeSpells": [], "spiritSpells": [],
+    "strikeRank": 9,
+    "note": "Summoned gnome (earth elemental); passes through earth; immune to physical weapons"
+  },
+  "fire-elemental-medium": {
+    "name": "Fire Elemental (Medium)",
+    "characteristics": { "str": 20, "con": 0, "siz": 18, "int": 6, "pow": 18, "dex": 18, "cha": 0 },
+    "hitLocations": {
+      "body": { "hp": 18, "maxHp": 18, "armor": 0 }
+    },
+    "totalHp": 18,
+    "weapons": [
+      { "name": "fire touch", "skill": 80, "damage": "2d8", "sr": 4, "note": "Sets flammable items alight; ongoing 1d6 fire damage if burning" }
+    ],
+    "skills": { "dodge": 50, "scan": 60 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 18, "maxMagicPoints": 18,
+    "runeSpells": [], "spiritSpells": [],
+    "strikeRank": 4,
+    "note": "Summoned salamander; immune to fire and normal weapons; vulnerable to water and cold"
+  },
+  "water-elemental-medium": {
+    "name": "Water Elemental (Medium)",
+    "characteristics": { "str": 22, "con": 0, "siz": 22, "int": 6, "pow": 14, "dex": 12, "cha": 0 },
+    "hitLocations": {
+      "body": { "hp": 18, "maxHp": 18, "armor": 0 }
+    },
+    "totalHp": 18,
+    "weapons": [
+      { "name": "water slam", "skill": 70, "damage": "2d6+2d6", "sr": 6, "note": "Drowning attack: engulfs target; loses 1 CON per SR while submerged" }
+    ],
+    "skills": { "dodge": 40, "scan": 50 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 14, "maxMagicPoints": 14,
+    "runeSpells": [], "spiritSpells": [],
+    "strikeRank": 6,
+    "note": "Summoned undine; can only be summoned near water; immune to normal weapons"
+  },
+  "cave-troll": {
+    "name": "Cave Troll",
+    "characteristics": { "str": 21, "con": 17, "siz": 27, "int": 6, "pow": 10, "dex": 8, "cha": 6 },
+    "hitLocations": {
+      "head":      { "hp": 7, "maxHp": 7, "armor": 4 },
+      "left-arm":  { "hp": 7, "maxHp": 7, "armor": 4 },
+      "right-arm": { "hp": 7, "maxHp": 7, "armor": 4 },
+      "chest":     { "hp": 9, "maxHp": 9, "armor": 6 },
+      "abdomen":   { "hp": 8, "maxHp": 8, "armor": 6 },
+      "left-leg":  { "hp": 8, "maxHp": 8, "armor": 4 },
+      "right-leg": { "hp": 8, "maxHp": 8, "armor": 4 }
+    },
+    "totalHp": 22,
+    "weapons": [
+      { "name": "great club", "skill": 65, "damage": "3d6+3d6", "sr": 8 },
+      { "name": "bite", "skill": 55, "damage": "1d10+3d6", "sr": 9 },
+      { "name": "rock throw", "skill": 50, "damage": "2d8+3d6", "sr": 3, "range": "40m" }
+    ],
+    "skills": { "dodge": 15, "listen": 50, "scan": 35, "infravision": 95 },
+    "conditions": [],
+    "runePoints": 1, "maxRunePoints": 1, "magicPoints": 10, "maxMagicPoints": 10,
+    "runeSpells": ["Darkwall"],
+    "spiritSpells": ["Strength"],
+    "strikeRank": 8,
+    "note": "Larger and more primitive than dark trolls; light-blind above ground"
+  },
+  "baboon": {
+    "name": "Baboon",
+    "characteristics": { "str": 13, "con": 12, "siz": 12, "int": 10, "pow": 11, "dex": 16, "cha": 8 },
+    "hitLocations": {
+      "head":      { "hp": 4, "maxHp": 4, "armor": 0 },
+      "left-arm":  { "hp": 3, "maxHp": 3, "armor": 0 },
+      "right-arm": { "hp": 3, "maxHp": 3, "armor": 0 },
+      "chest":     { "hp": 5, "maxHp": 5, "armor": 1 },
+      "abdomen":   { "hp": 4, "maxHp": 4, "armor": 1 },
+      "left-leg":  { "hp": 4, "maxHp": 4, "armor": 0 },
+      "right-leg": { "hp": 4, "maxHp": 4, "armor": 0 }
+    },
+    "totalHp": 12,
+    "weapons": [
+      { "name": "bite", "skill": 55, "damage": "1d6+1d4", "sr": 6 },
+      { "name": "club", "skill": 45, "damage": "1d6+1d4", "sr": 7 }
+    ],
+    "skills": { "dodge": 40, "listen": 60, "scan": 65, "track": 45, "sneak": 50, "climb": 85 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 11, "maxMagicPoints": 11,
+    "runeSpells": [], "spiritSpells": [],
+    "strikeRank": 4,
+    "note": "Semi-intelligent creature of Prax; often encountered in troops; respect Waha's traditions"
   }
 }
