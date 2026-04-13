@@ -1099,36 +1099,45 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   let combatContext = '';
 
   if (combatActive) {
-    const combatCtx = {
-      combatants: gs.combatEngine.state.combatants,
-      preTaggedOptions: gs.preTaggedOptions || null,
-    };
-    const currentPlayerName = gs.data.turnOrder[gs.data.currentTurnIndex];
-    const playerId = currentPlayerName?.toLowerCase().replace(/\s+/g, '-');
-    const actionText = userMessage.replace(/^.*?:\s*/, '');
+    try {
+      const combatCtx = {
+        combatants: gs.combatEngine.state.combatants,
+        preTaggedOptions: gs.preTaggedOptions || null,
+      };
+      const currentPlayerName = gs.data.turnOrder[gs.data.currentTurnIndex];
+      const playerId = currentPlayerName?.toLowerCase().replace(/\s+/g, '-');
+      const actionText = userMessage.replace(/^.*?:\s*/, '');
 
-    let parsedAction = parseAction(actionText, playerId, combatCtx);
-    if (!parsedAction) {
-      try {
-        parsedAction = await parseActionWithAI(actionText, playerId, combatCtx, anthropic);
-      } catch (e) { console.error('Action parse AI error:', e.message); }
-    }
-
-    if (parsedAction) {
-      const playerResult = gs.combatEngine.resolveAction(parsedAction);
-      gs.combatEngine.advanceTurn();
-      const enemyResults = await resolveEnemyTurns(gameId, gameConfig);
-      const allResults = [playerResult, ...enemyResults].filter(Boolean);
-      const resultLines = allResults.map(r => gs.combatEngine.formatResultForPrompt(r));
-
-      combatContext = `\n\n${gs.combatEngine.getCombatStateForPrompt()}\n\nRESOLVED THIS ROUND:\n${resultLines.join('\n')}\n\nNarrate these results in your DM persona. It is now ${gs.combatEngine.getCurrentTurn()?.name || 'the next player'}'s turn.`;
-
-      const overCheck = gs.combatEngine.isCombatOver();
-      if (overCheck.over) {
-        combatContext += `\n\nCOMBAT IS OVER: ${overCheck.reason === 'enemies_defeated' ? 'All enemies defeated. Narrate aftermath and loot.' : 'All PCs are down.'}`;
-        gs.combatEngine.endCombat();
-        io.to(gameId).emit('combat_ended', { reason: overCheck.reason });
+      let parsedAction = parseAction(actionText, playerId, combatCtx);
+      if (!parsedAction) {
+        try {
+          parsedAction = await parseActionWithAI(actionText, playerId, combatCtx, anthropic);
+        } catch (e) { console.error('Action parse AI error:', e.message); }
       }
+
+      if (parsedAction) {
+        const playerResult = gs.combatEngine.resolveAction(parsedAction);
+        gs.combatEngine.advanceTurn();
+        const enemyResults = await resolveEnemyTurns(gameId, gameConfig);
+        const allResults = [playerResult, ...enemyResults].filter(Boolean);
+        const resultLines = allResults.map(r => gs.combatEngine.formatResultForPrompt(r));
+
+        combatContext = `\n\n${gs.combatEngine.getCombatStateForPrompt()}\n\nRESOLVED THIS ROUND:\n${resultLines.join('\n')}\n\nNarrate these results in your DM persona. It is now ${gs.combatEngine.getCurrentTurn()?.name || 'the next player'}'s turn.`;
+
+        const overCheck = gs.combatEngine.isCombatOver();
+        if (overCheck.over) {
+          combatContext += `\n\nCOMBAT IS OVER: ${overCheck.reason === 'enemies_defeated' ? 'All enemies defeated. Narrate aftermath and loot.' : 'All PCs are down.'}`;
+          gs.combatEngine.endCombat();
+          io.to(gameId).emit('combat_ended', { reason: overCheck.reason });
+        }
+      }
+    } catch (combatErr) {
+      // Combat engine error — fall back to normal AI processing (no combat context)
+      console.error('Combat engine error (falling back to AI):', combatErr.message, combatErr.stack?.split('\n').slice(0, 3).join(' | '));
+      combatContext = '';
+      // End combat gracefully so we don't keep crashing
+      gs.combatEngine.endCombat();
+      io.to(gameId).emit('combat_ended', { reason: 'error' });
     }
   }
 
@@ -2172,6 +2181,15 @@ io.on('connection', (socket) => {
 
     const gs = getGameState(gameId);
     clearTimeout(gs.turnTimer);
+
+    // Auto-unpause on human action
+    if (gs.paused) {
+      gs.paused = false;
+      gs.idleTurns = 0;
+      emitSystem(gameId, { text: '▶️ Game resumed!' });
+      io.to(gameId).emit('game_resumed');
+    }
+
     const playerToken = gs.data.characters[playerName]?.token || null;
     io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });
     discord.onSystem(gameId, { text: `**${playerName}:** ${action}` }).catch(() => {});
