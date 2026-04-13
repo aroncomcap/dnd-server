@@ -110,9 +110,12 @@ function analyzePartyAndStart() {
 
     console.log(`   Party: ${Object.keys(characters).join(', ')}`);
     console.log(`   Level: ${results.partyLevel} | DPR: ${results.partyDPR} | HP: ${results.partyHP}`);
-    for (const c of analysis.characters) {
-      const name = Object.keys(characters).find((_, i) => i === analysis.characters.indexOf(c)) || '?';
-      console.log(`     ${name}: ${c.dpr.effectiveDPR} DPR (weapon: ${c.dpr.weaponDPR}, spell: ${c.dpr.amortizedSpellDPR})`);
+    const charNames = Object.keys(characters);
+    for (let i = 0; i < analysis.characters.length; i++) {
+      const c = analysis.characters[i];
+      const name = charNames[i] || '?';
+      const dpr = c.dpr || {};
+      console.log(`     ${name}: ${dpr.effectiveDPR || 0} DPR (weapon: ${dpr.weaponDPR || 0}, spell: ${dpr.amortizedSpellDPR || 0})`);
     }
   }
 
