@@ -1995,11 +1995,16 @@ socket.on('combat_update', (data) => {
 
 socket.on('combat_ended', (data) => {
   combatActive = false;
-  document.getElementById('combat-log').innerHTML += '<div class="round-header">Combat Ended — ' + (data.reason === 'enemies_defeated' ? 'Victory!' : 'Defeat...') + '</div>';
-  setTimeout(() => {
-    document.getElementById('turn-order-overlay').style.display = 'none';
-    document.getElementById('combat-log-toggle').style.display = 'none';
-  }, 10000);
+  if (data.reason !== 'error') {
+    document.getElementById('combat-log').innerHTML += '<div class="round-header">Combat Ended — ' + (data.reason === 'enemies_defeated' ? 'Victory!' : 'Defeat...') + '</div>';
+  }
+  // Don't hide turn order on error fallback — AI may still be narrating combat with TURN_ORDER data
+  if (data.reason !== 'error') {
+    setTimeout(() => {
+      document.getElementById('turn-order-overlay').style.display = 'none';
+      document.getElementById('combat-log-toggle').style.display = 'none';
+    }, 10000);
+  }
 });
 
 socket.on('reaction_prompt', (data) => {

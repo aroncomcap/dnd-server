@@ -3114,7 +3114,7 @@ const gameEngine = {
 - List starting equipment appropriate to class and level
 - Include spell lists for casters (prepared spells or known spells)
 - Include any class features, subclass if level 3+
-${levelGuidance || 'Start at level 1.'}`;
+${levelGuidance || (direction ? 'Use the level specified in the player direction above.' : 'Start at level 1.')}`;
     } else if (system === 'runequest') {
       systemInstructions = `Create 4 RuneQuest: Roleplaying in Glorantha characters. For each:
 - Choose a distinct homeland and occupation (ensure variety: warrior, priest, shaman/sorcerer, scout/thief)
