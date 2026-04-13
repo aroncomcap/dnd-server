@@ -19,6 +19,7 @@ const CombatEngine = require('./combat-engine');
 const { parseAction, parseOptions, parseActionWithAI, parseOptionsWithAI } = require('./action-parser');
 const { parseStatsText } = require('./stat-parser');
 const { getMonsterStats } = require('./monster-lookup');
+const ed = require('./encounter-designer');
 
 const DEPLOY_TIME = new Date().toISOString();
 
@@ -105,6 +106,10 @@ function getGameState(gameId) {
       dmPersona: 'epic',
       combatEngine: new CombatEngine(),
       preTaggedOptions: null,
+      combatHistory: {},
+      encounterPlan: null,
+      encounterPlanIndex: 0,
+      difficultyCorrection: 1.0,
     };
   }
   return games[gameId];
@@ -192,6 +197,8 @@ You are a master storyteller in the tradition of great fantasy literature. Your 
 
   const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
 
+  const encounterPlanLine = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
+
   return `${basePrompt}
 ${contextBlock}
 ${houseRules}
@@ -200,6 +207,7 @@ ${personaBlock}
 CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 ${summary}
+${encounterPlanLine}
 VERBOSITY: ${gs.verbosity || 'verbose'}
 ${gs.verbosity === 'terse' ? `TERSE MODE — HARD CONSTRAINT:
 Maximum 3 sentences of narration, under 50 words. No atmosphere, no extended descriptions, no internal thoughts. State what happens, include any dice results, then structured blocks.
@@ -469,6 +477,8 @@ ${catchphrases}
 
   const pillarsLine = `Pillars: E${gs.pillars?.exploration ?? 33}/C${gs.pillars?.combat ?? 33}/S${gs.pillars?.social ?? 34}. Include skill checks every 1-2 actions.`;
 
+  const encounterPlanLine = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
+
   const pacingLine = `PACING: Ferocity ${gs.ferocity ?? 5}/5. ${
     gs.ferocity <= 1 ? '4-6 encounters/short rest, long rest after 6-8.' :
     gs.ferocity <= 2 ? '3-5 encounters/short rest, long rest after 6-7.' :
@@ -498,6 +508,7 @@ ${summary}
 ${ferocityLine}
 ${pillarsLine}
 ${pacingLine}
+${encounterPlanLine}
 
 Only include ACCOMPLISHMENTS entries if something new was accomplished this turn. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, and MAP.
 
@@ -1126,6 +1137,38 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
         if (overCheck.over) {
           combatContext += `\n\nCOMBAT IS OVER: ${overCheck.reason === 'enemies_defeated' ? 'All enemies defeated. Narrate aftermath and loot.' : 'All PCs are down.'}`;
           gs.combatEngine.endCombat();
+          // Collect DPR data from combat
+          const combatSummary = gs.combatEngine.getCombatSummary();
+          if (combatSummary && combatSummary.rounds > 0) {
+            if (!gs.combatHistory) gs.combatHistory = {};
+            for (const [id, data] of Object.entries(combatSummary.characters)) {
+              if (data.type !== 'PC') continue;
+              if (!gs.combatHistory[id]) gs.combatHistory[id] = { combats: [] };
+              gs.combatHistory[id].combats.push({
+                date: Date.now(), rounds: combatSummary.rounds,
+                damageDealt: data.damageDealt, damageTaken: data.damageTaken,
+                healed: data.healed, spellSlotsUsed: data.spellSlotsUsed,
+              });
+              if (gs.combatHistory[id].combats.length > 5) gs.combatHistory[id].combats.shift();
+              gs.combatHistory[id].rollingDPR = ed.updateRollingDPR(gs.combatHistory[id]);
+            }
+            db.setState(gameId, 'combatHistory', gs.combatHistory).catch(() => {});
+
+            // Difficulty correction
+            if (gs.encounterPlan) {
+              const encounters = gs.encounterPlan.encounters || [];
+              const currentEnc = encounters.find(e => e.pillar === 'combat' && !e.completed && !e.rest);
+              if (currentEnc) {
+                gs.difficultyCorrection = ed.applyDifficultyCorrection(
+                  gs.difficultyCorrection || 1.0,
+                  { predictedRounds: currentEnc.estimatedRounds || 4, actualRounds: combatSummary.rounds }
+                );
+                currentEnc.completed = true;
+                gs.encounterPlanIndex = (gs.encounterPlanIndex || 0) + 1;
+                db.setState(gameId, 'difficultyCorrection', gs.difficultyCorrection).catch(() => {});
+              }
+            }
+          }
           io.to(gameId).emit('combat_ended', { reason: overCheck.reason });
         }
       }
@@ -2052,6 +2095,8 @@ io.on('connection', (socket) => {
       gs.pillars = await db.getState(gameId, 'pillars', { exploration: 33, combat: 33, social: 34 });
       gs.dmPersona = await db.getState(gameId, 'dmPersona', 'epic');
       gs.storySummary = await db.getState(gameId, 'storySummary', null);
+      gs.combatHistory = await db.getState(gameId, 'combatHistory', {});
+      gs.difficultyCorrection = await db.getState(gameId, 'difficultyCorrection', 1.0);
     }
 
     const gs = getGameState(gameId);
@@ -2075,6 +2120,7 @@ io.on('connection', (socket) => {
       pillars: gs.pillars,
       dmPersona: gs.dmPersona,
       pdfUploads: await db.getState(gameId, 'pdf_uploads', []),
+      encounterPlan: gs.encounterPlan || null,
     });
   });
 
@@ -2304,6 +2350,16 @@ io.on('connection', (socket) => {
         emitTurnChange(gameId, { player: first, duration: gs.turnDuration * 1000, token: firstToken });
         startTurnTimer(gameId, gameConfig, first);
       }
+      // Generate encounter plan for the adventuring day
+      const partyStats = Object.values(gs.data.characters).map(c => c.combatStats).filter(Boolean);
+      if (partyStats.length > 0) {
+        const monsterDB = require('./monster-lookup').loadDefaultMonsters(gameConfig.system || 'dnd5e');
+        gs.encounterPlan = ed.designAdventuringDay(partyStats, gs.ferocity, gs.pillars, monsterDB, {
+          correction: gs.difficultyCorrection || 1.0,
+        });
+        gs.encounterPlanIndex = 0;
+        io.to(gameId).emit('encounter_plan_updated', gs.encounterPlan);
+      }
       // Start billing ticker for this game
       billingTicker.startForGame(gameId, gameConfig.host_user_id, gs);
     } catch (err) {
@@ -2517,6 +2573,60 @@ io.on('connection', (socket) => {
     if (!engine.state.pendingReaction) return;
     engine.state.pendingReaction = null;
     emitCombatUpdate(gameId);
+  });
+
+  socket.on('adjust_difficulty', (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    if (!gs.encounterPlan) return;
+    const modifier = data.harder ? 1.2 : 0.8;
+    for (const enc of gs.encounterPlan.encounters) {
+      if (enc.completed || enc.rest) continue;
+      if (enc.totalHP) enc.totalHP = Math.round(enc.totalHP * modifier);
+      if (enc.estimatedDPR) enc.estimatedDPR = Math.round(enc.estimatedDPR * modifier);
+    }
+    io.to(gameId).emit('encounter_plan_updated', gs.encounterPlan);
+  });
+
+  socket.on('regenerate_plan', async (data) => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    const gameConfig = await db.getGame(gameId);
+    const monsterDB = require('./monster-lookup').loadDefaultMonsters(gameConfig.system || 'dnd5e');
+    const partyStats = Object.values(gs.data.characters).map(c => c.combatStats).filter(Boolean);
+    if (partyStats.length > 0) {
+      gs.encounterPlan = ed.designAdventuringDay(partyStats, gs.ferocity, gs.pillars, monsterDB, {
+        correction: gs.difficultyCorrection || 1.0,
+        hostOverrides: data,
+      });
+      gs.encounterPlanIndex = 0;
+      io.to(gameId).emit('encounter_plan_updated', gs.encounterPlan);
+    }
+  });
+
+  socket.on('force_boss', () => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    if (!gs.encounterPlan) return;
+    for (const enc of gs.encounterPlan.encounters) {
+      if (!enc.rest && !enc.completed) enc.completed = true;
+    }
+    const bossIdx = gs.encounterPlan.encounters.findIndex(e => e.position === 'boss');
+    if (bossIdx >= 0) gs.encounterPlanIndex = bossIdx;
+    io.to(gameId).emit('encounter_plan_updated', gs.encounterPlan);
+  });
+
+  socket.on('insert_rest', () => {
+    const gameId = socket.gameId;
+    if (!gameId) return;
+    const gs = getGameState(gameId);
+    if (!gs.encounterPlan) return;
+    const idx = gs.encounterPlanIndex || 0;
+    gs.encounterPlan.encounters.splice(idx, 0, { rest: 'short', reason: 'Host inserted rest' });
+    io.to(gameId).emit('encounter_plan_updated', gs.encounterPlan);
   });
 
   socket.on('disconnect', () => {
