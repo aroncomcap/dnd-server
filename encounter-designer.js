@@ -346,8 +346,29 @@ function estimateMonsterDPR(monster) {
     return Math.max(1, Math.round(cr * 5));
   }
 
+  // Parse multiattack from features. The multiattack feature doubles the DPR
+  // of a single-weapon monster (e.g. "Multiattack (2 slams)" or "Multiattack (5 bites)").
+  // We cap the multiplier at 2 — multiattack effectively doubles a monster's DPR.
+  const features = Array.isArray(monster.features) ? monster.features : [];
+  let hasMultiattack = false;
+  for (const f of features) {
+    if (/multiattack/i.test(f)) { hasMultiattack = true; break; }
+  }
+  // Only apply multiattack multiplier when there's a single primary attack weapon
+  // (recharge/cone/save weapons don't count as the primary multiattack weapon)
+  const primaryWeapons = weapons.filter(w => {
+    const props = Array.isArray(w.properties) ? w.properties : [];
+    return !props.includes('recharge-5-6') && !props.includes('cone') && w.attackMod !== null;
+  });
+  const applyMultiattack = primaryWeapons.length === 1 && hasMultiattack;
+
   let totalDPR = 0;
   for (const w of weapons) {
+    const props = Array.isArray(w.properties) ? w.properties : [];
+    // Recharge/cone weapons are situational — amortize at 50% effectiveness
+    const isRecharge = props.includes('recharge-5-6') || props.includes('cone');
+    const effectiveness = isRecharge ? 0.5 : 1.0;
+
     const dmgAvg = avgDice(w.damage || '1d4');
     const abilities = monster.abilities || {};
 
@@ -361,15 +382,43 @@ function estimateMonsterDPR(monster) {
       toHit = 3; // reasonable default
     }
 
-    const hitProb = Math.min(0.95, Math.max(0.05, (21 - (targetAC - toHit)) / 20));
+    // For save-based attacks (attackMod null), use 0.6 hit probability
+    const hitProb = w.attackMod === null
+      ? 0.6
+      : Math.min(0.95, Math.max(0.05, (21 - (targetAC - toHit)) / 20));
 
-    // Ability mod to damage
+    // Ability mod to damage (not applied to recharge/save weapons — damage already includes it)
     let dmgMod = 0;
-    if (typeof w.attackMod === 'string' && abilities[w.attackMod] !== undefined) {
+    if (!isRecharge && w.attackMod !== null && typeof w.attackMod === 'string' && abilities[w.attackMod] !== undefined) {
       dmgMod = abilityMod(abilities[w.attackMod]);
     }
 
-    totalDPR += (dmgAvg + dmgMod) * hitProb;
+    const weaponDPR = (dmgAvg + dmgMod) * hitProb * effectiveness;
+    // Multiattack doubles primary weapon DPR (capped at 2× regardless of attack count)
+    totalDPR += (applyMultiattack && !isRecharge) ? weaponDPR * 2 : weaponDPR;
+  }
+
+  // ---- Spell DPR for monsters ----
+  const spells = Array.isArray(monster.spells) ? monster.spells : [];
+  const spellSlots = monster.spellSlots || {};
+  const spellcastingAbility = monster.spellcastingAbility;
+  if (spellcastingAbility) {
+    const abilities = monster.abilities || {};
+    const prof = monster.proficiencyBonus || 2;
+    let bestSpellDmg = 0;
+    let totalSlots = 0;
+    for (const sp of spells) {
+      if (!sp || !sp.damage) continue;
+      const dmg = avgDice(sp.damage) * 0.6;
+      if (dmg > bestSpellDmg) bestSpellDmg = dmg;
+    }
+    for (const n of Object.values(spellSlots)) totalSlots += (n || 0);
+    if (bestSpellDmg > 0) {
+      // Allow up to 4 spell uses for powerful monsters with many slots
+      const usableSlots = Math.min(totalSlots, 4);
+      const amortizedSpellDPR = (bestSpellDmg * usableSlots) / 4;
+      totalDPR += amortizedSpellDPR;
+    }
   }
 
   return Math.round(totalDPR * 100) / 100;

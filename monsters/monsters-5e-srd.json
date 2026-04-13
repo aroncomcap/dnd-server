@@ -631,7 +631,7 @@
       {
         "name": "web",
         "attackMod": "dex",
-        "damage": "0",
+        "damage": "1d8",
         "damageType": "none",
         "properties": [
           "ranged"
@@ -860,7 +860,7 @@
       {
         "name": "bite",
         "attackMod": "str",
-        "damage": "2d6",
+        "damage": "2d6+3",
         "damageType": "piercing",
         "properties": []
       }
@@ -1230,7 +1230,7 @@
       {
         "name": "sting",
         "attackMod": "dex",
-        "damage": "1d4",
+        "damage": "1d4+3",
         "damageType": "piercing",
         "properties": [],
         "saveOnHit": {
@@ -1342,7 +1342,7 @@
       {
         "name": "slam",
         "attackMod": "str",
-        "damage": "1d6",
+        "damage": "1d6+2",
         "damageType": "bludgeoning",
         "properties": []
       }
@@ -1640,7 +1640,7 @@
       {
         "name": "bite",
         "attackMod": "str",
-        "damage": "2d6",
+        "damage": "2d6+3",
         "damageType": "piercing",
         "properties": [],
         "saveOnHit": {
@@ -1770,7 +1770,7 @@
       {
         "name": "rotting fist",
         "attackMod": "str",
-        "damage": "2d6",
+        "damage": "2d6+3",
         "damageType": "bludgeoning",
         "properties": [],
         "saveOnHit": {
@@ -1830,7 +1830,7 @@
       {
         "name": "bite",
         "attackMod": "dex",
-        "damage": "1d10",
+        "damage": "1d10+3",
         "damageType": "piercing",
         "properties": [],
         "saveOnHit": {
@@ -1839,6 +1839,12 @@
           "effect": "poisoned",
           "damage": "4d8"
         }
+      },
+      {
+        "name": "poison bite",
+        "attackMod": "dex",
+        "damage": "2d8",
+        "damageType": "poison"
       }
     ],
     "spells": [],
@@ -2059,7 +2065,7 @@
       {
         "name": "touch",
         "attackMod": "dex",
-        "damage": "2d6",
+        "damage": "2d6+3",
         "damageType": "fire",
         "properties": []
       }
@@ -2243,7 +2249,7 @@
       {
         "name": "slam",
         "attackMod": "str",
-        "damage": "3d8",
+        "damage": "3d8+6",
         "damageType": "bludgeoning",
         "properties": []
       }
@@ -2574,17 +2580,16 @@
       {
         "name": "unarmed strike",
         "attackMod": "str",
-        "damage": "1d8",
+        "damage": "1d8+4",
         "damageType": "bludgeoning",
         "properties": []
       },
       {
         "name": "bite",
-        "attackMod": "dex",
-        "damage": "1d6",
-        "damageType": "piercing",
-        "properties": [],
-        "note": "Also drains 3d6 HP to heal vampire; reduces max HP"
+        "attackMod": "str",
+        "damage": "1d6+4+3d6",
+        "damageType": "necrotic",
+        "properties": []
       }
     ],
     "spells": [],
@@ -2636,14 +2641,14 @@
       {
         "name": "bite",
         "attackMod": "str",
-        "damage": "4d8",
+        "damage": "4d8+4",
         "damageType": "piercing",
         "properties": []
       },
       {
         "name": "tendril",
         "attackMod": "str",
-        "damage": "0",
+        "damage": "1d8+4",
         "damageType": "none",
         "properties": [],
         "saveOnHit": {
@@ -2694,7 +2699,7 @@
       {
         "name": "bite",
         "attackMod": "str",
-        "damage": "1d10",
+        "damage": "1d10+5",
         "damageType": "piercing",
         "properties": []
       }
@@ -2706,7 +2711,7 @@
       "Multiple Heads (5)",
       "Reactive Heads",
       "Wakeful",
-      "Multiattack (number of bites = number of heads)"
+      "Multiattack (5 bites)"
     ],
     "conditions": [],
     "resistances": [],
@@ -2944,13 +2949,11 @@
       {
         "name": "eye ray",
         "attackMod": "int",
-        "damage": "varies",
-        "damageType": "varies",
+        "damage": "4d10",
+        "damageType": "force",
         "properties": [
           "ranged"
-        ],
-        "range": "120",
-        "note": "10 random eye rays: Charm, Paralyze, Fear, Slow, Enervation, Telekinetic, Sleep, Petrification, Disintegration, Death"
+        ]
       }
     ],
     "spells": [],
@@ -3023,7 +3026,19 @@
       "globe of invulnerability",
       "disintegrate",
       "power word stun",
-      "power word kill"
+      {
+        "name": "power word kill",
+        "level": 9,
+        "damage": "100",
+        "damageType": "necrotic"
+      },
+      {
+        "name": "finger of death",
+        "level": 7,
+        "damage": "7d8+30",
+        "damageType": "necrotic",
+        "save": "con"
+      }
     ],
     "spellSlots": {
       "1": 4,
@@ -3065,7 +3080,8 @@
     "personality": "An archmage who traded life for immortality. Coldly logical, endlessly patient, considers all others as test subjects.",
     "combatStyle": "spellcaster",
     "tactics": "Opens with Disrupt Life to damage all living creatures in range. Uses legendary actions to cast spells between rounds. Targets concentration spells first to prevent counterspells. Uses Paralyzing Touch on approaching melee fighters. Returns via phylactery if destroyed.",
-    "morale": "fanatical"
+    "morale": "fanatical",
+    "spellcastingAbility": "int"
   },
   "pit-fiend": {
     "name": "Pit Fiend",
