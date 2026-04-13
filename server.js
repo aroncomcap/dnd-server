@@ -1280,8 +1280,10 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
       // Combat engine error — fall back to normal AI processing (no combat context)
       const errDetail = `[${new Date().toISOString()}] Combat engine error: ${combatErr.message}\n${combatErr.stack}\n---\n`;
       console.error('Combat engine error (falling back to AI):', combatErr.message, combatErr.stack?.split('\n').slice(0, 5).join(' | '));
-      // Persist to file so we can debug after log rotation
-      require('fs').appendFile('/tmp/combat-errors.log', errDetail, () => {});
+      // Persist to in-memory error ring buffer (last 50 errors)
+      if (!global._combatErrors) global._combatErrors = [];
+      global._combatErrors.push(errDetail);
+      if (global._combatErrors.length > 50) global._combatErrors.shift();
       combatContext = '';
       // End combat gracefully so we don't keep crashing
       gs.combatEngine.endCombat();
@@ -1963,6 +1965,18 @@ app.post('/api/admin/promo/generate', requireAuth, requireAdmin, async (req, res
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Admin: view combat engine errors (ring buffer, last 50)
+app.get('/api/admin/errors', requireAuth, requireAdmin, (req, res) => {
+  const errors = global._combatErrors || [];
+  res.type('text/plain').send(errors.length ? errors.join('\n') : 'No combat errors recorded.');
+});
+
+// Admin: clear error buffer
+app.delete('/api/admin/errors', requireAuth, requireAdmin, (req, res) => {
+  global._combatErrors = [];
+  res.json({ cleared: true });
 });
 
 app.get('/api/admin/promo/list', requireAuth, requireAdmin, async (req, res) => {
