@@ -122,4 +122,4 @@ function disadvantage() {
   return { rolls: [r1, r2], result: Math.min(r1, r2) };
 }
 
-module.exports = { d4, d6, d8, d10, d12, d20, d100, roll, advantage, disadvantage };
+module.exports = { d4, d6, d8, d10, d12, d20, d100, roll, advantage, disadvantage, rollDie };
