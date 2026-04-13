@@ -2291,6 +2291,17 @@ io.on('connection', (socket) => {
       const direction = (data && data.direction) ? truncate(data.direction, 500) : '';
       const result = await gameEngine.generateParty(gameId, direction);
       socket.emit('party_generated', { count: result.count });
+      // Auto-parse combatStats for the encounter designer
+      const gameConfig = await db.getGame(gameId);
+      const system = gameConfig?.system || 'dnd5e';
+      for (const [name, char] of Object.entries(gs.data.characters)) {
+        if (!char.combatStats && char.statsText) {
+          try {
+            char.combatStats = await parseStatsText(char.statsText, system, { anthropic });
+            db.upsertCharacter(gameId, name, char).catch(() => {});
+          } catch (e) { console.error(`Auto-parse combatStats for ${name}:`, e.message); }
+        }
+      }
     } catch (err) {
       console.error('Party generation failed:', err.message);
       socket.emit('party_gen_failed', { error: err.message });
