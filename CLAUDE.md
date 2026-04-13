@@ -257,6 +257,28 @@ Check costs: `GET /api/costs`
 | `DISCORD_CLIENT_ID` | Discord OAuth | For Discord login |
 | `DISCORD_CLIENT_SECRET` | Discord OAuth | For Discord login |
 
+## Combat Engine (server-side, in progress)
+
+Replaces AI-invented dice rolls with real cryptographically-secure RNG. Tasks 1–12.
+
+### Testing
+```bash
+npm test           # node --test tests/*.test.js
+npm run test:watch # watch mode
+```
+
+### Modules
+| File | Purpose |
+|------|---------|
+| `resolvers/dice.js` | Secure RNG, individual dice (d4–d100), `roll(notation)`, `advantage()`, `disadvantage()` |
+
+### `resolvers/dice.js` API
+- `d4()`, `d6()`, `d8()`, `d10()`, `d12()`, `d20()`, `d100()` — return integer in correct range
+- `roll(notation)` — parses "NdX±M" and compound "1d8+1+1d4" (RuneQuest damage bonus); returns `{ rolls, modifier, total }`
+- `advantage()` — `{ rolls: [r1, r2], result: max }`
+- `disadvantage()` — `{ rolls: [r1, r2], result: min }`
+- Uses `crypto.randomBytes` with rejection sampling to eliminate modulo bias
+
 ## Common Gotchas
 - **System prompt lives in TWO places:** `buildSystemPrompt()` (turn 1) and `buildTrimmedPrompt()` (turn 2+) — update BOTH
 - **Rules corrections inject into every prompt** — every rule costs tokens on every call; keep them concise
