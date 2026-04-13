@@ -4,12 +4,12 @@
     "characteristics": { "str": 14, "con": 11, "siz": 14, "int": 8, "pow": 11, "dex": 10, "cha": 5 },
     "hitLocations": {
       "head":      { "hp": 4, "maxHp": 4, "armor": 0 },
-      "left-arm":  { "hp": 3, "maxHp": 3, "armor": 0 },
-      "right-arm": { "hp": 3, "maxHp": 3, "armor": 0 },
+      "leftArm":  { "hp": 3, "maxHp": 3, "armor": 0 },
+      "rightArm": { "hp": 3, "maxHp": 3, "armor": 0 },
       "chest":     { "hp": 6, "maxHp": 6, "armor": 2 },
       "abdomen":   { "hp": 5, "maxHp": 5, "armor": 2 },
-      "left-leg":  { "hp": 4, "maxHp": 4, "armor": 0 },
-      "right-leg": { "hp": 4, "maxHp": 4, "armor": 0 }
+      "leftLeg":  { "hp": 4, "maxHp": 4, "armor": 0 },
+      "rightLeg": { "hp": 4, "maxHp": 4, "armor": 0 }
     },
     "totalHp": 11,
     "weapons": [
@@ -28,12 +28,12 @@
     "characteristics": { "str": 17, "con": 13, "siz": 20, "int": 11, "pow": 13, "dex": 11, "cha": 9 },
     "hitLocations": {
       "head":      { "hp": 5, "maxHp": 5, "armor": 3 },
-      "left-arm":  { "hp": 5, "maxHp": 5, "armor": 3 },
-      "right-arm": { "hp": 5, "maxHp": 5, "armor": 3 },
+      "leftArm":  { "hp": 5, "maxHp": 5, "armor": 3 },
+      "rightArm": { "hp": 5, "maxHp": 5, "armor": 3 },
       "chest":     { "hp": 7, "maxHp": 7, "armor": 5 },
       "abdomen":   { "hp": 6, "maxHp": 6, "armor": 5 },
-      "left-leg":  { "hp": 6, "maxHp": 6, "armor": 3 },
-      "right-leg": { "hp": 6, "maxHp": 6, "armor": 3 }
+      "leftLeg":  { "hp": 6, "maxHp": 6, "armor": 3 },
+      "rightLeg": { "hp": 6, "maxHp": 6, "armor": 3 }
     },
     "totalHp": 17,
     "weapons": [
@@ -52,8 +52,8 @@
     "characteristics": { "str": 19, "con": 14, "siz": 22, "int": 7, "pow": 13, "dex": 13, "cha": 5 },
     "hitLocations": {
       "head":        { "hp": 5, "maxHp": 5, "armor": 3 },
-      "left-arm":    { "hp": 5, "maxHp": 5, "armor": 3 },
-      "right-arm":   { "hp": 5, "maxHp": 5, "armor": 3 },
+      "leftArm":    { "hp": 5, "maxHp": 5, "armor": 3 },
+      "rightArm":   { "hp": 5, "maxHp": 5, "armor": 3 },
       "chest":       { "hp": 7, "maxHp": 7, "armor": 3 },
       "abdomen":     { "hp": 6, "maxHp": 6, "armor": 3 },
       "front-left":  { "hp": 5, "maxHp": 5, "armor": 3 },
@@ -80,12 +80,12 @@
     "characteristics": { "str": 16, "con": 13, "siz": 15, "int": 5, "pow": 10, "dex": 14, "cha": 4 },
     "hitLocations": {
       "head":      { "hp": 4, "maxHp": 4, "armor": 1 },
-      "left-arm":  { "hp": 4, "maxHp": 4, "armor": 1 },
-      "right-arm": { "hp": 4, "maxHp": 4, "armor": 1 },
+      "leftArm":  { "hp": 4, "maxHp": 4, "armor": 1 },
+      "rightArm": { "hp": 4, "maxHp": 4, "armor": 1 },
       "chest":     { "hp": 6, "maxHp": 6, "armor": 2 },
       "abdomen":   { "hp": 5, "maxHp": 5, "armor": 2 },
-      "left-leg":  { "hp": 5, "maxHp": 5, "armor": 1 },
-      "right-leg": { "hp": 5, "maxHp": 5, "armor": 1 }
+      "leftLeg":  { "hp": 5, "maxHp": 5, "armor": 1 },
+      "rightLeg": { "hp": 5, "maxHp": 5, "armor": 1 }
     },
     "totalHp": 14,
     "weapons": [
@@ -130,12 +130,12 @@
     "characteristics": { "str": 15, "con": 14, "siz": 16, "int": 1, "pow": 6, "dex": 8, "cha": 3 },
     "hitLocations": {
       "head":      { "hp": 4, "maxHp": 4, "armor": 6 },
-      "left-arm":  { "hp": 4, "maxHp": 4, "armor": 6 },
-      "right-arm": { "hp": 4, "maxHp": 4, "armor": 6 },
+      "leftArm":  { "hp": 4, "maxHp": 4, "armor": 6 },
+      "rightArm": { "hp": 4, "maxHp": 4, "armor": 6 },
       "chest":     { "hp": 6, "maxHp": 6, "armor": 8 },
       "abdomen":   { "hp": 5, "maxHp": 5, "armor": 8 },
-      "left-leg":  { "hp": 4, "maxHp": 4, "armor": 6 },
-      "right-leg": { "hp": 4, "maxHp": 4, "armor": 6 }
+      "leftLeg":  { "hp": 4, "maxHp": 4, "armor": 6 },
+      "rightLeg": { "hp": 4, "maxHp": 4, "armor": 6 }
     },
     "totalHp": 15,
     "weapons": [
@@ -152,12 +152,12 @@
     "characteristics": { "str": 18, "con": 14, "siz": 20, "int": 5, "pow": 11, "dex": 17, "cha": 6 },
     "hitLocations": {
       "head":      { "hp": 5, "maxHp": 5, "armor": 1 },
-      "left-arm":  { "hp": 5, "maxHp": 5, "armor": 1 },
-      "right-arm": { "hp": 5, "maxHp": 5, "armor": 1 },
+      "leftArm":  { "hp": 5, "maxHp": 5, "armor": 1 },
+      "rightArm": { "hp": 5, "maxHp": 5, "armor": 1 },
       "chest":     { "hp": 7, "maxHp": 7, "armor": 2 },
       "abdomen":   { "hp": 6, "maxHp": 6, "armor": 2 },
-      "left-leg":  { "hp": 6, "maxHp": 6, "armor": 1 },
-      "right-leg": { "hp": 6, "maxHp": 6, "armor": 1 }
+      "leftLeg":  { "hp": 6, "maxHp": 6, "armor": 1 },
+      "rightLeg": { "hp": 6, "maxHp": 6, "armor": 1 }
     },
     "totalHp": 17,
     "weapons": [
@@ -179,8 +179,8 @@
       "right-wing":{ "hp": 6, "maxHp": 6, "armor": 1 },
       "chest":     { "hp": 7, "maxHp": 7, "armor": 3 },
       "abdomen":   { "hp": 6, "maxHp": 6, "armor": 3 },
-      "left-leg":  { "hp": 6, "maxHp": 6, "armor": 2 },
-      "right-leg": { "hp": 6, "maxHp": 6, "armor": 2 }
+      "leftLeg":  { "hp": 6, "maxHp": 6, "armor": 2 },
+      "rightLeg": { "hp": 6, "maxHp": 6, "armor": 2 }
     },
     "totalHp": 18,
     "weapons": [
@@ -199,8 +199,8 @@
     "characteristics": { "str": 17, "con": 14, "siz": 26, "int": 12, "pow": 13, "dex": 14, "cha": 12 },
     "hitLocations": {
       "head":      { "hp": 5, "maxHp": 5, "armor": 3 },
-      "left-arm":  { "hp": 5, "maxHp": 5, "armor": 3 },
-      "right-arm": { "hp": 5, "maxHp": 5, "armor": 3 },
+      "leftArm":  { "hp": 5, "maxHp": 5, "armor": 3 },
+      "rightArm": { "hp": 5, "maxHp": 5, "armor": 3 },
       "chest":     { "hp": 7, "maxHp": 7, "armor": 4 },
       "abdomen":   { "hp": 6, "maxHp": 6, "armor": 4 },
       "horse-chest": { "hp": 8, "maxHp": 8, "armor": 3 },
@@ -228,12 +228,12 @@
     "characteristics": { "str": 20, "con": 16, "siz": 23, "int": 7, "pow": 13, "dex": 12, "cha": 7 },
     "hitLocations": {
       "head":      { "hp": 6, "maxHp": 6, "armor": 3 },
-      "left-arm":  { "hp": 6, "maxHp": 6, "armor": 3 },
-      "right-arm": { "hp": 6, "maxHp": 6, "armor": 3 },
+      "leftArm":  { "hp": 6, "maxHp": 6, "armor": 3 },
+      "rightArm": { "hp": 6, "maxHp": 6, "armor": 3 },
       "chest":     { "hp": 8, "maxHp": 8, "armor": 5 },
       "abdomen":   { "hp": 7, "maxHp": 7, "armor": 5 },
-      "left-leg":  { "hp": 6, "maxHp": 6, "armor": 3 },
-      "right-leg": { "hp": 6, "maxHp": 6, "armor": 3 }
+      "leftLeg":  { "hp": 6, "maxHp": 6, "armor": 3 },
+      "rightLeg": { "hp": 6, "maxHp": 6, "armor": 3 }
     },
     "totalHp": 20,
     "weapons": [
@@ -252,13 +252,13 @@
     "characteristics": { "str": 15, "con": 13, "siz": 14, "int": 14, "pow": 16, "dex": 15, "cha": 10 },
     "hitLocations": {
       "head":      { "hp": 5, "maxHp": 5, "armor": 5 },
-      "left-arm":  { "hp": 4, "maxHp": 4, "armor": 4 },
-      "right-arm": { "hp": 4, "maxHp": 4, "armor": 4 },
+      "leftArm":  { "hp": 4, "maxHp": 4, "armor": 4 },
+      "rightArm": { "hp": 4, "maxHp": 4, "armor": 4 },
       "chest":     { "hp": 6, "maxHp": 6, "armor": 6 },
       "abdomen":   { "hp": 5, "maxHp": 5, "armor": 6 },
       "tail":      { "hp": 5, "maxHp": 5, "armor": 4 },
-      "left-leg":  { "hp": 5, "maxHp": 5, "armor": 4 },
-      "right-leg": { "hp": 5, "maxHp": 5, "armor": 4 }
+      "leftLeg":  { "hp": 5, "maxHp": 5, "armor": 4 },
+      "rightLeg": { "hp": 5, "maxHp": 5, "armor": 4 }
     },
     "totalHp": 14,
     "weapons": [
@@ -284,8 +284,8 @@
       "chest":      { "hp": 12, "maxHp": 12, "armor": 12 },
       "abdomen":    { "hp": 11, "maxHp": 11, "armor": 12 },
       "tail":       { "hp": 10, "maxHp": 10, "armor": 10 },
-      "left-leg":   { "hp": 9, "maxHp": 9, "armor": 10 },
-      "right-leg":  { "hp": 9, "maxHp": 9, "armor": 10 }
+      "leftLeg":   { "hp": 9, "maxHp": 9, "armor": 10 },
+      "rightLeg":  { "hp": 9, "maxHp": 9, "armor": 10 }
     },
     "totalHp": 30,
     "weapons": [
@@ -306,13 +306,13 @@
     "characteristics": { "str": 30, "con": 18, "siz": 35, "int": 3, "pow": 10, "dex": 12, "cha": 5 },
     "hitLocations": {
       "head":      { "hp": 7, "maxHp": 7, "armor": 2 },
-      "left-arm":  { "hp": 6, "maxHp": 6, "armor": 2 },
-      "right-arm": { "hp": 6, "maxHp": 6, "armor": 2 },
+      "leftArm":  { "hp": 6, "maxHp": 6, "armor": 2 },
+      "rightArm": { "hp": 6, "maxHp": 6, "armor": 2 },
       "chest":     { "hp": 10, "maxHp": 10, "armor": 3 },
       "abdomen":   { "hp": 9, "maxHp": 9, "armor": 3 },
       "tail":      { "hp": 8, "maxHp": 8, "armor": 2 },
-      "left-leg":  { "hp": 8, "maxHp": 8, "armor": 2 },
-      "right-leg": { "hp": 8, "maxHp": 8, "armor": 2 }
+      "leftLeg":  { "hp": 8, "maxHp": 8, "armor": 2 },
+      "rightLeg": { "hp": 8, "maxHp": 8, "armor": 2 }
     },
     "totalHp": 27,
     "weapons": [
@@ -417,12 +417,12 @@
     "characteristics": { "str": 21, "con": 17, "siz": 27, "int": 6, "pow": 10, "dex": 8, "cha": 6 },
     "hitLocations": {
       "head":      { "hp": 7, "maxHp": 7, "armor": 4 },
-      "left-arm":  { "hp": 7, "maxHp": 7, "armor": 4 },
-      "right-arm": { "hp": 7, "maxHp": 7, "armor": 4 },
+      "leftArm":  { "hp": 7, "maxHp": 7, "armor": 4 },
+      "rightArm": { "hp": 7, "maxHp": 7, "armor": 4 },
       "chest":     { "hp": 9, "maxHp": 9, "armor": 6 },
       "abdomen":   { "hp": 8, "maxHp": 8, "armor": 6 },
-      "left-leg":  { "hp": 8, "maxHp": 8, "armor": 4 },
-      "right-leg": { "hp": 8, "maxHp": 8, "armor": 4 }
+      "leftLeg":  { "hp": 8, "maxHp": 8, "armor": 4 },
+      "rightLeg": { "hp": 8, "maxHp": 8, "armor": 4 }
     },
     "totalHp": 22,
     "weapons": [
@@ -443,12 +443,12 @@
     "characteristics": { "str": 13, "con": 12, "siz": 12, "int": 10, "pow": 11, "dex": 16, "cha": 8 },
     "hitLocations": {
       "head":      { "hp": 4, "maxHp": 4, "armor": 0 },
-      "left-arm":  { "hp": 3, "maxHp": 3, "armor": 0 },
-      "right-arm": { "hp": 3, "maxHp": 3, "armor": 0 },
+      "leftArm":  { "hp": 3, "maxHp": 3, "armor": 0 },
+      "rightArm": { "hp": 3, "maxHp": 3, "armor": 0 },
       "chest":     { "hp": 5, "maxHp": 5, "armor": 1 },
       "abdomen":   { "hp": 4, "maxHp": 4, "armor": 1 },
-      "left-leg":  { "hp": 4, "maxHp": 4, "armor": 0 },
-      "right-leg": { "hp": 4, "maxHp": 4, "armor": 0 }
+      "leftLeg":  { "hp": 4, "maxHp": 4, "armor": 0 },
+      "rightLeg": { "hp": 4, "maxHp": 4, "armor": 0 }
     },
     "totalHp": 12,
     "weapons": [
