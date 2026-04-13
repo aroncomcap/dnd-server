@@ -55,6 +55,7 @@ function _getAdvantageState(attacker, target, weapon, conditions = []) {
     ...(attacker.conditions || []),
     ...conditions.filter(c => c.target === attacker.id).map(c => c.type),
   ];
+  if (!target) return { type: 'attack', hit: false, error: 'No target', totalDamage: 0, damageType: weapon.damageType || 'bludgeoning' };
   const targetConds = target.conditions || [];
 
   const isRanged = (weapon.properties || []).includes('ranged');

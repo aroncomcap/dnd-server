@@ -157,7 +157,10 @@ class CombatEngine {
       case 'attack': {
         const attacker = this.state.combatants[action.attackerId];
         const target   = this.state.combatants[action.targetId];
-        const weapon   = (attacker.weapons || []).find(w => w.name === action.weaponName)
+        if (!attacker) { result = { type: 'error', message: `Unknown attacker: ${action.attackerId}` }; break; }
+        if (!target) { result = { type: 'error', message: `Unknown target: ${action.targetId}` }; break; }
+        const weaponName = action.weaponName || action.weapon;
+        const weapon   = (attacker.weapons || []).find(w => w.name === weaponName || w.name?.toLowerCase() === weaponName?.toLowerCase())
           || (attacker.weapons || [])[0];
 
         if (this.state.system === 'runequest') {
@@ -184,12 +187,16 @@ class CombatEngine {
       }
 
       case 'spell': {
-        const caster  = this.state.combatants[action.casterId];
-        const targets = (action.targetIds || []).map(id => this.state.combatants[id]).filter(Boolean);
-        const spell   = (caster.spells || []).find(s => s.name === action.spellName);
+        const casterId = action.casterId || action.attackerId;
+        const caster  = this.state.combatants[casterId];
+        if (!caster) { result = { type: 'error', message: `Unknown caster: ${casterId}` }; break; }
+        const targetIds = action.targetIds || (action.targetId ? [action.targetId] : []);
+        const targets = targetIds.map(id => this.state.combatants[id]).filter(Boolean);
+        const spellName = action.spellName || action.spell;
+        const spell   = (caster.spells || []).find(s => s.name === spellName || s.name?.toLowerCase() === spellName?.toLowerCase());
 
         if (!spell) {
-          result = { type: 'error', message: `Spell "${action.spellName}" not found on ${caster.name}` };
+          result = { type: 'error', message: `Spell "${spellName}" not found on ${caster?.name}` };
           break;
         }
 
@@ -198,7 +205,7 @@ class CombatEngine {
         // Deduct spell slot
         const level = action.slotLevel || spell.level || 1;
         if (caster.spellSlots && caster.spellSlots[level] > 0) {
-          this.state.combatants[action.casterId].spellSlots[level]--;
+          this.state.combatants[casterId].spellSlots[level]--;
           result.slotUsed = true;
         }
 
@@ -246,12 +253,12 @@ class CombatEngine {
 
         // Handle concentration — mark caster and add effect if spell requires it
         if (spell.concentration) {
-          this.breakConcentration(action.casterId);
-          this.state.combatants[action.casterId].concentrating = { name: spell.name };
+          this.breakConcentration(casterId);
+          this.state.combatants[casterId].concentrating = { name: spell.name };
           this.addActiveEffect({
             name: spell.name,
-            caster: action.casterId,
-            targets: action.targetIds,
+            caster: casterId,
+            targets: targetIds,
             effect: result,
             duration: { type: 'concentration' },
           });
