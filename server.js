@@ -201,15 +201,13 @@ CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 ${summary}
 VERBOSITY: ${gs.verbosity || 'verbose'}
-${gs.verbosity === 'terse' ? `TERSE MODE — CRITICAL CONSTRAINT:
-Your ENTIRE narration must be 1-2 sentences, under 25 words total. No atmosphere, no descriptions, no sensory details, no NPC dialogue, no internal thoughts. State ONLY what mechanically happens, then go straight to structured blocks.
+${gs.verbosity === 'terse' ? `TERSE MODE — HARD CONSTRAINT:
+Maximum 3 sentences of narration, under 50 words. No atmosphere, no extended descriptions, no internal thoughts. State what happens, include any dice results, then structured blocks.
 
-EXAMPLE OF CORRECT TERSE OUTPUT:
-"Thornwick casts Light and descends into the sewer. Three tunnels branch ahead — left, center, right."
-That's it. Then ---OPTIONS---, ---SCENE---, ---WORLD---. Nothing more in the narration.
-
-If you write more than 2 sentences of narration, you have failed this constraint.` :
-  gs.verbosity === 'brief' ? `BRIEF MODE — Your narration must be 2-4 sentences, under 50 words. Be direct and punchy. No purple prose, no extended descriptions. State what happens, one key sensory detail at most, then structured blocks.` :
+CORRECT TERSE EXAMPLE:
+"Thornwick casts Light and descends the sewer. Three tunnels branch ahead — left, center, right. Fresh claw marks score the stone."
+Then ---OPTIONS---, ---SCENE---, ---WORLD---. Keep it SHORT.` :
+  gs.verbosity === 'brief' ? `BRIEF MODE — Maximum 4-5 sentences, under 75 words. Be punchy and direct. One sensory detail at most. No purple prose. State what happens, then structured blocks.` :
   'WORD LIMIT: Your narration text (excluding dice rolls, game mechanics, and skill checks) must be 100 words or fewer. Count your words. If you\'re over 100 non-mechanic words, you\'ve written too much. Aim for 50-75 words. Only exceed 100 for major plot revelations.'}
 
 FEROCITY: ${gs.ferocity ?? 5}/5
@@ -458,7 +456,7 @@ ${catchphrases}
 
   const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
 
-  const verbosityLine = gs.verbosity === 'terse' ? 'TERSE: 1-2 sentences ONLY, under 25 words. No atmosphere, no NPC dialogue, no descriptions. Example: "The party enters the cave. Goblin tracks lead deeper." If you write more than 2 sentences you have FAILED.' :
+  const verbosityLine = gs.verbosity === 'terse' ? 'TERSE: 3 sentences max, under 50 words. No atmosphere or extended descriptions. State what happens mechanically. Keep it SHORT.' :
     gs.verbosity === 'brief' ? 'ABSOLUTE HARD LIMIT: 50 words narration max. NO section headers. NO ## headings. Prose paragraphs only, then structured blocks.' :
     'WORD LIMIT: 100 words max narration. Aim for 50-75. NO ## headings in narration. Prose paragraphs only.';
 
@@ -1078,8 +1076,8 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
 
   // For terse/brief: inject a few-shot example as the first message pair to anchor output length
   const verbosityExample = gs.verbosity === 'terse' ? [
-    { role: 'user', content: '[EXAMPLE — this shows the correct terse output length]\nKael: I search the room for traps.' },
-    { role: 'assistant', content: 'Kael finds a tripwire near the door. A poison dart trap, easily disarmed.\n\n---OPTIONS---\n1️⃣ 🗡️ Disarm the trap carefully\n2️⃣ 🛡️ Mark it and find another way around\n3️⃣ 🔥 Trigger it intentionally from a distance\n\n---SCENE---\nACTION: Searching for traps\nMOOD: cautious\nNPC: none\n\n---WORLD---\nLOCATIONS:\n- Trapped Hallway | Stone corridor with dart trap | current\nNPCS:\n- none\nMAP: Trapped Hallway' },
+    { role: 'user', content: '[LENGTH EXAMPLE — match this narration length]\nKael: I search the room for traps.' },
+    { role: 'assistant', content: 'Kael runs his fingers along the doorframe and finds a thin wire. **🎲 Perception (WIS +1) — rolls 17. SUCCESS!** A poison dart trap, pressure-activated. The mechanism looks crude but lethal.\n\n---OPTIONS---\n1️⃣ 🗡️ Disarm the trap with thieves\' tools\n2️⃣ 🛡️ Mark it and find another way around\n3️⃣ 🔥 Trigger it from a distance with a thrown stone\n\n---SCENE---\nACTION: Examining a trapped doorway\nMOOD: cautious\nNPC: none\n\n---WORLD---\nLOCATIONS:\n- Trapped Hallway | Stone corridor with dart trap | current\nNPCS:\n- none\nMAP: Trapped Hallway' },
   ] : [];
 
   const messages = [
