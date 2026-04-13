@@ -3172,6 +3172,855 @@
     "tactics": "Opens with Wall of Fire to divide the battlefield. Uses Multiattack (mace + tail + claw + bite) on the paladin or most dangerous holy warrior. Casts Fear on grouped enemies. Summons lesser devils when below half HP. Retreats to Avernus rather than die outside its plane.",
     "morale": "normal"
   },
+  "rat": {
+    "name": "Rat",
+    "cr": 0,
+    "ac": 10,
+    "hp": 1,
+    "maxHp": 1,
+    "speed": 20,
+    "abilities": { "str": 2, "dex": 11, "con": 9, "int": 2, "wis": 10, "cha": 4 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "dex", "damage": "1d1", "damageType": "piercing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Keen Smell"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "Tiny and skittish. Attacks only when cornered or as part of a swarm.",
+    "combatStyle": "hit-and-run",
+    "tactics": "Bites and flees. In groups, swarms the weakest target.",
+    "morale": "cowardly"
+  },
+  "bat": {
+    "name": "Bat",
+    "cr": 0,
+    "ac": 12,
+    "hp": 1,
+    "maxHp": 1,
+    "speed": 5,
+    "abilities": { "str": 2, "dex": 15, "con": 8, "int": 2, "wis": 12, "cha": 4 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "dex", "damage": "1d1", "damageType": "piercing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Echolocation", "Keen Hearing"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A fluttering nuisance in the dark. Bites when startled; flees at the first sign of real danger.",
+    "combatStyle": "hit-and-run",
+    "tactics": "Swoops in for a quick bite using its flight speed advantage, then retreats out of reach.",
+    "morale": "cowardly"
+  },
+  "poisonous-snake": {
+    "name": "Poisonous Snake",
+    "cr": 0.125,
+    "ac": 13,
+    "hp": 2,
+    "maxHp": 2,
+    "speed": 30,
+    "abilities": { "str": 2, "dex": 16, "con": 11, "int": 1, "wis": 10, "cha": 3 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      {
+        "name": "bite",
+        "attackMod": "dex",
+        "damage": "1d1",
+        "damageType": "piercing",
+        "properties": [],
+        "saveOnHit": { "ability": "con", "dc": 10, "effect": "poisoned", "damage": "2d4" }
+      }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": [],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A defensive reptile that strikes when threatened and delivers a potentially lethal dose of venom.",
+    "combatStyle": "hit-and-run",
+    "tactics": "Strikes quickly with its venomous bite then retreats. Relies on poison to weaken prey over time.",
+    "morale": "cowardly"
+  },
+  "swarm-of-rats": {
+    "name": "Swarm of Rats",
+    "cr": 0.25,
+    "ac": 10,
+    "hp": 14,
+    "maxHp": 14,
+    "speed": 30,
+    "abilities": { "str": 9, "dex": 11, "con": 9, "int": 2, "wis": 10, "cha": 3 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bites", "attackMod": "dex", "damage": "2d6", "damageType": "piercing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Keen Smell", "Swarm (half HP: 1d6 damage)"],
+    "conditions": [],
+    "resistances": ["bludgeoning", "piercing", "slashing"],
+    "vulnerabilities": [],
+    "immunities": ["charmed", "frightened", "grappled", "paralyzed", "petrified", "prone", "restrained", "stunned"],
+    "personality": "A frenzied mass of gnawing rodents that overwhelms prey through sheer numbers.",
+    "combatStyle": "aggressive",
+    "tactics": "Engulfs the nearest creature and bites relentlessly. Splits around obstacles. Retreats when below half HP.",
+    "morale": "normal"
+  },
+  "tribal-warrior": {
+    "name": "Tribal Warrior",
+    "cr": 0.125,
+    "ac": 12,
+    "hp": 11,
+    "maxHp": 11,
+    "speed": 30,
+    "abilities": { "str": 13, "dex": 11, "con": 12, "int": 8, "wis": 11, "cha": 8 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "spear", "attackMod": "str", "damage": "1d6+1", "damageType": "piercing", "properties": ["thrown"], "range": "20/60" }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Pack Tactics"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A fierce warrior of a primitive tribe who fights to defend territory and prove worth to the chieftain.",
+    "combatStyle": "aggressive",
+    "tactics": "Throws spear at range then closes to melee. Flanks with allies when possible. Retreats if the tribe is routed.",
+    "morale": "normal"
+  },
+  "cultist": {
+    "name": "Cultist",
+    "cr": 0.125,
+    "ac": 12,
+    "hp": 9,
+    "maxHp": 9,
+    "speed": 30,
+    "abilities": { "str": 11, "dex": 12, "con": 10, "int": 10, "wis": 11, "cha": 10 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "scimitar", "attackMod": "dex", "damage": "1d6+1", "damageType": "slashing", "properties": ["finesse"] }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Dark Devotion (advantage on saves vs charm/fright)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A zealot willing to die for their dark patron. Fanatical but poorly trained.",
+    "combatStyle": "aggressive",
+    "tactics": "Rushes enemies without strategy, relying on numbers. Screams praises to their patron while fighting.",
+    "morale": "brave"
+  },
+  "guard": {
+    "name": "Guard",
+    "cr": 0.125,
+    "ac": 16,
+    "hp": 11,
+    "maxHp": 11,
+    "speed": 30,
+    "abilities": { "str": 13, "dex": 12, "con": 12, "int": 10, "wis": 11, "cha": 10 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "spear", "attackMod": "str", "damage": "1d6+1", "damageType": "piercing", "properties": ["thrown"], "range": "20/60" }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": [],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A professional town guard — not looking for a fight, but trained to handle one if it comes.",
+    "combatStyle": "defensive",
+    "tactics": "Calls for backup first. Holds position and uses spear to keep attackers at bay. Surrenders or flees if outmatched.",
+    "morale": "normal"
+  },
+  "crocodile": {
+    "name": "Crocodile",
+    "cr": 0.5,
+    "ac": 12,
+    "hp": 19,
+    "maxHp": 19,
+    "speed": 20,
+    "abilities": { "str": 15, "dex": 10, "con": 13, "int": 2, "wis": 10, "cha": 5 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      {
+        "name": "bite",
+        "attackMod": "str",
+        "damage": "1d10+2",
+        "damageType": "piercing",
+        "properties": [],
+        "saveOnHit": { "ability": "str", "dc": 12, "effect": "grappled" }
+      }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Hold Breath"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A patient aquatic ambush predator that lurks motionless until prey comes within reach.",
+    "combatStyle": "defensive",
+    "tactics": "Lurks near water's edge. Lunges to bite and grapple prey, then drags it underwater to drown. Fights until prey is dead.",
+    "morale": "brave"
+  },
+  "brown-bear": {
+    "name": "Brown Bear",
+    "cr": 1,
+    "ac": 11,
+    "hp": 34,
+    "maxHp": 34,
+    "speed": 40,
+    "abilities": { "str": 19, "dex": 10, "con": 16, "int": 2, "wis": 13, "cha": 7 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "1d8", "damageType": "piercing", "properties": [] },
+      { "name": "claws", "attackMod": "str", "damage": "2d6", "damageType": "slashing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Keen Smell", "Multiattack (1 bite + 1 claws)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A massive territorial predator — mostly avoids humans but will charge without warning when threatened or protecting cubs.",
+    "combatStyle": "aggressive",
+    "tactics": "Charges the nearest threat. Uses multiattack (bite + claws) every round. Fights until it or its enemy cannot continue.",
+    "morale": "brave"
+  },
+  "ghast": {
+    "name": "Ghast",
+    "cr": 2,
+    "ac": 13,
+    "hp": 36,
+    "maxHp": 36,
+    "speed": 30,
+    "abilities": { "str": 16, "dex": 17, "con": 10, "int": 11, "wis": 10, "cha": 8 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d8+3", "damageType": "piercing", "properties": [] },
+      {
+        "name": "claws",
+        "attackMod": "dex",
+        "damage": "2d6+3",
+        "damageType": "slashing",
+        "properties": [],
+        "saveOnHit": { "ability": "con", "dc": 10, "effect": "paralyzed" }
+      }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Stench (DC 10 Con or poisoned)", "Turning Defiance", "Multiattack (1 bite + 2 claws)"],
+    "conditions": [],
+    "resistances": ["necrotic"],
+    "vulnerabilities": [],
+    "immunities": ["poison", "charmed", "exhaustion", "poisoned"],
+    "personality": "A more powerful and cunning variant of the ghoul, reeking of decay and driven by insatiable hunger.",
+    "combatStyle": "aggressive",
+    "tactics": "Uses Stench to sicken nearby foes, then multiattacks with claw-claw-bite to paralyze victims. Focuses bites on paralyzed targets for auto-crits.",
+    "morale": "fanatical"
+  },
+  "gargoyle": {
+    "name": "Gargoyle",
+    "cr": 2,
+    "ac": 15,
+    "hp": 52,
+    "maxHp": 52,
+    "speed": 30,
+    "abilities": { "str": 15, "dex": 11, "con": 16, "int": 6, "wis": 11, "cha": 7 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "1d6+2", "damageType": "piercing", "properties": [] },
+      { "name": "claws", "attackMod": "str", "damage": "1d6+2", "damageType": "slashing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["False Appearance", "Multiattack (1 bite + 2 claws)"],
+    "conditions": [],
+    "resistances": ["bludgeoning", "piercing", "slashing from nonmagical weapons"],
+    "vulnerabilities": [],
+    "immunities": ["poison", "psychic", "petrified", "poisoned"],
+    "personality": "A malevolent stone creature that lurks motionless as decoration before striking. Delights in the terror it causes.",
+    "combatStyle": "defensive",
+    "tactics": "Waits in False Appearance (stone statue form) until prey is adjacent, then attacks. Uses flight to stay out of reach between attacks. Never retreats.",
+    "morale": "fanatical"
+  },
+  "ogre-zombie": {
+    "name": "Ogre Zombie",
+    "cr": 2,
+    "ac": 8,
+    "hp": 70,
+    "maxHp": 70,
+    "speed": 30,
+    "abilities": { "str": 19, "dex": 6, "con": 18, "int": 3, "wis": 6, "cha": 5 },
+    "saveProficiencies": ["wis"],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "morningstar", "attackMod": "str", "damage": "2d8+4", "damageType": "bludgeoning", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Undead Fortitude"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["poison", "poisoned"],
+    "personality": "A massive shambling ogre corpse driven by nothing but the dark magic animating it. No tactics, no mercy, no stopping.",
+    "combatStyle": "aggressive",
+    "tactics": "Shuffles toward the nearest creature and swings its morningstar. Does not prioritize targets. Undead Fortitude may keep it standing past zero HP.",
+    "morale": "fanatical"
+  },
+  "minotaur-skeleton": {
+    "name": "Minotaur Skeleton",
+    "cr": 2,
+    "ac": 12,
+    "hp": 67,
+    "maxHp": 67,
+    "speed": 40,
+    "abilities": { "str": 18, "dex": 11, "con": 15, "int": 6, "wis": 8, "cha": 5 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "greataxe", "attackMod": "str", "damage": "2d12+4", "damageType": "slashing", "properties": ["two-handed"] }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Charge (bonus gore attack on charge)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": ["bludgeoning"],
+    "immunities": ["poison", "exhaustion", "poisoned"],
+    "personality": "The animated bones of a minotaur — still terrifying in size and strength, now coupled with undead relentlessness.",
+    "combatStyle": "aggressive",
+    "tactics": "Charges straight at the nearest foe to trigger its gore attack, then follows up with greataxe. Attacks the same target until it falls.",
+    "morale": "fanatical"
+  },
+  "wererat": {
+    "name": "Wererat",
+    "cr": 2,
+    "ac": 12,
+    "hp": 33,
+    "maxHp": 33,
+    "speed": 30,
+    "abilities": { "str": 10, "dex": 15, "con": 12, "int": 11, "wis": 10, "cha": 8 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      {
+        "name": "shortsword",
+        "attackMod": "dex",
+        "damage": "1d6+2",
+        "damageType": "piercing",
+        "properties": ["finesse"]
+      },
+      {
+        "name": "bite (hybrid/rat)",
+        "attackMod": "dex",
+        "damage": "1d4+2",
+        "damageType": "piercing",
+        "properties": [],
+        "saveOnHit": { "ability": "con", "dc": 11, "effect": "lycanthropy" }
+      }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Shapechanger", "Keen Smell", "Multiattack (2 shortswords or 1 shortsword + bite)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["bludgeoning, piercing, slashing from nonmagical non-silvered weapons"],
+    "personality": "A cunning, paranoid lycanthrope that prefers to fight dirty. Operates in packs of thieves and scavengers.",
+    "combatStyle": "hit-and-run",
+    "tactics": "Fights in hybrid form when cornered. Uses bite to spread lycanthropy. Flees to rat form to escape if outmatched.",
+    "morale": "cowardly"
+  },
+  "knight": {
+    "name": "Knight",
+    "cr": 3,
+    "ac": 18,
+    "hp": 52,
+    "maxHp": 52,
+    "speed": 30,
+    "abilities": { "str": 16, "dex": 11, "con": 14, "int": 11, "wis": 11, "cha": 15 },
+    "saveProficiencies": ["con", "wis"],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "greatsword", "attackMod": "str", "damage": "2d6+3", "damageType": "slashing", "properties": ["two-handed"] },
+      { "name": "heavy crossbow", "attackMod": "str", "damage": "1d10+3", "damageType": "piercing", "properties": ["ranged"], "range": "100/400" }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Brave (advantage on saves vs fright)", "Multiattack (2 greatsword)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A disciplined warrior sworn to a code. Honorable in battle, never strikes a surrendered foe, but utterly lethal when fighting.",
+    "combatStyle": "tactical",
+    "tactics": "Opens with crossbow if distance allows. Uses multiattack each round in melee. Protects allies and challenges the most dangerous enemy to single combat.",
+    "morale": "brave"
+  },
+  "veteran": {
+    "name": "Veteran",
+    "cr": 3,
+    "ac": 17,
+    "hp": 58,
+    "maxHp": 58,
+    "speed": 30,
+    "abilities": { "str": 16, "dex": 13, "con": 14, "int": 10, "wis": 11, "cha": 10 },
+    "saveProficiencies": ["str", "con"],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "longsword", "attackMod": "str", "damage": "1d8+3", "damageType": "slashing", "properties": [] },
+      { "name": "shortsword", "attackMod": "str", "damage": "1d6+3", "damageType": "piercing", "properties": ["light"] },
+      { "name": "heavy crossbow", "attackMod": "dex", "damage": "1d10+1", "damageType": "piercing", "properties": ["ranged"], "range": "100/400" }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Multiattack (2 longsword or 1 longsword + 1 shortsword)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A grizzled warrior who has survived dozens of battles through skill, cunning, and ruthlessness.",
+    "combatStyle": "tactical",
+    "tactics": "Assesses the battlefield before charging. Uses multiattack and coordinates with allies. Knows when to press and when to fall back.",
+    "morale": "brave"
+  },
+  "ettin": {
+    "name": "Ettin",
+    "cr": 4,
+    "ac": 12,
+    "hp": 85,
+    "maxHp": 85,
+    "speed": 40,
+    "abilities": { "str": 21, "dex": 8, "con": 17, "int": 6, "wis": 10, "cha": 8 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "battleaxe (head 1)", "attackMod": "str", "damage": "2d8+5", "damageType": "slashing", "properties": [] },
+      { "name": "morningstar (head 2)", "attackMod": "str", "damage": "2d8+5", "damageType": "bludgeoning", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Two Heads (advantage on Wis saves, can't be surprised)", "Multiattack (1 battleaxe + 1 morningstar)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A quarrelsome two-headed giant whose heads argue constantly but unite in combat. Brutal and territorial.",
+    "combatStyle": "brute",
+    "tactics": "Charges into melee and uses both weapon attacks every round. Two heads means it rarely gets surprised. Targets the heaviest armored enemy to establish dominance.",
+    "morale": "brave"
+  },
+  "chimera": {
+    "name": "Chimera",
+    "cr": 6,
+    "ac": 14,
+    "hp": 114,
+    "maxHp": 114,
+    "speed": 30,
+    "abilities": { "str": 19, "dex": 11, "con": 19, "int": 3, "wis": 14, "cha": 10 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d6+4", "damageType": "piercing", "properties": [] },
+      { "name": "horns", "attackMod": "str", "damage": "2d10+4", "damageType": "bludgeoning", "properties": [] },
+      { "name": "claws", "attackMod": "str", "damage": "2d6+4", "damageType": "slashing", "properties": [] },
+      {
+        "name": "fire breath",
+        "attackMod": null,
+        "damage": "7d8",
+        "damageType": "fire",
+        "properties": ["cone", "recharge-5-6"],
+        "save": { "ability": "dex", "dc": 15 }
+      }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Multiattack (1 bite + 1 horns + 1 claws)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A chaotic fusion of lion, goat, and dragon — violent by nature and impossible to reason with.",
+    "combatStyle": "aggressive",
+    "tactics": "Opens with Fire Breath if available on clustered enemies. Then charges using all three melee attacks per round. Focuses one target until dead, then moves to the next.",
+    "morale": "brave"
+  },
+  "medusa": {
+    "name": "Medusa",
+    "cr": 6,
+    "ac": 15,
+    "hp": 127,
+    "maxHp": 127,
+    "speed": 30,
+    "abilities": { "str": 10, "dex": 17, "con": 16, "int": 12, "wis": 13, "cha": 15 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 3,
+    "weapons": [
+      {
+        "name": "snake hair",
+        "attackMod": "dex",
+        "damage": "1d8",
+        "damageType": "piercing",
+        "properties": [],
+        "saveOnHit": { "ability": "con", "dc": 14, "effect": "poisoned", "damage": "4d6" }
+      },
+      {
+        "name": "longbow 1",
+        "attackMod": "dex",
+        "damage": "1d8",
+        "damageType": "piercing",
+        "properties": ["ranged"],
+        "range": "150/600",
+        "saveOnHit": { "ability": "con", "dc": 14, "effect": "poisoned", "damage": "4d6" }
+      },
+      {
+        "name": "longbow 2",
+        "attackMod": "dex",
+        "damage": "1d8",
+        "damageType": "piercing",
+        "properties": ["ranged"],
+        "range": "150/600",
+        "saveOnHit": { "ability": "con", "dc": 14, "effect": "poisoned", "damage": "4d6" }
+      }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Petrifying Gaze (DC 14 Con, petrified after 2 fails)", "Multiattack (1 snake hair + 2 longbow)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A bitter, cursed creature who turns intruders to stone. Cunning and proud, it turns its lair into a gallery of frozen victims.",
+    "combatStyle": "tactical",
+    "tactics": "Keeps distance to use Petrifying Gaze each round. Fires poisoned longbow at non-gazing targets. Uses snake hair on anyone who closes to melee. Avoids her own reflection.",
+    "morale": "brave"
+  },
+  "cloaker": {
+    "name": "Cloaker",
+    "cr": 8,
+    "ac": 14,
+    "hp": 78,
+    "maxHp": 78,
+    "speed": 10,
+    "abilities": { "str": 17, "dex": 15, "con": 12, "int": 13, "wis": 12, "cha": 14 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 3,
+    "weapons": [
+      {
+        "name": "bite",
+        "attackMod": "str",
+        "damage": "2d6+3",
+        "damageType": "piercing",
+        "properties": [],
+        "saveOnHit": { "ability": "str", "dc": 14, "effect": "grappled" }
+      },
+      { "name": "tail", "attackMod": "str", "damage": "1d10+3", "damageType": "slashing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["False Appearance", "Light Sensitivity", "Moan (Wyrd Aura)", "Multiattack (1 bite + 1 tail)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "An ambush predator that mimics cloaks and capes. Intelligent enough to lure prey and coordinate with other aberrations.",
+    "combatStyle": "defensive",
+    "tactics": "Drops from ceiling onto isolated targets. Bites to grapple, then wraps around the victim to bite each turn. Uses Moan to disorient those trying to help. Tail-slaps nearby targets.",
+    "morale": "brave"
+  },
+  "spirit-naga": {
+    "name": "Spirit Naga",
+    "cr": 8,
+    "ac": 15,
+    "hp": 75,
+    "maxHp": 75,
+    "speed": 40,
+    "abilities": { "str": 18, "dex": 17, "con": 14, "int": 16, "wis": 15, "cha": 16 },
+    "saveProficiencies": ["dex", "con", "int", "wis", "cha"],
+    "proficiencyBonus": 3,
+    "weapons": [
+      {
+        "name": "bite",
+        "attackMod": "dex",
+        "damage": "1d6+5",
+        "damageType": "piercing",
+        "properties": [],
+        "saveOnHit": { "ability": "con", "dc": 13, "effect": "poisoned", "damage": "7d8" }
+      }
+    ],
+    "spells": [
+      { "name": "lightning bolt", "level": 3, "damage": "8d6", "damageType": "lightning", "save": "dex" },
+      { "name": "magic missile", "level": 1, "damage": "3d4+3", "damageType": "force" },
+      { "name": "hold person", "level": 2, "damage": "0", "damageType": "none" }
+    ],
+    "spellSlots": { "1": 4, "2": 3, "3": 3, "4": 1 },
+    "spellcastingAbility": "int",
+    "features": ["Rejuvenation (reappears in 1d6 days if slain)", "Spellcasting (Int DC 12, +4)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["poison", "charmed", "poisoned"],
+    "personality": "A malevolent serpentine spirit that craves power and serves evil gods. Ancient and vindictive.",
+    "combatStyle": "spellcaster",
+    "tactics": "Opens with Lightning Bolt on clustered enemies. Uses Hold Person to restrain fighters, then bites paralyzed targets. Falls back on bite when spell slots are exhausted.",
+    "morale": "brave"
+  },
+  "young-red-dragon": {
+    "name": "Young Red Dragon",
+    "cr": 10,
+    "ac": 18,
+    "hp": 178,
+    "maxHp": 178,
+    "speed": 40,
+    "abilities": { "str": 23, "dex": 10, "con": 21, "int": 14, "wis": 11, "cha": 19 },
+    "saveProficiencies": ["dex", "con", "wis", "cha"],
+    "proficiencyBonus": 4,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d10+6", "damageType": "piercing", "properties": [] },
+      { "name": "claw", "attackMod": "str", "damage": "2d6+6", "damageType": "slashing", "properties": [] },
+      {
+        "name": "fire breath",
+        "attackMod": null,
+        "damage": "16d6",
+        "damageType": "fire",
+        "properties": ["cone", "recharge-5-6"],
+        "save": { "ability": "dex", "dc": 17 }
+      }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Multiattack (1 bite + 2 claws)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [],
+    "immunities": ["fire"],
+    "personality": "Young but already imperious and territorial. Burns first, asks questions never. Covets treasure obsessively.",
+    "combatStyle": "tactical",
+    "tactics": "Opens with Fire Breath on the largest cluster. Multiattacks the most dangerous target. Uses flight to stay above melee when advantageous. Retreats to lair if bloodied.",
+    "morale": "brave"
+  },
+  "bone-devil": {
+    "name": "Bone Devil",
+    "cr": 9,
+    "ac": 19,
+    "hp": 142,
+    "maxHp": 142,
+    "speed": 40,
+    "abilities": { "str": 18, "dex": 16, "con": 18, "int": 13, "wis": 14, "cha": 16 },
+    "saveProficiencies": ["int", "wis", "cha"],
+    "proficiencyBonus": 4,
+    "weapons": [
+      { "name": "claw", "attackMod": "str", "damage": "1d8+4", "damageType": "slashing", "properties": [] },
+      {
+        "name": "sting",
+        "attackMod": "str",
+        "damage": "2d8+4",
+        "damageType": "piercing",
+        "properties": [],
+        "saveOnHit": { "ability": "con", "dc": 14, "effect": "poisoned", "damage": "5d6" }
+      }
+    ],
+    "spells": [],
+    "spellSlots": {},
+    "spellcastingAbility": null,
+    "features": ["Devil's Sight", "Magic Resistance", "Magic Weapons", "Multiattack (3 claw + 1 sting)"],
+    "conditions": [],
+    "resistances": ["cold", "bludgeoning", "piercing", "slashing from nonmagical weapons"],
+    "vulnerabilities": [],
+    "immunities": ["fire", "poison", "poisoned"],
+    "personality": "A cruel inquisitor and torturer of the Nine Hells, loyal to Dispater. Takes sadistic pleasure in pain.",
+    "combatStyle": "tactical",
+    "tactics": "Uses sting to poison the most dangerous fighter, then claws them to death. Commands lesser devils tactically. Fights without mercy until destroyed or ordered to retreat.",
+    "morale": "brave"
+  },
+  "horned-devil": {
+    "name": "Horned Devil",
+    "cr": 11,
+    "ac": 18,
+    "hp": 178,
+    "maxHp": 178,
+    "speed": 30,
+    "abilities": { "str": 22, "dex": 17, "con": 21, "int": 12, "wis": 16, "cha": 17 },
+    "saveProficiencies": ["str", "dex", "wis", "cha"],
+    "proficiencyBonus": 4,
+    "weapons": [
+      { "name": "fork", "attackMod": "str", "damage": "2d8+6", "damageType": "piercing", "properties": [] },
+      {
+        "name": "tail",
+        "attackMod": "str",
+        "damage": "1d8+6",
+        "damageType": "piercing",
+        "properties": [],
+        "saveOnHit": { "ability": "str", "dc": 17, "effect": "prone" }
+      }
+    ],
+    "spells": [],
+    "spellSlots": {},
+    "spellcastingAbility": null,
+    "features": [
+      "Devil's Sight", "Magic Resistance", "Magic Weapons",
+      "Multiattack (2 fork + 1 tail or 4 fork)", "Hurl Flame (ranged fire attack)"
+    ],
+    "conditions": [],
+    "resistances": ["cold", "bludgeoning", "piercing", "slashing from nonmagical weapons"],
+    "vulnerabilities": [],
+    "immunities": ["fire", "poison", "poisoned"],
+    "personality": "A front-line warrior of Hell, powerful and utterly merciless. Obeys superiors but bullies those below.",
+    "combatStyle": "brute",
+    "tactics": "Charges into melee and hits with fork-fork-tail each round. Uses Hurl Flame at range. Knocks targets prone with its tail for easy follow-up attacks. Never retreats.",
+    "morale": "brave"
+  },
+  "erinyes": {
+    "name": "Erinyes",
+    "cr": 12,
+    "ac": 18,
+    "hp": 153,
+    "maxHp": 153,
+    "speed": 30,
+    "abilities": { "str": 18, "dex": 16, "con": 18, "int": 14, "wis": 14, "cha": 18 },
+    "saveProficiencies": ["dex", "con", "wis", "cha"],
+    "proficiencyBonus": 4,
+    "weapons": [
+      { "name": "longsword", "attackMod": "str", "damage": "1d8+4+3d8", "damageType": "slashing", "properties": [] },
+      {
+        "name": "longbow",
+        "attackMod": "dex",
+        "damage": "1d8+3",
+        "damageType": "piercing",
+        "properties": ["ranged"],
+        "range": "150/600",
+        "saveOnHit": { "ability": "con", "dc": 14, "effect": "poisoned" }
+      }
+    ],
+    "spells": [],
+    "spellSlots": {},
+    "spellcastingAbility": null,
+    "features": [
+      "Hellish Weapons (extra 3d8 poison on each hit)",
+      "Magic Resistance", "Magic Weapons",
+      "Multiattack (3 longsword or 3 longbow)"
+    ],
+    "conditions": [],
+    "resistances": ["cold", "bludgeoning", "piercing", "slashing from nonmagical weapons"],
+    "vulnerabilities": [],
+    "immunities": ["fire", "poison", "poisoned"],
+    "personality": "A fallen angel turned devil — beautiful, remorseless, and utterly ruthless. Carries a rope of entanglement.",
+    "combatStyle": "tactical",
+    "tactics": "Opens with longbow from above, poisoning targets. Closes to longsword multiattack once enemies are weakened. Uses entanglement on spellcasters.",
+    "morale": "brave"
+  },
+  "purple-worm": {
+    "name": "Purple Worm",
+    "cr": 15,
+    "ac": 18,
+    "hp": 247,
+    "maxHp": 247,
+    "speed": 50,
+    "abilities": { "str": 28, "dex": 7, "con": 22, "int": 1, "wis": 8, "cha": 4 },
+    "saveProficiencies": ["con", "wis"],
+    "proficiencyBonus": 5,
+    "weapons": [
+      {
+        "name": "bite",
+        "attackMod": "str",
+        "damage": "3d8+9",
+        "damageType": "piercing",
+        "properties": [],
+        "saveOnHit": { "ability": "dex", "dc": 19, "effect": "swallowed" }
+      },
+      {
+        "name": "stinger",
+        "attackMod": "str",
+        "damage": "3d6+9",
+        "damageType": "piercing",
+        "properties": [],
+        "saveOnHit": { "ability": "con", "dc": 19, "effect": "poisoned", "damage": "12d6" }
+      }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": ["Tunneler", "Multiattack (1 bite + 1 stinger)"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": [],
+    "personality": "A mindless engine of destruction that burrows through stone and swallows creatures whole.",
+    "combatStyle": "aggressive",
+    "tactics": "Surfaces beneath targets for bite attacks (to swallow) and tail sting (for massive poison damage). Swallowed creatures take acid damage each round inside. Does not retreat — it is a force of nature.",
+    "morale": "fanatical"
+  },
+  "adult-blue-dragon": {
+    "name": "Adult Blue Dragon",
+    "cr": 16,
+    "ac": 19,
+    "hp": 225,
+    "maxHp": 225,
+    "speed": 40,
+    "abilities": { "str": 25, "dex": 10, "con": 23, "int": 16, "wis": 15, "cha": 19 },
+    "saveProficiencies": ["dex", "con", "wis", "cha"],
+    "proficiencyBonus": 5,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d10+7", "damageType": "piercing", "properties": [] },
+      { "name": "claw", "attackMod": "str", "damage": "2d6+7", "damageType": "slashing", "properties": [] },
+      { "name": "tail", "attackMod": "str", "damage": "2d8+7", "damageType": "bludgeoning", "properties": [] },
+      {
+        "name": "lightning breath",
+        "attackMod": null,
+        "damage": "16d10",
+        "damageType": "lightning",
+        "properties": ["line", "recharge-5-6"],
+        "save": { "ability": "dex", "dc": 19 }
+      }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": [
+      "Legendary Resistance (3/day)",
+      "Legendary Actions",
+      "Multiattack (1 bite + 2 claws)"
+    ],
+    "conditions": [], "resistances": [], "vulnerabilities": [],
+    "immunities": ["lightning"],
+    "personality": "A supremely arrogant ruler of desert skies. Demands tribute, obliterates those who refuse, and collects both gold and information.",
+    "combatStyle": "tactical",
+    "tactics": "Opens with Lightning Breath on a line of enemies. Multiattacks the most dangerous target. Uses Legendary Actions between rounds. Targets ranged attackers and spellcasters with priority.",
+    "morale": "brave"
+  },
+  "adult-black-dragon": {
+    "name": "Adult Black Dragon",
+    "cr": 14,
+    "ac": 19,
+    "hp": 195,
+    "maxHp": 195,
+    "speed": 40,
+    "abilities": { "str": 23, "dex": 14, "con": 21, "int": 14, "wis": 13, "cha": 17 },
+    "saveProficiencies": ["dex", "con", "wis", "cha"],
+    "proficiencyBonus": 5,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d10+6", "damageType": "piercing", "properties": [] },
+      { "name": "claw", "attackMod": "str", "damage": "2d6+6", "damageType": "slashing", "properties": [] },
+      { "name": "tail", "attackMod": "str", "damage": "2d8+6", "damageType": "bludgeoning", "properties": [] },
+      {
+        "name": "acid breath",
+        "attackMod": null,
+        "damage": "14d8",
+        "damageType": "acid",
+        "properties": ["line", "recharge-5-6"],
+        "save": { "ability": "dex", "dc": 18 }
+      }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": [
+      "Amphibious",
+      "Legendary Resistance (3/day)",
+      "Legendary Actions",
+      "Multiattack (1 bite + 2 claws)"
+    ],
+    "conditions": [], "resistances": [], "vulnerabilities": [],
+    "immunities": ["acid"],
+    "personality": "Ancient, cunning, and hateful. Rules over swamps and ruins, enjoying the slow corruption of everything it touches.",
+    "combatStyle": "tactical",
+    "tactics": "Opens with Acid Breath, then multiattacks the highest-threat target. Retreats into murky water to recharge, re-emerging to strike. Uses Legendary Actions to stay aggressive between rounds.",
+    "morale": "brave"
+  },
+  "iron-golem": {
+    "name": "Iron Golem",
+    "cr": 16,
+    "ac": 20,
+    "hp": 210,
+    "maxHp": 210,
+    "speed": 30,
+    "abilities": { "str": 24, "dex": 9, "con": 20, "int": 3, "wis": 11, "cha": 1 },
+    "saveProficiencies": [],
+    "proficiencyBonus": 5,
+    "weapons": [
+      { "name": "slam", "attackMod": "str", "damage": "3d10+7", "damageType": "bludgeoning", "properties": [] },
+      {
+        "name": "poison breath",
+        "attackMod": null,
+        "damage": "10d8",
+        "damageType": "poison",
+        "properties": ["cone", "recharge-6"],
+        "save": { "ability": "con", "dc": 19 }
+      }
+    ],
+    "spells": [], "spellSlots": {}, "spellcastingAbility": null,
+    "features": [
+      "Immutable Form", "Magic Resistance", "Magic Weapons",
+      "Fire Absorption (fire heals it)", "Multiattack (2 slams)"
+    ],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": [
+      "fire", "poison", "psychic",
+      "bludgeoning", "piercing", "slashing from nonmagical weapons",
+      "charmed", "exhaustion", "frightened", "paralyzed", "petrified", "poisoned"
+    ],
+    "personality": "A massive, indestructible construct of living metal. Obeys without question. Cannot be reasoned with.",
+    "combatStyle": "brute",
+    "tactics": "Walks directly at targets and uses Multiattack (2 slams) each round. Uses Poison Breath when available on grouped enemies. Fire spells heal it. Nothing stops it until its creator commands otherwise.",
+    "morale": "fanatical"
+  },
   "kraken": {
     "name": "Kraken",
     "cr": 23,
