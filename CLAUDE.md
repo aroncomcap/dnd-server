@@ -257,6 +257,38 @@ Check costs: `GET /api/costs`
 | `DISCORD_CLIENT_ID` | Discord OAuth | For Discord login |
 | `DISCORD_CLIENT_SECRET` | Discord OAuth | For Discord login |
 
+## Encounter Difficulty Module
+
+DPR-based encounter balancing that designs encounters calibrated to the party's actual power.
+
+### Key File
+- `encounter-designer.js` — DPR estimation, monster HP/DPR budgets, monster selection, social/exploration DC scaling, adventuring day planning, difficulty self-correction
+
+### How It Works
+1. Estimates party DPR from combatStats (weapons, spells, features like Extra Attack/Sneak Attack)
+2. Tracks rolling DPR from actual combat history (last 5 fights, weighted average)
+3. Calculates monster HP budget: `partyDPR × targetRounds × ferocityMult × positionMult × correction`
+4. Selects monsters from the database that fit the budget
+5. Plans full adventuring days with pillar distribution, rest cadence, and escalation curve
+6. Injects plan into AI prompt so the DM follows structured difficulty guidance
+7. Self-corrects: if combats consistently shorter/longer than predicted, adjusts future budgets
+
+### Ferocity → Difficulty Mapping
+| Ferocity | Target Rounds | HP Mult | PC Death Every N Combats |
+|----------|---------------|---------|--------------------------|
+| 1 Deadly | 4-5 | 1.5x | 3-5 |
+| 3 Balanced | 3-4 | 1.0x | 9-12 |
+| 5 Easy | 2-3 | 0.5x | 17-20 |
+
+### Testing
+```bash
+node test-encounter-designer.js standard-party  # Level 5 party, ferocity 3
+node test-encounter-designer.js all              # All scenarios
+```
+
+### Host Tab
+Encounter Planner panel shows day timeline with difficulty controls (harder/easier, insert rest, skip to boss, regenerate).
+
 ## Combat Engine
 
 Server-side combat engine that owns all dice rolls, math, HP tracking, and conditions. The AI narrates pre-resolved results — it does NOT simulate combat rules.
