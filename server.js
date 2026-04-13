@@ -724,6 +724,21 @@ async function initiateCombat(gameId, gameConfig, enemies) {
         const id = entry.count > 1 ? `${entry.slug}-${i + 1}` : entry.slug;
         const name = entry.count > 1 ? `${entry.displayName} ${i + 1}` : entry.displayName;
         enemyCombatants.push({ ...stats, id, name, type: 'Enemy' });
+
+        // For solo/named enemies, generate a unique personality twist via Haiku
+        if (entry.count === 1 && stats.personality) {
+          try {
+            const variantResponse = await anthropic.messages.create({
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 100,
+              messages: [{ role: 'user', content: `This ${stats.name} has a base personality: "${stats.personality}". Give this specific ${name} a unique twist in 1-2 sentences — a quirk, obsession, or unusual trait that makes it memorable. Reply with ONLY the personality text.` }],
+            });
+            const uniquePersonality = variantResponse.content[0]?.text?.trim();
+            if (uniquePersonality) {
+              enemyCombatants[enemyCombatants.length - 1].personality = uniquePersonality;
+            }
+          } catch (e) { /* Use base personality on error */ }
+        }
       }
     }
   }
@@ -780,10 +795,24 @@ async function resolveEnemyTurns(gameId, gameConfig) {
 
     if (pcs.length === 0) break;
 
-    const tacticalPrompt = `Choose ONE action for ${current.name} (${current.hp ?? current.totalHp}/${current.maxHp ?? current.totalHp} HP).
-Reply ONLY: ACTION: ${current.id} [action-type] [target-id]
+    const personality = current.personality || '';
+    const tactics = current.tactics || '';
+    const morale = current.morale || 'normal';
+    const hpPct = (current.hp ?? current.totalHp ?? 1) / (current.maxHp ?? current.totalHp ?? 1);
+
+    let moraleAction = '';
+    if (morale === 'cowardly' && hpPct < 0.5) moraleAction = ' PREFER: disengage or dash (fleeing — cowardly at <50% HP).';
+    else if (morale === 'normal' && hpPct < 0.25) moraleAction = ' PREFER: disengage or dash (fleeing — low HP).';
+    else if (morale === 'berserker') moraleAction = ' PREFER: reckless attacks — berserker never retreats.';
+
+    const tacticalPrompt = `Choose ONE action for ${current.name}.
+${personality ? 'Personality: ' + personality : ''}
+${tactics ? 'Tactics: ' + tactics : ''}
+${moraleAction}
+HP: ${current.hp ?? current.totalHp}/${current.maxHp ?? current.totalHp}
 Can: ${availableActions.slice(0, 6).map(a => a.label).join(', ')}
-Targets: ${pcs.map(p => `${p.name}(${p.id},${p.hp ?? p.totalHp}HP${p.concentrating ? ',conc:' + p.concentrating : ''})`).join(', ')}`;
+Targets: ${pcs.map(p => `${p.name}(${p.id},${p.hp ?? p.totalHp}HP${p.concentrating ? ',conc:' + p.concentrating : ''})`).join(', ')}
+Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
 
     let actionType = 'attack';
     let targetId = pcs[0]?.id;
@@ -1132,6 +1161,15 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
         const resultLines = allResults.map(r => gs.combatEngine.formatResultForPrompt(r));
 
         combatContext = `\n\n${gs.combatEngine.getCombatStateForPrompt()}\n\nRESOLVED THIS ROUND:\n${resultLines.join('\n')}\n\nNarrate these results in your DM persona. It is now ${gs.combatEngine.getCurrentTurn()?.name || 'the next player'}'s turn.`;
+
+        // Add enemy personalities for narration flavor
+        const enemyPersonalities = Object.values(gs.combatEngine.state.combatants)
+          .filter(c => c.type === 'Enemy' && c.personality && (c.hp > 0 || (c.totalHp && c.totalHp > 0)))
+          .map(c => `${c.name}: ${c.personality}`)
+          .join('\n');
+        if (enemyPersonalities) {
+          combatContext += `\n\nENEMY PERSONALITIES (use in narration):\n${enemyPersonalities}`;
+        }
 
         const overCheck = gs.combatEngine.isCombatOver();
         if (overCheck.over) {

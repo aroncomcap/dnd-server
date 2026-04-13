@@ -1,0 +1,13 @@
+const m = require('../monsters/monsters-5e-srd.json');
+const rq = require('../monsters/monsters-rq-core.json');
+const missing5e = Object.entries(m).filter(([,v]) => !v.personality).map(([k]) => k);
+const missingRQ = Object.entries(rq).filter(([,v]) => !v.personality).map(([k]) => k);
+console.log('Missing 5e:', missing5e);
+console.log('Missing RQ:', missingRQ);
+console.log('goblin morale:', m.goblin.morale, '| combatStyle:', m.goblin.combatStyle);
+console.log('skeleton morale:', m.skeleton.morale, '| combatStyle:', m.skeleton.combatStyle);
+console.log('troll combatStyle:', m.troll.combatStyle, '| morale:', m.troll.morale);
+console.log('mind-flayer morale:', m['mind-flayer'].morale, '| combatStyle:', m['mind-flayer'].combatStyle);
+console.log('adult-red-dragon combatStyle:', m['adult-red-dragon'].combatStyle);
+console.log('Total 5e monsters:', Object.keys(m).length);
+console.log('Total RQ monsters:', Object.keys(rq).length);
