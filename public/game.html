@@ -2827,10 +2827,10 @@ socket.on('scene_gen_failed', () => {
 
 // Update scene_image handler to clear loader
 const origSceneHandler = showSceneImage;
-showSceneImage = function(url) {
+showSceneImage = function(url, label) {
   const loader = document.getElementById('scene-loader');
   if (loader) loader.remove();
-  origSceneHandler(url);
+  origSceneHandler(url, label);
 };
 
 // ── Send action ───────────────────────────────────────────────
