@@ -1154,13 +1154,20 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   ];
 
   const model = 'claude-haiku-4-5-20251001';
-  const maxTokens = gs.verbosity === 'terse' ? 700 : gs.verbosity === 'brief' ? 1000 : 2500;
   const hasHistory = gd.chatHistory.some(m => m.role === 'assistant');
   const systemPrompt = hasHistory ? buildTrimmedPrompt(gameId, gameConfig) : buildSystemPrompt(gameId, gameConfig);
   const startTime = Date.now();
 
   // Combat routing — resolve player action + enemy turns before calling Claude
   const combatActive = gs.combatEngine?.state?.active;
+
+  // Token limits: combat narration needs fewer tokens (just describing pre-resolved results)
+  let maxTokens;
+  if (combatActive) {
+    maxTokens = gs.verbosity === 'terse' ? 450 : gs.verbosity === 'brief' ? 600 : 1200;
+  } else {
+    maxTokens = gs.verbosity === 'terse' ? 700 : gs.verbosity === 'brief' ? 1000 : 2500;
+  }
   let combatContext = '';
 
   if (combatActive) {
