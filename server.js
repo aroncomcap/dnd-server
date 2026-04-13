@@ -859,25 +859,30 @@ async function generateCompositeScene(gameId, sceneData, gameConfig) {
   const locEntry = gs.world?.locations?.find(l => l.name === currentLoc);
   const locDesc = locEntry?.visualDesc || locEntry?.description || '';
 
-  // Get active character visual description
-  const currentChar = getCurrentPlayer(gameId);
-  const charData = currentChar ? gs.data.characters[currentChar] : null;
-  const charDesc = charData?.visualDesc || '';
-
-  // Get relevant NPC if mentioned in scene
+  // Get relevant NPC if mentioned in scene — this is the primary subject
   let npcDesc = '';
+  let hasNpc = false;
   if (sceneData.npc && sceneData.npc.toLowerCase() !== 'none') {
     const npcEntry = gs.world?.npcs?.find(n => n.name.toLowerCase().includes(sceneData.npc.toLowerCase()));
     npcDesc = npcEntry?.visualDesc || npcEntry?.description || '';
+    hasNpc = !!npcDesc;
   }
 
-  // Compose prompt
+  // Compose prompt — prioritize scene/NPC/location over player characters
   const parts = [stylePrefix];
-  if (locDesc) parts.push(`Setting: ${locDesc}`);
-  if (charDesc) parts.push(`Main character: ${charDesc}`);
-  if (npcDesc) parts.push(`Also present: ${npcDesc}`);
-  parts.push(`Action: ${sceneData.action || 'dramatic moment'}`);
+  parts.push(`Scene: ${sceneData.action || 'dramatic moment'}`);
   if (sceneData.mood) parts.push(`Mood: ${sceneData.mood}`);
+  if (hasNpc) {
+    // NPC is the focus — show them prominently
+    parts.push(`Focus on this character: ${npcDesc}`);
+    if (locDesc) parts.push(`Setting: ${locDesc}`);
+  } else if (locDesc) {
+    // No NPC — show the location/environment as a wide landscape
+    parts.push(`Wide establishing shot of: ${locDesc}`);
+  } else {
+    // Fallback — show the action as a scene, not a character portrait
+    parts.push('Wide cinematic shot showing the full scene, not a close-up portrait');
+  }
   parts.push('No text or words in the image.');
 
   const prompt = parts.join('. ').slice(0, 1000);
