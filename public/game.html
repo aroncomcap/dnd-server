@@ -1003,6 +1003,25 @@
   #loading-tip, #waiting-tip, #thinking-tip, #spectator-tip {
     transition: opacity 0.3s ease;
   }
+  .enc-item {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; border-radius: 6px; font-size: 1rem;
+    border: 1px solid rgba(200,146,42,0.3); cursor: default; position: relative;
+    transition: all 0.2s;
+  }
+  .enc-item.combat { background: rgba(200,60,60,0.2); }
+  .enc-item.social { background: rgba(60,120,200,0.2); }
+  .enc-item.exploration { background: rgba(60,180,100,0.2); }
+  .enc-item.rest { background: rgba(200,146,42,0.15); }
+  .enc-item.current { border-color: var(--gold); box-shadow: 0 0 8px rgba(200,146,42,0.4); }
+  .enc-item.completed { opacity: 0.4; }
+  .enc-item .enc-tooltip {
+    display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+    background: rgba(13,6,0,0.95); border: 1px solid var(--gold); border-radius: 6px;
+    padding: 6px 10px; font-size: 0.75rem; color: var(--parchment); white-space: nowrap;
+    z-index: 100; margin-bottom: 4px; pointer-events: none;
+  }
+  .enc-item:hover .enc-tooltip { display: block; }
 </style>
 </head>
 <body>
@@ -1316,6 +1335,29 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
       <button class="token-btn" id="btn-set-pillars" style="align-self:flex-end;">Set</button>
     </div>
     <p class="host-note">Target balance of gameplay types (%)</p>
+  </div>
+
+  <!-- Panel 2b: Encounter Planner -->
+  <div class="panel" style="margin-top:12px;">
+    <div class="panel-title">⚔️ Encounter Planner</div>
+
+    <!-- Day Timeline -->
+    <div id="encounter-timeline" style="display:flex;gap:4px;flex-wrap:wrap;margin:8px 0;min-height:40px;">
+      <div style="color:var(--parchment-dark);font-size:0.8rem;opacity:0.5;">No plan yet — starts when adventure begins</div>
+    </div>
+
+    <!-- Party DPR Stats -->
+    <div id="party-dpr-stats" style="font-size:0.8rem;color:var(--parchment-dark);margin:8px 0;display:none;">
+    </div>
+
+    <!-- Controls -->
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+      <button class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;" onclick="socket.emit('adjust_difficulty', {harder:true})">⬆️ Harder</button>
+      <button class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;" onclick="socket.emit('adjust_difficulty', {harder:false})">⬇️ Easier</button>
+      <button class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;" onclick="socket.emit('insert_rest')">☕ Insert Rest</button>
+      <button class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;" onclick="socket.emit('force_boss')">💀 Skip to Boss</button>
+      <button class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;" onclick="socket.emit('regenerate_plan', {})">🔄 Regenerate</button>
+    </div>
   </div>
 
   <!-- Panel 3: Map & Timing -->
@@ -2234,6 +2276,7 @@ if (state.ferocity != null) {
   if (state.world) updateWorldPanel(state.world);
   if (state.world?.turnOrder) updateTurnOrder(state.world.turnOrder);
   if (state.pdfUploads) renderPdfList(state.pdfUploads);
+  if (state.encounterPlan) renderEncounterPlan(state.encounterPlan);
   loadRules();
 
   chatLog.innerHTML = '';
@@ -3872,6 +3915,59 @@ document.getElementById('debug-toggle-close').addEventListener('click', () => {
   document.getElementById('debug-panel').style.display = 'none';
   document.getElementById('debug-toggle').style.display = 'block';
 });
+
+// ── Encounter Plan UI ──────────────────────────────────────────
+socket.on('encounter_plan_updated', (plan) => {
+  renderEncounterPlan(plan);
+});
+
+function renderEncounterPlan(plan) {
+  if (!plan || !plan.encounters) return;
+  const timeline = document.getElementById('encounter-timeline');
+  const statsDiv = document.getElementById('party-dpr-stats');
+  timeline.innerHTML = '';
+
+  const icons = { combat: '⚔️', social: '💬', exploration: '🗺️', short: '☕', long: '🛏️' };
+  let encNum = 0;
+
+  for (let i = 0; i < plan.encounters.length; i++) {
+    const enc = plan.encounters[i];
+    const item = document.createElement('div');
+
+    if (enc.rest) {
+      item.className = 'enc-item rest' + (enc.completed ? ' completed' : '');
+      item.textContent = icons[enc.rest] || '☕';
+      item.innerHTML += '<div class="enc-tooltip">' + (enc.rest === 'short' ? 'Short Rest' : 'Long Rest') + '</div>';
+    } else {
+      encNum++;
+      const isCurrent = encNum - 1 === (plan._currentIndex || 0);
+      item.className = 'enc-item ' + (enc.pillar || '') + (enc.completed ? ' completed' : '') + (isCurrent ? ' current' : '');
+      item.textContent = icons[enc.pillar] || '❓';
+
+      let tooltip = '#' + encNum + ' ' + (enc.pillar || '').charAt(0).toUpperCase() + (enc.pillar || '').slice(1);
+      if (enc.monsters) {
+        tooltip += ': ' + enc.monsters.map(m => m.count + 'x ' + m.name).join(', ');
+        tooltip += ' (' + enc.totalHP + ' HP, ~' + enc.estimatedRounds + ' rounds)';
+      }
+      if (enc.dc) tooltip += ' DC ' + enc.dc;
+      tooltip += ' [' + (enc.difficultyRating || 'medium') + ']';
+      item.innerHTML += '<div class="enc-tooltip">' + tooltip + '</div>';
+    }
+
+    timeline.appendChild(item);
+  }
+
+  // Summary stats
+  if (plan.summary) {
+    statsDiv.style.display = 'block';
+    statsDiv.innerHTML =
+      '<strong>Day Plan:</strong> ' + plan.summary.totalEncounters + ' encounters (' +
+      'C:' + plan.summary.combatEncounters + ' S:' + plan.summary.socialEncounters + ' E:' + plan.summary.explorationEncounters + ') | ' +
+      'Rests: ' + plan.summary.shortRests + 'S/' + plan.summary.longRests + 'L | ' +
+      'Monster HP: ' + plan.summary.totalMonsterHP + ' | ' +
+      'Est. Drain: ' + plan.summary.estimatedPartyHPDrain;
+  }
+}
 </script>
 <div id="debug-panel" style="position:fixed;bottom:50px;right:8px;background:rgba(0,0,0,0.85);color:#0f0;font-family:monospace;font-size:0.75rem;padding:6px 10px;border-radius:6px;border:1px solid #333;z-index:300;max-width:320px;display:none;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
