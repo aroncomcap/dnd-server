@@ -201,9 +201,16 @@ CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 ${summary}
 VERBOSITY: ${gs.verbosity || 'verbose'}
-${gs.verbosity === 'terse' ? 'ABSOLUTE WORD LIMIT: 20 words MAXIMUM for narration. TWO SENTENCES MAX. No descriptions of environment, atmosphere, or sensory details. State only what happens mechanically. Example: "Brother Thornwick casts Light on a stone and descends the ladder. The sewer tunnel branches three ways."' :
-  gs.verbosity === 'brief' ? 'STRICT WORD LIMIT: 50 words maximum for narration (excluding game mechanics). Be punchy and direct.' :
-  'STRICT WORD LIMIT: Your narration text (excluding dice rolls, game mechanics, and skill checks) must be 100 words or fewer. Count your words. If you\'re over 100 non-mechanic words, you\'ve written too much. Aim for 50-75 words. Only exceed 100 for major plot revelations.'}
+${gs.verbosity === 'terse' ? `TERSE MODE — CRITICAL CONSTRAINT:
+Your ENTIRE narration must be 1-2 sentences, under 25 words total. No atmosphere, no descriptions, no sensory details, no NPC dialogue, no internal thoughts. State ONLY what mechanically happens, then go straight to structured blocks.
+
+EXAMPLE OF CORRECT TERSE OUTPUT:
+"Thornwick casts Light and descends into the sewer. Three tunnels branch ahead — left, center, right."
+That's it. Then ---OPTIONS---, ---SCENE---, ---WORLD---. Nothing more in the narration.
+
+If you write more than 2 sentences of narration, you have failed this constraint.` :
+  gs.verbosity === 'brief' ? `BRIEF MODE — Your narration must be 2-4 sentences, under 50 words. Be direct and punchy. No purple prose, no extended descriptions. State what happens, one key sensory detail at most, then structured blocks.` :
+  'WORD LIMIT: Your narration text (excluding dice rolls, game mechanics, and skill checks) must be 100 words or fewer. Count your words. If you\'re over 100 non-mechanic words, you\'ve written too much. Aim for 50-75 words. Only exceed 100 for major plot revelations.'}
 
 FEROCITY: ${gs.ferocity ?? 5}/5
 ${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, numerous, and tactically smart. Death is likely without clever play. However, treasure rewards are VERY generous — rare magic items, large gold hoards, and powerful artifacts appear frequently.' :
@@ -451,7 +458,7 @@ ${catchphrases}
 
   const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
 
-  const verbosityLine = gs.verbosity === 'terse' ? 'ABSOLUTE HARD LIMIT: 20 words narration max. TWO SENTENCES MAX. No atmosphere, no sensory details, no descriptions. Just state what happens. Then structured blocks.' :
+  const verbosityLine = gs.verbosity === 'terse' ? 'TERSE: 1-2 sentences ONLY, under 25 words. No atmosphere, no NPC dialogue, no descriptions. Example: "The party enters the cave. Goblin tracks lead deeper." If you write more than 2 sentences you have FAILED.' :
     gs.verbosity === 'brief' ? 'ABSOLUTE HARD LIMIT: 50 words narration max. NO section headers. NO ## headings. Prose paragraphs only, then structured blocks.' :
     'WORD LIMIT: 100 words max narration. Aim for 50-75. NO ## headings in narration. Prose paragraphs only.';
 
@@ -1069,7 +1076,14 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     ? `[AUTO-ACTION for ${actingAs} — timer expired]\n`
     : '';
 
+  // For terse/brief: inject a few-shot example as the first message pair to anchor output length
+  const verbosityExample = gs.verbosity === 'terse' ? [
+    { role: 'user', content: '[EXAMPLE — this shows the correct terse output length]\nKael: I search the room for traps.' },
+    { role: 'assistant', content: 'Kael finds a tripwire near the door. A poison dart trap, easily disarmed.\n\n---OPTIONS---\n1️⃣ 🗡️ Disarm the trap carefully\n2️⃣ 🛡️ Mark it and find another way around\n3️⃣ 🔥 Trigger it intentionally from a distance\n\n---SCENE---\nACTION: Searching for traps\nMOOD: cautious\nNPC: none\n\n---WORLD---\nLOCATIONS:\n- Trapped Hallway | Stone corridor with dart trap | current\nNPCS:\n- none\nMAP: Trapped Hallway' },
+  ] : [];
+
   const messages = [
+    ...verbosityExample,
     ...gd.chatHistory,
     { role: 'user', content: prefix + userMessage },
   ];
@@ -1136,10 +1150,6 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   const LOOKAHEAD = 30; // chars to hold back for marker detection
   const markerRegex = /\n-{3,}\s*(?:OPTIONS|SCENE|WORLD)\s*-{3,}|\n#{1,3}\s*(?:OPTIONS?|SCENE|WORLD)\s*$/im;
 
-  // Word limit for streaming truncation (terse/brief)
-  const streamWordLimit = gs.verbosity === 'terse' ? 40 : gs.verbosity === 'brief' ? 80 : null;
-  let narrationWordCount = 0;
-  let narrationTruncated = false;
 
   // Emit stream start
   io.to(gameId).emit('dm_stream_start', {
@@ -1168,7 +1178,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
           if (markerMatch) {
             // Flush everything before marker as narration
             const safeText = pendingTail.slice(0, markerMatch.index);
-            if (safeText && !narrationTruncated) {
+            if (safeText) {
               io.to(gameId).emit('dm_stream_chunk', { text: safeText });
               narrationText += safeText;
             }
@@ -1177,30 +1187,8 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
             state = 'BUFFERING';
           } else if (pendingTail.length > LOOKAHEAD) {
             const safeChunk = pendingTail.slice(0, -LOOKAHEAD);
-            // Check word limit before emitting
-            if (streamWordLimit && !narrationTruncated) {
-              const newWords = safeChunk.split(/\s+/).filter(Boolean).length;
-              if (narrationWordCount + newWords > streamWordLimit) {
-                // Truncate at sentence boundary within limit
-                const allNarration = narrationText + safeChunk;
-                const words = allNarration.split(/\s+/);
-                const limited = words.slice(0, streamWordLimit).join(' ');
-                const lastSentence = Math.max(limited.lastIndexOf('. '), limited.lastIndexOf('.\n'), limited.lastIndexOf('."'), limited.lastIndexOf('! '));
-                const cutNarration = lastSentence > limited.length * 0.3 ? limited.slice(0, lastSentence + 1) : limited;
-                // Emit only the new part (what we haven't sent yet)
-                const newPart = cutNarration.slice(narrationText.length);
-                if (newPart) io.to(gameId).emit('dm_stream_chunk', { text: newPart });
-                narrationText = cutNarration;
-                narrationTruncated = true;
-              } else {
-                narrationWordCount += newWords;
-                io.to(gameId).emit('dm_stream_chunk', { text: safeChunk });
-                narrationText += safeChunk;
-              }
-            } else if (!narrationTruncated) {
-              io.to(gameId).emit('dm_stream_chunk', { text: safeChunk });
-              narrationText += safeChunk;
-            }
+            io.to(gameId).emit('dm_stream_chunk', { text: safeChunk });
+            narrationText += safeChunk;
             pendingTail = pendingTail.slice(-LOOKAHEAD);
           }
         } else {
@@ -1210,7 +1198,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     }
 
     // Flush remaining
-    if (state === 'NARRATING' && pendingTail && !narrationTruncated) {
+    if (state === 'NARRATING' && pendingTail) {
       io.to(gameId).emit('dm_stream_chunk', { text: pendingTail });
       narrationText += pendingTail;
     }
@@ -1237,22 +1225,6 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
 
   const parsed = parseResponse(reply);
   console.log(`[stream-debug] state=${state} narration=${narrationText.length}ch structured=${structuredBuffer.length}ch options=${parsed.options.length} scene=${!!parsed.scene} world=${!!parsed.world}`);
-
-  // Enforce verbosity word limits server-side (AI frequently exceeds them)
-  if (parsed.narration && gs.verbosity) {
-    const wordLimit = gs.verbosity === 'terse' ? 40 : gs.verbosity === 'brief' ? 80 : null;
-    if (wordLimit) {
-      const words = parsed.narration.split(/\s+/);
-      if (words.length > wordLimit) {
-        // Find the last sentence boundary within the limit
-        const truncated = words.slice(0, wordLimit).join(' ');
-        const lastPeriod = Math.max(truncated.lastIndexOf('. '), truncated.lastIndexOf('.\n'), truncated.lastIndexOf('."'));
-        const lastExclaim = Math.max(truncated.lastIndexOf('! '), truncated.lastIndexOf('!\n'));
-        const cutPoint = Math.max(lastPeriod, lastExclaim);
-        parsed.narration = cutPoint > truncated.length * 0.3 ? truncated.slice(0, cutPoint + 1) : truncated + '...';
-      }
-    }
-  }
 
   gd.chatHistory.push(
     { role: 'user', content: prefix + userMessage },
