@@ -1035,9 +1035,9 @@
 
 <!-- ── GAME SCREEN ─────────────────────────────────────────── -->
 <div id="screen-game" class="screen active" style="position:relative;">
-  <div id="turn-order-overlay" style="display:none; position:absolute; top:40px; right:16px; width:200px; background:rgba(13,6,0,0.92); border:1px solid var(--gold); border-radius:8px; padding:8px; z-index:50;">
-    <div style="font-family:'Cinzel Decorative',cursive;font-size:0.75rem;color:var(--gold);margin-bottom:6px;text-align:center;">Turn Order</div>
-    <div id="turn-order-list"></div>
+  <div id="turn-order-overlay" style="display:none; position:fixed; top:60px; right:16px; width:200px; background:rgba(13,6,0,0.95); border:1px solid var(--gold); border-radius:8px; padding:0; z-index:200; box-shadow:0 4px 20px rgba(0,0,0,0.6);">
+    <div id="turn-order-handle" style="font-family:'Cinzel Decorative',cursive;font-size:0.75rem;color:var(--gold);padding:8px 8px 4px;text-align:center;cursor:grab;user-select:none;">Turn Order</div>
+    <div id="turn-order-list" style="padding:0 8px 8px;"></div>
   </div>
   <div id="combat-log"></div>
   <button id="combat-log-toggle" onclick="toggleCombatLog()">Combat Log</button>
@@ -2063,6 +2063,53 @@ function showReactionPrompt(data) {
   }, 1000);
   modal.style.display = 'block';
 }
+
+// ── Draggable Turn Order ──────────────────────────────────────
+(function() {
+  const overlay = document.getElementById('turn-order-overlay');
+  const handle = document.getElementById('turn-order-handle');
+  let dragging = false, startX, startY, startLeft, startTop;
+
+  handle.addEventListener('mousedown', startDrag);
+  handle.addEventListener('touchstart', startDrag, { passive: false });
+
+  function startDrag(e) {
+    e.preventDefault();
+    dragging = true;
+    handle.style.cursor = 'grabbing';
+    const pt = e.touches ? e.touches[0] : e;
+    const rect = overlay.getBoundingClientRect();
+    startX = pt.clientX; startY = pt.clientY;
+    startLeft = rect.left; startTop = rect.top;
+    // Switch from right-anchored to left-anchored positioning for drag
+    overlay.style.left = rect.left + 'px';
+    overlay.style.top = rect.top + 'px';
+    overlay.style.right = 'auto';
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', stopDrag);
+    document.addEventListener('touchmove', onDrag, { passive: false });
+    document.addEventListener('touchend', stopDrag);
+  }
+
+  function onDrag(e) {
+    if (!dragging) return;
+    e.preventDefault();
+    const pt = e.touches ? e.touches[0] : e;
+    const dx = pt.clientX - startX;
+    const dy = pt.clientY - startY;
+    overlay.style.left = Math.max(0, Math.min(window.innerWidth - overlay.offsetWidth, startLeft + dx)) + 'px';
+    overlay.style.top = Math.max(0, Math.min(window.innerHeight - overlay.offsetHeight, startTop + dy)) + 'px';
+  }
+
+  function stopDrag() {
+    dragging = false;
+    handle.style.cursor = 'grab';
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('mouseup', stopDrag);
+    document.removeEventListener('touchmove', onDrag);
+    document.removeEventListener('touchend', stopDrag);
+  }
+})();
 
 function updateTurnOrder(turnOrderData) {
   const overlay = document.getElementById('turn-order-overlay');
