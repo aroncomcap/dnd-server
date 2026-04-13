@@ -303,7 +303,11 @@ socket.on('character_registered', (data) => {
 
 socket.on('party_generated', (data) => {
   console.log(`Party: ${data.count} characters`);
-  setTimeout(startAdventure, 2000);
+  // Wait for character_registered events to finish, then start
+  setTimeout(() => {
+    console.log(`Characters ready: ${Object.keys(characters).join(', ')}`);
+    startAdventure();
+  }, 3000);
 });
 
 function startAdventure() {
@@ -419,12 +423,10 @@ socket.on('system', (data) => {
   }
 });
 
-socket.on('disconnect', () => {
-  if (turnCount < config.turns) {
-    console.log('\nDisconnected early');
-    generateReport();
-    process.exit(1);
-  }
+socket.on('disconnect', (reason) => {
+  console.log(`\nDisconnected: ${reason} (turns: ${turnCount}, started: ${gameStarted})`);
+  if (turnCount > 0) generateReport();
+  if (turnCount < config.turns) process.exit(1);
 });
 
 socket.on('connect_error', (err) => {
