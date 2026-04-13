@@ -1303,7 +1303,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   let finalMessage;
   try {
     // Lower temperature for terse/brief = more instruction-following, less creative wandering
-    const temperature = gs.verbosity === 'terse' ? 0.3 : gs.verbosity === 'brief' ? 0.6 : 1.0;
+    const temperature = gs.verbosity === 'terse' ? 0.7 : gs.verbosity === 'brief' ? 0.8 : 1.0;
 
     const stream = await anthropic.messages.stream({
       model,
@@ -1373,9 +1373,13 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   const parsed = parseResponse(reply);
   console.log(`[stream-debug] state=${state} narration=${narrationText.length}ch structured=${structuredBuffer.length}ch options=${parsed.options.length} scene=${!!parsed.scene} world=${!!parsed.world}`);
 
+  // Include a minimal structured block in history so the AI sees the output format pattern
+  const historyContent = parsed.narration +
+    (parsed.options?.length ? '\n\n---OPTIONS---\n' + parsed.options.map((o, i) => `${i + 1}️⃣ ${o}`).join('\n') : '') +
+    '\n\n---SCENE---\nACTION: ' + (parsed.scene?.action || 'continuing') + '\nMOOD: ' + (parsed.scene?.mood || 'neutral') + '\nNPC: ' + (parsed.scene?.npc || 'none');
   gd.chatHistory.push(
     { role: 'user', content: prefix + userMessage },
-    { role: 'assistant', content: parsed.narration }
+    { role: 'assistant', content: historyContent }
   );
   if (gd.chatHistory.length > 16) {
     gd.chatHistory = gd.chatHistory.slice(-16);
