@@ -1075,7 +1075,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   ];
 
   const model = 'claude-haiku-4-5-20251001';
-  const maxTokens = gs.verbosity === 'terse' ? 400 : gs.verbosity === 'brief' ? 800 : 2500;
+  const maxTokens = gs.verbosity === 'terse' ? 700 : gs.verbosity === 'brief' ? 1000 : 2500;
   const hasHistory = gd.chatHistory.some(m => m.role === 'assistant');
   const systemPrompt = hasHistory ? buildTrimmedPrompt(gameId, gameConfig) : buildSystemPrompt(gameId, gameConfig);
   const startTime = Date.now();
@@ -2186,6 +2186,7 @@ io.on('connection', (socket) => {
       await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration);
       await advanceTurn(gameId, gameConfig, true);
     } catch (err) {
+      console.error('player_action error:', err.message, err.stack?.split('\n').slice(0, 3).join(' | '));
       socket.emit('system', { text: 'Error communicating with the DM. Try again.' });
     }
   });
