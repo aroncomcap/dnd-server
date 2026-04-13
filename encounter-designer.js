@@ -302,10 +302,14 @@ function calculatePartyDPR(partyStats, targetAC = 13) {
  * @param {number} [correction=1.0]
  * @returns {number}
  */
-function calculateMonsterHPBudget(partyDPR, ferocity, position = 'mid', correction = 1.0) {
-  const f    = FEROCITY[ferocity] || FEROCITY[3];
-  const pMult = POSITION_MULT[position] || POSITION_MULT.mid;
-  return Math.round(partyDPR * f.targetRounds * f.hpMult * pMult * correction);
+function calculateMonsterHPBudget(partyDPR, ferocity, position, correction) {
+  const f = FEROCITY[ferocity] || FEROCITY[3];
+  const posMult = POSITION_MULT[position] || 1.0;
+  const corr = correction || 1.0;
+  // Base budget: enough HP to survive targetRounds at party's DPR
+  // Add 30% buffer because DPR estimates are theoretical maximums
+  const buffer = 1.3;
+  return Math.round(partyDPR * f.targetRounds * f.hpMult * posMult * corr * buffer);
 }
 
 /**
@@ -392,74 +396,64 @@ function estimateMonsterDPR(monster) {
  * @returns {Array<{slug, name, count, hp, cr, estimatedDPR}>}
  */
 function selectMonsters(hpBudget, dprBudget, monsterDB, options = {}) {
-  const entries = Object.entries(monsterDB).map(([slug, m]) => ({
-    slug,
-    name: m.name || slug,
-    hp:   m.hp   || 1,
-    cr:   m.cr   || 0,
-    ac:   m.ac   || 10,
-    estimatedDPR: estimateMonsterDPR(m),
-    raw: m,
-  })).filter(e => {
-    if (options.maxCR !== undefined && e.cr > options.maxCR) return false;
-    return true;
-  }).sort((a, b) => b.hp - a.hp);
+  const { previousMonsters, partyLevel } = options || {};
+  const prevSet = new Set((previousMonsters || []).map(s => s.toLowerCase()));
 
-  if (entries.length === 0) return [];
+  const candidates = Object.entries(monsterDB)
+    .map(([slug, m]) => ({ slug, ...m, name: m.name || slug, hp: m.hp || 1, cr: m.cr || 0, estimatedDPR: estimateMonsterDPR(m) }))
+    .filter(m => m.hp > 0 && m.weapons?.length > 0)
+    .filter(m => options.maxCR === undefined || m.cr <= options.maxCR)
+    .filter(m => !prevSet.has(m.slug)); // Avoid repeats from recent encounters
 
-  // --- pick anchor ---
-  const anchorMin = hpBudget * 0.2;
-  const anchorMax = hpBudget * 0.7;
-  let anchor = null;
-  for (const e of entries) {
-    if (e.hp >= anchorMin && e.hp <= anchorMax) { anchor = e; break; }
-  }
-  // fallback: pick closest
-  if (!anchor) {
-    anchor = entries.reduce((best, e) => {
-      const diff = Math.abs(e.hp - hpBudget * 0.45);
-      const bestDiff = Math.abs(best.hp - hpBudget * 0.45);
-      return diff < bestDiff ? e : best;
-    }, entries[0]);
+  if (candidates.length === 0) {
+    // Fallback: allow repeats if we've used everything
+    return selectMonstersFromList(hpBudget, Object.entries(monsterDB)
+      .map(([slug, m]) => ({ slug, ...m, name: m.name || slug, hp: m.hp || 1, cr: m.cr || 0, estimatedDPR: estimateMonsterDPR(m) }))
+      .filter(m => m.hp > 0 && m.weapons?.length > 0));
   }
 
-  // --- build selection ---
-  const selected = new Map(); // slug → { ...entry, count }
-  let remainingHP  = hpBudget;
-  let remainingDPR = dprBudget;
+  return selectMonstersFromList(hpBudget, candidates);
+}
 
-  function addMonster(entry) {
-    if (selected.has(entry.slug)) {
-      selected.get(entry.slug).count += 1;
-    } else {
-      selected.set(entry.slug, { ...entry, count: 1 });
+function selectMonstersFromList(hpBudget, candidates) {
+  if (candidates.length === 0) return [];
+
+  // Strategy: pick randomly between compositions
+  const strategy = Math.random();
+  const results = [];
+  let remainingHP = hpBudget;
+
+  if (strategy < 0.4) {
+    // Strategy A: One strong anchor (40-70% budget) + weaker fillers
+    const anchors = candidates.filter(m => m.hp >= hpBudget * 0.3 && m.hp <= hpBudget * 0.7);
+    if (anchors.length > 0) {
+      const anchor = anchors[Math.floor(Math.random() * Math.min(3, anchors.length))];
+      results.push({ slug: anchor.slug, name: anchor.name, count: 1, hp: anchor.hp, cr: anchor.cr || 0, estimatedDPR: anchor.estimatedDPR });
+      remainingHP -= anchor.hp;
     }
-    remainingHP  -= entry.hp;
-    remainingDPR -= entry.estimatedDPR;
+  } else if (strategy < 0.7) {
+    // Strategy B: Medium group of similar CR
+    const midRange = candidates.filter(m => m.hp >= hpBudget * 0.15 && m.hp <= hpBudget * 0.4);
+    if (midRange.length > 0) {
+      const pick = midRange[Math.floor(Math.random() * Math.min(5, midRange.length))];
+      const count = Math.max(2, Math.min(5, Math.floor(hpBudget / pick.hp)));
+      results.push({ slug: pick.slug, name: pick.name, count, hp: pick.hp, cr: pick.cr || 0, estimatedDPR: pick.estimatedDPR });
+      remainingHP -= pick.hp * count;
+    }
+  }
+  // else: Strategy C falls through to filler-only (swarm of weak creatures)
+
+  // Fill remaining budget
+  if (remainingHP > 10) {
+    const fillers = candidates.filter(m => m.hp <= remainingHP && !results.some(r => r.slug === m.slug));
+    if (fillers.length > 0) {
+      const filler = fillers[Math.floor(Math.random() * Math.min(8, fillers.length))];
+      const count = Math.max(1, Math.min(6, Math.floor(remainingHP / filler.hp)));
+      results.push({ slug: filler.slug, name: filler.name, count, hp: filler.hp, cr: filler.cr || 0, estimatedDPR: filler.estimatedDPR });
+    }
   }
 
-  // Add at least 1 anchor
-  addMonster(anchor);
-
-  // Fill with fillers (cheaper than anchor)
-  const fillers = entries.filter(e => e.hp < anchor.hp && e.hp > 0).sort((a, b) => b.hp - a.hp);
-
-  let safetyMax = 20;
-  while (remainingHP > 0 && remainingDPR > 0 && safetyMax-- > 0) {
-    const affordable = fillers.filter(e => e.hp <= remainingHP * 1.2);
-    if (affordable.length === 0) break;
-    // pick largest affordable filler
-    addMonster(affordable[0]);
-  }
-
-  return Array.from(selected.values()).map(e => ({
-    slug:         e.slug,
-    name:         e.name,
-    count:        e.count,
-    hp:           e.hp,
-    cr:           e.cr,
-    estimatedDPR: Math.round(e.estimatedDPR * 100) / 100,
-  }));
+  return results;
 }
 
 // ---------------------------------------------------------------------------
@@ -629,6 +623,7 @@ function designAdventuringDay(partyStats, ferocity, pillars, monsterDB, options 
   const n = pool.length;
   const encounters = [];
   const shortRestEvery = Math.max(1, Math.round(n / (f.shortRests + 1)));
+  const usedMonsters = []; // Track slugs used in this day's encounters
 
   for (let i = 0; i < n; i++) {
     const ratio = i / n;
@@ -646,7 +641,9 @@ function designAdventuringDay(partyStats, ferocity, pillars, monsterDB, options 
     let enc;
     switch (pool[i]) {
       case 'combat':
-        enc = designCombatEncounter(partyStats, ferocity, position, monsterDB, options);
+        enc = designCombatEncounter(partyStats, ferocity, position, monsterDB, { ...options, previousMonsters: usedMonsters });
+        // Track used monsters to avoid repeats in subsequent encounters
+        for (const m of enc.monsters || []) usedMonsters.push(m.slug);
         break;
       case 'social':
         enc = designSocialEncounter(ferocity, position);
@@ -814,6 +811,7 @@ module.exports = {
   calculateMonsterDPRBudget,
   estimateMonsterDPR,
   selectMonsters,
+  selectMonstersFromList,
   designCombatEncounter,
   designSocialEncounter,
   designExplorationEncounter,
