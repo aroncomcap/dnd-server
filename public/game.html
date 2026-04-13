@@ -1000,6 +1000,9 @@
       grid-template-columns: repeat(4, 1fr);
     }
   }
+  #loading-tip, #waiting-tip, #thinking-tip, #spectator-tip {
+    transition: opacity 0.3s ease;
+  }
 </style>
 </head>
 <body>
@@ -1072,11 +1075,13 @@
     <div style="font-family:'Cinzel Decorative',cursive;font-size:0.75rem;">&#9203; Time Expired</div>
     <div style="font-size:0.85rem;margin:4px 0;">Claude is playing for you. <span id="spectator-countdown"></span></div>
     <a href="/purchase" style="display:inline-block;background:var(--gold);color:#0d0600;padding:6px 16px;border-radius:6px;font-family:'Cinzel Decorative',cursive;font-size:0.75rem;text-decoration:none;margin-top:4px;">Add Time</a>
+    <div id="spectator-tip" style="margin-top:16px;font-size:0.85rem;line-height:1.5;opacity:0.6;max-width:400px;text-align:center;margin-left:auto;margin-right:auto;"></div>
   </div>
 
   <div id="action-area">
     <div id="waiting-msg" class="not-your-turn" style="display:none;">
       Waiting for <strong id="waiting-name"></strong> to act...
+      <div id="waiting-tip" style="margin-top:12px;font-size:0.85rem;line-height:1.5;opacity:0.6;max-width:400px;"></div>
     </div>
     <div id="my-turn-controls">
       <div id="options-area"></div>
@@ -1388,6 +1393,95 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
 function escapeHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Gameplay Tips ─────────────────────────────────────────────
+const GAMEPLAY_TIPS = [
+  // Rules & Corrections (HIGH PRIORITY — show more often)
+  { text: '💡 <strong>House Rules:</strong> If the AI gets a rule wrong, add a correction in the Party tab. It follows your house rules every turn after that.', weight: 3 },
+  { text: '💡 <strong>Fix Rules Mistakes:</strong> Type /ooc to tell the DM it made an error. For permanent fixes, add a Rules Correction — the AI will never repeat that mistake.', weight: 3 },
+  { text: '💡 <strong>Custom Rules:</strong> Want nat-20 to always succeed? No friendly fire? Add it as a Rules Correction in the Party tab — the AI treats it as law.', weight: 2 },
+
+  // Character Sheet (HIGH PRIORITY)
+  { text: '💡 <strong>Edit Your Character:</strong> The Character tab lets you update stats, personality, backstory, and standard actions anytime — even mid-game.', weight: 3 },
+  { text: '💡 <strong>PDF Upload:</strong> Have a character sheet PDF? Upload it in the Character tab — the AI extracts your stats, spells, and backstory automatically.', weight: 2 },
+  { text: '💡 <strong>Standard Actions:</strong> List your go-to moves in "Standard Actions" on your character sheet. The AI uses them when acting for you during timer expiry.', weight: 2 },
+
+  // Content Migration
+  { text: '💡 <strong>Move Characters:</strong> Download your character as a PDF from the Character tab, then upload it into any other game to keep adventuring.', weight: 2 },
+  { text: '💡 <strong>Campaign Source Material:</strong> Upload a PDF of any RPG module or sourcebook — the AI uses it for encounters, lore, NPCs, and world-building.', weight: 2 },
+
+  // Game Settings
+  { text: '💡 <strong>Verbosity:</strong> Too much text? Switch to Terse (~20 words) or Brief (~50 words) in the Host tab for faster-paced games.', weight: 1 },
+  { text: '💡 <strong>DM Persona:</strong> Try "Over the Top" in Game Settings for Critical Role-style comedy and chaos. Switch to "Epic" for serious, dramatic storytelling.', weight: 1 },
+  { text: '💡 <strong>Difficulty:</strong> The Ferocity slider (Host tab) controls how deadly encounters are AND how generous the treasure is. Lower = harder + richer loot.', weight: 1 },
+  { text: '💡 <strong>Three Pillars:</strong> Adjust the Exploration/Combat/Social balance in Game Settings to shape what kind of adventure the AI creates.', weight: 1 },
+
+  // Gameplay Mechanics
+  { text: '💡 <strong>Type Anything:</strong> You\'re not limited to the 3 suggested options — type any action in the text box and the AI will respond to it.', weight: 2 },
+  { text: '💡 <strong>OOC Messages:</strong> Start a message with /ooc to talk out-of-character. Great for asking the DM to clarify rules or coordinating with other players.', weight: 2 },
+  { text: '💡 <strong>Catch Up:</strong> Joined late? Click "Catch Up" to get a summary of everything that happened before you arrived.', weight: 1 },
+  { text: '💡 <strong>Catchphrases:</strong> Add catchphrases to your character sheet — the AI weaves them into narration at just the right moments.', weight: 1 },
+
+  // Maps & Images
+  { text: '💡 <strong>Auto-Map:</strong> The game builds a map as you explore. Switch between Parchment, Dark, and Tactical styles in the Host tab.', weight: 1 },
+  { text: '💡 <strong>Scene Art:</strong> The AI generates scene images at dramatic moments — entering new locations, meeting NPCs, and boss kills.', weight: 1 },
+
+  // Discord
+  { text: '💡 <strong>Play on Discord:</strong> Invite the TotMTable bot to your server and use /tt link to connect. Full gameplay works right in your Discord channel.', weight: 1 },
+
+  // Multiplayer
+  { text: '💡 <strong>Invite Friends:</strong> Share your game link — anyone can join and create a character, no account needed to start playing.', weight: 1 },
+  { text: '💡 <strong>Turn Timer:</strong> The host can set a turn timer in Game Settings. When it expires, the AI acts for the idle player so the game keeps moving.', weight: 1 },
+
+  // Pre-gen & Setup
+  { text: '💡 <strong>Pre-Gen Party:</strong> Don\'t want to build characters? Click "Add Pre-Gen Party" in the Host tab — the AI creates a balanced party for your game system.', weight: 1 },
+  { text: '💡 <strong>Party Direction:</strong> When generating a pre-made party, type a direction like "all rogues" or "classic dungeon crawl team" to guide the AI.', weight: 1 },
+
+  // Combat Engine
+  { text: '💡 <strong>Real Dice:</strong> All combat dice rolls use real random numbers — the server rolls them, not the AI. Check the Combat Log to see the math.', weight: 1 },
+  { text: '💡 <strong>Combat Log:</strong> During combat, click "Combat Log" to see every dice roll, modifier, and HP change — fully transparent and verifiable.', weight: 1 },
+];
+
+function buildTipPool() {
+  const pool = [];
+  for (const tip of GAMEPLAY_TIPS) {
+    for (let i = 0; i < (tip.weight || 1); i++) pool.push(tip.text);
+  }
+  // Fisher-Yates shuffle
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool;
+}
+
+let tipPool = buildTipPool();
+let tipIndex = 0;
+
+function getNextTip() {
+  if (tipIndex >= tipPool.length) {
+    tipPool = buildTipPool();
+    tipIndex = 0;
+  }
+  return tipPool[tipIndex++];
+}
+
+function startWaitingTips() {
+  const tipEl = document.getElementById('waiting-tip');
+  if (tipEl) tipEl.innerHTML = getNextTip();
+  if (window._waitingTipInterval) clearInterval(window._waitingTipInterval);
+  window._waitingTipInterval = setInterval(() => {
+    const el = document.getElementById('waiting-tip');
+    if (el && el.offsetParent !== null) {
+      el.style.opacity = '0';
+      setTimeout(() => { el.innerHTML = getNextTip(); el.style.opacity = '0.6'; }, 300);
+    }
+  }, 8000);
+}
+
+function stopWaitingTips() {
+  if (window._waitingTipInterval) { clearInterval(window._waitingTipInterval); window._waitingTipInterval = null; }
 }
 
 // ── Sound Effects (Web Audio API) ────────────────────────────
@@ -1808,6 +1902,7 @@ function updateActionArea() {
     // No turn set — show controls (pre-game)
     myTurnControls.style.display = 'block';
     waitingMsg.style.display = 'none';
+    stopWaitingTips();
     return;
   }
 
@@ -1816,12 +1911,14 @@ function updateActionArea() {
     myTurnControls.style.display = 'none';
     waitingMsg.style.display = 'block';
     waitingName.innerHTML = '<strong>' + escapeHtml(currentPlayer) + '</strong> — <a href="#" onclick="document.querySelector(\'[data-screen=party]\').click(); return false;" style="color:var(--gold);">Select your character</a> to play';
+    startWaitingTips();
     return;
   }
 
   if (isMyTurnCheck()) {
     myTurnControls.style.display = 'block';
     waitingMsg.style.display = 'none';
+    stopWaitingTips();
   } else {
     myTurnControls.style.display = 'none';
     waitingMsg.style.display = 'block';
@@ -1830,6 +1927,7 @@ function updateActionArea() {
     } else {
       waitingName.textContent = currentPlayer;
     }
+    startWaitingTips();
   }
 }
 
@@ -2197,6 +2295,7 @@ if (state.ferocity != null) {
       <div style="margin-top:24px;width:200px;height:4px;background:rgba(200,146,42,0.2);border-radius:2px;overflow:hidden;">
         <div id="loading-bar" style="width:0%;height:100%;background:var(--gold);border-radius:2px;transition:width 0.5s;"></div>
       </div>
+      <div id="loading-tip" style="margin-top:32px;max-width:420px;padding:0 20px;font-size:0.9rem;line-height:1.5;color:var(--parchment);opacity:0.7;min-height:3em;"></div>
     `;
     document.body.appendChild(overlay);
     let msgIdx = 0;
@@ -2206,8 +2305,23 @@ if (state.ferocity != null) {
       if (el) el.textContent = loadingMessages[msgIdx];
     }, 2500);
 
+    // Show tips during loading
+    const tipEl = document.getElementById('loading-tip');
+    if (tipEl) tipEl.innerHTML = getNextTip();
+    const tipInterval = setInterval(() => {
+      const el = document.getElementById('loading-tip');
+      if (el) {
+        el.style.opacity = '0';
+        setTimeout(() => {
+          el.innerHTML = getNextTip();
+          el.style.opacity = '0.7';
+        }, 300);
+      }
+    }, 6000);
+
     function dismissLoading() {
       clearInterval(msgInterval);
+      clearInterval(tipInterval);
       const ol = document.getElementById('loading-overlay');
       if (ol) ol.remove();
     }
@@ -2865,7 +2979,7 @@ function sendAction() {
   const thinkingDiv = document.createElement('div');
   thinkingDiv.id = 'thinking-indicator';
   thinkingDiv.classList.add('msg', 'msg-dm');
-  thinkingDiv.innerHTML = '<div class="msg-label" style="color:var(--gold);">🎲 Game Master</div><div><span class="spinner"></span> Thinking... <span id="thinking-timer">0s</span></div>';
+  thinkingDiv.innerHTML = '<div class="msg-label" style="color:var(--gold);">🎲 Game Master</div><div><span class="spinner"></span> Thinking... <span id="thinking-timer">0s</span></div><div id="thinking-tip" style="margin-top:8px;font-size:0.82rem;line-height:1.4;opacity:0.5;max-width:380px;">' + getNextTip() + '</div>';
   chatLog.appendChild(thinkingDiv);
   chatLog.scrollTop = chatLog.scrollHeight;
   let thinkSeconds = 0;
@@ -3540,6 +3654,18 @@ socket.on('spectator_mode', (data) => {
   document.getElementById('spectator-banner').style.display = 'block';
   document.getElementById('my-turn-controls').style.display = 'none';
   document.getElementById('waiting-msg').style.display = 'none';
+  stopWaitingTips();
+  // Show tip in spectator banner
+  const specTipEl = document.getElementById('spectator-tip');
+  if (specTipEl) specTipEl.innerHTML = getNextTip();
+  if (window._spectatorTipInterval) clearInterval(window._spectatorTipInterval);
+  window._spectatorTipInterval = setInterval(() => {
+    const el = document.getElementById('spectator-tip');
+    if (el) {
+      el.style.opacity = '0';
+      setTimeout(() => { el.innerHTML = getNextTip(); el.style.opacity = '0.6'; }, 300);
+    }
+  }, 8000);
   // Start countdown from 5 minutes
   let remaining = 300;
   const countdownEl = document.getElementById('spectator-countdown');
@@ -3556,11 +3682,13 @@ socket.on('spectator_mode', (data) => {
 socket.on('spectator_restored', () => {
   document.getElementById('spectator-banner').style.display = 'none';
   if (spectatorInterval) { clearInterval(spectatorInterval); spectatorInterval = null; }
+  if (window._spectatorTipInterval) { clearInterval(window._spectatorTipInterval); window._spectatorTipInterval = null; }
   updateActionArea();
 });
 
 socket.on('billing_pause', () => {
   if (spectatorInterval) { clearInterval(spectatorInterval); spectatorInterval = null; }
+  if (window._spectatorTipInterval) { clearInterval(window._spectatorTipInterval); window._spectatorTipInterval = null; }
   const banner = document.getElementById('spectator-banner');
   banner.style.display = 'block';
   banner.innerHTML = `
