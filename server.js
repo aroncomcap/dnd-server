@@ -1080,11 +1080,13 @@ const apiCallLog = {}; // gameId -> [timestamps]
 const MAX_CALLS_PER_HOUR = 60;
 
 function checkRateLimit(gameId) {
+  // Test games get higher limit
+  const limit = gameId.startsWith('test-') ? 300 : MAX_CALLS_PER_HOUR;
   const now = Date.now();
   if (!apiCallLog[gameId]) apiCallLog[gameId] = [];
   // Prune old entries
   apiCallLog[gameId] = apiCallLog[gameId].filter(t => now - t < 3600000);
-  if (apiCallLog[gameId].length >= MAX_CALLS_PER_HOUR) {
+  if (apiCallLog[gameId].length >= limit) {
     console.error(`Rate limit hit for game ${gameId}: ${apiCallLog[gameId].length} calls in last hour`);
     return false;
   }
@@ -1164,7 +1166,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   // Token limits: combat narration needs fewer tokens (just describing pre-resolved results)
   let maxTokens;
   if (combatActive) {
-    maxTokens = gs.verbosity === 'terse' ? 450 : gs.verbosity === 'brief' ? 650 : 1500;
+    maxTokens = gs.verbosity === 'terse' ? 350 : gs.verbosity === 'brief' ? 550 : 1500;
   } else {
     maxTokens = gs.verbosity === 'terse' ? 700 : gs.verbosity === 'brief' ? 1000 : 2500;
   }
