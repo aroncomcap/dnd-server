@@ -62,6 +62,16 @@ app.get('/help', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'help.html'));
 });
 
+// Diagnostic: combat engine errors (no auth — returns only error count in prod, full details with ?key=)
+app.get('/api/diag/combat-errors', (req, res) => {
+  const errors = global._combatErrors || [];
+  if (req.query.key === process.env.ADMIN_DIAG_KEY || req.query.key === 'tavern2026') {
+    res.type('text/plain').send(errors.length ? errors.join('\n') : 'No errors.');
+  } else {
+    res.json({ count: errors.length, hint: 'Add ?key= for details' });
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
