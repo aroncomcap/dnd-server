@@ -1,0 +1,720 @@
+'use strict';
+
+const { describe, it, beforeEach } = require('node:test');
+const assert = require('node:assert/strict');
+const CombatEngine = require('../combat-engine.js');
+
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+
+function makeDnDPC(overrides = {}) {
+  return {
+    id: 'kael',
+    name: 'Kael',
+    type: 'PC',
+    level: 5,
+    ac: 16,
+    hp: 38,
+    maxHp: 38,
+    speed: 30,
+    abilities: { str: 16, dex: 12, con: 14, int: 10, wis: 13, cha: 8 },
+    saveProficiencies: ['str', 'con'],
+    proficiencyBonus: 3,
+    weapons: [
+      { name: 'longsword', attackMod: 'str', damage: '1d8', damageType: 'slashing', properties: [] },
+    ],
+    spells: [
+      { name: 'fireball', level: 3, save: 'dex', damage: '8d6', damageType: 'fire' },
+      { name: 'cure wounds', level: 1, healing: '1d8', effect: 'heal' },
+    ],
+    spellSlots: { 1: 4, 2: 3, 3: 2 },
+    spellcastingAbility: 'int',
+    features: [],
+    conditions: [],
+    concentrating: null,
+    deathSaves: { successes: 0, failures: 0 },
+    inspiration: false,
+    resistances: [],
+    vulnerabilities: [],
+    immunities: [],
+    ...overrides,
+  };
+}
+
+function makeDnDEnemy(overrides = {}) {
+  return {
+    id: 'goblin',
+    name: 'Goblin',
+    type: 'Enemy',
+    level: 1,
+    ac: 13,
+    hp: 7,
+    maxHp: 7,
+    speed: 30,
+    abilities: { str: 8, dex: 14, con: 10, int: 10, wis: 8, cha: 8 },
+    saveProficiencies: [],
+    proficiencyBonus: 2,
+    weapons: [
+      { name: 'scimitar', attackMod: 'dex', damage: '1d6', damageType: 'slashing', properties: [] },
+    ],
+    spells: [],
+    spellSlots: {},
+    spellcastingAbility: null,
+    features: [],
+    conditions: [],
+    concentrating: null,
+    resistances: [],
+    vulnerabilities: [],
+    immunities: [],
+    ...overrides,
+  };
+}
+
+function makeRQPC(overrides = {}) {
+  return {
+    id: 'orlanth',
+    name: 'Orlanth',
+    type: 'PC',
+    characteristics: { str: 14, dex: 13, con: 12, siz: 13, int: 12, pow: 15, cha: 11 },
+    totalHp: 13,
+    maxTotalHp: 13,
+    hitLocations: {
+      head:     { hp: 4, maxHp: 4, armor: 0 },
+      chest:    { hp: 5, maxHp: 5, armor: 3 },
+      abdomen:  { hp: 4, maxHp: 4, armor: 3 },
+      rightArm: { hp: 3, maxHp: 3, armor: 2 },
+      leftArm:  { hp: 3, maxHp: 3, armor: 2 },
+      rightLeg: { hp: 4, maxHp: 4, armor: 2 },
+      leftLeg:  { hp: 4, maxHp: 4, armor: 2 },
+    },
+    weapons: [
+      { name: 'broadsword', type: 'slashing', damage: '1d8+1', skill: 65, parry: 55 },
+    ],
+    skills: { dodge: 40 },
+    runePoints: 3,
+    magicPoints: 12,
+    runeSpells: [],
+    spiritSpells: [],
+    conditions: [],
+    ...overrides,
+  };
+}
+
+function makeRQEnemy(overrides = {}) {
+  return {
+    id: 'broo',
+    name: 'Broo',
+    type: 'Enemy',
+    characteristics: { str: 12, dex: 10, con: 11, siz: 12, int: 9, pow: 10, cha: 6 },
+    totalHp: 11,
+    maxTotalHp: 11,
+    hitLocations: {
+      head:     { hp: 3, maxHp: 3, armor: 0 },
+      chest:    { hp: 4, maxHp: 4, armor: 1 },
+      abdomen:  { hp: 3, maxHp: 3, armor: 1 },
+      rightArm: { hp: 2, maxHp: 2, armor: 0 },
+      leftArm:  { hp: 2, maxHp: 2, armor: 0 },
+      rightLeg: { hp: 3, maxHp: 3, armor: 0 },
+      leftLeg:  { hp: 3, maxHp: 3, armor: 0 },
+    },
+    weapons: [
+      { name: 'axe', type: 'slashing', damage: '1d6+1', skill: 45, parry: 35 },
+    ],
+    skills: { dodge: 25 },
+    runePoints: 0,
+    magicPoints: 8,
+    runeSpells: [],
+    spiritSpells: [],
+    conditions: [],
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe('CombatEngine', () => {
+  describe('constructor', () => {
+    it('initializes with empty/inactive state', () => {
+      const engine = new CombatEngine();
+      assert.equal(engine.state.active, false);
+      assert.equal(engine.state.round, 0);
+      assert.equal(engine.state.system, null);
+      assert.equal(engine.state.turnIndex, 0);
+      assert.deepEqual(engine.state.initiativeOrder, []);
+      assert.deepEqual(engine.state.combatants, {});
+      assert.deepEqual(engine.state.activeEffects, []);
+      assert.equal(engine.state.pendingReaction, null);
+      assert.deepEqual(engine.state.log, []);
+    });
+  });
+
+  describe('getResolver', () => {
+    it('returns dnd5e resolver when system is dnd5e', () => {
+      const engine = new CombatEngine();
+      engine.state.system = 'dnd5e';
+      const resolver = engine.getResolver();
+      assert.ok(typeof resolver.resolveAttack === 'function');
+      assert.ok(typeof resolver.rollInitiative === 'function');
+    });
+
+    it('returns runequest resolver when system is runequest', () => {
+      const engine = new CombatEngine();
+      engine.state.system = 'runequest';
+      const resolver = engine.getResolver();
+      assert.ok(typeof resolver.resolveAttack === 'function');
+      assert.ok(typeof resolver.rollInitiative === 'function');
+    });
+  });
+
+  describe('initCombat (D&D 5e)', () => {
+    it('sets active=true, round=1, system=dnd5e', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC();
+      const enemy = makeDnDEnemy();
+      engine.initCombat([pc], [enemy], 'dnd5e');
+      assert.equal(engine.state.active, true);
+      assert.equal(engine.state.round, 1);
+      assert.equal(engine.state.system, 'dnd5e');
+    });
+
+    it('populates state.combatants keyed by id', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      assert.ok(engine.state.combatants['kael']);
+      assert.ok(engine.state.combatants['goblin']);
+    });
+
+    it('sorts D&D initiative descending (highest first)', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const order = engine.state.initiativeOrder;
+      assert.equal(order.length, 2);
+      if (order.length >= 2) {
+        assert.ok(order[0].init >= order[1].init);
+      }
+    });
+
+    it('each entry in initiativeOrder has id, name, init, type', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      for (const entry of engine.state.initiativeOrder) {
+        assert.ok(typeof entry.id === 'string');
+        assert.ok(typeof entry.name === 'string');
+        assert.ok(typeof entry.init === 'number');
+        assert.ok(typeof entry.type === 'string');
+      }
+    });
+
+    it('sets active=true, round=1, system=runequest for RQ', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeRQPC()], [makeRQEnemy()], 'runequest');
+      assert.equal(engine.state.active, true);
+      assert.equal(engine.state.round, 1);
+      assert.equal(engine.state.system, 'runequest');
+    });
+
+    it('sorts RuneQuest initiative ascending (lowest strike rank first)', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeRQPC()], [makeRQEnemy()], 'runequest');
+      const order = engine.state.initiativeOrder;
+      assert.equal(order.length, 2);
+      if (order.length >= 2) {
+        assert.ok(order[0].init <= order[1].init);
+      }
+    });
+  });
+
+  describe('getCombatant', () => {
+    it('returns the combatant by id', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const c = engine.getCombatant('kael');
+      assert.equal(c.name, 'Kael');
+    });
+
+    it('returns undefined for unknown id', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      assert.equal(engine.getCombatant('nobody'), undefined);
+    });
+  });
+
+  describe('getCurrentTurn', () => {
+    it('returns the combatant at turnIndex 0', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const current = engine.getCurrentTurn();
+      const first = engine.state.initiativeOrder[0];
+      assert.equal(current.id, first.id);
+    });
+  });
+
+  describe('advanceTurn', () => {
+    it('increments turnIndex', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.advanceTurn();
+      assert.equal(engine.state.turnIndex, 1);
+    });
+
+    it('wraps around and increments round', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      // advance through all combatants
+      engine.advanceTurn(); // index 1
+      engine.advanceTurn(); // wraps to 0, round 2
+      assert.equal(engine.state.round, 2);
+      assert.equal(engine.state.turnIndex, 0);
+    });
+
+    it('skips dead combatants', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      // Kill whoever is at index 1
+      const secondId = engine.state.initiativeOrder[1].id;
+      engine.state.combatants[secondId].hp = 0;
+      engine.advanceTurn();
+      // Should skip index 1 and wrap to 0 (and increment round)
+      assert.equal(engine.state.turnIndex, 0);
+      assert.equal(engine.state.round, 2);
+    });
+  });
+
+  describe('resolveAction (attack, D&D 5e)', () => {
+    it('resolves attack and logs result', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const action = {
+        type: 'attack',
+        attackerId: 'kael',
+        targetId: 'goblin',
+        weaponName: 'longsword',
+      };
+      const result = engine.resolveAction(action);
+      assert.ok(result);
+      assert.equal(result.type, 'attack');
+      assert.equal(engine.state.log.length, 1);
+    });
+
+    it('updates target HP when attack hits', () => {
+      const engine = new CombatEngine();
+      // Make sure the attack always hits: set AC to 1 on goblin
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy({ ac: 1 })], 'dnd5e');
+      const goblinBefore = engine.state.combatants['goblin'].hp;
+      const action = {
+        type: 'attack',
+        attackerId: 'kael',
+        targetId: 'goblin',
+        weaponName: 'longsword',
+      };
+      const result = engine.resolveAction(action);
+      if (result.hit) {
+        assert.ok(engine.state.combatants['goblin'].hp < goblinBefore);
+      }
+    });
+  });
+
+  describe('resolveAction (spell)', () => {
+    it('resolves a healing spell', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({ hp: 20 });
+      engine.initCombat([pc], [makeDnDEnemy()], 'dnd5e');
+      const action = {
+        type: 'spell',
+        casterId: 'kael',
+        targetIds: ['kael'],
+        spellName: 'cure wounds',
+        slotLevel: 1,
+      };
+      const result = engine.resolveAction(action);
+      assert.ok(result);
+      assert.equal(result.type, 'heal');
+    });
+
+    it('deducts a spell slot', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const slotsBefore = engine.state.combatants['kael'].spellSlots[1];
+      engine.resolveAction({
+        type: 'spell',
+        casterId: 'kael',
+        targetIds: ['kael'],
+        spellName: 'cure wounds',
+        slotLevel: 1,
+      });
+      assert.equal(engine.state.combatants['kael'].spellSlots[1], slotsBefore - 1);
+    });
+  });
+
+  describe('resolveAction (dodge / disengage / dash)', () => {
+    it('resolves a dodge action and logs it', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const result = engine.resolveAction({ type: 'dodge', actorId: 'kael' });
+      assert.ok(result);
+      assert.equal(result.type, 'dodge');
+      assert.equal(engine.state.log.length, 1);
+    });
+
+    it('resolves a disengage action and logs it', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const result = engine.resolveAction({ type: 'disengage', actorId: 'kael' });
+      assert.equal(result.type, 'disengage');
+    });
+
+    it('resolves a dash action and logs it', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const result = engine.resolveAction({ type: 'dash', actorId: 'kael' });
+      assert.equal(result.type, 'dash');
+    });
+  });
+
+  describe('addActiveEffect + expireEffects', () => {
+    it('adds an effect to activeEffects', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.addActiveEffect({
+        name: 'bless',
+        caster: 'kael',
+        targets: ['kael'],
+        effect: { type: 'bless' },
+        duration: { type: 'rounds', count: 3 },
+      });
+      assert.equal(engine.state.activeEffects.length, 1);
+      assert.equal(engine.state.activeEffects[0].name, 'bless');
+      assert.equal(engine.state.activeEffects[0].roundApplied, 1);
+    });
+
+    it('expires round-based effects when duration elapsed', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.addActiveEffect({
+        name: 'bless',
+        caster: 'kael',
+        targets: ['kael'],
+        effect: {},
+        duration: { type: 'rounds', count: 1 },
+      });
+      engine.state.round = 2;
+      engine.expireEffects();
+      assert.equal(engine.state.activeEffects.length, 0);
+    });
+
+    it('does not expire round-based effects before duration', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.addActiveEffect({
+        name: 'bless',
+        caster: 'kael',
+        targets: ['kael'],
+        effect: {},
+        duration: { type: 'rounds', count: 3 },
+      });
+      engine.state.round = 2;
+      engine.expireEffects();
+      assert.equal(engine.state.activeEffects.length, 1);
+    });
+
+    it('does not expire permanent effects', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.addActiveEffect({
+        name: 'permanent-buff',
+        caster: 'kael',
+        targets: ['kael'],
+        effect: {},
+        duration: { type: 'permanent' },
+      });
+      engine.state.round = 100;
+      engine.expireEffects();
+      assert.equal(engine.state.activeEffects.length, 1);
+    });
+
+    it('does not expire concentration effects via expireEffects', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.addActiveEffect({
+        name: 'bless',
+        caster: 'kael',
+        targets: ['kael'],
+        effect: {},
+        duration: { type: 'concentration' },
+      });
+      engine.state.round = 100;
+      engine.expireEffects();
+      assert.equal(engine.state.activeEffects.length, 1);
+    });
+  });
+
+  describe('breakConcentration', () => {
+    it('removes all concentration effects for the caster', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.addActiveEffect({
+        name: 'bless',
+        caster: 'kael',
+        targets: ['kael'],
+        effect: {},
+        duration: { type: 'concentration' },
+      });
+      engine.addActiveEffect({
+        name: 'hex',
+        caster: 'kael',
+        targets: ['goblin'],
+        effect: {},
+        duration: { type: 'concentration' },
+      });
+      engine.addActiveEffect({
+        name: 'bless',
+        caster: 'goblin',
+        targets: ['goblin'],
+        effect: {},
+        duration: { type: 'concentration' },
+      });
+      engine.breakConcentration('kael');
+      // kael's 2 concentration effects gone; goblin's remains
+      assert.equal(engine.state.activeEffects.length, 1);
+      assert.equal(engine.state.activeEffects[0].caster, 'goblin');
+    });
+
+    it('does not remove non-concentration effects', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.addActiveEffect({
+        name: 'bless',
+        caster: 'kael',
+        targets: ['kael'],
+        effect: {},
+        duration: { type: 'rounds', count: 3 },
+      });
+      engine.breakConcentration('kael');
+      assert.equal(engine.state.activeEffects.length, 1);
+    });
+  });
+
+  describe('getReactionTriggers', () => {
+    it('returns concentration check option when damage event and caster is concentrating', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      // Mark kael as concentrating
+      engine.state.combatants['kael'].concentrating = { name: 'bless' };
+      const triggers = engine.getReactionTriggers('kael', { type: 'damage', damage: 8 });
+      const types = triggers.map(t => t.type);
+      assert.ok(types.includes('concentrationCheck'));
+    });
+
+    it('returns inspiration option if combatant has inspiration', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC({ inspiration: true })], [makeDnDEnemy()], 'dnd5e');
+      engine.state.combatants['kael'].concentrating = { name: 'bless' };
+      const triggers = engine.getReactionTriggers('kael', { type: 'damage', damage: 8 });
+      const types = triggers.map(t => t.type);
+      assert.ok(types.includes('useInspiration'));
+    });
+
+    it('returns empty array when not concentrating', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const triggers = engine.getReactionTriggers('kael', { type: 'damage', damage: 5 });
+      assert.equal(triggers.length, 0);
+    });
+
+    it('returns empty array for non-damage events', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.state.combatants['kael'].concentrating = { name: 'bless' };
+      const triggers = engine.getReactionTriggers('kael', { type: 'movement' });
+      assert.equal(triggers.length, 0);
+    });
+  });
+
+  describe('isCombatOver', () => {
+    it('returns false when both sides alive', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      assert.equal(engine.isCombatOver(), false);
+    });
+
+    it('returns true when all enemies dead', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.state.combatants['goblin'].hp = 0;
+      assert.equal(engine.isCombatOver(), true);
+    });
+
+    it('returns true when all PCs down (hp=0)', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.state.combatants['kael'].hp = 0;
+      assert.equal(engine.isCombatOver(), true);
+    });
+  });
+
+  describe('endCombat', () => {
+    it('sets active=false and returns final state', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const finalState = engine.endCombat();
+      assert.equal(engine.state.active, false);
+      assert.equal(finalState.active, false);
+    });
+  });
+
+  describe('formatResultForPrompt', () => {
+    it('formats a D&D attack result as a readable string', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const result = {
+        type: 'attack',
+        attackerName: 'Kael',
+        targetName: 'Goblin',
+        weapon: 'longsword',
+        roll: 15,
+        modifier: 6,
+        total: 21,
+        targetAC: 13,
+        hit: true,
+        critical: false,
+        fumble: false,
+        damageRoll: 9,
+        totalDamage: 9,
+        damageType: 'slashing',
+        hpBefore: 7,
+        hpAfter: 0,
+      };
+      const text = engine.formatResultForPrompt(result);
+      assert.ok(typeof text === 'string');
+      assert.ok(text.includes('Kael'));
+      assert.ok(text.includes('Goblin'));
+      assert.ok(text.includes('longsword'));
+      assert.ok(text.toLowerCase().includes('hit') || text.includes('HIT'));
+    });
+
+    it('formats a D&D attack miss', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const result = {
+        type: 'attack',
+        attackerName: 'Kael',
+        targetName: 'Goblin',
+        weapon: 'longsword',
+        roll: 4,
+        modifier: 6,
+        total: 10,
+        targetAC: 13,
+        hit: false,
+        critical: false,
+        fumble: false,
+        damageRoll: 0,
+        totalDamage: 0,
+        damageType: 'slashing',
+      };
+      const text = engine.formatResultForPrompt(result);
+      assert.ok(text.toLowerCase().includes('miss') || text.includes('MISS'));
+    });
+
+    it('formats a heal result', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const result = {
+        type: 'heal',
+        casterName: 'Kael',
+        spell: 'cure wounds',
+        totalHealing: 10,
+        targets: [{ id: 'kael', name: 'Kael', healing: 10 }],
+      };
+      const text = engine.formatResultForPrompt(result);
+      assert.ok(text.includes('Kael'));
+      assert.ok(text.includes('10'));
+    });
+
+    it('formats a dodge action', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const result = { type: 'dodge', actorName: 'Kael' };
+      const text = engine.formatResultForPrompt(result);
+      assert.ok(text.toLowerCase().includes('dodge'));
+    });
+
+    it('formats a RuneQuest attack result', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeRQPC()], [makeRQEnemy()], 'runequest');
+      const result = {
+        type: 'attack',
+        attackerName: 'Orlanth',
+        targetName: 'Broo',
+        weapon: 'broadsword',
+        roll: 35,
+        attackResult: 'hit',
+        hitLocation: 'chest',
+        damage: 6,
+        specialEffect: null,
+        fumbleResult: null,
+      };
+      const text = engine.formatResultForPrompt(result);
+      assert.ok(text.includes('Orlanth'));
+      assert.ok(text.includes('broadsword'));
+      assert.ok(text.includes('chest'));
+    });
+  });
+
+  describe('getCombatStateForPrompt', () => {
+    it('returns a string containing round number', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const text = engine.getCombatStateForPrompt();
+      assert.ok(typeof text === 'string');
+      assert.ok(text.includes('Round 1') || text.includes('Round'));
+    });
+
+    it('includes ACTIVE COMBAT header', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const text = engine.getCombatStateForPrompt();
+      assert.ok(text.includes('ACTIVE COMBAT'));
+    });
+
+    it('lists combatant names', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const text = engine.getCombatStateForPrompt();
+      assert.ok(text.includes('Kael'));
+      assert.ok(text.includes('Goblin'));
+    });
+
+    it('includes DEAD label for dead combatants', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.state.combatants['goblin'].hp = 0;
+      const text = engine.getCombatStateForPrompt();
+      assert.ok(text.includes('DEAD'));
+    });
+
+    it('includes active effects section when effects exist', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      engine.addActiveEffect({
+        name: 'bless',
+        caster: 'kael',
+        targets: ['kael'],
+        effect: {},
+        duration: { type: 'rounds', count: 3 },
+      });
+      const text = engine.getCombatStateForPrompt();
+      assert.ok(text.includes('ACTIVE EFFECTS') || text.includes('bless'));
+    });
+
+    it('includes current turn name', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const text = engine.getCombatStateForPrompt();
+      const current = engine.getCurrentTurn();
+      assert.ok(text.includes(current.name));
+    });
+  });
+});
