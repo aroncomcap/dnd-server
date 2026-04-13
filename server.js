@@ -1134,7 +1134,15 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     ? `[AUTO-ACTION for ${actingAs} — timer expired]\n`
     : '';
 
+  // Few-shot length example for terse mode (only on first few turns before history establishes pattern)
+  const needsFewShot = gs.verbosity === 'terse' && gd.chatHistory.length < 6;
+  const verbosityExample = needsFewShot ? [
+    { role: 'user', content: 'Kael: I search the room for traps.' },
+    { role: 'assistant', content: 'Kael finds a tripwire near the door — a poison dart trap.\n\n---OPTIONS---\n1️⃣ 🗡️ Disarm the trap\n2️⃣ 🛡️ Find another way around\n3️⃣ 🔥 Trigger it from a distance\n\n---SCENE---\nACTION: Examining trapped doorway\nMOOD: cautious\nNPC: none\n\n---WORLD---\nLOCATIONS:\n- Trapped Hallway | Stone corridor | current\nNPCS:\n- none\nMAP: Trapped Hallway' },
+  ] : [];
+
   const messages = [
+    ...verbosityExample,
     ...gd.chatHistory,
     { role: 'user', content: prefix + userMessage },
   ];
@@ -1303,7 +1311,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   let finalMessage;
   try {
     // Lower temperature for terse/brief = more instruction-following, less creative wandering
-    const temperature = gs.verbosity === 'terse' ? 0.7 : gs.verbosity === 'brief' ? 0.8 : 1.0;
+    const temperature = gs.verbosity === 'terse' ? 0.5 : gs.verbosity === 'brief' ? 0.7 : 1.0;
 
     const stream = await anthropic.messages.stream({
       model,
