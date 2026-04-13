@@ -113,9 +113,8 @@ function analyzePartyAndStart() {
     const charNames = Object.keys(characters);
     for (let i = 0; i < analysis.characters.length; i++) {
       const c = analysis.characters[i];
-      const name = charNames[i] || '?';
-      const dpr = c.dpr || {};
-      console.log(`     ${name}: ${dpr.effectiveDPR || 0} DPR (weapon: ${dpr.weaponDPR || 0}, spell: ${dpr.amortizedSpellDPR || 0})`);
+      const name = c.name || charNames[i] || '?';
+      console.log(`     ${name}: ${c.effectiveDPR || 0} DPR (weapon: ${c.weaponDPR || 0}, spell: ${c.amortizedSpellDPR || 0})`);
     }
   }
 
