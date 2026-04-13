@@ -257,27 +257,59 @@ Check costs: `GET /api/costs`
 | `DISCORD_CLIENT_ID` | Discord OAuth | For Discord login |
 | `DISCORD_CLIENT_SECRET` | Discord OAuth | For Discord login |
 
-## Combat Engine (server-side, in progress)
+## Combat Engine
 
-Replaces AI-invented dice rolls with real cryptographically-secure RNG. Tasks 1–12.
+Server-side combat engine that owns all dice rolls, math, HP tracking, and conditions. The AI narrates pre-resolved results — it does NOT simulate combat rules.
 
 ### Testing
 ```bash
-npm test           # node --test tests/*.test.js
+npm test           # node --test tests/*.test.js (310 tests)
 npm run test:watch # watch mode
 ```
 
-### Modules
+### Key Files
 | File | Purpose |
 |------|---------|
-| `resolvers/dice.js` | Secure RNG, individual dice (d4–d100), `roll(notation)`, `advantage()`, `disadvantage()` |
+| `combat-engine.js` | CombatEngine class — state management, lifecycle, turn routing, effect tracking, prompt formatting |
+| `resolvers/dice.js` | Crypto-secure RNG: d4–d100, `roll(notation)`, `advantage()`, `disadvantage()` |
+| `resolvers/dnd5e-resolver.js` | D&D 5e: attacks, spells, saves, damage, death saves, concentration, conditions |
+| `resolvers/runequest-resolver.js` | RuneQuest: percentile rolls, parry/dodge, hit locations, full fumble/special/critical tables |
+| `stat-parser.js` | Haiku: statsText → combatStats JSON extraction (auto-triggers on first combat) |
+| `action-parser.js` | Tier 1 pattern matching + Tier 2 Haiku fallback for player intent parsing |
+| `monster-lookup.js` | Layered monster source resolution: DB → JSON defaults → AI fallback |
+| `monsters/monsters-5e-srd.json` | ~55 D&D 5e SRD monsters (goblin through kraken) |
+| `monsters/monsters-rq-core.json` | ~20 RuneQuest creatures (broo through baboon) |
 
-### `resolvers/dice.js` API
-- `d4()`, `d6()`, `d8()`, `d10()`, `d12()`, `d20()`, `d100()` — return integer in correct range
-- `roll(notation)` — parses "NdX±M" and compound "1d8+1+1d4" (RuneQuest damage bonus); returns `{ rolls, modifier, total }`
-- `advantage()` — `{ rolls: [r1, r2], result: max }`
-- `disadvantage()` — `{ rolls: [r1, r2], result: min }`
-- Uses `crypto.randomBytes` with rejection sampling to eliminate modulo bias
+### Combat Flow
+1. AI introduces enemies with `ENEMIES:` block in `---WORLD---` → server parses entries
+2. `initiateCombat()` looks up monster stats, parses PC combatStats if missing, calls `combatEngine.initCombat()`
+3. Player acts → `action-parser` extracts intent → engine resolves with real dice
+4. Enemy turns → Haiku picks tactics → engine resolves each action mechanically
+5. All results formatted as text → injected into AI prompt → AI narrates around facts
+6. Combat ends: all enemies dead, AI includes `COMBAT_END`, or TPK
+
+### Monster Sources (checked in order)
+1. Game-level overrides (DB per game)
+2. Campaign sources (DB, shareable)
+3. System defaults (JSON files, in-memory at startup)
+4. AI fallback (Haiku generates, saves to game overrides)
+
+### Socket Events (combat)
+| Event | Direction | Purpose |
+|-------|-----------|---------|
+| `combat_started` | server → client | Initiative order, enemy summary |
+| `combat_update` | server → client | Round, turn, HP/conditions, combat log |
+| `combat_ended` | server → client | Final state, victory/defeat |
+| `reaction_prompt` | server → player | Concentration save, Shield, etc. |
+| `reaction_response` | player → server | Player's reaction choice |
+
+### Gotchas
+- `combatStats` is structured JSON alongside `statsText` — both must stay in sync
+- When `CHAR_UPDATES` fires during combat, `combatStats` should be re-parsed
+- Reaction system can pause resolution mid-turn (Shield, concentration saves, parry/dodge)
+- RuneQuest uses strike ranks (lower = faster), D&D uses initiative (higher = faster)
+- Combat prompt injection replaces normal COMBAT section when `combatState.active`
+- `preTaggedOptions` are parsed async during player think time — no latency impact
 
 ## Common Gotchas
 - **System prompt lives in TWO places:** `buildSystemPrompt()` (turn 1) and `buildTrimmedPrompt()` (turn 2+) — update BOTH
