@@ -501,37 +501,18 @@ ${catchphrases}
 
   const pillarsLine = `Pillars: E${gs.pillars?.exploration ?? 33}/C${gs.pillars?.combat ?? 33}/S${gs.pillars?.social ?? 34}. Include skill checks every 1-2 actions.`;
 
+  // Compact encounter + NPC context (only include if relevant)
   const encounterPlanLine = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
 
-  const npcMemoryLinesTrimmed = Object.values(gs.npcMemory || {})
-    .filter(npc => npc.encounters?.length > 0)
-    .map(npc => {
-      const lastEnc = npc.encounters[npc.encounters.length - 1];
-      const status = lastEnc.survived ? (lastEnc.fled ? 'FLED' : 'SURVIVED') : 'DEFEATED';
-      const timesEncountered = npc.encounters.length;
-      return `${npc.name} (${status}, met ${timesEncountered}x): ${npc.personality || 'No notable personality'}`;
-    })
-    .slice(0, 5)
-    .join('\n');
-  const npcMemoryBlockTrimmed = npcMemoryLinesTrimmed ? `\nRECURRING NPCs (these enemies have history with the party):\n${npcMemoryLinesTrimmed}\nIf any of these appear again, reference their past encounters and evolve their behavior.` : '';
+  const npcMemoryEntries = Object.values(gs.npcMemory || {}).filter(npc => npc.encounters?.length > 0).slice(0, 3);
+  const npcMemoryBlockTrimmed = npcMemoryEntries.length > 0
+    ? `\nRecurring NPCs: ${npcMemoryEntries.map(npc => {
+        const last = npc.encounters[npc.encounters.length - 1];
+        return `${npc.name} (${last.survived ? 'alive' : 'dead'})`;
+      }).join(', ')}`
+    : '';
 
-  const pacingLine = `PACING: Ferocity ${gs.ferocity ?? 5}/5. ${
-    gs.ferocity <= 1 ? '4-6 encounters/short rest, long rest after 6-8.' :
-    gs.ferocity <= 2 ? '3-5 encounters/short rest, long rest after 6-7.' :
-    gs.ferocity <= 3 ? '3-4 encounters/short rest, long rest after 5-6.' :
-    gs.ferocity <= 4 ? '2-3 encounters/short rest, long rest after 4-5.' :
-    '1-2 encounters/short rest, long rest after 3-4.'} Track ${
-    gameConfig.system === 'runequest' ? 'Rune Points, Magic Points, POW, magic consumables' :
-    'spell slots, HP, hit dice, magic consumables'}. Skill failures cost HP/slots. Escalation: ${
-    gs.ferocity <= 2 ? 'sharp (easy→hard→boss)' :
-    gs.ferocity <= 4 ? 'moderate (flat with boss later)' :
-    'flat (rare spikes)'}. Treasure: ${
-    gs.ferocity <= 1 ? 'very generous' :
-    gs.ferocity <= 2 ? 'generous' :
-    gs.ferocity <= 3 ? 'standard' :
-    gs.ferocity <= 4 ? 'modest' :
-    'minimal'}. Award XP/milestones, announce level-ups with 🎉.
-Level-ups: ask player for ALL choices (ASI, subclass, spells, feats) before applying. Never auto-assign.`;
+  const pacingLine = `Track spell slots, HP. ${gs.ferocity <= 2 ? 'Encounters escalate.' : 'Moderate difficulty.'} Ask player for level-up choices.`;
 
   return `${basePrompt}
 ${contextBlock}
@@ -1153,14 +1134,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     ? `[AUTO-ACTION for ${actingAs} — timer expired]\n`
     : '';
 
-  // For terse/brief: inject a few-shot example as the first message pair to anchor output length
-  const verbosityExample = gs.verbosity === 'terse' ? [
-    { role: 'user', content: '[LENGTH EXAMPLE — match this narration length]\nKael: I search the room for traps.' },
-    { role: 'assistant', content: 'Kael runs his fingers along the doorframe and finds a thin wire. **🎲 Perception (WIS +1) — rolls 17. SUCCESS!** A poison dart trap, pressure-activated. The mechanism looks crude but lethal.\n\n---OPTIONS---\n1️⃣ 🗡️ Disarm the trap with thieves\' tools\n2️⃣ 🛡️ Mark it and find another way around\n3️⃣ 🔥 Trigger it from a distance with a thrown stone\n\n---SCENE---\nACTION: Examining a trapped doorway\nMOOD: cautious\nNPC: none\n\n---WORLD---\nLOCATIONS:\n- Trapped Hallway | Stone corridor with dart trap | current\nNPCS:\n- none\nMAP: Trapped Hallway' },
-  ] : [];
-
   const messages = [
-    ...verbosityExample,
     ...gd.chatHistory,
     { role: 'user', content: prefix + userMessage },
   ];
