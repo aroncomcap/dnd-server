@@ -21,7 +21,7 @@ const FEROCITY = {
 
 /** Position multipliers for how far into the adventuring day an encounter falls. */
 const POSITION_MULT = {
-  early: 0.6,
+  early: 0.8,
   mid:   1.0,
   late:  1.3,
   boss:  1.8,
