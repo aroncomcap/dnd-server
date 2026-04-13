@@ -728,6 +728,54 @@
   .turn-order-item .turn-name { flex: 1; }
   .turn-order-item .turn-value { font-size: 0.75rem; opacity: 0.7; }
 
+  /* Combat HP bars */
+  .turn-order-item .hp-bar {
+    width: 60px; height: 6px; background: #333; border-radius: 3px; overflow: hidden; flex-shrink: 0;
+  }
+  .turn-order-item .hp-bar-fill {
+    height: 100%; border-radius: 3px; transition: width 0.3s ease;
+  }
+  .hp-high { background: #4a8; }
+  .hp-mid { background: #c84; }
+  .hp-low { background: #c44; }
+  .turn-order-item.dead { opacity: 0.4; text-decoration: line-through; }
+  .turn-order-item .condition-icons { font-size: 0.65rem; opacity: 0.8; }
+
+  /* Combat log */
+  #combat-log {
+    display: none; position: fixed; bottom: 0; left: 0; right: 0;
+    max-height: 200px; overflow-y: auto; background: rgba(13,6,0,0.95);
+    border-top: 1px solid var(--gold); padding: 8px 16px; z-index: 60;
+    font-family: 'Courier New', monospace; font-size: 0.8rem; color: var(--parchment);
+  }
+  #combat-log .round-header { color: var(--gold); font-weight: bold; margin-top: 8px; }
+  #combat-log .log-hit { color: #4c8; }
+  #combat-log .log-miss { color: #c66; }
+  #combat-log .log-crit { color: #fc4; font-weight: bold; }
+  #combat-log .log-indent { padding-left: 16px; opacity: 0.8; }
+  #combat-log-toggle {
+    position: fixed; bottom: 8px; right: 16px; z-index: 61;
+    background: var(--gold); color: #000; border: none; border-radius: 4px;
+    padding: 4px 8px; font-size: 0.75rem; cursor: pointer; display: none;
+  }
+
+  /* Reaction prompt */
+  #reaction-modal {
+    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(13,6,0,0.98); border: 2px solid var(--gold); border-radius: 12px;
+    padding: 20px; z-index: 100; max-width: 400px; width: 90%;
+  }
+  #reaction-modal h3 { color: var(--gold); margin: 0 0 12px 0; font-family: 'Cinzel Decorative', cursive; font-size: 1rem; }
+  #reaction-modal .context { color: var(--parchment); margin-bottom: 12px; font-size: 0.9rem; }
+  #reaction-modal .timer { color: var(--gold); font-size: 0.8rem; text-align: center; margin-top: 8px; }
+  #reaction-modal button {
+    display: block; width: 100%; margin: 6px 0; padding: 10px;
+    background: rgba(200,146,42,0.15); border: 1px solid var(--gold); border-radius: 6px;
+    color: var(--parchment); cursor: pointer; text-align: left; font-size: 0.85rem;
+  }
+  #reaction-modal button:hover { background: rgba(200,146,42,0.3); }
+  #reaction-modal button:disabled { opacity: 0.3; cursor: not-allowed; }
+
   .not-your-turn {
     text-align: center;
     padding: 6px;
@@ -987,6 +1035,14 @@
   <div id="turn-order-overlay" style="display:none; position:absolute; top:40px; right:16px; width:200px; background:rgba(13,6,0,0.92); border:1px solid var(--gold); border-radius:8px; padding:8px; z-index:50;">
     <div style="font-family:'Cinzel Decorative',cursive;font-size:0.75rem;color:var(--gold);margin-bottom:6px;text-align:center;">Turn Order</div>
     <div id="turn-order-list"></div>
+  </div>
+  <div id="combat-log"></div>
+  <button id="combat-log-toggle" onclick="toggleCombatLog()">Combat Log</button>
+  <div id="reaction-modal">
+    <h3 id="reaction-title">Reaction</h3>
+    <div id="reaction-context" class="context"></div>
+    <div id="reaction-options"></div>
+    <div id="reaction-timer" class="timer"></div>
   </div>
   <div id="map-sidebar" style="display:none;">
     <div class="panel" style="height:100%;display:flex;flex-direction:column;padding:8px;">
@@ -1775,6 +1831,139 @@ function updateActionArea() {
       waitingName.textContent = currentPlayer;
     }
   }
+}
+
+// ── Combat UI State ───────────────────────────────────────────────────────
+let combatActive = false;
+let combatState = null;
+let reactionTimeout = null;
+
+socket.on('combat_started', (data) => {
+  combatActive = true;
+  combatState = data;
+  document.getElementById('combat-log').style.display = 'block';
+  document.getElementById('combat-log-toggle').style.display = 'block';
+  document.getElementById('combat-log').innerHTML = '<div class="round-header">Combat Begins!</div>';
+  updateCombatTurnOrder(data);
+});
+
+socket.on('combat_update', (data) => {
+  combatState = data;
+  updateCombatTurnOrder(data);
+  if (data.log) appendCombatLog(data.log);
+});
+
+socket.on('combat_ended', (data) => {
+  combatActive = false;
+  document.getElementById('combat-log').innerHTML += '<div class="round-header">Combat Ended — ' + (data.reason === 'enemies_defeated' ? 'Victory!' : 'Defeat...') + '</div>';
+  setTimeout(() => {
+    document.getElementById('turn-order-overlay').style.display = 'none';
+    document.getElementById('combat-log-toggle').style.display = 'none';
+  }, 10000);
+});
+
+socket.on('reaction_prompt', (data) => {
+  showReactionPrompt(data);
+});
+
+function updateCombatTurnOrder(data) {
+  const overlay = document.getElementById('turn-order-overlay');
+  const list = document.getElementById('turn-order-list');
+  overlay.style.display = 'block';
+  list.innerHTML = '';
+
+  const order = data.initiativeOrder || combatState?.initiativeOrder || [];
+  const combatants = data.combatants || combatState?.combatants || {};
+  const currentTurn = data.currentTurn || combatState?.currentTurn;
+
+  for (const entry of order) {
+    const c = combatants[entry.id];
+    if (!c) continue;
+    const hp = c.hp ?? 0;
+    const maxHp = c.maxHp ?? 1;
+    const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
+    const isDead = hp <= 0 && c.type === 'Enemy';
+    const isActive = entry.id === currentTurn;
+    const hpClass = pct > 60 ? 'hp-high' : pct > 30 ? 'hp-mid' : 'hp-low';
+
+    const condIcons = (c.conditions || []).map(cond => {
+      const icons = { stunned: '💫', prone: '⬇️', concentrating: '🔮', poisoned: '☠️', blinded: '👁️', frightened: '😨', dodging: '🛡️' };
+      return icons[cond] || '';
+    }).join('');
+
+    const div = document.createElement('div');
+    div.className = 'turn-order-item' + (isActive ? ' active' : '') + (c.type === 'Enemy' ? ' enemy' : '') + (isDead ? ' dead' : '');
+    div.innerHTML = `<span class="turn-num">${escapeHtml(String(entry.init ?? ''))}</span><span class="turn-name">${escapeHtml(c.name)}</span><div class="hp-bar"><div class="hp-bar-fill ${hpClass}" style="width:${pct}%"></div></div><span class="turn-value">${hp}/${maxHp}</span>${condIcons ? '<span class="condition-icons">' + condIcons + '</span>' : ''}`;
+    list.appendChild(div);
+  }
+}
+
+function appendCombatLog(logEntries) {
+  const log = document.getElementById('combat-log');
+  if (!logEntries || !Array.isArray(logEntries)) return;
+  for (const entry of logEntries) {
+    const div = document.createElement('div');
+    if (entry.type === 'attack') {
+      const hitClass = entry.critical ? 'log-crit' : entry.hit ? 'log-hit' : 'log-miss';
+      const hitText = entry.critical ? 'CRIT!' : entry.hit ? 'HIT!' : 'MISS!';
+      div.className = hitClass;
+      const dmgStr = entry.hit ? ` ${entry.totalDamage} ${entry.damageType || ''}.` : '';
+      const hpStr = entry.damageResult ? ` [${entry.damageResult.hpBefore}→${entry.damageResult.hp} HP]` : '';
+      div.textContent = `${entry.attackerName || ''} → ${entry.targetName || ''}: ${entry.roll || ''}+${entry.modifier || ''}=${entry.total || ''} vs AC ${entry.targetAC || ''}. ${hitText}${dmgStr}${hpStr}`;
+    } else if (entry.type === 'spell_save') {
+      div.className = 'log-hit';
+      div.textContent = `${entry.casterName} casts ${entry.spell} (DC ${entry.saveDC})`;
+    } else if (entry.type === 'heal') {
+      div.className = 'log-hit';
+      div.textContent = `${entry.casterName} heals for ${entry.healing} HP`;
+    } else if (entry.type === 'dodge' || entry.type === 'disengage' || entry.type === 'dash') {
+      div.textContent = `${entry.combatantName || ''} uses ${entry.type}`;
+    } else {
+      div.textContent = `[${entry.type || 'action'}]`;
+    }
+    log.appendChild(div);
+  }
+  log.scrollTop = log.scrollHeight;
+}
+
+function toggleCombatLog() {
+  const log = document.getElementById('combat-log');
+  log.style.display = log.style.display === 'none' ? 'block' : 'none';
+}
+
+function showReactionPrompt(data) {
+  const modal = document.getElementById('reaction-modal');
+  document.getElementById('reaction-title').textContent = (data.type || 'Reaction').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  document.getElementById('reaction-context').textContent = (data.context?.damage ? `Taking ${data.context.damage} damage. ` : '') + `DC ${data.context?.dc || 10} save required.`;
+
+  const optionsDiv = document.getElementById('reaction-options');
+  optionsDiv.innerHTML = '';
+  for (const opt of (data.options || [])) {
+    const btn = document.createElement('button');
+    btn.textContent = opt.label;
+    btn.disabled = opt.available === false;
+    btn.onclick = () => {
+      socket.emit('reaction_response', { choice: opt.id });
+      modal.style.display = 'none';
+      if (reactionTimeout) clearInterval(reactionTimeout);
+    };
+    optionsDiv.appendChild(btn);
+  }
+
+  let remaining = 30;
+  const timerDiv = document.getElementById('reaction-timer');
+  timerDiv.textContent = 'Auto-resolve in ' + remaining + 's';
+  if (reactionTimeout) clearInterval(reactionTimeout);
+  reactionTimeout = setInterval(() => {
+    remaining--;
+    timerDiv.textContent = 'Auto-resolve in ' + remaining + 's';
+    if (remaining <= 0) {
+      clearInterval(reactionTimeout);
+      socket.emit('reaction_response', { choice: (data.options?.[0]?.id) || 'roll' });
+      modal.style.display = 'none';
+    }
+  }, 1000);
+  modal.style.display = 'block';
 }
 
 function updateTurnOrder(turnOrderData) {
