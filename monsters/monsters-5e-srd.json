@@ -1,0 +1,247 @@
+{
+  "goblin": {
+    "name": "Goblin", "cr": 0.25, "ac": 15, "hp": 7, "maxHp": 7, "speed": 30,
+    "abilities": { "str": 8, "dex": 14, "con": 10, "int": 10, "wis": 8, "cha": 8 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "scimitar", "attackMod": "dex", "damage": "1d6", "damageType": "slashing", "properties": [] },
+      { "name": "shortbow", "attackMod": "dex", "damage": "1d6", "damageType": "piercing", "properties": ["ranged"], "range": "80/320" }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Nimble Escape"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "skeleton": {
+    "name": "Skeleton", "cr": 0.25, "ac": 13, "hp": 13, "maxHp": 13, "speed": 30,
+    "abilities": { "str": 10, "dex": 14, "con": 15, "int": 6, "wis": 8, "cha": 5 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "shortsword", "attackMod": "dex", "damage": "1d6", "damageType": "piercing", "properties": [] },
+      { "name": "shortbow", "attackMod": "dex", "damage": "1d6", "damageType": "piercing", "properties": ["ranged"], "range": "80/320" }
+    ],
+    "spells": [], "spellSlots": {}, "features": [],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": ["bludgeoning"],
+    "immunities": ["poison", "exhaustion", "frightened", "poisoned"]
+  },
+  "zombie": {
+    "name": "Zombie", "cr": 0.25, "ac": 8, "hp": 22, "maxHp": 22, "speed": 20,
+    "abilities": { "str": 13, "dex": 6, "con": 16, "int": 3, "wis": 6, "cha": 5 },
+    "saveProficiencies": ["wis"], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "slam", "attackMod": "str", "damage": "1d6", "damageType": "bludgeoning", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Undead Fortitude"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["poison", "poisoned"]
+  },
+  "orc": {
+    "name": "Orc", "cr": 0.5, "ac": 13, "hp": 15, "maxHp": 15, "speed": 30,
+    "abilities": { "str": 16, "dex": 12, "con": 16, "int": 7, "wis": 11, "cha": 10 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "greataxe", "attackMod": "str", "damage": "1d12", "damageType": "slashing", "properties": ["two-handed"] },
+      { "name": "javelin", "attackMod": "str", "damage": "1d6", "damageType": "piercing", "properties": ["thrown"], "range": "30/120" }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Aggressive"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "kobold": {
+    "name": "Kobold", "cr": 0.125, "ac": 12, "hp": 5, "maxHp": 5, "speed": 30,
+    "abilities": { "str": 7, "dex": 15, "con": 9, "int": 8, "wis": 7, "cha": 8 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "dagger", "attackMod": "dex", "damage": "1d4", "damageType": "piercing", "properties": ["finesse"] },
+      { "name": "sling", "attackMod": "dex", "damage": "1d4", "damageType": "bludgeoning", "properties": ["ranged"], "range": "30/120" }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Pack Tactics", "Sunlight Sensitivity"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "wolf": {
+    "name": "Wolf", "cr": 0.25, "ac": 13, "hp": 11, "maxHp": 11, "speed": 40,
+    "abilities": { "str": 12, "dex": 15, "con": 12, "int": 3, "wis": 12, "cha": 6 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d4", "damageType": "piercing", "properties": [], "saveOnHit": { "ability": "str", "dc": 11, "effect": "prone" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Pack Tactics", "Keen Hearing and Smell"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "dire-wolf": {
+    "name": "Dire Wolf", "cr": 1, "ac": 14, "hp": 37, "maxHp": 37, "speed": 50,
+    "abilities": { "str": 17, "dex": 15, "con": 15, "int": 3, "wis": 12, "cha": 7 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d6", "damageType": "piercing", "properties": [], "saveOnHit": { "ability": "str", "dc": 13, "effect": "prone" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Pack Tactics", "Keen Hearing and Smell"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "bandit": {
+    "name": "Bandit", "cr": 0.125, "ac": 12, "hp": 11, "maxHp": 11, "speed": 30,
+    "abilities": { "str": 11, "dex": 12, "con": 12, "int": 10, "wis": 10, "cha": 10 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "scimitar", "attackMod": "dex", "damage": "1d6", "damageType": "slashing", "properties": ["finesse"] },
+      { "name": "light crossbow", "attackMod": "dex", "damage": "1d8", "damageType": "piercing", "properties": ["ranged"], "range": "80/320" }
+    ],
+    "spells": [], "spellSlots": {}, "features": [],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "bugbear": {
+    "name": "Bugbear", "cr": 1, "ac": 16, "hp": 27, "maxHp": 27, "speed": 30,
+    "abilities": { "str": 15, "dex": 14, "con": 13, "int": 8, "wis": 11, "cha": 9 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "morningstar", "attackMod": "str", "damage": "2d8", "damageType": "piercing", "properties": [] },
+      { "name": "javelin", "attackMod": "str", "damage": "1d6", "damageType": "piercing", "properties": ["thrown"], "range": "30/120" }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Brute", "Surprise Attack"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "ogre": {
+    "name": "Ogre", "cr": 2, "ac": 11, "hp": 59, "maxHp": 59, "speed": 40,
+    "abilities": { "str": 19, "dex": 8, "con": 16, "int": 5, "wis": 7, "cha": 7 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "greatclub", "attackMod": "str", "damage": "2d8", "damageType": "bludgeoning", "properties": ["two-handed"] },
+      { "name": "javelin", "attackMod": "str", "damage": "2d6", "damageType": "piercing", "properties": ["thrown"], "range": "30/120" }
+    ],
+    "spells": [], "spellSlots": {}, "features": [],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "troll": {
+    "name": "Troll", "cr": 5, "ac": 15, "hp": 84, "maxHp": 84, "speed": 30,
+    "abilities": { "str": 18, "dex": 13, "con": 20, "int": 7, "wis": 9, "cha": 7 },
+    "saveProficiencies": [], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "1d6", "damageType": "piercing", "properties": [] },
+      { "name": "claw", "attackMod": "str", "damage": "2d6", "damageType": "slashing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Keen Smell", "Regeneration"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": ["fire", "acid"],
+    "immunities": []
+  },
+  "owlbear": {
+    "name": "Owlbear", "cr": 3, "ac": 13, "hp": 59, "maxHp": 59, "speed": 40,
+    "abilities": { "str": 20, "dex": 12, "con": 17, "int": 3, "wis": 12, "cha": 7 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "beak", "attackMod": "str", "damage": "1d10", "damageType": "piercing", "properties": [] },
+      { "name": "claws", "attackMod": "str", "damage": "2d8", "damageType": "slashing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Keen Sight and Smell"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "giant-spider": {
+    "name": "Giant Spider", "cr": 1, "ac": 14, "hp": 26, "maxHp": 26, "speed": 30,
+    "abilities": { "str": 14, "dex": 16, "con": 12, "int": 2, "wis": 11, "cha": 4 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "dex", "damage": "1d8", "damageType": "piercing", "properties": [], "saveOnHit": { "ability": "con", "dc": 11, "effect": "poisoned", "damage": "2d8" } },
+      { "name": "web", "attackMod": "dex", "damage": "0", "damageType": "none", "properties": ["ranged"], "range": "30/60", "saveOnHit": { "ability": "str", "dc": 12, "effect": "restrained" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Spider Climb", "Web Sense", "Web Walker"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "ghoul": {
+    "name": "Ghoul", "cr": 1, "ac": 12, "hp": 22, "maxHp": 22, "speed": 30,
+    "abilities": { "str": 13, "dex": 15, "con": 10, "int": 7, "wis": 10, "cha": 6 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d6", "damageType": "piercing", "properties": [] },
+      { "name": "claws", "attackMod": "dex", "damage": "2d4", "damageType": "slashing", "properties": [], "saveOnHit": { "ability": "con", "dc": 10, "effect": "paralyzed" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": [],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["poison", "charmed", "exhaustion", "poisoned"]
+  },
+  "wight": {
+    "name": "Wight", "cr": 3, "ac": 14, "hp": 45, "maxHp": 45, "speed": 30,
+    "abilities": { "str": 15, "dex": 14, "con": 16, "int": 10, "wis": 13, "cha": 15 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "longsword", "attackMod": "str", "damage": "1d8", "damageType": "slashing", "properties": [] },
+      { "name": "longbow", "attackMod": "dex", "damage": "1d8", "damageType": "piercing", "properties": ["ranged"], "range": "150/600" },
+      { "name": "life drain", "attackMod": "str", "damage": "3d6", "damageType": "necrotic", "properties": [], "saveOnHit": { "ability": "con", "dc": 13, "effect": "max_hp_reduction" } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Sunlight Sensitivity"],
+    "conditions": [],
+    "resistances": ["necrotic", "bludgeoning", "piercing", "slashing"],
+    "vulnerabilities": [],
+    "immunities": ["poison", "exhaustion", "frightened", "poisoned"]
+  },
+  "mimic": {
+    "name": "Mimic", "cr": 2, "ac": 12, "hp": 58, "maxHp": 58, "speed": 15,
+    "abilities": { "str": 17, "dex": 12, "con": 15, "int": 5, "wis": 13, "cha": 8 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "pseudopod", "attackMod": "str", "damage": "1d8", "damageType": "bludgeoning", "properties": [] },
+      { "name": "bite", "attackMod": "str", "damage": "3d6", "damageType": "piercing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Shapechanger", "Adhesive", "Grappler"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["prone", "acid"]
+  },
+  "basilisk": {
+    "name": "Basilisk", "cr": 3, "ac": 15, "hp": 52, "maxHp": 52, "speed": 20,
+    "abilities": { "str": 16, "dex": 8, "con": 15, "int": 2, "wis": 8, "cha": 7 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d6", "damageType": "piercing", "properties": [] }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Petrifying Gaze"],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "manticore": {
+    "name": "Manticore", "cr": 3, "ac": 14, "hp": 68, "maxHp": 68, "speed": 30,
+    "abilities": { "str": 17, "dex": 16, "con": 17, "int": 7, "wis": 12, "cha": 8 },
+    "saveProficiencies": [], "proficiencyBonus": 2,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "1d8", "damageType": "piercing", "properties": [] },
+      { "name": "claw", "attackMod": "str", "damage": "2d4", "damageType": "slashing", "properties": [] },
+      { "name": "tail spikes", "attackMod": "dex", "damage": "2d4", "damageType": "piercing", "properties": ["ranged"], "range": "100/200" }
+    ],
+    "spells": [], "spellSlots": {}, "features": [],
+    "conditions": [], "resistances": [], "vulnerabilities": [], "immunities": []
+  },
+  "young-green-dragon": {
+    "name": "Young Green Dragon", "cr": 8, "ac": 18, "hp": 136, "maxHp": 136, "speed": 40,
+    "abilities": { "str": 19, "dex": 12, "con": 17, "int": 16, "wis": 13, "cha": 15 },
+    "saveProficiencies": ["dex", "con", "wis", "cha"], "proficiencyBonus": 3,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d10", "damageType": "piercing", "properties": [] },
+      { "name": "claw", "attackMod": "str", "damage": "2d6", "damageType": "slashing", "properties": [] },
+      { "name": "poison breath", "attackMod": null, "damage": "12d6", "damageType": "poison", "properties": ["cone", "recharge-5-6"], "save": { "ability": "con", "dc": 14 } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Amphibious", "Legendary Resistance (0/3 remaining)"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["poison", "poisoned"]
+  },
+  "adult-red-dragon": {
+    "name": "Adult Red Dragon", "cr": 17, "ac": 19, "hp": 256, "maxHp": 256, "speed": 40,
+    "abilities": { "str": 27, "dex": 10, "con": 25, "int": 16, "wis": 13, "cha": 21 },
+    "saveProficiencies": ["dex", "con", "wis", "cha"], "proficiencyBonus": 6,
+    "weapons": [
+      { "name": "bite", "attackMod": "str", "damage": "2d10", "damageType": "piercing", "properties": [] },
+      { "name": "claw", "attackMod": "str", "damage": "2d6", "damageType": "slashing", "properties": [] },
+      { "name": "tail", "attackMod": "str", "damage": "2d8", "damageType": "bludgeoning", "properties": [] },
+      { "name": "fire breath", "attackMod": null, "damage": "16d6", "damageType": "fire", "properties": ["cone", "recharge-5-6"], "save": { "ability": "dex", "dc": 21 } }
+    ],
+    "spells": [], "spellSlots": {}, "features": ["Legendary Resistance (3/day)", "Legendary Actions"],
+    "conditions": [],
+    "resistances": [],
+    "vulnerabilities": [],
+    "immunities": ["fire"]
+  }
+}

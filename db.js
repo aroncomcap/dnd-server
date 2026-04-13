@@ -159,6 +159,27 @@ async function initDB() {
     );
     CREATE INDEX IF NOT EXISTS idx_anon_sessions_ip ON anonymous_sessions(ip_address);
   `);
+
+  // ── Monster Sources ─────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS monster_sources (
+      id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+      name TEXT NOT NULL,
+      system TEXT NOT NULL,
+      scope TEXT NOT NULL DEFAULT 'global',
+      game_id TEXT REFERENCES games(id) ON DELETE CASCADE,
+      monsters JSONB NOT NULL DEFAULT '{}',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS game_monster_sources (
+      game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      source_id TEXT NOT NULL REFERENCES monster_sources(id) ON DELETE CASCADE,
+      priority INT NOT NULL DEFAULT 0,
+      PRIMARY KEY (game_id, source_id)
+    );
+  `);
 }
 
 // ── Games ────────────────────────────────────────────────────────────────────
@@ -521,6 +542,53 @@ async function countRecentAnonSessions(ip) {
   return parseInt(rows[0].cnt);
 }
 
+// ── Monster Sources ───────────────────────────────────────────────────────────
+async function getMonsterFromSources(gameId, slug) {
+  const result = await pool.query(`
+    SELECT ms.monsters->$2 as monster, ms.name as source_name
+    FROM game_monster_sources gms
+    JOIN monster_sources ms ON ms.id = gms.source_id
+    WHERE gms.game_id = $1 AND ms.monsters ? $2
+    ORDER BY gms.priority ASC
+    LIMIT 1
+  `, [gameId, slug]);
+  return result.rows[0]?.monster || null;
+}
+
+async function saveMonsterToGameOverrides(gameId, slug, monsterData) {
+  let source = await pool.query(
+    `SELECT id FROM monster_sources WHERE game_id = $1 AND scope = 'game' LIMIT 1`, [gameId]
+  );
+  if (source.rows.length === 0) {
+    const id = require('crypto').randomUUID();
+    await pool.query(
+      `INSERT INTO monster_sources (id, name, system, scope, game_id, monsters) VALUES ($1, 'Game Overrides', 'any', 'game', $2, $3)`,
+      [id, gameId, JSON.stringify({ [slug]: monsterData })]
+    );
+    await pool.query(
+      `INSERT INTO game_monster_sources (game_id, source_id, priority) VALUES ($1, $2, 0) ON CONFLICT DO NOTHING`,
+      [gameId, id]
+    );
+  } else {
+    await pool.query(
+      `UPDATE monster_sources SET monsters = monsters || $2::jsonb, updated_at = NOW() WHERE id = $1`,
+      [source.rows[0].id, JSON.stringify({ [slug]: monsterData })]
+    );
+  }
+}
+
+async function attachDefaultMonsterSource(gameId, system) {
+  const source = await pool.query(
+    `SELECT id FROM monster_sources WHERE scope = 'global' AND system = $1 LIMIT 1`, [system]
+  );
+  if (source.rows.length > 0) {
+    await pool.query(
+      `INSERT INTO game_monster_sources (game_id, source_id, priority) VALUES ($1, $2, 10) ON CONFLICT DO NOTHING`,
+      [gameId, source.rows[0].id]
+    );
+  }
+}
+
 module.exports = {
   pool,
   initDB,
@@ -560,4 +628,7 @@ module.exports = {
   updateAnonMinutes,
   convertAnonSession,
   countRecentAnonSessions,
+  getMonsterFromSources,
+  saveMonsterToGameOverrides,
+  attachDefaultMonsterSource,
 };

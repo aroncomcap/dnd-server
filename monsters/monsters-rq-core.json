@@ -1,0 +1,250 @@
+{
+  "broo": {
+    "name": "Broo",
+    "characteristics": { "str": 14, "con": 11, "siz": 14, "int": 8, "pow": 11, "dex": 10, "cha": 5 },
+    "hitLocations": {
+      "head":      { "hp": 4, "maxHp": 4, "armor": 0 },
+      "left-arm":  { "hp": 3, "maxHp": 3, "armor": 0 },
+      "right-arm": { "hp": 3, "maxHp": 3, "armor": 0 },
+      "chest":     { "hp": 6, "maxHp": 6, "armor": 2 },
+      "abdomen":   { "hp": 5, "maxHp": 5, "armor": 2 },
+      "left-leg":  { "hp": 4, "maxHp": 4, "armor": 0 },
+      "right-leg": { "hp": 4, "maxHp": 4, "armor": 0 }
+    },
+    "totalHp": 11,
+    "weapons": [
+      { "name": "mace", "skill": 55, "damage": "1d8+1d4", "sr": 8 },
+      { "name": "short bow", "skill": 35, "damage": "1d6+1", "sr": 2, "range": "80m" }
+    ],
+    "skills": { "dodge": 25, "listen": 45, "scan": 40, "track": 50, "sneak": 35 },
+    "conditions": [],
+    "runePoints": 3, "maxRunePoints": 3, "magicPoints": 11, "maxMagicPoints": 11,
+    "runeSpells": ["Chaos Gift", "Sickness"],
+    "spiritSpells": ["Disruption", "Speedart"],
+    "strikeRank": 8
+  },
+  "dark-troll": {
+    "name": "Dark Troll",
+    "characteristics": { "str": 17, "con": 13, "siz": 20, "int": 11, "pow": 13, "dex": 11, "cha": 9 },
+    "hitLocations": {
+      "head":      { "hp": 5, "maxHp": 5, "armor": 3 },
+      "left-arm":  { "hp": 5, "maxHp": 5, "armor": 3 },
+      "right-arm": { "hp": 5, "maxHp": 5, "armor": 3 },
+      "chest":     { "hp": 7, "maxHp": 7, "armor": 5 },
+      "abdomen":   { "hp": 6, "maxHp": 6, "armor": 5 },
+      "left-leg":  { "hp": 6, "maxHp": 6, "armor": 3 },
+      "right-leg": { "hp": 6, "maxHp": 6, "armor": 3 }
+    },
+    "totalHp": 17,
+    "weapons": [
+      { "name": "maul", "skill": 70, "damage": "2d8+1d6", "sr": 7 },
+      { "name": "rock", "skill": 45, "damage": "1d10+1d6", "sr": 3, "range": "30m" }
+    ],
+    "skills": { "dodge": 20, "listen": 55, "scan": 50, "infravision": 95 },
+    "conditions": [],
+    "runePoints": 2, "maxRunePoints": 2, "magicPoints": 13, "maxMagicPoints": 13,
+    "runeSpells": ["Darkwall"],
+    "spiritSpells": ["Demoralize", "Strength"],
+    "strikeRank": 7
+  },
+  "scorpion-man": {
+    "name": "Scorpion Man",
+    "characteristics": { "str": 19, "con": 14, "siz": 22, "int": 7, "pow": 13, "dex": 13, "cha": 5 },
+    "hitLocations": {
+      "head":        { "hp": 5, "maxHp": 5, "armor": 3 },
+      "left-arm":    { "hp": 5, "maxHp": 5, "armor": 3 },
+      "right-arm":   { "hp": 5, "maxHp": 5, "armor": 3 },
+      "chest":       { "hp": 7, "maxHp": 7, "armor": 3 },
+      "abdomen":     { "hp": 6, "maxHp": 6, "armor": 3 },
+      "front-left":  { "hp": 5, "maxHp": 5, "armor": 3 },
+      "front-right": { "hp": 5, "maxHp": 5, "armor": 3 },
+      "mid-left":    { "hp": 5, "maxHp": 5, "armor": 3 },
+      "mid-right":   { "hp": 5, "maxHp": 5, "armor": 3 },
+      "rear-left":   { "hp": 5, "maxHp": 5, "armor": 3 },
+      "rear-right":  { "hp": 5, "maxHp": 5, "armor": 3 },
+      "tail":        { "hp": 6, "maxHp": 6, "armor": 3 }
+    },
+    "totalHp": 18,
+    "weapons": [
+      { "name": "claw", "skill": 65, "damage": "1d10+1d6", "sr": 6 },
+      { "name": "sting", "skill": 75, "damage": "1d6+poison", "sr": 4, "note": "POT 14 poison, paralyzes on fail" }
+    ],
+    "skills": { "dodge": 30, "listen": 40, "scan": 55 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 13, "maxMagicPoints": 13,
+    "runeSpells": [], "spiritSpells": [],
+    "strikeRank": 4
+  },
+  "jack-o-bear": {
+    "name": "Jack-O-Bear",
+    "characteristics": { "str": 16, "con": 13, "siz": 15, "int": 5, "pow": 10, "dex": 14, "cha": 4 },
+    "hitLocations": {
+      "head":      { "hp": 4, "maxHp": 4, "armor": 1 },
+      "left-arm":  { "hp": 4, "maxHp": 4, "armor": 1 },
+      "right-arm": { "hp": 4, "maxHp": 4, "armor": 1 },
+      "chest":     { "hp": 6, "maxHp": 6, "armor": 2 },
+      "abdomen":   { "hp": 5, "maxHp": 5, "armor": 2 },
+      "left-leg":  { "hp": 5, "maxHp": 5, "armor": 1 },
+      "right-leg": { "hp": 5, "maxHp": 5, "armor": 1 }
+    },
+    "totalHp": 14,
+    "weapons": [
+      { "name": "claw", "skill": 60, "damage": "1d6+1d4", "sr": 5 },
+      { "name": "bite", "skill": 55, "damage": "1d8+1d4", "sr": 7 }
+    ],
+    "skills": { "dodge": 35, "listen": 60, "scan": 50, "track": 60, "sneak": 55 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 10, "maxMagicPoints": 10,
+    "runeSpells": [], "spiritSpells": [],
+    "strikeRank": 5,
+    "note": "Chaotic predator; fear aura within 10m (POW vs POW or flee)"
+  },
+  "walktapus": {
+    "name": "Walktapus",
+    "characteristics": { "str": 22, "con": 15, "siz": 25, "int": 6, "pow": 14, "dex": 10, "cha": 3 },
+    "hitLocations": {
+      "head":         { "hp": 6, "maxHp": 6, "armor": 0 },
+      "tentacle-1":   { "hp": 5, "maxHp": 5, "armor": 0 },
+      "tentacle-2":   { "hp": 5, "maxHp": 5, "armor": 0 },
+      "tentacle-3":   { "hp": 5, "maxHp": 5, "armor": 0 },
+      "tentacle-4":   { "hp": 5, "maxHp": 5, "armor": 0 },
+      "tentacle-5":   { "hp": 5, "maxHp": 5, "armor": 0 },
+      "tentacle-6":   { "hp": 5, "maxHp": 5, "armor": 0 },
+      "tentacle-7":   { "hp": 5, "maxHp": 5, "armor": 0 },
+      "tentacle-8":   { "hp": 5, "maxHp": 5, "armor": 0 },
+      "body":         { "hp": 8, "maxHp": 8, "armor": 2 }
+    },
+    "totalHp": 20,
+    "weapons": [
+      { "name": "tentacle grab", "skill": 65, "damage": "1d6+2d6", "sr": 5, "note": "grapple on hit" },
+      { "name": "beak", "skill": 70, "damage": "2d8+2d6", "sr": 8 }
+    ],
+    "skills": { "dodge": 15, "listen": 30, "scan": 45 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 14, "maxMagicPoints": 14,
+    "runeSpells": [], "spiritSpells": [],
+    "strikeRank": 5
+  },
+  "giant-beetle": {
+    "name": "Giant Beetle",
+    "characteristics": { "str": 15, "con": 14, "siz": 16, "int": 1, "pow": 6, "dex": 8, "cha": 3 },
+    "hitLocations": {
+      "head":      { "hp": 4, "maxHp": 4, "armor": 6 },
+      "left-arm":  { "hp": 4, "maxHp": 4, "armor": 6 },
+      "right-arm": { "hp": 4, "maxHp": 4, "armor": 6 },
+      "chest":     { "hp": 6, "maxHp": 6, "armor": 8 },
+      "abdomen":   { "hp": 5, "maxHp": 5, "armor": 8 },
+      "left-leg":  { "hp": 4, "maxHp": 4, "armor": 6 },
+      "right-leg": { "hp": 4, "maxHp": 4, "armor": 6 }
+    },
+    "totalHp": 15,
+    "weapons": [
+      { "name": "mandibles", "skill": 50, "damage": "1d8+1d4", "sr": 8 }
+    ],
+    "skills": { "dodge": 15, "listen": 20 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 6, "maxMagicPoints": 6,
+    "runeSpells": [], "spiritSpells": [],
+    "strikeRank": 9
+  },
+  "saber-tooth-cat": {
+    "name": "Saber-Tooth Cat",
+    "characteristics": { "str": 18, "con": 14, "siz": 20, "int": 5, "pow": 11, "dex": 17, "cha": 6 },
+    "hitLocations": {
+      "head":      { "hp": 5, "maxHp": 5, "armor": 1 },
+      "left-arm":  { "hp": 5, "maxHp": 5, "armor": 1 },
+      "right-arm": { "hp": 5, "maxHp": 5, "armor": 1 },
+      "chest":     { "hp": 7, "maxHp": 7, "armor": 2 },
+      "abdomen":   { "hp": 6, "maxHp": 6, "armor": 2 },
+      "left-leg":  { "hp": 6, "maxHp": 6, "armor": 1 },
+      "right-leg": { "hp": 6, "maxHp": 6, "armor": 1 }
+    },
+    "totalHp": 17,
+    "weapons": [
+      { "name": "bite", "skill": 75, "damage": "2d8+2d6", "sr": 6, "note": "saber fangs, +1d6 damage on initial attack" },
+      { "name": "claw", "skill": 65, "damage": "1d6+2d6", "sr": 4 }
+    ],
+    "skills": { "dodge": 45, "listen": 65, "scan": 60, "track": 70, "sneak": 60 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 11, "maxMagicPoints": 11,
+    "runeSpells": [], "spiritSpells": [],
+    "strikeRank": 4
+  },
+  "griffin": {
+    "name": "Griffin",
+    "characteristics": { "str": 20, "con": 14, "siz": 22, "int": 7, "pow": 14, "dex": 16, "cha": 12 },
+    "hitLocations": {
+      "head":      { "hp": 5, "maxHp": 5, "armor": 2 },
+      "left-wing": { "hp": 6, "maxHp": 6, "armor": 1 },
+      "right-wing":{ "hp": 6, "maxHp": 6, "armor": 1 },
+      "chest":     { "hp": 7, "maxHp": 7, "armor": 3 },
+      "abdomen":   { "hp": 6, "maxHp": 6, "armor": 3 },
+      "left-leg":  { "hp": 6, "maxHp": 6, "armor": 2 },
+      "right-leg": { "hp": 6, "maxHp": 6, "armor": 2 }
+    },
+    "totalHp": 18,
+    "weapons": [
+      { "name": "beak", "skill": 70, "damage": "1d8+2d6", "sr": 6 },
+      { "name": "fore-claw", "skill": 75, "damage": "2d6+2d6", "sr": 4 }
+    ],
+    "skills": { "dodge": 40, "listen": 70, "scan": 80 },
+    "conditions": [],
+    "runePoints": 0, "maxRunePoints": 0, "magicPoints": 14, "maxMagicPoints": 14,
+    "runeSpells": [], "spiritSpells": [],
+    "strikeRank": 4,
+    "note": "Flying creature; dive attack at +1d6 damage"
+  },
+  "centaur": {
+    "name": "Centaur",
+    "characteristics": { "str": 17, "con": 14, "siz": 26, "int": 12, "pow": 13, "dex": 14, "cha": 12 },
+    "hitLocations": {
+      "head":      { "hp": 5, "maxHp": 5, "armor": 3 },
+      "left-arm":  { "hp": 5, "maxHp": 5, "armor": 3 },
+      "right-arm": { "hp": 5, "maxHp": 5, "armor": 3 },
+      "chest":     { "hp": 7, "maxHp": 7, "armor": 4 },
+      "abdomen":   { "hp": 6, "maxHp": 6, "armor": 4 },
+      "horse-chest": { "hp": 8, "maxHp": 8, "armor": 3 },
+      "horse-abdomen": { "hp": 7, "maxHp": 7, "armor": 3 },
+      "left-front-leg":  { "hp": 5, "maxHp": 5, "armor": 2 },
+      "right-front-leg": { "hp": 5, "maxHp": 5, "armor": 2 },
+      "left-rear-leg":   { "hp": 5, "maxHp": 5, "armor": 2 },
+      "right-rear-leg":  { "hp": 5, "maxHp": 5, "armor": 2 }
+    },
+    "totalHp": 20,
+    "weapons": [
+      { "name": "spear", "skill": 70, "damage": "1d8+1+2d6", "sr": 5 },
+      { "name": "composite bow", "skill": 75, "damage": "1d8+2", "sr": 2, "range": "180m" },
+      { "name": "kick", "skill": 55, "damage": "1d8+2d6", "sr": 7 }
+    ],
+    "skills": { "dodge": 35, "listen": 60, "scan": 65, "track": 55 },
+    "conditions": [],
+    "runePoints": 2, "maxRunePoints": 2, "magicPoints": 13, "maxMagicPoints": 13,
+    "runeSpells": ["Bless Crops"],
+    "spiritSpells": ["Heal", "Protection"],
+    "strikeRank": 2
+  },
+  "minotaur": {
+    "name": "Minotaur",
+    "characteristics": { "str": 20, "con": 16, "siz": 23, "int": 7, "pow": 13, "dex": 12, "cha": 7 },
+    "hitLocations": {
+      "head":      { "hp": 6, "maxHp": 6, "armor": 3 },
+      "left-arm":  { "hp": 6, "maxHp": 6, "armor": 3 },
+      "right-arm": { "hp": 6, "maxHp": 6, "armor": 3 },
+      "chest":     { "hp": 8, "maxHp": 8, "armor": 5 },
+      "abdomen":   { "hp": 7, "maxHp": 7, "armor": 5 },
+      "left-leg":  { "hp": 6, "maxHp": 6, "armor": 3 },
+      "right-leg": { "hp": 6, "maxHp": 6, "armor": 3 }
+    },
+    "totalHp": 20,
+    "weapons": [
+      { "name": "great axe", "skill": 75, "damage": "2d8+2+2d6", "sr": 7 },
+      { "name": "gore (horns)", "skill": 60, "damage": "1d10+2d6", "sr": 5 }
+    ],
+    "skills": { "dodge": 25, "listen": 55, "scan": 50, "track": 65 },
+    "conditions": [],
+    "runePoints": 2, "maxRunePoints": 2, "magicPoints": 13, "maxMagicPoints": 13,
+    "runeSpells": ["Berserk"],
+    "spiritSpells": ["Strength", "Bladesharp"],
+    "strikeRank": 5
+  }
+}
