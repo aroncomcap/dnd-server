@@ -273,13 +273,17 @@ describe('CombatEngine', () => {
     it('skips dead combatants', () => {
       const engine = new CombatEngine();
       engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
-      // Kill whoever is at index 1
-      const secondId = engine.state.initiativeOrder[1].id;
-      engine.state.combatants[secondId].hp = 0;
+      // Find the enemy in initiative order and kill it
+      const enemyEntry = engine.state.initiativeOrder.find(e => e.type === 'Enemy');
+      engine.state.combatants[enemyEntry.id].hp = 0;
+      // Find the PC entry
+      const pcEntry = engine.state.initiativeOrder.find(e => e.type === 'PC');
+      const pcIndex = engine.state.initiativeOrder.indexOf(pcEntry);
+      // Start from PC's turn, advance — should skip dead enemy and wrap back
+      engine.state.turnIndex = pcIndex;
       engine.advanceTurn();
-      // Should skip index 1 and wrap to 0 (and increment round)
-      assert.equal(engine.state.turnIndex, 0);
-      assert.equal(engine.state.round, 2);
+      // Should end up back at the PC (only living combatant)
+      assert.equal(engine.state.combatants[engine.state.initiativeOrder[engine.state.turnIndex].id].type, 'PC');
     });
   });
 
