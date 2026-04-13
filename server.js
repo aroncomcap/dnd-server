@@ -1168,9 +1168,13 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
 
   let finalMessage;
   try {
+    // Lower temperature for terse/brief = more instruction-following, less creative wandering
+    const temperature = gs.verbosity === 'terse' ? 0.3 : gs.verbosity === 'brief' ? 0.6 : 1.0;
+
     const stream = await anthropic.messages.stream({
       model,
       max_tokens: maxTokens,
+      temperature,
       system: [{ type: "text", text: finalSystemPrompt, cache_control: { type: "ephemeral" } }],
       messages: messagesWithCombat,
     });
