@@ -82,7 +82,18 @@ socket.on('character_registered', (data) => {
 });
 
 socket.on('party_generated', () => {
-  setTimeout(analyzePartyAndStart, 3000);
+  console.log('   Party generated, waiting for stats parsing...');
+});
+
+socket.on('party_ready', (data) => {
+  console.log(`   Stats parsed: ${data.statsParsed} characters`);
+  // Merge combatStats into character data
+  if (data.combatStats) {
+    for (const [name, stats] of Object.entries(data.combatStats)) {
+      if (characters[name]) characters[name].combatStats = stats;
+    }
+  }
+  analyzePartyAndStart();
 });
 
 function analyzePartyAndStart() {

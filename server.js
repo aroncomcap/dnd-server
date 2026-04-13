@@ -2320,18 +2320,27 @@ io.on('connection', (socket) => {
       const direction = (data && data.direction) ? truncate(data.direction, 500) : '';
       const result = await gameEngine.generateParty(gameId, direction);
       socket.emit('party_generated', { count: result.count });
-      // Auto-parse combatStats for the encounter designer
+      // Auto-parse combatStats for the encounter designer (async, emits party_ready when done)
       const gs = getGameState(gameId);
       const gameConfig = await db.getGame(gameId);
       const system = gameConfig?.system || 'dnd5e';
+      let parsed = 0;
       for (const [name, char] of Object.entries(gs.data.characters)) {
         if (!char.combatStats && char.statsText) {
           try {
             char.combatStats = await parseStatsText(char.statsText, system, { anthropic });
             db.upsertCharacter(gameId, name, char).catch(() => {});
+            parsed++;
           } catch (e) { console.error(`Auto-parse combatStats for ${name}:`, e.message); }
         }
       }
+      console.log(`Parsed combatStats for ${parsed} characters in ${gameId}`);
+      // Include parsed combatStats so clients can analyze party power
+      const charStats = {};
+      for (const [name, char] of Object.entries(gs.data.characters)) {
+        if (char.combatStats) charStats[name] = char.combatStats;
+      }
+      io.to(gameId).emit('party_ready', { count: result.count, statsParsed: parsed, combatStats: charStats });
     } catch (err) {
       console.error('Party generation failed:', err.message);
       socket.emit('party_gen_failed', { error: err.message });
