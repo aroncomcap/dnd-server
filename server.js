@@ -1176,7 +1176,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   // Token limits: combat narration needs fewer tokens (just describing pre-resolved results)
   let maxTokens;
   if (combatActive) {
-    maxTokens = gs.verbosity === 'terse' ? 350 : gs.verbosity === 'brief' ? 550 : 1500;
+    maxTokens = gs.verbosity === 'terse' ? 600 : gs.verbosity === 'brief' ? 800 : 1500;
   } else {
     maxTokens = gs.verbosity === 'terse' ? 700 : gs.verbosity === 'brief' ? 1000 : 2500;
   }
