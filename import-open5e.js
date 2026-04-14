@@ -86,7 +86,7 @@ function parseActions(creature) {
 
     // Look for attack bonus and damage in description
     const attackMatch = desc.match(/(\+\d+) to hit/i);
-    const damageMatch = desc.match(/(\d+d\d+(?:\s*[+-]\s*\d+)?)\s+(\w+)\s+damage/i);
+    const damageMatch = desc.match(/(\d+d\d+(?:\s*[+-]\s*\d+)?)\)?\s+(\w+)\s+damage/i);
 
     if (attackMatch && damageMatch) {
       const attackBonus = parseInt(attackMatch[1]);
@@ -184,7 +184,7 @@ function transformCreature(creature) {
 
   const hp = creature.hit_points || 1;
   const ac = creature.armor_class || 10;
-  const cr = parseCR(creature.challenge_rating);
+  const cr = parseCR(creature.challenge_rating_decimal ?? creature.challenge_rating_text ?? creature.challenge_rating ?? 0);
 
   return {
     name: creature.name,
@@ -316,9 +316,16 @@ async function fetchAllCreatures(source) {
     process.exit(0);
   }
 
+  // Convert array to slug-keyed object
+  const slugged = {};
+  for (const monster of transformed) {
+    const slug = monster.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    slugged[slug] = monster;
+  }
+
   // Write output
   try {
-    fs.writeFileSync(outPath, JSON.stringify(transformed, null, 2));
+    fs.writeFileSync(outPath, JSON.stringify(slugged, null, 2));
     console.log(`  Written to: monsters/monsters-${source}.json`);
   } catch (err) {
     console.error(`  Write error: ${err.message}`);
