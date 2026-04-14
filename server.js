@@ -291,7 +291,16 @@ You are a master storyteller in the tradition of great fantasy literature. Your 
 
   const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
 
-  const encounterPlanLine = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
+  let encounterPlanLineFull = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
+  if (gs._pendingChallenge) {
+    const ch = gs._pendingChallenge;
+    if (ch.pillar === 'social') {
+      encounterPlanLineFull += ` URGENT: Present a social challenge NOW (DC ${ch.dc}).`;
+    } else if (ch.pillar === 'exploration') {
+      encounterPlanLineFull += ` URGENT: Present a trap/puzzle NOW (DC ${ch.dc}).`;
+    }
+  }
+  const encounterPlanLine = encounterPlanLineFull;
 
   const npcMemoryLines = Object.values(gs.npcMemory || {})
     .filter(npc => npc.encounters?.length > 0)
@@ -585,7 +594,18 @@ ${catchphrases}
   const pillarsLine = `Pillars: E${gs.pillars?.exploration ?? 33}/C${gs.pillars?.combat ?? 33}/S${gs.pillars?.social ?? 34}. Include skill checks every 1-2 actions.`;
 
   // Compact encounter + NPC context (only include if relevant)
-  const encounterPlanLine = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
+  let encounterPlanLine = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
+
+  // If there's a pending challenge from the encounter plan, inject it as an urgent directive
+  if (gs._pendingChallenge) {
+    const ch = gs._pendingChallenge;
+    if (ch.pillar === 'social') {
+      encounterPlanLine += ` URGENT: Present a social challenge NOW (DC ${ch.dc}, ${ch.successesNeeded} successes before ${ch.maxFailures} failures). An NPC should confront, negotiate with, or question the party.`;
+    } else if (ch.pillar === 'exploration') {
+      encounterPlanLine += ` URGENT: Present a trap, puzzle, or exploration challenge NOW (DC ${ch.dc}). The environment should pose an immediate obstacle.`;
+    }
+    gs._pendingChallenge = null; // Consumed
+  }
 
   const npcMemoryEntries = Object.values(gs.npcMemory || {}).filter(npc => npc.encounters?.length > 0).slice(0, 3);
   const npcMemoryBlockTrimmed = npcMemoryEntries.length > 0
@@ -1646,6 +1666,41 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
         initiateCombat(gameId, gameConfig, enemies).catch(e => console.error('Auto-combat init error:', e));
       }
     }
+  }
+
+  // Path 3: Encounter plan enforcement — if plan says next encounter should happen, force it
+  if (!gs.combatEngine.state.active && gs.encounterPlan) {
+    if (!gs._turnsSinceLastEncounter) gs._turnsSinceLastEncounter = 0;
+    gs._turnsSinceLastEncounter++;
+
+    const nextEnc = gs.encounterPlan.encounters.find(
+      (e, i) => i >= (gs.encounterPlanIndex || 0) && !e.completed && !e.rest
+    );
+
+    // After 3 turns of exploration, force the next planned encounter
+    if (nextEnc && gs._turnsSinceLastEncounter >= 3) {
+      if (nextEnc.pillar === 'combat' && nextEnc.monsters?.length > 0) {
+        console.log(`[encounter-plan] Forcing combat encounter after ${gs._turnsSinceLastEncounter} exploration turns`);
+        const enemies = nextEnc.monsters.map(m => ({
+          displayName: m.name || m.displayName, count: m.count, slug: m.slug, hint: null,
+        }));
+        initiateCombat(gameId, gameConfig, enemies).catch(e => console.error('Forced combat init error:', e));
+        gs._turnsSinceLastEncounter = 0;
+        nextEnc.completed = true;
+        gs.encounterPlanIndex = (gs.encounterPlanIndex || 0) + 1;
+      } else if (nextEnc.pillar === 'social' || nextEnc.pillar === 'exploration') {
+        // Inject challenge guidance into next prompt via game state
+        gs._pendingChallenge = nextEnc;
+        gs._turnsSinceLastEncounter = 0;
+        nextEnc.completed = true;
+        gs.encounterPlanIndex = (gs.encounterPlanIndex || 0) + 1;
+      }
+    }
+  }
+
+  // Reset encounter counter when combat starts or ends
+  if (gs.combatEngine.state.active) {
+    gs._turnsSinceLastEncounter = 0;
   }
 
   // Pre-parse options for next combat turn
