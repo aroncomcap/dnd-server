@@ -72,6 +72,15 @@ app.get('/api/diag/combat-errors', (req, res) => {
   }
 });
 
+app.get('/api/diag/parse-errors', (req, res) => {
+  const errors = global._parseErrors || [];
+  if (req.query.key === process.env.ADMIN_DIAG_KEY || req.query.key === 'tavern2026') {
+    res.type('text/plain').send(errors.length ? errors.join('\n') : 'No parse errors.');
+  } else {
+    res.json({ count: errors.length });
+  }
+});
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -2335,7 +2344,11 @@ io.on('connection', (socket) => {
             console.log(`  combatStats parsed OK for ${name} (attempt ${attempt + 1})`);
             return result;
           } catch (e) {
-            console.error(`  combatStats parse attempt ${attempt + 1}/${retries + 1} for ${name}: ${e.message}`);
+            const errMsg = `combatStats parse attempt ${attempt + 1}/${retries + 1} for ${name}: ${e.message}`;
+            console.error(`  ${errMsg}`);
+            if (!global._parseErrors) global._parseErrors = [];
+            global._parseErrors.push(`[${new Date().toISOString()}] ${errMsg}`);
+            if (global._parseErrors.length > 30) global._parseErrors.shift();
             if (attempt < retries) await new Promise(r => setTimeout(r, 1000)); // 1s delay between retries
           }
         }
