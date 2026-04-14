@@ -2331,17 +2331,23 @@ io.on('connection', (socket) => {
       async function parseWithRetry(name, char, retries) {
         for (let attempt = 0; attempt <= retries; attempt++) {
           try {
-            return await parseStatsText(char.statsText, system, { anthropic });
+            const result = await parseStatsText(char.statsText, system, { anthropic });
+            console.log(`  combatStats parsed OK for ${name} (attempt ${attempt + 1})`);
+            return result;
           } catch (e) {
-            if (attempt === retries) console.error(`combatStats parse failed for ${name} after ${retries + 1} attempts:`, e.message);
+            console.error(`  combatStats parse attempt ${attempt + 1}/${retries + 1} for ${name}: ${e.message}`);
+            if (attempt < retries) await new Promise(r => setTimeout(r, 1000)); // 1s delay between retries
           }
         }
         return null;
       }
 
       const entries = Object.entries(gs.data.characters).filter(([, c]) => !c.combatStats && c.statsText);
+      // Stagger start times slightly to avoid API rate limits
       const results2 = await Promise.allSettled(
-        entries.map(([name, char]) => parseWithRetry(name, char, 2))
+        entries.map(([name, char], i) =>
+          new Promise(r => setTimeout(r, i * 500)).then(() => parseWithRetry(name, char, 2))
+        )
       );
 
       let parsed = 0;
