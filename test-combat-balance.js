@@ -30,6 +30,7 @@ let characters = {}, gameStarted = false, gameCreated = false;
 let combatsCompleted = 0, challengesCompleted = 0;
 let inCombat = false, combatStartTurn = 0, combatWords = 0;
 let consecutiveFailures = 0, reconnectCount = 0;
+let combatIndicatorCount = 0, noCombatCount = 0;
 
 console.log(`\n⚔️  Combat Balance Test — ${TARGET_COMBATS} combats + ${TARGET_CHALLENGES} challenges (terse)`);
 console.log(`   Server: ${SERVER_URL}`);
@@ -151,8 +152,16 @@ function analyzePartyAndStart() {
 
 socket.on('dm_stream_start', () => {});
 
+// Engine events kept as bonus detection path
 socket.on('combat_started', (data) => {
-  if (!inCombat) { inCombat = true; combatStartTurn = turnCount; combatWords = 0; }
+  if (!inCombat) {
+    inCombat = true;
+    combatStartTurn = turnCount;
+    combatWords = 0;
+    combatIndicatorCount = 1;
+    noCombatCount = 0;
+    console.log(`\n   ⚔️  Combat started (engine event) at turn ${turnCount}`);
+  }
 });
 
 socket.on('combat_ended', (data) => {
@@ -162,11 +171,13 @@ socket.on('combat_ended', (data) => {
     results.combats.push({
       num: combatsCompleted, rounds,
       words: Math.round(combatWords / Math.max(1, rounds)),
-      reason: data.reason || 'unknown',
+      reason: data.reason || 'engine-event',
     });
     inCombat = false;
+    combatIndicatorCount = 0;
+    noCombatCount = 0;
     const roundsOk = rounds >= 2 && rounds <= 6 ? '✅' : '⚠️';
-    console.log(`   Combat #${combatsCompleted}: ${rounds} rounds ${roundsOk} | avg ${results.combats[results.combats.length - 1].words} words/turn | ${data.reason || ''}`);
+    console.log(`\n   Combat #${combatsCompleted}: ${rounds} rounds ${roundsOk} | avg ${results.combats[results.combats.length - 1].words} words/turn | ${data.reason || ''}`);
   }
 });
 
@@ -177,9 +188,41 @@ socket.on('dm_message', (data) => {
   const wordCount = (data.text || '').split(/\s+/).filter(Boolean).length;
   if (inCombat) combatWords += wordCount;
 
-  // Detect challenges
-  const hasCheck = /(?:DC\s*\d|check|saving throw|persuasion|investigation|perception|stealth|athletics)/i.test(data.text || '');
-  if (hasCheck && !inCombat) {
+  // ── Combat detection from narration ──────────────────────────────────────
+  const hasCombatKeywords = /(?:TURN_ORDER|initiative|🎲|d20\+|rolls?\s+\d+|HIT!|MISS!|(?:\d+)\s*(?:slashing|piercing|bludgeoning|fire|cold|necrotic|radiant)\s*damage|HP[:\s]*\d+)/i.test(data.text || '');
+
+  if (hasCombatKeywords && !inCombat) {
+    combatIndicatorCount++;
+    if (combatIndicatorCount >= 1) { // Even 1 turn with dice/damage = combat
+      inCombat = true;
+      combatStartTurn = turnCount;
+      combatWords = wordCount; // Include this turn's words
+      noCombatCount = 0;
+      console.log(`\n   ⚔️  Combat detected at turn ${turnCount}`);
+    }
+  } else if (!hasCombatKeywords && inCombat) {
+    noCombatCount++;
+    if (noCombatCount >= 2) { // 2 turns without combat = combat ended
+      combatsCompleted++;
+      const rounds = turnCount - combatStartTurn - noCombatCount;
+      results.combats.push({
+        num: combatsCompleted, rounds: Math.max(1, rounds),
+        words: Math.round(combatWords / Math.max(1, rounds)),
+        reason: 'narration-detected',
+      });
+      const roundsOk = rounds >= 2 && rounds <= 6 ? '✅' : '⚠️';
+      console.log(`\n   Combat #${combatsCompleted}: ${Math.max(1, rounds)} rounds ${roundsOk} | avg ${results.combats[results.combats.length - 1].words} words/turn`);
+      inCombat = false;
+      combatIndicatorCount = 0;
+      noCombatCount = 0;
+    }
+  } else if (hasCombatKeywords && inCombat) {
+    noCombatCount = 0; // Reset non-combat counter
+  }
+
+  // ── Challenge detection from narration ───────────────────────────────────
+  const hasChallengeKeywords = /(?:DC\s*\d+|skill check|saving throw|ability check|rolls?\s+(?:perception|investigation|stealth|athletics|persuasion|arcana|deception|insight|survival|nature|medicine|religion|history|performance|intimidation|acrobatics|sleight))/i.test(data.text || '');
+  if (hasChallengeKeywords && !inCombat) {
     challengesCompleted++;
     const dcMatch = (data.text || '').match(/DC\s*(\d+)/i);
     results.challenges.push({ num: challengesCompleted, dc: dcMatch ? parseInt(dcMatch[1]) : 0, words: wordCount });
