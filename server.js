@@ -1259,9 +1259,17 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
 
       let parsedAction = parseAction(actionText, playerId, combatCtx);
       if (!parsedAction) {
-        try {
-          parsedAction = await parseActionWithAI(actionText, playerId, combatCtx, anthropic);
-        } catch (e) { console.error('Action parse AI error:', e.message); }
+        // Default: attack the first living enemy with primary weapon
+        const enemies = Object.values(gs.combatEngine.state.combatants).filter(c => c.type === 'Enemy' && (c.hp > 0 || (c.totalHp && c.totalHp > 0)));
+        const attacker = gs.combatEngine.state.combatants[playerId];
+        if (enemies.length > 0 && attacker) {
+          parsedAction = {
+            type: 'attack',
+            attackerId: playerId,
+            targetId: enemies[0].id,
+            weapon: attacker.weapons?.[0]?.name,
+          };
+        }
       }
 
       if (parsedAction) {
@@ -1601,19 +1609,40 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   if (parsed.world?.enemies?.length > 0 && !gs.combatEngine.state.active) {
     initiateCombat(gameId, gameConfig, parsed.world.enemies).catch(e => console.error('Combat init error:', e));
   }
-  // Path 2: AI narrates combat without ENEMIES: block — auto-inject from encounter plan
-  if (!gs.combatEngine.state.active && !parsed.world?.enemies?.length && gs.encounterPlan) {
-    const combatKeywords = /(?:initiative|roll for initiative|combat begins|attacks?|charges?|ambush|lunges?|strikes?|draws? (?:its |their )?(?:sword|weapon|blade|axe|bow))/i;
+  // Path 2: AI narrates combat without ENEMIES: block — server takes over
+  if (!gs.combatEngine.state.active && !parsed.world?.enemies?.length) {
+    const combatKeywords = /(?:initiative|roll for initiative|combat begins|attacks?\s|charges?\s|ambush|lunges?\s|strikes?\s|draws? (?:its |their )?(?:sword|weapon|blade|axe|bow)|(?:goblin|orc|skeleton|zombie|wolf|rat|bandit|dragon|troll|ogre|spider)s?\s+(?:attack|lunge|charge|appear|emerge|burst|leap))/i;
     if (combatKeywords.test(parsed.narration || '')) {
-      // Find next pending combat encounter in the plan
-      const nextCombat = gs.encounterPlan.encounters.find(
-        (e, i) => i >= (gs.encounterPlanIndex || 0) && e.pillar === 'combat' && !e.completed && !e.rest
-      );
-      if (nextCombat?.monsters?.length > 0) {
-        console.log(`[auto-combat] Detected combat narration, injecting ${nextCombat.monsters.length} monster groups from encounter plan`);
-        const enemies = nextCombat.monsters.map(m => ({
-          displayName: m.name, count: m.count, slug: m.slug, hint: null,
-        }));
+      // Try encounter plan first
+      let enemies = null;
+      if (gs.encounterPlan) {
+        const nextCombat = gs.encounterPlan.encounters.find(
+          (e, i) => i >= (gs.encounterPlanIndex || 0) && e.pillar === 'combat' && !e.completed && !e.rest
+        );
+        if (nextCombat?.monsters?.length > 0) {
+          enemies = nextCombat.monsters.map(m => ({
+            displayName: m.name || m.displayName, count: m.count, slug: m.slug, hint: null,
+          }));
+        }
+      }
+
+      // Fallback: extract monster names from narration and look them up
+      if (!enemies) {
+        const monsterDB = require('./monster-lookup').loadDefaultMonsters(gameConfig.system || 'dnd5e');
+        const monsterSlugs = Object.keys(monsterDB);
+        const found = [];
+        for (const slug of monsterSlugs) {
+          const name = monsterDB[slug].name;
+          if (name && new RegExp('\\b' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + 's?\\b', 'i').test(parsed.narration)) {
+            found.push({ displayName: name, count: 1, slug, hint: null });
+          }
+        }
+        // Pick up to 4 unique monsters mentioned
+        if (found.length > 0) enemies = found.slice(0, 4);
+      }
+
+      if (enemies?.length > 0) {
+        console.log(`[auto-combat] Server taking over combat: ${enemies.map(e => `${e.count}x ${e.displayName}`).join(', ')}`);
         initiateCombat(gameId, gameConfig, enemies).catch(e => console.error('Auto-combat init error:', e));
       }
     }
