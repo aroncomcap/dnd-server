@@ -6,10 +6,13 @@ const fs = require('fs');
 // ── In-memory cache ──────────────────────────────────────────────────────────
 const cache = {};
 
-// System slug → JSON filename mapping
+// System slug → JSON filename mapping (primary + overlay with personality data)
 const SYSTEM_FILES = {
-  dnd5e:      'monsters-5e-srd.json',
+  dnd5e:      'monsters-srd-2014.json',   // 321 SRD creatures from Open5e
   runequest:  'monsters-rq-core.json',
+};
+const OVERLAY_FILES = {
+  dnd5e:      'monsters-5e-srd.json',     // 84 hand-built with personality/tactics/morale
 };
 
 /**
@@ -25,9 +28,34 @@ function loadDefaultMonsters(system) {
     throw new Error(`Unknown system: ${system}. Supported: ${Object.keys(SYSTEM_FILES).join(', ')}`);
   }
 
+  // Load base monsters (Open5e import — stats only)
   const filePath = path.join(__dirname, 'monsters', filename);
-  const raw = fs.readFileSync(filePath, 'utf8');
-  cache[system] = JSON.parse(raw);
+  const base = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+  // Merge overlay if exists (hand-built personality/tactics/morale data)
+  const overlayFile = OVERLAY_FILES[system];
+  if (overlayFile) {
+    try {
+      const overlayPath = path.join(__dirname, 'monsters', overlayFile);
+      const overlay = JSON.parse(fs.readFileSync(overlayPath, 'utf8'));
+      for (const [slug, data] of Object.entries(overlay)) {
+        if (base[slug]) {
+          // Overlay has personality data — merge it onto the base stats
+          if (data.personality) base[slug].personality = data.personality;
+          if (data.combatStyle) base[slug].combatStyle = data.combatStyle;
+          if (data.tactics) base[slug].tactics = data.tactics;
+          if (data.morale) base[slug].morale = data.morale;
+        } else {
+          // Overlay has a monster not in base — add it entirely
+          base[slug] = data;
+        }
+      }
+    } catch (e) {
+      // Overlay file missing or invalid — proceed with base only
+    }
+  }
+
+  cache[system] = base;
   return cache[system];
 }
 
