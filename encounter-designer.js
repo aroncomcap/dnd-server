@@ -825,7 +825,11 @@ function formatPlanForPrompt(plan, currentIndex) {
     const hp  = next.totalMonsterHP || 0;
     const rnd = next.estimatedRounds || '?';
     const diffLabel = FEROCITY[next.ferocity] ? FEROCITY[next.ferocity].label : 'Unknown';
-    nextDesc = `Next: COMBAT (${diffLabel}). Monsters: ${monsterStr || 'TBD'} (~${hp} HP, est. ${rnd} rounds).`;
+    // Provide the exact ENEMIES format the AI should output
+    const enemiesBlock = (next.monsters || [])
+      .map(m => `- ${m.displayName || m.name} | ${m.count} | ${m.slug}`)
+      .join('\n');
+    nextDesc = `Next: COMBAT (${diffLabel}). Monsters: ${monsterStr || 'TBD'} (~${hp} HP, est. ${rnd} rounds). When you introduce this combat, include this EXACT block in ---WORLD---:\nENEMIES:\n${enemiesBlock}`;
   } else if (next.pillar === 'social') {
     nextDesc = `Next: SOCIAL (${next.type}, DC ${next.dc}, ${next.successesNeeded} successes/${next.maxFailures} failures).`;
   } else {

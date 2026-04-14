@@ -1276,10 +1276,9 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
       if (!global._combatErrors) global._combatErrors = [];
       global._combatErrors.push(errDetail);
       if (global._combatErrors.length > 50) global._combatErrors.shift();
-      combatContext = '';
-      // End combat gracefully so we don't keep crashing
-      gs.combatEngine.endCombat();
-      io.to(gameId).emit('combat_ended', { reason: 'error' });
+      // Don't end combat — just skip engine resolution for this turn and let AI narrate
+      // The engine state is preserved so it can retry next turn
+      combatContext = '\n\n[Server combat engine encountered an error this turn. Narrate this combat turn normally using dice rolls.]';
     }
   }
 
@@ -1514,9 +1513,27 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     }
   }
 
-  // Initiate combat if ENEMIES detected
+  // Initiate combat — two paths:
+  // Path 1: AI outputs formal ENEMIES: block (ideal)
   if (parsed.world?.enemies?.length > 0 && !gs.combatEngine.state.active) {
     initiateCombat(gameId, gameConfig, parsed.world.enemies).catch(e => console.error('Combat init error:', e));
+  }
+  // Path 2: AI narrates combat without ENEMIES: block — auto-inject from encounter plan
+  if (!gs.combatEngine.state.active && !parsed.world?.enemies?.length && gs.encounterPlan) {
+    const combatKeywords = /(?:initiative|roll for initiative|combat begins|attacks?|charges?|ambush|lunges?|strikes?|draws? (?:its |their )?(?:sword|weapon|blade|axe|bow))/i;
+    if (combatKeywords.test(parsed.narration || '')) {
+      // Find next pending combat encounter in the plan
+      const nextCombat = gs.encounterPlan.encounters.find(
+        (e, i) => i >= (gs.encounterPlanIndex || 0) && e.pillar === 'combat' && !e.completed && !e.rest
+      );
+      if (nextCombat?.monsters?.length > 0) {
+        console.log(`[auto-combat] Detected combat narration, injecting ${nextCombat.monsters.length} monster groups from encounter plan`);
+        const enemies = nextCombat.monsters.map(m => ({
+          displayName: m.name, count: m.count, slug: m.slug, hint: null,
+        }));
+        initiateCombat(gameId, gameConfig, enemies).catch(e => console.error('Auto-combat init error:', e));
+      }
+    }
   }
 
   // Pre-parse options for next combat turn
