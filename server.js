@@ -21,6 +21,80 @@ const { parseStatsText } = require('./stat-parser');
 const { getMonsterStats } = require('./monster-lookup');
 const ed = require('./encounter-designer');
 
+// ── Local stats parser (regex-based, no AI call) ─────────────────────────────
+function parseStatsLocal(statsText) {
+  if (!statsText || statsText.length < 20) return null;
+  const text = statsText;
+
+  // Level
+  const levelMatch = text.match(/level\s+(\d+)/i);
+  const level = levelMatch ? parseInt(levelMatch[1]) : 1;
+
+  // HP
+  const hpMatch = text.match(/HP[:\s]*(\d+)/i) || text.match(/Hit Points[:\s]*(\d+)/i);
+  const hp = hpMatch ? parseInt(hpMatch[1]) : null;
+
+  // AC
+  const acMatch = text.match(/AC[:\s]*(\d+)/i) || text.match(/Armor Class[:\s]*(\d+)/i);
+  const ac = acMatch ? parseInt(acMatch[1]) : null;
+
+  // Abilities — match patterns like "STR 16" or "STR: 16" or "Strength 16"
+  const abilities = {};
+  const abilityNames = { str: /STR(?:ength)?[:\s]*(\d+)/i, dex: /DEX(?:terity)?[:\s]*(\d+)/i, con: /CON(?:stitution)?[:\s]*(\d+)/i, int: /INT(?:elligence)?[:\s]*(\d+)/i, wis: /WIS(?:dom)?[:\s]*(\d+)/i, cha: /CHA(?:risma)?[:\s]*(\d+)/i };
+  for (const [key, regex] of Object.entries(abilityNames)) {
+    const m = text.match(regex);
+    abilities[key] = m ? parseInt(m[1]) : 10;
+  }
+
+  // Speed
+  const speedMatch = text.match(/Speed[:\s]*(\d+)/i);
+  const speed = speedMatch ? parseInt(speedMatch[1]) : 30;
+
+  // Proficiency bonus
+  const profMatch = text.match(/Proficiency[:\s]*\+?(\d+)/i);
+  const proficiencyBonus = profMatch ? parseInt(profMatch[1]) : (level < 5 ? 2 : level < 9 ? 3 : level < 13 ? 4 : level < 17 ? 5 : 6);
+
+  // Weapons — look for weapon names with damage dice
+  const weapons = [];
+  const weaponRegex = /(\w[\w\s]*?)\s*\((\d+d\d+(?:\s*[+-]\s*\d+)?)\s*(\w+)?\)/gi;
+  let wm;
+  while ((wm = weaponRegex.exec(text)) !== null) {
+    const name = wm[1].trim().toLowerCase();
+    if (/^(?:level|hp|ac|str|dex|con|int|wis|cha|speed)/i.test(name)) continue;
+    const strMod = Math.floor((abilities.str - 10) / 2);
+    const dexMod = Math.floor((abilities.dex - 10) / 2);
+    const finesse = /rapier|dagger|shortsword|scimitar/i.test(name);
+    const ranged = /bow|sling|dart|javelin/i.test(name);
+    weapons.push({
+      name,
+      attackMod: (finesse || ranged) ? 'dex' : 'str',
+      damage: wm[2].replace(/\s+/g, ''),
+      damageType: (wm[3] || 'bludgeoning').toLowerCase(),
+      properties: finesse ? ['finesse'] : ranged ? ['ranged'] : [],
+    });
+  }
+
+  // Features
+  const features = [];
+  if (/extra attack/i.test(text)) features.push('Extra Attack');
+  if (/sneak attack\s*(\d+d\d+)/i.test(text)) features.push(text.match(/sneak attack\s*(\d+d\d+)/i)[0]);
+  if (/multiattack/i.test(text)) features.push('Multiattack');
+  if (/action surge/i.test(text)) features.push('Action Surge');
+  if (/channel divinity/i.test(text)) features.push('Channel Divinity');
+
+  if (!hp && !ac) return null; // Not enough data to be useful
+
+  return {
+    system: 'dnd5e', level, ac: ac || 10, hp: hp || 10, maxHp: hp || 10, speed,
+    abilities, proficiencyBonus, saveProficiencies: [],
+    weapons: weapons.length ? weapons : [{ name: 'unarmed', attackMod: 'str', damage: '1d4', damageType: 'bludgeoning', properties: [] }],
+    spells: [], spellSlots: {}, spellcastingAbility: null,
+    features, conditions: [], concentrating: null,
+    deathSaves: { successes: 0, failures: 0 }, inspiration: false,
+    resistances: [], vulnerabilities: [], immunities: [],
+  };
+}
+
 const DEPLOY_TIME = new Date().toISOString();
 
 function truncate(str, max) { return str ? String(str).slice(0, max) : ''; }
@@ -2332,53 +2406,33 @@ io.on('connection', (socket) => {
       const direction = (data && data.direction) ? truncate(data.direction, 500) : '';
       const result = await gameEngine.generateParty(gameId, direction);
       socket.emit('party_generated', { count: result.count });
-      // Auto-parse combatStats in parallel with retries
+
+      // COMBAT_JSON is now parsed directly during party generation (no separate Haiku calls needed)
       const gs = getGameState(gameId);
-      const gameConfig = await db.getGame(gameId);
-      const system = gameConfig?.system || 'dnd5e';
-
-      async function parseWithRetry(name, char, retries) {
-        for (let attempt = 0; attempt <= retries; attempt++) {
-          try {
-            const result = await parseStatsText(char.statsText, system, { anthropic });
-            console.log(`  combatStats parsed OK for ${name} (attempt ${attempt + 1})`);
-            return result;
-          } catch (e) {
-            const errMsg = `combatStats parse attempt ${attempt + 1}/${retries + 1} for ${name}: ${e.message}`;
-            console.error(`  ${errMsg}`);
-            if (!global._parseErrors) global._parseErrors = [];
-            global._parseErrors.push(`[${new Date().toISOString()}] ${errMsg}`);
-            if (global._parseErrors.length > 30) global._parseErrors.shift();
-            if (attempt < retries) await new Promise(r => setTimeout(r, 1000)); // 1s delay between retries
-          }
-        }
-        return null;
-      }
-
-      const entries = Object.entries(gs.data.characters).filter(([, c]) => !c.combatStats && c.statsText);
-      // Stagger start times slightly to avoid API rate limits
-      const results2 = await Promise.allSettled(
-        entries.map(([name, char], i) =>
-          new Promise(r => setTimeout(r, i * 500)).then(() => parseWithRetry(name, char, 2))
-        )
-      );
-
-      let parsed = 0;
-      for (let i = 0; i < entries.length; i++) {
-        const [name, char] = entries[i];
-        if (results2[i].status === 'fulfilled' && results2[i].value) {
-          char.combatStats = results2[i].value;
-          db.upsertCharacter(gameId, name, char).catch(() => {});
-          parsed++;
-        }
-      }
-      console.log(`Parsed combatStats for ${parsed}/${entries.length} characters in ${gameId}`);
-
+      let withStats = 0;
       const charStats = {};
       for (const [name, char] of Object.entries(gs.data.characters)) {
-        if (char.combatStats) charStats[name] = char.combatStats;
+        if (char.combatStats) {
+          charStats[name] = char.combatStats;
+          withStats++;
+        }
       }
-      io.to(gameId).emit('party_ready', { count: result.count, statsParsed: parsed, combatStats: charStats });
+      console.log(`Party generated: ${result.count} characters, ${withStats} with combatStats (from COMBAT_JSON)`);
+
+      // Fallback: for characters missing combatStats, try regex-based local parsing
+      for (const [name, char] of Object.entries(gs.data.characters)) {
+        if (!char.combatStats && char.statsText) {
+          const parsed = parseStatsLocal(char.statsText);
+          if (parsed) {
+            char.combatStats = parsed;
+            charStats[name] = parsed;
+            withStats++;
+            db.upsertCharacter(gameId, name, char).catch(() => {});
+          }
+        }
+      }
+
+      io.to(gameId).emit('party_ready', { count: result.count, statsParsed: withStats, combatStats: charStats });
     } catch (err) {
       console.error('Party generation failed:', err.message);
       socket.emit('party_gen_failed', { error: err.message });
@@ -3187,9 +3241,12 @@ For each character, output in this EXACT format (generate the number of characte
 ---CHARACTER---
 NAME: [A fitting fantasy name]
 STATS: [Full stat block as a single text block — include level, race, class, HP, ability scores, AC, speed, proficiencies, equipment, spells if any, class features]
+COMBAT_JSON: {"level":N,"ac":N,"hp":N,"maxHp":N,"speed":30,"abilities":{"str":N,"dex":N,"con":N,"int":N,"wis":N,"cha":N},"proficiencyBonus":N,"saveProficiencies":["str","con"],"weapons":[{"name":"longsword","attackMod":"str","damage":"1d8","damageType":"slashing","properties":[]}],"spells":[],"spellSlots":{},"spellcastingAbility":null,"features":[]}
 PERSONALITY: [2-3 sentences — personality traits, ideals, bonds, flaws]
 ACTIONS: [Comma-separated standard actions: e.g., Attack with longsword, Cast Fireball, Dodge, Help ally]
 BACKSTORY: [3-4 sentences — origin, motivation, how they joined the party]
+
+IMPORTANT: COMBAT_JSON must be a single line of valid JSON with accurate numbers from the STATS block. Include ALL weapons and spells the character has. For spellcasters, include spellcastingAbility ("int"/"wis"/"cha"), spellSlots (e.g. {"1":4,"2":3,"3":2}), and spells with damage/healing info.
 
 Generate the characters now.`;
 
@@ -3208,12 +3265,32 @@ Generate the characters now.`;
 
     for (const block of charBlocks) {
       const nameMatch = block.match(/NAME:\s*(.+)/i);
-      const statsMatch = block.match(/STATS:\s*([\s\S]*?)(?=PERSONALITY:|$)/i);
+      const statsMatch = block.match(/STATS:\s*([\s\S]*?)(?=COMBAT_JSON:|PERSONALITY:|$)/i);
+      const combatJsonMatch = block.match(/COMBAT_JSON:\s*(\{[\s\S]*?\})\s*(?=PERSONALITY:|$)/i);
       const personalityMatch = block.match(/PERSONALITY:\s*([\s\S]*?)(?=ACTIONS:|$)/i);
       const actionsMatch = block.match(/ACTIONS:\s*([\s\S]*?)(?=BACKSTORY:|$)/i);
       const backstoryMatch = block.match(/BACKSTORY:\s*([\s\S]*?)(?=---CHARACTER---|$)/i);
 
       if (!nameMatch) continue;
+
+      // Parse COMBAT_JSON if present
+      let combatStats = null;
+      if (combatJsonMatch) {
+        try {
+          combatStats = JSON.parse(combatJsonMatch[1].trim());
+          combatStats.system = system;
+          // Apply defaults for missing fields
+          if (!combatStats.conditions) combatStats.conditions = [];
+          if (!combatStats.concentrating) combatStats.concentrating = null;
+          if (!combatStats.deathSaves) combatStats.deathSaves = { successes: 0, failures: 0 };
+          if (!combatStats.inspiration) combatStats.inspiration = false;
+          if (!combatStats.resistances) combatStats.resistances = [];
+          if (!combatStats.vulnerabilities) combatStats.vulnerabilities = [];
+          if (!combatStats.immunities) combatStats.immunities = [];
+        } catch (e) {
+          console.error(`Failed to parse COMBAT_JSON for ${nameMatch[1].trim()}: ${e.message}`);
+        }
+      }
 
       const name = nameMatch[1].trim();
       const charData = {
@@ -3221,6 +3298,7 @@ Generate the characters now.`;
         personality: (personalityMatch?.[1] || '').trim(),
         standardActions: (actionsMatch?.[1] || '').trim(),
         backstory: (backstoryMatch?.[1] || '').trim(),
+        combatStats,
         token: null,
       };
 
