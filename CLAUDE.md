@@ -241,7 +241,7 @@ Requires `is_admin = TRUE`. Features:
 
 ## Deployment
 ```bash
-cd /Users/aron/Downloads/dnd-server
+cd "/Users/aron/Dropbox (Personal)/claude/dnd-server"
 git push origin main && railway up --detach
 ```
 Check logs: `railway logs`
