@@ -13,6 +13,8 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const db = require('./db');
+const { Resend } = require('resend');
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 const rateLimit = require('express-rate-limit');
 
@@ -30,6 +32,13 @@ const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 5, // 5 registrations per hour per IP
   message: { error: 'Too many registrations. Try again later.' },
+  standardHeaders: true,
+});
+
+const magicLinkLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
   standardHeaders: true,
 });
 
@@ -274,8 +283,86 @@ router.get('/auth/me', authMiddleware, (req, res) => {
       email: req.user.email,
       displayName: req.user.display_name,
       isAdmin: req.user.is_admin,
+      hasPassword: req.user.has_password || false,
     },
   });
+});
+
+// ── Magic Link Auth ──────────────────────────────────────────────────────────
+
+router.post('/auth/magic-link', magicLinkLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+
+    const user = await db.findOrCreateUserByEmail(email);
+    const nonce = crypto.randomBytes(16).toString('hex');
+    await db.setMagicLinkNonce(user.id, nonce);
+
+    const token = jwt.sign(
+      { email: user.email, nonce, purpose: 'magic-link' },
+      JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const link = `${baseUrl}/auth/magic-link/${token}`;
+
+    if (resend) {
+      await resend.emails.send({
+        from: process.env.EMAIL_FROM || 'Tavern Table <onboarding@resend.dev>',
+        to: user.email,
+        subject: 'Your Tavern Table login link',
+        html: `<p>Click to log in to Tavern Table:</p><p><a href="${link}">${link}</a></p><p>This link expires in 15 minutes.</p>`,
+      });
+    } else {
+      console.log(`[magic-link] ${user.email}: ${link}`);
+    }
+
+    res.json({ ok: true, message: 'Check your email for a login link.' });
+  } catch (err) {
+    console.error('Magic link error:', err.message);
+    res.status(500).json({ error: 'Failed to send login link' });
+  }
+});
+
+router.get('/auth/magic-link/:token', async (req, res) => {
+  try {
+    const decoded = jwt.verify(req.params.token, JWT_SECRET);
+    if (decoded.purpose !== 'magic-link') return res.redirect('/lobby?error=invalid_link');
+
+    const user = await db.getUserByEmail(decoded.email);
+    if (!user) return res.redirect('/lobby?error=invalid_link');
+    if (user.magic_link_nonce !== decoded.nonce) return res.redirect('/lobby?error=link_used');
+
+    await db.clearMagicLinkNonce(user.id);
+
+    const sessionToken = generateToken(user);
+    setTokenCookie(res, sessionToken);
+    res.redirect('/lobby');
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') return res.redirect('/lobby?error=link_expired');
+    res.redirect('/lobby?error=invalid_link');
+  }
+});
+
+router.post('/auth/set-password', async (req, res) => {
+  const token = req.cookies?.tt_token;
+  if (!token) return res.status(401).json({ error: 'Not authenticated' });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.anonymous || !decoded.userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { password } = req.body;
+    if (!password || password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    await db.setUserPassword(decoded.userId, passwordHash);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Routes: Google OAuth ────────────────────────────────────────────────────
