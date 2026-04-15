@@ -317,12 +317,12 @@ You are a master storyteller in the tradition of great fantasy literature. Your 
   return `${basePrompt}
 
 RULE #1 — WORD LIMIT (overrides ALL other instructions):
-${gs.verbosity === 'terse' ? `TERSE MODE. Maximum 50 words of narration. 3 sentences max. No atmosphere, no descriptions, no internal thoughts. State what happened mechanically, then structured blocks. If you write more than 50 words of narration you have FAILED.` :
-  gs.verbosity === 'brief' ? `BRIEF MODE. Maximum 75 words of narration. 4-5 sentences max. Punchy and direct. One sensory detail at most. Then structured blocks.` :
-  `VERBOSE MODE. Maximum 100 words of narration. Aim for 50-75. Only exceed 100 for major plot revelations.`}
+${gs.verbosity === 'terse' ? `TERSE MODE. Non-combat: 50 words max, 3 sentences. Combat: dice lines + 1 sentence flavor per result, nothing else. No atmosphere, no descriptions, no internal thoughts. Just mechanics and structured blocks.` :
+  gs.verbosity === 'brief' ? `BRIEF MODE. 75 words max narration. 4-5 sentences. Punchy. Then structured blocks.` :
+  `VERBOSE MODE. 100 words max narration. Aim for 50-75.`}
 
-RULE #2 — MONSTERS ARE DANGEROUS:
-Enemies attack PCs. Enemies deal damage. Enemies use tactics. When narrating combat, describe enemy attacks hitting PCs with visceral impact — PCs bleed, stagger, and fear for their lives. Never soften enemy aggression. A goblin STABS, a dragon BURNS, an orc CRUSHES. PCs are not safe.
+RULE #2 — COMBAT IS TACTICAL, NOT A NOVEL:
+This is a tactical RPG. Narrate dice results and consequences. Do not write prose paragraphs during combat. Each result = 1 bold dice line + 1 short sentence. Enemies attack aggressively — describe PCs getting hurt when hit.
 ${contextBlock}
 ${houseRules}
 ${personaBlock}
@@ -613,12 +613,12 @@ ${catchphrases}
   return `${basePrompt}
 
 RULE #1 — WORD LIMIT (overrides ALL other instructions):
-${gs.verbosity === 'terse' ? `TERSE. Max 50 words narration. 3 sentences. No atmosphere. State what happened, then structured blocks. Over 50 words = FAILURE.` :
-  gs.verbosity === 'brief' ? `BRIEF. Max 75 words narration. 4-5 sentences. Punchy. Then structured blocks.` :
+${gs.verbosity === 'terse' ? `TERSE. Non-combat: 50 words max. Combat: dice line + 1 sentence per result only. No prose, no atmosphere.` :
+  gs.verbosity === 'brief' ? `BRIEF. 75 words max. Punchy. Then structured blocks.` :
   `Max 100 words narration. Aim for 50-75.`}
 
-RULE #2 — MONSTERS ARE DANGEROUS:
-Enemies attack PCs and deal real damage. Narrate enemy attacks with visceral impact. Never soften monster aggression. PCs bleed, stagger, and fear death.
+RULE #2 — TACTICAL COMBAT, NOT A NOVEL:
+Dice results + consequences only. Enemies attack aggressively. PCs get hurt when hit.
 ${contextBlock}
 ${houseRules}
 ${personaBlock}
@@ -1300,9 +1300,9 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   // Token limits: combat narration needs fewer tokens (just describing pre-resolved results)
   let maxTokens;
   if (combatActive) {
-    maxTokens = gs.verbosity === 'terse' ? 400 : gs.verbosity === 'brief' ? 600 : 1500;
+    maxTokens = gs.verbosity === 'terse' ? 500 : gs.verbosity === 'brief' ? 700 : 1500;
   } else {
-    maxTokens = gs.verbosity === 'terse' ? 450 : gs.verbosity === 'brief' ? 700 : 2500;
+    maxTokens = gs.verbosity === 'terse' ? 400 : gs.verbosity === 'brief' ? 600 : 2500;
   }
   let combatContext = '';
 
