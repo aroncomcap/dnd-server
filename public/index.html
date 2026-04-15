@@ -262,16 +262,21 @@
     <form id="magic-link-form">
       <input type="email" id="auth-email" placeholder="your@email.com" required
         style="width:100%;padding:10px 12px;border:1px solid var(--gold);border-radius:8px;background:var(--parchment);color:var(--ink);font-size:1rem;margin-bottom:8px;font-family:'Crimson Pro',serif;" />
-      <div id="password-row" style="display:none;margin-bottom:8px;">
-        <input type="password" id="auth-password" placeholder="Password"
-          style="width:100%;padding:10px 12px;border:1px solid var(--gold);border-radius:8px;background:var(--parchment);color:var(--ink);font-size:1rem;font-family:'Crimson Pro',serif;" />
+      <input type="password" id="auth-password" placeholder="Password"
+        style="width:100%;padding:10px 12px;border:1px solid var(--gold);border-radius:8px;background:var(--parchment);color:var(--ink);font-size:1rem;margin-bottom:8px;font-family:'Crimson Pro',serif;" />
+      <div style="display:flex;gap:8px;margin-bottom:6px;">
+        <button type="button" id="btn-password-login"
+          style="flex:1;padding:10px;background:var(--gold);color:var(--ink);border:none;border-radius:8px;font-family:'Cinzel Decorative',cursive;font-size:0.9rem;cursor:pointer;">
+          Login
+        </button>
+        <button type="button" id="btn-register"
+          style="flex:1;padding:10px;background:transparent;color:var(--gold);border:1px solid var(--gold);border-radius:8px;font-family:'Cinzel Decorative',cursive;font-size:0.9rem;cursor:pointer;">
+          Create Account
+        </button>
       </div>
       <button type="submit" id="btn-magic-link"
-        style="width:100%;padding:10px;background:var(--gold);color:var(--ink);border:none;border-radius:8px;font-family:'Cinzel Decorative',cursive;font-size:1rem;cursor:pointer;">
-        Send Magic Link
-      </button>
-      <button type="button" id="btn-password-login" style="display:none;width:100%;padding:10px;background:var(--gold);color:var(--ink);border:none;border-radius:8px;font-family:'Cinzel Decorative',cursive;font-size:1rem;cursor:pointer;margin-top:6px;">
-        Login with Password
+        style="width:100%;padding:10px;background:transparent;color:var(--gold);border:1px solid rgba(200,146,42,0.3);border-radius:8px;font-family:'Crimson Pro',serif;font-size:0.9rem;cursor:pointer;">
+        Send Magic Link Instead
       </button>
     </form>
 
@@ -542,13 +547,17 @@ document.getElementById('magic-link-form').addEventListener('submit', async (e) 
   }
 
   btn.disabled = false;
-  btn.textContent = 'Send Magic Link';
+  btn.textContent = 'Send Magic Link Instead';
 });
 
 document.getElementById('btn-password-login')?.addEventListener('click', async () => {
   const email = document.getElementById('auth-email').value.trim();
   const password = document.getElementById('auth-password').value;
-  if (!email || !password) return;
+  if (!email || !password) {
+    document.getElementById('auth-error').textContent = 'Email and password required.';
+    document.getElementById('auth-error').style.display = 'block';
+    return;
+  }
 
   try {
     const res = await fetch('/auth/login', {
@@ -560,7 +569,40 @@ document.getElementById('btn-password-login')?.addEventListener('click', async (
       window.location.reload();
     } else {
       const data = await res.json();
-      document.getElementById('auth-error').textContent = data.error + ' Send a magic link instead?';
+      document.getElementById('auth-error').textContent = data.error || 'Login failed.';
+      document.getElementById('auth-error').style.display = 'block';
+    }
+  } catch {
+    document.getElementById('auth-error').textContent = 'Network error.';
+    document.getElementById('auth-error').style.display = 'block';
+  }
+});
+
+document.getElementById('btn-register')?.addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  if (!email || !password) {
+    document.getElementById('auth-error').textContent = 'Email and password required.';
+    document.getElementById('auth-error').style.display = 'block';
+    return;
+  }
+  if (password.length < 8) {
+    document.getElementById('auth-error').textContent = 'Password must be at least 8 characters.';
+    document.getElementById('auth-error').style.display = 'block';
+    return;
+  }
+
+  try {
+    const res = await fetch('/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      const data = await res.json();
+      document.getElementById('auth-error').textContent = data.error || 'Registration failed.';
       document.getElementById('auth-error').style.display = 'block';
     }
   } catch {
