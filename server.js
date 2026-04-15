@@ -447,31 +447,24 @@ LEVEL-UP CHOICES:
 - Do NOT auto-assign ability scores, subclasses, feats, or spells. Always ask the player.
 - Once the player responds (in-character or via /ooc), apply the choices and update the character sheet via CHAR_UPDATES.
 
-COMBAT:
-- Enemies ATTACK PCs every round. Monsters deal damage, use abilities, and fight to kill. Never skip or soften enemy turns.
-- When narrating enemy attacks that HIT, describe the PC getting hurt — blood, pain, staggering, fear. Combat is dangerous.
-- When a significant enemy is defeated (boss, tough monster, named NPC), include a special scene description:
-  Put "KILLSHOT:" before the scene description to trigger a dramatic illustration.
-  Example: KILLSHOT: Kael drives his flaming sword through the dragon's chest as lightning crackles around them, the beast collapsing in a shower of sparks
+COMBAT — CRITICAL RULES:
+- The SERVER runs all combat mechanics. You do NOT roll dice, track HP, or resolve attacks.
+- When enemies appear, you MUST output an ENEMIES block in ---WORLD--- so the server can start combat.
+- Once combat starts, the server gives you RESOLVED THIS ROUND results. Narrate those results ONLY.
+- Do NOT invent initiative rolls, attack rolls, damage, or HP changes. The server handles all of that.
+- Do NOT ask players to "roll initiative" — the server does this automatically.
+- Enemies ATTACK PCs every round. Describe enemy attacks with impact — PCs bleed, stagger, fear for their lives.
+- KILLSHOT: [scene] when a significant enemy dies — triggers dramatic illustration.
 
-INITIATIVE / TURN ORDER:
-- During combat, output a turn order using the appropriate game system (D&D 5e: initiative rolls, RuneQuest: strike ranks).
-- Include monsters/NPCs in the turn order.
-- Use this format in the ---WORLD--- block:
-
-ENEMIES (include when hostile creatures initiate combat):
+ENEMIES block (MANDATORY when hostile creatures appear):
+Put this in ---WORLD--- when combat starts. The server reads it to initialize the combat engine.
+ENEMIES:
 - [Display Name] | [count] | [monster-db-slug]
-For custom: - [Name] | [count] | custom | [hint]
-
-TURN_ORDER:
-- 1 | Judge | 18 | PC
-- 2 | Goblin Archer | 15 | Enemy
-- 3 | Sir Ethilrist | 12 | PC
-- 4 | Goblin Chief | 8 | Enemy
-
-Format: position | name | initiative/SR value | type (PC/Enemy/NPC)
-- Update this every round. Remove dead combatants.
-- Outside of combat, omit the TURN_ORDER block entirely.
+- [Display Name] | [count] | custom | [hint]
+Example:
+ENEMIES:
+- Goblin Archer | 2 | goblin
+- Goblin Chief | 1 | goblin-boss
 
 WRITING STYLE:
 - Write narration as flowing prose PARAGRAPHS. Multiple sentences per paragraph. Do NOT put each sentence on its own line.
@@ -664,7 +657,7 @@ LOCATIONS:
 - [Name] | [Description] | [Distance]
 NPCS:
 - [Name] | [Description] | [Location]
-ENEMIES (when combat starts):
+ENEMIES (MANDATORY when hostile creatures appear — server reads this to start combat engine):
 - [Display Name] | [count] | [slug]
 MAP: [Current location name]
 
@@ -813,13 +806,15 @@ function parseResponse(text) {
         }
       }
     }
-    // Parse ENEMIES block
-    const enemiesMatch = worldRaw.match(/ENEMIES:\n((?:- .+\n?)+)/i);
+    // Parse ENEMIES block — flexible matching for Haiku's varied output formats
+    // Matches: "ENEMIES:", "ENEMIES (...):", "ENEMIES (when combat starts):", etc.
+    const enemiesMatch = worldRaw.match(/ENEMIES[^:\n]*:\s*\n((?:[-*•]\s*.+\n?)+)/i);
     let enemies = [];
     if (enemiesMatch) {
       const enemyLines = enemiesMatch[1].trim().split('\n');
       for (const line of enemyLines) {
-        const match = line.match(/^-\s*(.+?)\s*\|\s*(\d+)\s*\|\s*(.+?)(?:\s*\|\s*(.+))?$/);
+        // Standard format: - Name | count | slug
+        const match = line.match(/^[-*•]\s*(.+?)\s*\|\s*(\d+)\s*\|\s*(.+?)(?:\s*\|\s*(.+))?$/);
         if (match) {
           enemies.push({
             displayName: match[1].trim(),
@@ -827,6 +822,20 @@ function parseResponse(text) {
             slug: match[3].trim(),
             hint: match[4]?.trim() || null,
           });
+        } else {
+          // Fallback: - Name (count) or - Name x3 or just - Name
+          const fallback = line.match(/^[-*•]\s*(.+?)(?:\s*\((\d+)\)|\s*x(\d+))?$/);
+          if (fallback) {
+            const name = fallback[1].replace(/\s*\|.*$/, '').trim();
+            if (name && name.length > 1 && !/^(?:none|no enemies)$/i.test(name)) {
+              enemies.push({
+                displayName: name,
+                count: parseInt(fallback[2] || fallback[3] || '1', 10),
+                slug: name.toLowerCase().replace(/\s+/g, '-'),
+                hint: null,
+              });
+            }
+          }
         }
       }
     }
@@ -1265,11 +1274,13 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     ? `[AUTO-ACTION for ${actingAs} — timer expired]\n`
     : '';
 
-  // Few-shot length example for terse mode (only on first few turns before history establishes pattern)
+  // Few-shot examples for terse mode (only on first few turns before history establishes pattern)
   const needsFewShot = gs.verbosity === 'terse' && gd.chatHistory.length < 6;
   const verbosityExample = needsFewShot ? [
     { role: 'user', content: 'Kael: I search the room for traps.' },
     { role: 'assistant', content: 'Kael finds a tripwire near the door — a poison dart trap.\n\n---OPTIONS---\n1️⃣ 🗡️ Disarm the trap\n2️⃣ 🛡️ Find another way around\n3️⃣ 🔥 Trigger it from a distance\n\n---SCENE---\nACTION: Examining trapped doorway\nMOOD: cautious\nNPC: none\n\n---WORLD---\nLOCATIONS:\n- Trapped Hallway | Stone corridor | current\nNPCS:\n- none\nMAP: Trapped Hallway' },
+    { role: 'user', content: 'Kael: I attack the goblin with my longsword.' },
+    { role: 'assistant', content: '**🎲 Kael swings longsword (STR +3, Prof +2) — rolls 17. HIT! 1d8+3 = 7 slashing. Goblin staggers (HP 0/7)**\nKael cleaves through the goblin\'s guard. It crumples.\n\n**🎲 Goblin Archer fires at Kael — rolls 14. HIT! 1d6+2 = 5 piercing. Kael winces (HP 13/18)**\nAn arrow bites into Kael\'s shoulder.\n\n---OPTIONS---\n1️⃣ 🗡️ Charge the archer\n2️⃣ 🛡️ Take cover behind the pillar\n3️⃣ 🔥 Throw the goblin\'s body at the archer\n\n---SCENE---\nACTION: Fighting goblins in cave\nMOOD: fierce\nNPC: none\n\n---WORLD---\nLOCATIONS:\n- Goblin Cave | Damp limestone | current\nNPCS:\n- none\nMAP: Goblin Cave' },
   ] : [];
 
   const messages = [
@@ -1423,7 +1434,13 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     }
   }
 
-  const combatPromptInjection = combatActive ? `\n\nCOMBAT MODE — Server handles all dice/damage/HP. Do NOT invent results.\nNarrate EVERY result in RESOLVED THIS ROUND — especially ENEMY ATTACKS ON PCs.\nFormat: **🎲 [desc] — rolls [total]. HIT/MISS! [damage]. [target] [HP]**\nEnemy hits on PCs are the most important thing to narrate. Show the PC getting hurt, staggering, bleeding. Make combat feel dangerous.\n1-2 sentences flavor between rolls. KILLSHOT: [scene] when a target reaches 0 HP.` : '';
+  const combatPromptInjection = combatActive ? `\n\nCOMBAT MODE ACTIVE — Server controls all combat.
+DO NOT: roll dice, invent attack results, change HP, ask for initiative rolls, or resolve combat yourself.
+DO: Narrate EVERY result from RESOLVED THIS ROUND as a bold dice line, then 1 sentence of flavor. That's it.
+Format each result: **🎲 [who] [action] — rolls [total]. HIT/MISS! [damage]. [target] ([HP])**
+ENEMY ATTACKS ON PCs are the most dramatic part — describe the PC getting hurt, bleeding, staggering.
+KILLSHOT: [scene] when a target reaches 0 HP.
+Keep narration SHORT — this is tactical combat, not a novel.` : '';
   const finalSystemPrompt = systemPrompt + combatPromptInjection;
 
   // Rebuild messages with combatContext appended to user message
@@ -1662,7 +1679,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   // Path 2: AI narrates combat without ENEMIES: block — server takes over
   // Only trigger on strong combat signals (actual attacks/charges, not just monster mentions)
   if (!gs.combatEngine.state.active && !parsed.world?.enemies?.length) {
-    const strongCombatSignal = /(?:roll(?:s|ing)?\s+(?:for\s+)?initiative|combat begins|(?:goblin|orc|skeleton|zombie|wolf|rat|bandit|dragon|troll|ogre|spider)s?\s+(?:attack|lunge|charge|burst|leap)s?\b|(?:attacks?\s+(?:you|the party|with)|charges?\s+(?:at|toward|into)\s|ambush(?:ed|es)?!|lunges?\s+(?:at|toward)|strikes?\s+(?:at|with)|draws?\s+(?:its |their )?(?:sword|weapon|blade|axe|bow)\s+and))/i;
+    const strongCombatSignal = /(?:roll(?:s|ing)?\s+(?:for\s+)?initiative|initiative.*(?:order|roll)|combat\s+(?:begins|starts|erupts|breaks out)|(?:goblin|orc|skeleton|zombie|wolf|rat|bandit|dragon|troll|ogre|spider|kobold|gnoll|bugbear|hobgoblin|cultist|thug|guard|knight|wraith|ghoul|ghast|wight|vampire|demon|devil|elemental|giant|minotaur|owlbear|manticore|hydra|chimera|basilisk|beholder|lich|golem|treant|werewolf)s?\s+(?:attack|lunge|charge|burst|leap|rush|swing|slash|stab|strike|pounce|ambush|emerge|appear|surround|block|engage)s?\b|(?:attacks?\s+(?:you|the party|with)|charges?\s+(?:at|toward|into)|ambush(?:ed|es)?!?|lunges?\s+(?:at|toward)|strikes?\s+(?:at|with)|draws?\s+(?:its |their )?(?:sword|weapon|blade|axe|bow)|weapons?\s+drawn|swords?\s+(?:raised|drawn|flashing)|prepare(?:s)?\s+to\s+(?:fight|attack|strike)|hostile|ready\s+(?:their|your)\s+weapons?))/i;
     if (strongCombatSignal.test(parsed.narration || '')) {
       // Try encounter plan first
       let enemies = null;
