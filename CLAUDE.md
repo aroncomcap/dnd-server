@@ -101,10 +101,15 @@ Schema auto-creates in `db.js initDB()` — no migration tool needed. `ALTER TAB
 The first user to register is automatically granted `is_admin = TRUE`.
 
 ## Auth System
-- Passport.js with three strategies: `local` (email/password), `google-oauth20`, `passport-discord`
-- Auth is optional — the game works without login; billing only activates when `BILLING_ENABLED=true`
-- JWT tokens stored in cookies (signed with `JWT_SECRET`)
-- Routes: `/auth/register`, `/auth/login`, `/auth/google`, `/auth/discord`, `/auth/logout`
+- **Primary:** Magic link (enter email → get link → click → authenticated)
+- **Optional:** Password (user can set one after first login for faster access)
+- **OAuth:** Google, Discord (same as before)
+- **No anonymous access** — lobby is gated, game pages redirect to lobby
+- JWT tokens stored in `tt_token` cookie (7-day expiry, httpOnly)
+- Magic link tokens: JWT with 15-minute expiry, single-use (nonce in DB)
+- Routes: `POST /auth/magic-link`, `GET /auth/magic-link/:token`, `POST /auth/set-password`, `/auth/login`, `/auth/google`, `/auth/discord`, `/auth/logout`
+- Rate limit: 5 magic link requests per 15 min per IP
+- Email: Resend (`RESEND_API_KEY` env var). Falls back to console.log in dev.
 - `authMiddleware` — attaches user to req if JWT present (non-blocking)
 - `requireAuth` — 401 if not authenticated
 - `requireAdmin` — 403 if not admin
