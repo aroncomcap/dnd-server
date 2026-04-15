@@ -70,6 +70,9 @@ async function initDB() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS magic_link_nonce TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS has_password BOOLEAN DEFAULT FALSE;
+
     CREATE TABLE IF NOT EXISTS user_balances (
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       free_minutes_remaining INT DEFAULT 600,
@@ -326,6 +329,36 @@ async function getUserByEmail(email) {
 async function getUserById(id) {
   const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
   return rows[0] || null;
+}
+
+async function findOrCreateUserByEmail(email) {
+  const normalized = email.toLowerCase().trim();
+  let user = await getUserByEmail(normalized);
+  if (!user) {
+    const id = crypto.randomUUID();
+    await createUser({
+      id,
+      email: normalized,
+      passwordHash: null,
+      displayName: normalized.split('@')[0],
+      authProvider: 'magic-link',
+      authProviderId: null,
+    });
+    user = await getUserById(id);
+  }
+  return user;
+}
+
+async function setMagicLinkNonce(userId, nonce) {
+  await pool.query('UPDATE users SET magic_link_nonce = $1 WHERE id = $2', [nonce, userId]);
+}
+
+async function clearMagicLinkNonce(userId) {
+  await pool.query('UPDATE users SET magic_link_nonce = NULL WHERE id = $1', [userId]);
+}
+
+async function setUserPassword(userId, passwordHash) {
+  await pool.query('UPDATE users SET password_hash = $1, has_password = TRUE WHERE id = $2', [passwordHash, userId]);
 }
 
 async function getUserByProvider(provider, providerId) {
@@ -610,6 +643,10 @@ module.exports = {
   createUser,
   getUserByEmail,
   getUserById,
+  findOrCreateUserByEmail,
+  setMagicLinkNonce,
+  clearMagicLinkNonce,
+  setUserPassword,
   getUserByProvider,
   getUserBalance,
   deductMinutes,
