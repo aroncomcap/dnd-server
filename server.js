@@ -1312,31 +1312,68 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
         combatants: gs.combatEngine.state.combatants,
         preTaggedOptions: gs.preTaggedOptions || null,
       };
-      const currentPlayerName = gs.data.turnOrder[gs.data.currentTurnIndex];
-      const playerId = currentPlayerName?.toLowerCase().replace(/\s+/g, '-');
+      // Use combat engine's current turn, not the normal turn order
+      const engineCurrent = gs.combatEngine.getCurrentTurn();
+      const playerId = engineCurrent?.id || gs.data.turnOrder[gs.data.currentTurnIndex]?.toLowerCase().replace(/\s+/g, '-');
       const actionText = userMessage.replace(/^.*?:\s*/, '');
 
-      let parsedAction = parseAction(actionText, playerId, combatCtx);
-      if (!parsedAction) {
-        // Default: attack the first living enemy with primary weapon
-        const enemies = Object.values(gs.combatEngine.state.combatants).filter(c => c.type === 'Enemy' && (c.hp > 0 || (c.totalHp && c.totalHp > 0)));
-        const attacker = gs.combatEngine.state.combatants[playerId];
-        if (enemies.length > 0 && attacker) {
-          parsedAction = {
-            type: 'attack',
-            attackerId: playerId,
-            targetId: enemies[0].id,
-            weapon: attacker.weapons?.[0]?.name,
-          };
+      // Check if this PC is downed — auto-resolve death save instead of normal action
+      const playerCombatant = gs.combatEngine.state.combatants[playerId];
+      const resolver = gs.combatEngine.getResolver();
+      const isDown = playerCombatant && resolver.checkDeath(playerCombatant).status === 'unconscious';
+
+      let parsedAction;
+      if (isDown) {
+        // Downed PC: auto-resolve death save
+        parsedAction = { type: 'death_save', actorId: playerId };
+      } else {
+        parsedAction = parseAction(actionText, playerId, combatCtx);
+        if (!parsedAction) {
+          // Default: attack the first living enemy with primary weapon
+          const enemies = Object.values(gs.combatEngine.state.combatants).filter(c => c.type === 'Enemy' && (c.hp > 0 || (c.totalHp && c.totalHp > 0)));
+          const attacker = gs.combatEngine.state.combatants[playerId];
+          if (enemies.length > 0 && attacker) {
+            parsedAction = {
+              type: 'attack',
+              attackerId: playerId,
+              targetId: enemies[0].id,
+              weapon: attacker.weapons?.[0]?.name,
+            };
+          }
         }
       }
 
       if (parsedAction) {
         const playerResult = gs.combatEngine.resolveAction(parsedAction);
         gs.combatEngine.advanceTurn();
+
+        // Auto-resolve death saves for any other downed PCs whose turns come up
+        const deathSaveResults = [];
+        while (true) {
+          const nextTurn = gs.combatEngine.getCurrentTurn();
+          if (!nextTurn || nextTurn.type !== 'PC') break;
+          const deathCheck = resolver.checkDeath(nextTurn);
+          if (deathCheck.status !== 'unconscious') break;
+          const dsResult = gs.combatEngine.resolveAction({ type: 'death_save', actorId: nextTurn.id });
+          deathSaveResults.push(dsResult);
+          gs.combatEngine.advanceTurn();
+        }
+
         const enemyResults = await resolveEnemyTurns(gameId, gameConfig);
+
+        // Auto-resolve death saves for downed PCs after enemy turns
+        while (true) {
+          const nextTurn = gs.combatEngine.getCurrentTurn();
+          if (!nextTurn || nextTurn.type !== 'PC') break;
+          const deathCheck = resolver.checkDeath(nextTurn);
+          if (deathCheck.status !== 'unconscious') break;
+          const dsResult = gs.combatEngine.resolveAction({ type: 'death_save', actorId: nextTurn.id });
+          deathSaveResults.push(dsResult);
+          gs.combatEngine.advanceTurn();
+        }
+
         persistCombatState(gameId);
-        const allResults = [playerResult, ...enemyResults].filter(Boolean);
+        const allResults = [playerResult, ...deathSaveResults, ...enemyResults].filter(Boolean);
         const resultLines = allResults.map(r => gs.combatEngine.formatResultForPrompt(r));
 
         combatContext = `\n\n${gs.combatEngine.getCombatStateForPrompt()}\n\nRESOLVED THIS ROUND:\n${resultLines.join('\n')}\n\nNarrate these results in your DM persona. It is now ${gs.combatEngine.getCurrentTurn()?.name || 'the next player'}'s turn.`;
@@ -1862,6 +1899,24 @@ async function advanceTurn(gameId, gameConfig, wasHumanAction = false) {
     emitSystem(gameId, { text: '⏸️ Game paused — no human actions for 5 turns. Use /tt start or tap Begin to resume.' });
     io.to(gameId).emit('game_paused');
     return;
+  }
+
+  // During combat, use the combat engine's current turn instead of normal rotation
+  if (gs.combatEngine?.state?.active) {
+    const engineNext = gs.combatEngine.getCurrentTurn();
+    if (engineNext && engineNext.type === 'PC') {
+      const enginePlayerName = Object.keys(gd.characters).find(
+        name => name.toLowerCase().replace(/\s+/g, '-') === engineNext.id
+      ) || engineNext.name;
+      const token = gd.characters[enginePlayerName]?.token || null;
+      emitTurnChange(gameId, { player: enginePlayerName, duration: gs.turnDuration * 1000, token });
+      startTurnTimer(gameId, gameConfig, enginePlayerName);
+      // Sync normal turn index to match
+      const idx = gd.turnOrder.indexOf(enginePlayerName);
+      if (idx >= 0) gd.currentTurnIndex = idx;
+      await db.saveTurnState(gameId, gd.currentTurnIndex, gd.turnOrder);
+      return;
+    }
   }
 
   gd.currentTurnIndex = (gd.currentTurnIndex + 1) % (gd.turnOrder.length || 1);

@@ -301,6 +301,18 @@ class CombatEngine {
         break;
       }
 
+      case 'death_save': {
+        const actor = this.state.combatants[action.actorId || action.attackerId];
+        if (!actor) { result = { type: 'error', message: `Unknown actor for death save` }; break; }
+        result = resolver.resolveDeathSave(actor);
+        result.actorId = actor.id;
+        result.actorName = actor.name;
+        // Update combatant state
+        actor.deathSaves = { successes: result.successes, failures: result.failures };
+        if (result.revived) actor.hp = result.hp;
+        break;
+      }
+
       default:
         result = { type: 'unknown', action };
     }
@@ -608,6 +620,15 @@ class CombatEngine {
         return result.description || `${result.actorName} takes the Disengage action.`;
       case 'dash':
         return result.description || `${result.actorName} takes the Dash action.`;
+      case 'death_save': {
+        const name = result.actorName || result.combatantName || 'Unknown';
+        const roll = result.roll || '?';
+        if (result.revived) return `${name} rolls a NATURAL 20 on their death save! They regain 1 HP and are conscious!`;
+        if (result.dead) return `${name} death save: rolled ${roll}. FAILURE (${result.failures}/3). ${name} has DIED.`;
+        if (result.stabilized) return `${name} death save: rolled ${roll}. SUCCESS (${result.successes}/3). ${name} is STABILIZED.`;
+        const outcome = roll >= 10 ? 'SUCCESS' : 'FAILURE';
+        return `${name} death save: rolled ${roll}. ${outcome} (${result.successes} successes, ${result.failures} failures).`;
+      }
       default:
         return JSON.stringify(result);
     }
