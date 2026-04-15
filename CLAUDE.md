@@ -267,6 +267,9 @@ Check costs: `GET /api/costs`
 | `GOOGLE_CLIENT_SECRET` | Google OAuth | For Google login |
 | `DISCORD_CLIENT_ID` | Discord OAuth | For Discord login |
 | `DISCORD_CLIENT_SECRET` | Discord OAuth | For Discord login |
+| `RESEND_API_KEY` | Resend email service | For magic links |
+| `BASE_URL` | Server URL for magic links | Recommended |
+| `EMAIL_FROM` | Sender email address | Optional |
 
 ## Encounter Difficulty Module
 
