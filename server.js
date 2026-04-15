@@ -1653,9 +1653,10 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     initiateCombat(gameId, gameConfig, parsed.world.enemies).catch(e => console.error('Combat init error:', e));
   }
   // Path 2: AI narrates combat without ENEMIES: block — server takes over
+  // Only trigger on strong combat signals (actual attacks/charges, not just monster mentions)
   if (!gs.combatEngine.state.active && !parsed.world?.enemies?.length) {
-    const combatKeywords = /(?:initiative|roll for initiative|combat begins|attacks?\s|charges?\s|ambush|lunges?\s|strikes?\s|draws? (?:its |their )?(?:sword|weapon|blade|axe|bow)|(?:goblin|orc|skeleton|zombie|wolf|rat|bandit|dragon|troll|ogre|spider)s?\s+(?:attack|lunge|charge|appear|emerge|burst|leap))/i;
-    if (combatKeywords.test(parsed.narration || '')) {
+    const strongCombatSignal = /(?:roll(?:s|ing)?\s+(?:for\s+)?initiative|combat begins|(?:goblin|orc|skeleton|zombie|wolf|rat|bandit|dragon|troll|ogre|spider)s?\s+(?:attack|lunge|charge|burst|leap)s?\b|(?:attacks?\s+(?:you|the party|with)|charges?\s+(?:at|toward|into)\s|ambush(?:ed|es)?!|lunges?\s+(?:at|toward)|strikes?\s+(?:at|with)|draws?\s+(?:its |their )?(?:sword|weapon|blade|axe|bow)\s+and))/i;
+    if (strongCombatSignal.test(parsed.narration || '')) {
       // Try encounter plan first
       let enemies = null;
       if (gs.encounterPlan) {
@@ -2605,7 +2606,8 @@ io.on('connection', (socket) => {
     }
 
     // Gate: combat initializing — only allow OOC during monster loading
-    if (gs.combatInitializing) {
+    const gsCheck = games[gameId];
+    if (gsCheck?.combatInitializing) {
       socket.emit('system', { text: '⏳ Combat is loading — use OOC to chat while initiative is rolled.' });
       return;
     }
