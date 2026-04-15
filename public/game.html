@@ -1054,7 +1054,7 @@
 
 <!-- ── GAME SCREEN ─────────────────────────────────────────── -->
 <div id="screen-game" class="screen active" style="position:relative;">
-  <div id="turn-order-overlay" style="display:none; position:fixed; top:60px; right:16px; width:200px; background:rgba(13,6,0,0.95); border:1px solid var(--gold); border-radius:8px; padding:0; z-index:200; box-shadow:0 4px 20px rgba(0,0,0,0.6);">
+  <div id="turn-order-overlay" style="position:fixed; top:60px; right:16px; width:200px; background:rgba(13,6,0,0.95); border:1px solid var(--gold); border-radius:8px; padding:0; z-index:200; box-shadow:0 4px 20px rgba(0,0,0,0.6);">
     <div id="turn-order-handle" style="font-family:'Cinzel Decorative',cursive;font-size:0.75rem;color:var(--gold);padding:8px 8px 4px;text-align:center;cursor:grab;user-select:none;">Turn Order</div>
     <div id="turn-order-list" style="padding:0 8px 8px;"></div>
   </div>
@@ -2029,18 +2029,34 @@ socket.on('combat_ended', (data) => {
   if (data.reason !== 'error') {
     document.getElementById('combat-log').innerHTML += '<div class="round-header">Combat Ended — ' + (data.reason === 'enemies_defeated' ? 'Victory!' : 'Defeat...') + '</div>';
   }
-  // Don't hide turn order on error fallback — AI may still be narrating combat with TURN_ORDER data
+  // Revert to party-only turn order after combat ends
   if (data.reason !== 'error') {
     setTimeout(() => {
-      document.getElementById('turn-order-overlay').style.display = 'none';
+      showPartyTurnOrder();
       document.getElementById('combat-log-toggle').style.display = 'none';
-    }, 10000);
+    }, 5000);
   }
 });
 
 socket.on('reaction_prompt', (data) => {
   showReactionPrompt(data);
 });
+
+// Show party in turn order overlay (always visible, even outside combat)
+function showPartyTurnOrder() {
+  const overlay = document.getElementById('turn-order-overlay');
+  const list = document.getElementById('turn-order-list');
+  overlay.style.display = 'block';
+  list.innerHTML = '';
+  const chars = currentCharacters || {};
+  for (const [name, c] of Object.entries(chars)) {
+    const div = document.createElement('div');
+    div.className = 'turn-order-item';
+    const classLabel = c.class || c.system_class || '';
+    div.innerHTML = `<span class="turn-num">—</span><span class="turn-name">${escapeHtml(name)}</span><span class="turn-value" style="font-size:0.7rem;opacity:0.6">${escapeHtml(classLabel)}</span>`;
+    list.appendChild(div);
+  }
+}
 
 function updateCombatTurnOrder(data) {
   const overlay = document.getElementById('turn-order-overlay');
@@ -2287,6 +2303,8 @@ socket.on('game_joined', (state) => {
   currentTurnOrder = state.turnOrder || [];
   currentCharacters = state.characters || {};
   debugEvent('game_joined', Object.keys(state.characters).join(','));
+  // Show party in turn order overlay (always visible)
+  if (Object.keys(state.characters).length > 0) showPartyTurnOrder();
   Object.entries(state.characters).forEach(([name, c]) => {
     if (c.token) tokenCache[name] = c.token;
   });

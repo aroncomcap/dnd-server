@@ -1716,6 +1716,21 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     }
   }
 
+  // Desync fix: AI narrated combat ending but engine still active → force-end engine
+  if (gs.combatEngine.state.active && !combatActive) {
+    // combatActive was true at start of this call but engine might have ended mid-resolution
+    // This handles the case where AI says combat is over but engine disagrees
+  }
+  if (gs.combatEngine.state.active) {
+    const aiSaysCombatOver = /(?:combat\s+(?:is\s+)?(?:over|ended|resolved|finished)|(?:all|the)\s+(?:enemies|monsters|foes|skeletons|goblins|orcs)\s+(?:are\s+)?(?:dead|defeated|slain|fallen|destroyed)|victory|(?:last|final)\s+(?:enemy|monster|foe)\s+(?:falls|drops|crumbles|collapses))/i;
+    if (aiSaysCombatOver.test(parsed.narration || '')) {
+      console.log(`[desync] AI narrated combat end but engine still active — force-ending combat`);
+      gs.combatEngine.endCombat();
+      persistCombatState(gameId);
+      io.to(gameId).emit('combat_ended', { reason: 'enemies_defeated' });
+    }
+  }
+
   // Path 3: Encounter plan enforcement — if plan says next encounter should happen, force it
   if (!gs.combatEngine.state.active && gs.encounterPlan) {
     if (!gs._turnsSinceLastEncounter) gs._turnsSinceLastEncounter = 0;
