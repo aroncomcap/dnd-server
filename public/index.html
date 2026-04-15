@@ -252,6 +252,43 @@
   <p>Multiplayer RPG with AI Game Master</p>
 </header>
 
+<div id="auth-gate" style="display:none; max-width:400px; width:100%;">
+  <div class="panel" style="padding:24px;">
+    <h2 style="font-family:'Cinzel Decorative',cursive;color:var(--gold-light);text-align:center;margin-bottom:16px;">Enter the Tavern</h2>
+
+    <div id="auth-error" style="display:none;color:var(--red);background:rgba(139,32,32,0.1);padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:0.9rem;"></div>
+    <div id="auth-success" style="display:none;color:#2a6;background:rgba(42,166,100,0.1);padding:8px 12px;border-radius:8px;margin-bottom:12px;font-size:0.9rem;"></div>
+
+    <form id="magic-link-form">
+      <input type="email" id="auth-email" placeholder="your@email.com" required
+        style="width:100%;padding:10px 12px;border:1px solid var(--gold);border-radius:8px;background:var(--parchment);color:var(--ink);font-size:1rem;margin-bottom:8px;font-family:'Crimson Pro',serif;" />
+      <div id="password-row" style="display:none;margin-bottom:8px;">
+        <input type="password" id="auth-password" placeholder="Password"
+          style="width:100%;padding:10px 12px;border:1px solid var(--gold);border-radius:8px;background:var(--parchment);color:var(--ink);font-size:1rem;font-family:'Crimson Pro',serif;" />
+      </div>
+      <button type="submit" id="btn-magic-link"
+        style="width:100%;padding:10px;background:var(--gold);color:var(--ink);border:none;border-radius:8px;font-family:'Cinzel Decorative',cursive;font-size:1rem;cursor:pointer;">
+        Send Magic Link
+      </button>
+      <button type="button" id="btn-password-login" style="display:none;width:100%;padding:10px;background:var(--gold);color:var(--ink);border:none;border-radius:8px;font-family:'Cinzel Decorative',cursive;font-size:1rem;cursor:pointer;margin-top:6px;">
+        Login with Password
+      </button>
+    </form>
+
+    <div style="text-align:center;color:var(--parchment-dark);margin:12px 0;font-size:0.85rem;">— or —</div>
+
+    <div style="display:flex;gap:8px;">
+      <a href="/auth/google" style="flex:1;display:block;text-align:center;padding:10px;background:#4285F4;color:white;border-radius:8px;text-decoration:none;font-size:0.9rem;">Google</a>
+      <a href="/auth/discord" style="flex:1;display:block;text-align:center;padding:10px;background:#5865F2;color:white;border-radius:8px;text-decoration:none;font-size:0.9rem;">Discord</a>
+    </div>
+
+    <p style="text-align:center;color:var(--parchment-dark);font-size:0.8rem;margin-top:12px;">
+      Enter your email to get a login link. No password needed.
+    </p>
+  </div>
+</div>
+
+<div id="lobby-content" style="display:none;">
 <div class="container">
   <!-- Create Game -->
   <div class="panel">
@@ -283,6 +320,7 @@
       <div class="empty-state">Loading...</div>
     </div>
   </div>
+</div>
 </div>
 
 <script>
@@ -409,41 +447,127 @@ document.getElementById('btn-create').addEventListener('click', async () => {
   window.location.href = '/game/' + game.id + (params.toString() ? '?' + params.toString() : '');
 });
 
-// Ensure session exists (anonymous or authenticated) before loading games
-(async function ensureSession() {
+(async function initLobby() {
+  const authGate = document.getElementById('auth-gate');
+  const lobbyContent = document.getElementById('lobby-content');
+  const bar = document.getElementById('auth-bar');
+
   try {
     const resp = await fetch('/auth/me');
     const data = await resp.json();
-    if (!data.user) {
-      await fetch('/api/anonymous-session', { method: 'POST' });
-    }
-  } catch {}
-  loadGames();
-})();
 
-// ── Auth status ──
-(async function checkAuth() {
-  const bar = document.getElementById('auth-bar');
-  try {
-    const res = await fetch('/auth/me');
-    if (res.ok) {
-      const user = await res.json();
+    if (data.user) {
+      authGate.style.display = 'none';
+      lobbyContent.style.display = 'block';
       bar.innerHTML = `
-        <span class="user-name">Welcome, ${user.name || user.email}</span>
+        <span class="user-name">${data.user.email}</span>
+        ${!data.user.hasPassword ? '<a href="#" id="btn-set-pw">Set Password</a>' : ''}
         <a href="/help">Help</a>
         <button id="btn-logout">Logout</button>
       `;
-      document.getElementById('btn-logout').addEventListener('click', async () => {
+      document.getElementById('btn-logout')?.addEventListener('click', async () => {
         await fetch('/auth/logout', { method: 'POST' });
         window.location.reload();
       });
+      document.getElementById('btn-set-pw')?.addEventListener('click', (e) => {
+        e.preventDefault();
+        const pw = prompt('Set a password (min 8 characters):');
+        if (pw && pw.length >= 8) {
+          fetch('/auth/set-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: pw }),
+          }).then(r => r.json()).then(d => {
+            if (d.ok) alert('Password set! You can now log in with email + password.');
+            else alert(d.error || 'Failed');
+          });
+        } else if (pw) {
+          alert('Password must be at least 8 characters.');
+        }
+      });
+      loadGames();
     } else {
-      bar.innerHTML = '<a href="/help">Help</a><a href="/login.html">Login</a>';
+      authGate.style.display = 'block';
+      lobbyContent.style.display = 'none';
+      bar.innerHTML = '<a href="/help">Help</a>';
     }
   } catch {
-    bar.innerHTML = '<a href="/help">Help</a><a href="/login.html">Login</a>';
+    authGate.style.display = 'block';
+    lobbyContent.style.display = 'none';
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  const error = params.get('error');
+  if (error) {
+    const errEl = document.getElementById('auth-error');
+    const messages = {
+      link_expired: 'That login link has expired. Request a new one.',
+      link_used: 'That login link has already been used. Request a new one.',
+      invalid_link: 'Invalid login link. Request a new one.',
+    };
+    errEl.textContent = messages[error] || 'Login failed. Try again.';
+    errEl.style.display = 'block';
+    authGate.style.display = 'block';
+    window.history.replaceState({}, '', '/lobby');
   }
 })();
+
+document.getElementById('magic-link-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('auth-email').value.trim();
+  if (!email) return;
+
+  const btn = document.getElementById('btn-magic-link');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const res = await fetch('/auth/magic-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      document.getElementById('auth-success').textContent = 'Check your email for a login link!';
+      document.getElementById('auth-success').style.display = 'block';
+      document.getElementById('auth-error').style.display = 'none';
+    } else {
+      document.getElementById('auth-error').textContent = data.error || 'Failed to send link.';
+      document.getElementById('auth-error').style.display = 'block';
+    }
+  } catch {
+    document.getElementById('auth-error').textContent = 'Network error. Try again.';
+    document.getElementById('auth-error').style.display = 'block';
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Send Magic Link';
+});
+
+document.getElementById('btn-password-login')?.addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  if (!email || !password) return;
+
+  try {
+    const res = await fetch('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      const data = await res.json();
+      document.getElementById('auth-error').textContent = data.error + ' Send a magic link instead?';
+      document.getElementById('auth-error').style.display = 'block';
+    }
+  } catch {
+    document.getElementById('auth-error').textContent = 'Network error.';
+    document.getElementById('auth-error').style.display = 'block';
+  }
+});
 </script>
 </body>
 </html>
