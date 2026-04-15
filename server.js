@@ -1957,7 +1957,7 @@ async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false,
 // ── REST API ─────────────────────────────────────────────────────────────────
 app.get('/api/games', authMiddleware, async (req, res) => {
   try {
-    const userId = req.user?.id || req.anonSession?.id || null;
+    const userId = req.user?.id || null;
     const gamesList = await db.listGames();
     // Only show games this user created (private by default)
     const filtered = userId
@@ -1973,18 +1973,16 @@ app.get('/api/games', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/games', authMiddleware, async (req, res) => {
+app.post('/api/games', requireAuth, async (req, res) => {
   try {
     const { system } = req.body;
     const name = truncate(req.body.name, 100);
     const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
       || crypto.randomBytes(4).toString('hex');
     await db.createGame(id, name, system || 'dnd5e');
-    // Set host_user_id (authenticated user or anonymous session)
-    const hostId = req.user?.id || req.anonSession?.id || null;
-    if (hostId) {
-      await db.pool.query('UPDATE games SET host_user_id = $1 WHERE id = $2', [hostId, id]);
-    }
+    // Set host_user_id (authenticated user required)
+    const hostId = req.user.id;
+    await db.pool.query('UPDATE games SET host_user_id = $1 WHERE id = $2', [hostId, id]);
     const game = await db.getGame(id);
     res.json(game);
   } catch (err) {
@@ -2364,23 +2362,7 @@ app.get('/api/balance', requireAuth, async (req, res) => {
   }
 });
 
-// Create anonymous session (called by game client when no auth)
-app.post('/api/anonymous-session', async (req, res) => {
-  const ip = req.ip || req.connection.remoteAddress;
-  const { createAnonymousSession, setTokenCookie } = require('./auth');
-  const result = await createAnonymousSession(ip);
-  if (result.error) {
-    return res.status(429).json({ error: result.error });
-  }
-  // Set the anonymous JWT as cookie
-  res.cookie('tt_token', result.token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-  });
-  res.json({ anonId: result.id });
-});
+// REMOVED: anonymous session creation — all users must authenticate
 
 app.post('/api/redeem', requireAuth, async (req, res) => {
   try {
@@ -2432,6 +2414,7 @@ app.get('/admin', requireAuth, requireAdmin, (req, res) => {
 
 // Serve game page for any game slug
 app.get('/game/:gameId', (req, res) => {
+  if (!req.user) return res.redirect('/lobby');
   res.sendFile(path.join(__dirname, 'public', 'game.html'));
 });
 
