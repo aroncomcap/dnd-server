@@ -834,6 +834,14 @@ function parseResponse(text) {
 async function initiateCombat(gameId, gameConfig, enemies) {
   const gs = getGameState(gameId);
   const system = gameConfig.system || 'dnd5e';
+
+  // Gate: signal clients that combat is initializing (OOC-only mode)
+  gs.combatInitializing = true;
+  io.to(gameId).emit('combat_initializing', {
+    message: 'Rolling initiative... preparing for combat.',
+    enemies: enemies.map(e => `${e.count}x ${e.displayName}`),
+  });
+
   const enemyCombatants = [];
 
   for (const entry of enemies) {
@@ -863,7 +871,11 @@ async function initiateCombat(gameId, gameConfig, enemies) {
       }
     }
   }
-  if (enemyCombatants.length === 0) return null;
+  if (enemyCombatants.length === 0) {
+    gs.combatInitializing = false;
+    io.to(gameId).emit('combat_init_failed', { message: 'No valid enemies found.' });
+    return null;
+  }
 
   const pcCombatants = [];
   for (const [name, char] of Object.entries(gs.data.characters)) {
@@ -894,7 +906,9 @@ async function initiateCombat(gameId, gameConfig, enemies) {
     ),
     round: state.round,
   });
+  gs.combatInitializing = false;
   emitSystem(gameId, { text: '⚔️ Combat begins!' });
+  persistCombatState(gameId);
   return state;
 }
 
@@ -984,6 +998,13 @@ function emitCombatUpdate(gameId) {
     activeEffects: engine.state.activeEffects,
     log: engine.state.log.slice(-10),
   });
+}
+
+/** Fire-and-forget save of combat state to DB. */
+function persistCombatState(gameId) {
+  const gs = games[gameId];
+  if (!gs) return;
+  db.setState(gameId, 'combatState', gs.combatEngine.state).catch(() => {});
 }
 
 // ── Character Token Generation ───────────────────────────────────────────────
@@ -1296,6 +1317,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
         const playerResult = gs.combatEngine.resolveAction(parsedAction);
         gs.combatEngine.advanceTurn();
         const enemyResults = await resolveEnemyTurns(gameId, gameConfig);
+        persistCombatState(gameId);
         const allResults = [playerResult, ...enemyResults].filter(Boolean);
         const resultLines = allResults.map(r => gs.combatEngine.formatResultForPrompt(r));
 
@@ -1314,6 +1336,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
         if (overCheck.over) {
           combatContext += `\n\nCOMBAT IS OVER: ${overCheck.reason === 'enemies_defeated' ? 'All enemies defeated. Narrate aftermath and loot.' : 'All PCs are down.'}`;
           gs.combatEngine.endCombat();
+          persistCombatState(gameId);
           // Collect DPR data from combat
           const combatSummary = gs.combatEngine.getCombatSummary();
           if (combatSummary && combatSummary.rounds > 0) {
@@ -2399,6 +2422,8 @@ io.on('connection', (socket) => {
       gs.combatHistory = await db.getState(gameId, 'combatHistory', {});
       gs.difficultyCorrection = await db.getState(gameId, 'difficultyCorrection', 1.0);
       gs.npcMemory = await db.getState(gameId, 'npcMemory', {});
+      const savedCombat = await db.getState(gameId, 'combatState', null);
+      if (savedCombat) gs.combatEngine.loadState(savedCombat);
     }
 
     const gs = getGameState(gameId);
@@ -2424,6 +2449,36 @@ io.on('connection', (socket) => {
       pdfUploads: await db.getState(gameId, 'pdf_uploads', []),
       encounterPlan: gs.encounterPlan || null,
     });
+
+    // If combat is active, send current state to the joining client
+    if (gs.combatEngine.state.active) {
+      socket.emit('combat_started', {
+        initiativeOrder: gs.combatEngine.state.initiativeOrder,
+        combatants: Object.fromEntries(
+          Object.entries(gs.combatEngine.state.combatants).map(([id, c]) => [id, {
+            id, name: c.name, type: c.type,
+            hp: c.hp ?? c.totalHp, maxHp: c.maxHp ?? c.totalHp, ac: c.ac,
+            conditions: c.conditions || [],
+          }])
+        ),
+        round: gs.combatEngine.state.round,
+      });
+      const engine = gs.combatEngine;
+      socket.emit('combat_update', {
+        round: engine.state.round,
+        turnIndex: engine.state.turnIndex,
+        currentTurn: engine.getCurrentTurn()?.id,
+        combatants: Object.fromEntries(
+          Object.entries(engine.state.combatants).map(([id, c]) => [id, {
+            id, name: c.name, type: c.type,
+            hp: c.hp ?? c.totalHp, maxHp: c.maxHp ?? c.totalHp, ac: c.ac,
+            conditions: c.conditions || [], concentrating: c.concentrating || null,
+          }])
+        ),
+        activeEffects: engine.state.activeEffects,
+        log: engine.state.log.slice(-10),
+      });
+    }
   });
 
   // Register / update character
@@ -2546,6 +2601,12 @@ io.on('connection', (socket) => {
     // Block spectators from taking actions
     if (socket.userId && billingTicker.isSpectator(gameId, socket.userId)) {
       socket.emit('system', { text: 'You are in spectator mode. Add time to resume control.' });
+      return;
+    }
+
+    // Gate: combat initializing — only allow OOC during monster loading
+    if (gs.combatInitializing) {
+      socket.emit('system', { text: '⏳ Combat is loading — use OOC to chat while initiative is rolled.' });
       return;
     }
 

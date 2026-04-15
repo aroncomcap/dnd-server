@@ -8,6 +8,7 @@ const { roll, d20, advantage, disadvantage } = require('./dice');
 
 /** Standard 5e ability modifier formula. */
 function getAbilityMod(score) {
+  if (score === undefined || score === null || isNaN(score)) return 0;
   return Math.floor((score - 10) / 2);
 }
 
@@ -16,27 +17,33 @@ function getAbilityMod(score) {
  * Adds proficiency bonus when the combatant is proficient.
  */
 function getSaveMod(combatant, ability) {
-  const mod = getAbilityMod(combatant.abilities[ability]);
-  const proficient = combatant.saveProficiencies.includes(ability);
-  return proficient ? mod + combatant.proficiencyBonus : mod;
+  const abilities = combatant.abilities || {};
+  const mod = getAbilityMod(abilities[ability]);
+  const proficient = (combatant.saveProficiencies || []).includes(ability);
+  const prof = combatant.proficiencyBonus || 2;
+  return proficient ? mod + prof : mod;
 }
 
 /** Spell Save DC: 8 + proficiency + spellcasting ability modifier. */
 function getSpellSaveDC(caster) {
   const ability = caster.spellcastingAbility;
-  const mod = ability ? getAbilityMod(caster.abilities[ability]) : 0;
-  return 8 + caster.proficiencyBonus + mod;
+  const abilities = caster.abilities || {};
+  const mod = ability ? getAbilityMod(abilities[ability]) : 0;
+  return 8 + (caster.proficiencyBonus || 2) + mod;
 }
 
 /** Attack modifier: ability modifier + proficiency bonus. */
 function getAttackMod(combatant, weapon) {
   const ability = weapon.attackMod || 'str';
-  return getAbilityMod(combatant.abilities[ability]) + combatant.proficiencyBonus;
+  const abilities = combatant.abilities || {};
+  const prof = combatant.proficiencyBonus || 2;
+  return getAbilityMod(abilities[ability]) + prof;
 }
 
 /** Roll initiative: d20 + DEX modifier. */
 function rollInitiative(combatant) {
-  return d20() + getAbilityMod(combatant.abilities.dex);
+  const abilities = combatant.abilities || {};
+  return d20() + getAbilityMod(abilities.dex);
 }
 
 // ---------------------------------------------------------------------------
@@ -153,7 +160,7 @@ function resolveAttack(attacker, target, weapon, conditions = [], activeEffects 
   let totalDamage = 0;
 
   if (hit) {
-    const abilityMod = getAbilityMod(attacker.abilities[weapon.attackMod || 'str']);
+    const abilityMod = getAbilityMod((attacker.abilities || {})[weapon.attackMod || 'str']);
     if (critical) {
       // Double the dice, add modifier once
       const r1 = roll(weapon.damage);
@@ -203,7 +210,7 @@ function resolveAttack(attacker, target, weapon, conditions = [], activeEffects 
  */
 function resolveSpell(caster, spell, targets, conditions = [], activeEffects = []) {
   const spellAbility = caster.spellcastingAbility;
-  const spellMod = spellAbility ? getAbilityMod(caster.abilities[spellAbility]) : 0;
+  const spellMod = spellAbility ? getAbilityMod((caster.abilities || {})[spellAbility]) : 0;
 
   // --- Healing ---
   if (spell.healing || spell.effect === 'heal') {

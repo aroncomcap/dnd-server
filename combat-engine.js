@@ -425,13 +425,17 @@ class CombatEngine {
     const allEnemiesDead = enemies.length > 0 &&
       enemies.every(e => resolver.checkDeath(e).status === 'dead');
 
+    if (allEnemiesDead) return { over: true, reason: 'enemies_defeated' };
+
     const allPCsDown = pcs.length > 0 &&
       pcs.every(p => {
         const status = resolver.checkDeath(p).status;
         return status === 'dead' || status === 'unconscious';
       });
 
-    return allEnemiesDead || allPCsDown;
+    if (allPCsDown) return { over: true, reason: 'party_defeated' };
+
+    return { over: false, reason: null };
   }
 
   // -------------------------------------------------------------------------
@@ -542,6 +546,15 @@ class CombatEngine {
   endCombat() {
     this.state.active = false;
     return this.state;
+  }
+
+  /**
+   * Restore combat state from a persisted snapshot (DB).
+   * @param {object} saved - previously persisted this.state
+   */
+  loadState(saved) {
+    if (!saved || !saved.active) return;
+    this.state = { ...saved };
   }
 
   // -------------------------------------------------------------------------

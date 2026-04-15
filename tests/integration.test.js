@@ -141,7 +141,7 @@ describe('Integration: Full D&D 5e combat round', () => {
 
     // Kill the goblin and verify combat-over
     engine.state.combatants['goblin'].hp = 0;
-    assert.equal(engine.isCombatOver(), true, 'combat should be over when enemy HP=0');
+    assert.ok(engine.isCombatOver().over, 'combat should be over when enemy HP=0');
 
     const finalState = engine.endCombat();
     assert.equal(finalState.active, false);
@@ -309,10 +309,10 @@ describe('Integration: Combat lifecycle', () => {
     const engine = new CombatEngine();
     engine.initCombat([pc], [goblin], 'dnd5e');
 
-    assert.equal(engine.isCombatOver(), false, 'combat should not be over at start');
+    assert.ok(!engine.isCombatOver().over, 'combat should not be over at start');
 
     engine.state.combatants['goblin'].hp = 0;
-    assert.equal(engine.isCombatOver(), true, 'combat should be over when enemy is dead');
+    assert.ok(engine.isCombatOver().over, 'combat should be over when enemy is dead');
 
     const state = engine.endCombat();
     assert.equal(state.active, false);

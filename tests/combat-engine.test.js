@@ -541,21 +541,21 @@ describe('CombatEngine', () => {
     it('returns false when both sides alive', () => {
       const engine = new CombatEngine();
       engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
-      assert.equal(engine.isCombatOver(), false);
+      assert.deepStrictEqual(engine.isCombatOver(), { over: false, reason: null });
     });
 
     it('returns true when all enemies dead', () => {
       const engine = new CombatEngine();
       engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
       engine.state.combatants['goblin'].hp = 0;
-      assert.equal(engine.isCombatOver(), true);
+      assert.deepStrictEqual(engine.isCombatOver(), { over: true, reason: 'enemies_defeated' });
     });
 
     it('returns true when all PCs down (hp=0)', () => {
       const engine = new CombatEngine();
       engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
       engine.state.combatants['kael'].hp = 0;
-      assert.equal(engine.isCombatOver(), true);
+      assert.deepStrictEqual(engine.isCombatOver(), { over: true, reason: 'party_defeated' });
     });
   });
 
