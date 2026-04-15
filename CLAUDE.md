@@ -60,10 +60,16 @@ Multiplayer RPG game server with AI Game Master (Claude as DM). Express.js + Soc
 - Character tokens: 512x512, generated on registration
 - World art (NPCs/locations): generated on first discovery, stored in world state
 
+### Combat State Persistence
+- Combat state (combatants, HP, conditions, round, turn order, effects) is persisted to DB via `persistCombatState(gameId)` after every combat action
+- On game reload (eviction or restart), combat state is restored from DB via `combatEngine.loadState()`
+- On client rejoin during active combat, `combat_started` + `combat_update` events are emitted with current state
+- `isCombatOver()` returns `{ over: boolean, reason: string }` — NOT a boolean
+
 ### Game Eviction
 - Games with no connected clients for 1 hour are purged from RAM
-- DB data (characters, chat history, world state) is always preserved — eviction is RAM-only
-- Games reload from DB on next connection
+- DB data (characters, chat history, world state, combat state) is always preserved — eviction is RAM-only
+- Games reload from DB on next connection, including active combat
 
 ### Cost Safety
 - 60 calls/hour rate limit per game
