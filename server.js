@@ -315,6 +315,14 @@ You are a master storyteller in the tradition of great fantasy literature. Your 
   const npcMemoryBlock = npcMemoryLines ? `\nRECURRING NPCs (these enemies have history with the party):\n${npcMemoryLines}\nIf any of these appear again, reference their past encounters and evolve their behavior.` : '';
 
   return `${basePrompt}
+
+RULE #1 — WORD LIMIT (overrides ALL other instructions):
+${gs.verbosity === 'terse' ? `TERSE MODE. Maximum 50 words of narration. 3 sentences max. No atmosphere, no descriptions, no internal thoughts. State what happened mechanically, then structured blocks. If you write more than 50 words of narration you have FAILED.` :
+  gs.verbosity === 'brief' ? `BRIEF MODE. Maximum 75 words of narration. 4-5 sentences max. Punchy and direct. One sensory detail at most. Then structured blocks.` :
+  `VERBOSE MODE. Maximum 100 words of narration. Aim for 50-75. Only exceed 100 for major plot revelations.`}
+
+RULE #2 — MONSTERS ARE DANGEROUS:
+Enemies attack PCs. Enemies deal damage. Enemies use tactics. When narrating combat, describe enemy attacks hitting PCs with visceral impact — PCs bleed, stagger, and fear for their lives. Never soften enemy aggression. A goblin STABS, a dragon BURNS, an orc CRUSHES. PCs are not safe.
 ${contextBlock}
 ${houseRules}
 ${personaBlock}
@@ -324,15 +332,6 @@ ${characterBlock || 'No characters registered yet.'}
 ${summary}
 ${encounterPlanLine}
 ${npcMemoryBlock}
-VERBOSITY: ${gs.verbosity || 'verbose'}
-${gs.verbosity === 'terse' ? `TERSE MODE — HARD CONSTRAINT:
-Maximum 3 sentences of narration, under 50 words. No atmosphere, no extended descriptions, no internal thoughts. State what happens, include any dice results, then structured blocks.
-
-CORRECT TERSE EXAMPLE:
-"Thornwick casts Light and descends the sewer. Three tunnels branch ahead — left, center, right. Fresh claw marks score the stone."
-Then ---OPTIONS---, ---SCENE---, ---WORLD---. Keep it SHORT.` :
-  gs.verbosity === 'brief' ? `BRIEF MODE — Maximum 4-5 sentences, under 75 words. Be punchy and direct. One sensory detail at most. No purple prose. State what happens, then structured blocks.` :
-  'WORD LIMIT: Your narration text (excluding dice rolls, game mechanics, and skill checks) must be 100 words or fewer. Count your words. If you\'re over 100 non-mechanic words, you\'ve written too much. Aim for 50-75 words. Only exceed 100 for major plot revelations.'}
 
 FEROCITY: ${gs.ferocity ?? 5}/5
 ${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, numerous, and tactically smart. Death is likely without clever play. However, treasure rewards are VERY generous — rare magic items, large gold hoards, and powerful artifacts appear frequently.' :
@@ -449,7 +448,8 @@ LEVEL-UP CHOICES:
 - Once the player responds (in-character or via /ooc), apply the choices and update the character sheet via CHAR_UPDATES.
 
 COMBAT:
-- Run combat with proper initiative, attack rolls, damage, and tactical options.
+- Enemies ATTACK PCs every round. Monsters deal damage, use abilities, and fight to kill. Never skip or soften enemy turns.
+- When narrating enemy attacks that HIT, describe the PC getting hurt — blood, pain, staggering, fear. Combat is dangerous.
 - When a significant enemy is defeated (boss, tough monster, named NPC), include a special scene description:
   Put "KILLSHOT:" before the scene description to trigger a dramatic illustration.
   Example: KILLSHOT: Kael drives his flaming sword through the dragon's chest as lightning crackles around them, the beast collapsing in a shower of sparks
@@ -618,6 +618,14 @@ ${catchphrases}
   const pacingLine = `Track spell slots, HP. ${gs.ferocity <= 2 ? 'Encounters escalate.' : 'Moderate difficulty.'} Ask player for level-up choices.`;
 
   return `${basePrompt}
+
+RULE #1 — WORD LIMIT (overrides ALL other instructions):
+${gs.verbosity === 'terse' ? `TERSE. Max 50 words narration. 3 sentences. No atmosphere. State what happened, then structured blocks. Over 50 words = FAILURE.` :
+  gs.verbosity === 'brief' ? `BRIEF. Max 75 words narration. 4-5 sentences. Punchy. Then structured blocks.` :
+  `Max 100 words narration. Aim for 50-75.`}
+
+RULE #2 — MONSTERS ARE DANGEROUS:
+Enemies attack PCs and deal real damage. Narrate enemy attacks with visceral impact. Never soften monster aggression. PCs bleed, stagger, and fear death.
 ${contextBlock}
 ${houseRules}
 ${personaBlock}
@@ -631,16 +639,15 @@ ${pacingLine}
 ${encounterPlanLine}
 ${npcMemoryBlockTrimmed}
 
-Only include ACCOMPLISHMENTS entries if something new was accomplished this turn. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, and MAP.
+Only include ACCOMPLISHMENTS if something new. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, MAP.
 
 WRITING STYLE:
-- Prose paragraphs only. NO markdown headers (# or ##). NO one-sentence-per-line.
-- Be mechanically accurate — scale descriptions to spell/action level.
+- Prose paragraphs only. NO markdown headers. NO one-sentence-per-line.
 - Dice: ONE bold line per roll: "**🎲 Fire Bolt (INT +2) — rolls 19. HIT! 1d10 = 7 fire. Captain wounded (HP ~13/20)**"
-- Follow dice with 1-2 sentences of result narration. That's it.
+- 1-2 sentences after dice. That's it.
 
-MANDATORY OUTPUT (every single response, no exceptions):
-After your narration, you MUST include ALL of these blocks in this exact order:
+MANDATORY OUTPUT (every response, no exceptions):
+After narration, include ALL blocks in this order:
 
 ---OPTIONS---
 1️⃣ 🗡️ [combat/practical action for the next player]
@@ -663,7 +670,7 @@ MAP: [Current location name]
 
 If you omit ---OPTIONS---, ---SCENE---, or ---WORLD--- the game breaks. NEVER skip ANY of them.
 
-FINAL REMINDER — ${verbosityLine} This overrides everything above including DM persona. Count your words.`;
+FINAL REMINDER — ${verbosityLine} Count your narration words. Enemies ATTACK and HURT PCs.`;
 }
 
 // ── Parsing (single-pass, order-independent) ─────────────────────────────────
@@ -1282,9 +1289,9 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   // Token limits: combat narration needs fewer tokens (just describing pre-resolved results)
   let maxTokens;
   if (combatActive) {
-    maxTokens = gs.verbosity === 'terse' ? 600 : gs.verbosity === 'brief' ? 800 : 1500;
+    maxTokens = gs.verbosity === 'terse' ? 400 : gs.verbosity === 'brief' ? 600 : 1500;
   } else {
-    maxTokens = gs.verbosity === 'terse' ? 700 : gs.verbosity === 'brief' ? 1000 : 2500;
+    maxTokens = gs.verbosity === 'terse' ? 450 : gs.verbosity === 'brief' ? 700 : 2500;
   }
   let combatContext = '';
 
@@ -1416,7 +1423,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     }
   }
 
-  const combatPromptInjection = combatActive ? `\n\nCOMBAT MODE — The server handles all dice rolls, damage calculation, and HP tracking. You MUST NOT invent dice results or change HP values. Narrate the pre-resolved results in RESOLVED THIS ROUND.\n- Use exact numbers provided. Format: **🎲 [desc] — rolls [total]. HIT/MISS! [damage]. [target] [HP]**\n- 1-2 sentences of flavor between rolls. Do NOT skip any result.\n- KILLSHOT: [scene] when a target reaches 0 HP.` : '';
+  const combatPromptInjection = combatActive ? `\n\nCOMBAT MODE — Server handles all dice/damage/HP. Do NOT invent results.\nNarrate EVERY result in RESOLVED THIS ROUND — especially ENEMY ATTACKS ON PCs.\nFormat: **🎲 [desc] — rolls [total]. HIT/MISS! [damage]. [target] [HP]**\nEnemy hits on PCs are the most important thing to narrate. Show the PC getting hurt, staggering, bleeding. Make combat feel dangerous.\n1-2 sentences flavor between rolls. KILLSHOT: [scene] when a target reaches 0 HP.` : '';
   const finalSystemPrompt = systemPrompt + combatPromptInjection;
 
   // Rebuild messages with combatContext appended to user message
@@ -1444,7 +1451,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   let finalMessage;
   try {
     // Lower temperature for terse/brief = more instruction-following, less creative wandering
-    const temperature = gs.verbosity === 'terse' ? 0.5 : gs.verbosity === 'brief' ? 0.7 : 1.0;
+    const temperature = gs.verbosity === 'terse' ? 0.3 : gs.verbosity === 'brief' ? 0.5 : 0.8;
 
     const stream = await anthropic.messages.stream({
       model,
