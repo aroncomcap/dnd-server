@@ -168,6 +168,30 @@
   }
   .error-msg.visible { display: block; }
 
+  .success-msg {
+    background: rgba(76,175,80,0.1);
+    border: 1px solid rgba(76,175,80,0.3);
+    border-radius: 8px;
+    color: #2e7d32;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+    margin-top: 12px;
+    display: none;
+  }
+  .success-msg.visible { display: block; }
+
+  .forgot-password-link {
+    display: block;
+    text-align: center;
+    color: var(--gold);
+    font-size: 0.85rem;
+    margin-top: 12px;
+    text-decoration: none;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+  }
+  .forgot-password-link:hover { opacity: 1; }
+
   /* ── Divider ── */
   .divider {
     display: flex;
@@ -273,6 +297,7 @@
     <!-- Tabs -->
     <div class="tabs">
       <button class="tab active" data-tab="login">Login</button>
+      <button class="tab" data-tab="magic-link">Magic Link</button>
       <button class="tab" data-tab="register">Register</button>
     </div>
 
@@ -288,6 +313,18 @@
       <input id="login-password" type="password" placeholder="Your secret passphrase" autocomplete="current-password"/>
 
       <button class="btn btn-primary" id="btn-login">Login</button>
+
+      <a href="#" class="forgot-password-link" id="forgot-pwd-link">Forgot password?</a>
+    </div>
+
+    <!-- Magic Link Form -->
+    <div class="form-section" id="form-magic-link">
+      <label>Email</label>
+      <input id="magic-link-email" type="email" placeholder="adventurer@tavern.com" autocomplete="email"/>
+
+      <button class="btn btn-primary" id="btn-magic-link">Send Login Link</button>
+
+      <div class="success-msg" id="magic-link-success"></div>
     </div>
 
     <!-- Register Form -->
@@ -338,16 +375,32 @@ tabs.forEach(tab => {
     forms.forEach(f => f.classList.remove('active'));
     document.getElementById('form-' + tab.dataset.tab).classList.add('active');
     hideError();
+    hideSuccess();
   });
 });
 
 function showError(msg) {
   errorEl.textContent = msg;
   errorEl.classList.add('visible');
+  hideSuccess();
 }
 function hideError() {
   errorEl.textContent = '';
   errorEl.classList.remove('visible');
+}
+
+function showSuccess(msg, element) {
+  if (element) {
+    element.textContent = msg;
+    element.classList.add('visible');
+  }
+}
+function hideSuccess() {
+  const successEls = document.querySelectorAll('.success-msg');
+  successEls.forEach(el => {
+    el.textContent = '';
+    el.classList.remove('visible');
+  });
 }
 
 // ── Check URL params for OAuth errors ──
@@ -386,6 +439,39 @@ document.getElementById('btn-login').addEventListener('click', async () => {
   }
 });
 
+// ── Magic Link ──
+document.getElementById('btn-magic-link').addEventListener('click', async () => {
+  hideError();
+  const email = document.getElementById('magic-link-email').value.trim();
+
+  if (!email || !email.includes('@')) { showError('Please enter a valid email.'); return; }
+
+  const btn = document.getElementById('btn-magic-link');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+
+  try {
+    const res = await fetch('/auth/magic-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    btn.disabled = false;
+    btn.textContent = 'Send Login Link';
+    if (res.ok) {
+      showSuccess('Check your email for a login link.', document.getElementById('magic-link-success'));
+      document.getElementById('magic-link-email').value = '';
+    } else {
+      showError(data.error || 'Failed to send link.');
+    }
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Send Login Link';
+    showError('Network error. Please try again.');
+  }
+});
+
 // ── Register ──
 document.getElementById('btn-register').addEventListener('click', async () => {
   hideError();
@@ -415,9 +501,23 @@ document.getElementById('btn-register').addEventListener('click', async () => {
   }
 });
 
+// ── Forgot Password Link (switch to magic link tab) ──
+document.getElementById('forgot-pwd-link').addEventListener('click', (e) => {
+  e.preventDefault();
+  tabs.forEach(t => t.classList.remove('active'));
+  document.querySelector('[data-tab="magic-link"]').classList.add('active');
+  forms.forEach(f => f.classList.remove('active'));
+  document.getElementById('form-magic-link').classList.add('active');
+  hideError();
+  hideSuccess();
+});
+
 // ── Enter key submits ──
 document.getElementById('login-password').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('btn-login').click();
+});
+document.getElementById('magic-link-email').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-magic-link').click();
 });
 document.getElementById('reg-confirm').addEventListener('keydown', e => {
   if (e.key === 'Enter') document.getElementById('btn-register').click();

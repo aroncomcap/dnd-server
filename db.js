@@ -72,6 +72,7 @@ async function initDB() {
 
     ALTER TABLE users ADD COLUMN IF NOT EXISTS magic_link_nonce TEXT;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS has_password BOOLEAN DEFAULT FALSE;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_nonce TEXT;
 
     CREATE TABLE IF NOT EXISTS user_balances (
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -361,6 +362,14 @@ async function setUserPassword(userId, passwordHash) {
   await pool.query('UPDATE users SET password_hash = $1, has_password = TRUE WHERE id = $2', [passwordHash, userId]);
 }
 
+async function setPasswordResetNonce(userId, nonce) {
+  await pool.query('UPDATE users SET password_reset_nonce = $1 WHERE id = $2', [nonce, userId]);
+}
+
+async function clearPasswordResetNonce(userId) {
+  await pool.query('UPDATE users SET password_reset_nonce = NULL WHERE id = $1', [userId]);
+}
+
 async function getUserByProvider(provider, providerId) {
   const { rows } = await pool.query(
     'SELECT * FROM users WHERE auth_provider = $1 AND auth_provider_id = $2',
@@ -647,6 +656,8 @@ module.exports = {
   setMagicLinkNonce,
   clearMagicLinkNonce,
   setUserPassword,
+  setPasswordResetNonce,
+  clearPasswordResetNonce,
   getUserByProvider,
   getUserBalance,
   deductMinutes,

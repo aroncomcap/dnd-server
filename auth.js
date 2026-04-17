@@ -295,6 +295,8 @@ router.post('/auth/magic-link', magicLinkLimiter, async (req, res) => {
     const { email } = req.body;
     if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
 
+    if (!resend) return res.status(503).json({ error: 'Email service not configured. Please use password login or OAuth.' });
+
     const user = await db.findOrCreateUserByEmail(email);
     const nonce = crypto.randomBytes(16).toString('hex');
     await db.setMagicLinkNonce(user.id, nonce);
@@ -308,21 +310,22 @@ router.post('/auth/magic-link', magicLinkLimiter, async (req, res) => {
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     const link = `${baseUrl}/auth/magic-link/${token}`;
 
-    if (resend) {
+    try {
       await resend.emails.send({
         from: process.env.EMAIL_FROM || 'Tavern Table <onboarding@resend.dev>',
         to: user.email,
         subject: 'Your Tavern Table login link',
         html: `<p>Click to log in to Tavern Table:</p><p><a href="${link}">${link}</a></p><p>This link expires in 15 minutes.</p>`,
       });
-    } else {
-      console.log(`[magic-link] ${user.email}: ${link}`);
+    } catch (emailErr) {
+      console.error('Email send error:', emailErr.message);
+      return res.status(500).json({ error: 'Failed to send email. Please try again.' });
     }
 
     res.json({ ok: true, message: 'Check your email for a login link.' });
   } catch (err) {
     console.error('Magic link error:', err.message);
-    res.status(500).json({ error: 'Failed to send login link' });
+    res.status(500).json({ error: 'Failed to process magic link request' });
   }
 });
 
@@ -343,6 +346,76 @@ router.get('/auth/magic-link/:token', async (req, res) => {
   } catch (err) {
     if (err.name === 'TokenExpiredError') return res.redirect('/lobby?error=link_expired');
     res.redirect('/lobby?error=invalid_link');
+  }
+});
+
+// ── Forgot Password Routes ───────────────────────────────────────────────────
+
+router.post('/auth/forgot-password', magicLinkLimiter, async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email || !email.includes('@')) return res.status(400).json({ error: 'Valid email required' });
+
+    if (!resend) return res.status(503).json({ error: 'Email service not configured. Please contact support.' });
+
+    const user = await db.getUserByEmail(email.toLowerCase().trim());
+    if (!user) {
+      // Don't reveal if email exists — for security
+      return res.json({ ok: true, message: 'If that email exists, you will receive a password reset link.' });
+    }
+
+    const nonce = crypto.randomBytes(16).toString('hex');
+    await db.setPasswordResetNonce(user.id, nonce);
+
+    const token = jwt.sign(
+      { email: user.email, nonce, purpose: 'password-reset' },
+      JWT_SECRET,
+      { expiresIn: '15m' }
+    );
+
+    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const link = `${baseUrl}/reset-password.html?token=${token}`;
+
+    try {
+      await resend.emails.send({
+        from: process.env.EMAIL_FROM || 'Tavern Table <onboarding@resend.dev>',
+        to: user.email,
+        subject: 'Reset your Tavern Table password',
+        html: `<p>Click to reset your password:</p><p><a href="${link}">Reset Password</a></p><p>This link expires in 15 minutes.</p>`,
+      });
+    } catch (emailErr) {
+      console.error('Email send error:', emailErr.message);
+      return res.status(500).json({ error: 'Failed to send email. Please try again.' });
+    }
+
+    res.json({ ok: true, message: 'If that email exists, you will receive a password reset link.' });
+  } catch (err) {
+    console.error('Forgot password error:', err.message);
+    res.status(500).json({ error: 'Failed to process request' });
+  }
+});
+
+router.post('/auth/reset-password/:token', async (req, res) => {
+  try {
+    const { password } = req.body;
+    if (!password || password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
+
+    const decoded = jwt.verify(req.params.token, JWT_SECRET);
+    if (decoded.purpose !== 'password-reset') return res.status(400).json({ error: 'Invalid reset link' });
+
+    const user = await db.getUserByEmail(decoded.email);
+    if (!user) return res.status(400).json({ error: 'Invalid reset link' });
+    if (user.password_reset_nonce !== decoded.nonce) return res.status(400).json({ error: 'Reset link has already been used' });
+
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    await db.setUserPassword(user.id, passwordHash);
+    await db.clearPasswordResetNonce(user.id);
+
+    res.json({ ok: true, message: 'Password reset successfully. You can now log in.' });
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') return res.status(400).json({ error: 'Reset link has expired' });
+    console.error('Reset password error:', err.message);
+    res.status(400).json({ error: 'Invalid reset link' });
   }
 });
 
@@ -370,31 +443,36 @@ router.post('/auth/set-password', async (req, res) => {
 router.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'], session: false }));
 router.get('/auth/google/callback', (req, res, next) => {
   passport.authenticate('google', { session: false }, async (err, user) => {
-    if (err || !user) return res.redirect('/login.html?error=google_failed');
-    const token = generateToken(user);
-    setTokenCookie(res, token);
-    // Merge anonymous session
-    const anonCookie = req.cookies?.tt_token;
-    if (anonCookie) {
-      try {
-        const anonDecoded = jwt.verify(anonCookie, JWT_SECRET);
-        if (anonDecoded.anonymous && anonDecoded.anonId) {
-          const anonSession = await db.getAnonSession(anonDecoded.anonId);
-          if (anonSession && !anonSession.converted_to_user_id) {
-            await db.convertAnonSession(anonDecoded.anonId, user.id);
-            const minutesUsed = anonSession.minutes_used || 0;
-            if (minutesUsed > 0) {
-              const remaining = Math.max(0, 600 - minutesUsed);
-              await db.pool.query(
-                'UPDATE user_balances SET free_minutes_remaining = $1 WHERE user_id = $2',
-                [remaining, user.id]
-              );
+    try {
+      if (err || !user) return res.redirect('/login.html?error=google_failed');
+      const token = generateToken(user);
+      setTokenCookie(res, token);
+      // Merge anonymous session
+      const anonCookie = req.cookies?.tt_token;
+      if (anonCookie) {
+        try {
+          const anonDecoded = jwt.verify(anonCookie, JWT_SECRET);
+          if (anonDecoded.anonymous && anonDecoded.anonId) {
+            const anonSession = await db.getAnonSession(anonDecoded.anonId);
+            if (anonSession && !anonSession.converted_to_user_id) {
+              await db.convertAnonSession(anonDecoded.anonId, user.id);
+              const minutesUsed = anonSession.minutes_used || 0;
+              if (minutesUsed > 0) {
+                const remaining = Math.max(0, 600 - minutesUsed);
+                await db.pool.query(
+                  'UPDATE user_balances SET free_minutes_remaining = $1 WHERE user_id = $2',
+                  [remaining, user.id]
+                );
+              }
             }
           }
-        }
-      } catch { /* ignore */ }
+        } catch { /* ignore JWT decode errors */ }
+      }
+      res.redirect('/lobby');
+    } catch (error) {
+      console.error('Google OAuth callback error:', error.message);
+      res.redirect('/login.html?error=google_failed');
     }
-    res.redirect('/lobby');
   })(req, res, next);
 });
 
@@ -403,31 +481,36 @@ router.get('/auth/google/callback', (req, res, next) => {
 router.get('/auth/discord', passport.authenticate('discord', { session: false }));
 router.get('/auth/discord/callback', (req, res, next) => {
   passport.authenticate('discord', { session: false }, async (err, user) => {
-    if (err || !user) return res.redirect('/login.html?error=discord_failed');
-    const token = generateToken(user);
-    setTokenCookie(res, token);
-    // Merge anonymous session
-    const anonCookie = req.cookies?.tt_token;
-    if (anonCookie) {
-      try {
-        const anonDecoded = jwt.verify(anonCookie, JWT_SECRET);
-        if (anonDecoded.anonymous && anonDecoded.anonId) {
-          const anonSession = await db.getAnonSession(anonDecoded.anonId);
-          if (anonSession && !anonSession.converted_to_user_id) {
-            await db.convertAnonSession(anonDecoded.anonId, user.id);
-            const minutesUsed = anonSession.minutes_used || 0;
-            if (minutesUsed > 0) {
-              const remaining = Math.max(0, 600 - minutesUsed);
-              await db.pool.query(
-                'UPDATE user_balances SET free_minutes_remaining = $1 WHERE user_id = $2',
-                [remaining, user.id]
-              );
+    try {
+      if (err || !user) return res.redirect('/login.html?error=discord_failed');
+      const token = generateToken(user);
+      setTokenCookie(res, token);
+      // Merge anonymous session
+      const anonCookie = req.cookies?.tt_token;
+      if (anonCookie) {
+        try {
+          const anonDecoded = jwt.verify(anonCookie, JWT_SECRET);
+          if (anonDecoded.anonymous && anonDecoded.anonId) {
+            const anonSession = await db.getAnonSession(anonDecoded.anonId);
+            if (anonSession && !anonSession.converted_to_user_id) {
+              await db.convertAnonSession(anonDecoded.anonId, user.id);
+              const minutesUsed = anonSession.minutes_used || 0;
+              if (minutesUsed > 0) {
+                const remaining = Math.max(0, 600 - minutesUsed);
+                await db.pool.query(
+                  'UPDATE user_balances SET free_minutes_remaining = $1 WHERE user_id = $2',
+                  [remaining, user.id]
+                );
+              }
             }
           }
-        }
-      } catch { /* ignore */ }
+        } catch { /* ignore JWT decode errors */ }
+      }
+      res.redirect('/lobby');
+    } catch (error) {
+      console.error('Discord OAuth callback error:', error.message);
+      res.redirect('/login.html?error=discord_failed');
     }
-    res.redirect('/lobby');
   })(req, res, next);
 });
 
