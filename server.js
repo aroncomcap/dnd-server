@@ -132,6 +132,10 @@ app.get('/lobby', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+app.get('/new-game', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'new-game.html'));
+});
+
 app.get('/help', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'help.html'));
 });
@@ -1945,6 +1949,7 @@ async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false,
       if (url) {
         gs.imageUrl = url;
         gs.imageLabel = sceneLabel;
+        db.updateGameImage(gameId, url).catch(e => console.error('[image-persist]', e));
         emitSceneImage(gameId, { url, label: sceneLabel });
         logCost({ gameId, model: 'FLUX', inputTokens: 0, outputTokens: 0, cost: IMAGE_COST, type: 'scene-image' });
       } else {

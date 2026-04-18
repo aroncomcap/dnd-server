@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-<title>⚔️ Tavern Table — Lobby</title>
+<title>⚔️ Create Game — Tavern Table</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&display=swap" rel="stylesheet"/>
 <style>
   :root {
@@ -51,6 +51,16 @@
   }
 
   .container { width: 100%; max-width: 500px; }
+
+  .back-link {
+    display: inline-block;
+    color: var(--gold);
+    text-decoration: none;
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+    transition: all 0.2s;
+  }
+  .back-link:hover { color: var(--gold-light); transform: translateX(-4px); }
 
   .panel {
     background: var(--parchment);
@@ -100,6 +110,11 @@
     box-shadow: 0 0 0 3px rgba(200,146,42,0.2);
   }
 
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
+
   .btn {
     display: inline-flex;
     align-items: center;
@@ -125,185 +140,12 @@
   .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(200,146,42,0.5); }
   .btn-primary:active { transform: translateY(0); }
 
-  /* ── Lobby Actions (Create + Join) ── */
-  .lobby-actions {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
+  .btn-small {
+    padding: 2px 8px;
+    font-size: 0.7rem;
+    margin-left: 4px;
+    width: auto;
   }
-  .action-btn {
-    background: linear-gradient(135deg, #c8922a, #f0c060, #c8922a);
-    color: #0d0600;
-    box-shadow: 0 4px 12px rgba(200,146,42,0.4);
-    padding: 12px 20px;
-    border: none;
-    border-radius: 8px;
-    font-family: 'Cinzel Decorative', cursive;
-    font-size: 0.85rem;
-    font-weight: 700;
-    cursor: pointer;
-    letter-spacing: 0.05em;
-    transition: all 0.2s;
-    text-decoration: none;
-    display: block;
-    text-align: center;
-  }
-  .action-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(200,146,42,0.5); }
-  .action-btn:active { transform: translateY(0); }
-
-  /* ── Game Cards Grid ── */
-  #games-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .game-card {
-    display: block;
-    position: relative;
-    border-radius: 10px;
-    overflow: hidden;
-    text-decoration: none;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-    height: 180px;
-  }
-  .game-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
-
-  .game-card-bg {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    border-radius: 10px;
-  }
-  .game-card-bg.dnd5e {
-    background-color: #4a2c1a;
-    background: linear-gradient(135deg, #6b3d1f, #3a2510);
-  }
-  .game-card-bg.runequest {
-    background-color: #2c3a4a;
-    background: linear-gradient(135deg, #3d5a6f, #1a2a3a);
-  }
-  .game-card-bg.custom {
-    background-color: #3a2c4a;
-    background: linear-gradient(135deg, #5a3d6f, #2a1a3a);
-  }
-
-  .game-card-placeholder {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-size: 3rem;
-    opacity: 0.6;
-  }
-
-  .game-card-overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-    padding: 16px;
-    color: white;
-  }
-
-  .game-card-name {
-    font-family: 'Cinzel Decorative', cursive;
-    font-size: 1rem;
-    color: #fff;
-    margin-bottom: 4px;
-    font-weight: bold;
-  }
-
-  .game-card-system {
-    display: inline-block;
-    background: rgba(200,146,42,0.3);
-    color: var(--gold-light);
-    padding: 3px 10px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .game-card-delete {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: rgba(0,0,0,0.5);
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    font-size: 1rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .game-card-delete:hover { background: rgba(139,32,32,0.8); color: #ffcccc; }
-
-  .empty-state {
-    text-align: center;
-    color: var(--ink-light);
-    font-style: italic;
-    padding: 40px 20px;
-    font-size: 0.95rem;
-  }
-
-  /* ── Join Game Input ── */
-  .join-section {
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid var(--parchment-dark);
-  }
-  .join-section label {
-    font-size: 0.85rem;
-    color: var(--ink-light);
-    font-weight: 600;
-    margin-bottom: 6px;
-  }
-  .join-input-group {
-    display: flex;
-    gap: 8px;
-    margin-top: 8px;
-  }
-  #join-code {
-    flex: 1;
-    padding: 10px 12px;
-    background: rgba(255,255,255,0.5);
-    border: 1px solid var(--parchment-dark);
-    border-radius: 8px;
-    font-family: 'Crimson Pro', serif;
-    color: var(--ink);
-  }
-  #join-code:focus {
-    border-color: var(--gold);
-    box-shadow: 0 0 0 3px rgba(200,146,42,0.2);
-  }
-  #btn-join {
-    padding: 10px 16px;
-    background: linear-gradient(135deg, #c8922a, #f0c060, #c8922a);
-    color: #0d0600;
-    border: none;
-    border-radius: 8px;
-    font-family: 'Cinzel Decorative', cursive;
-    font-size: 0.75rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  #btn-join:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(200,146,42,0.4); }
 
   /* ── Auth Bar ── */
   .auth-bar {
@@ -347,8 +189,6 @@
     header h1 { font-size: 2rem; }
     header p { font-size: 1.1rem; }
     .panel { padding: 24px; }
-    #games-grid { grid-template-columns: 1fr 1fr; }
-    .lobby-actions { grid-template-columns: 1fr 1fr; }
   }
 
   @media (min-width: 1024px) {
@@ -357,8 +197,7 @@
     header { margin-bottom: 32px; margin-top: 40px; }
     header h1 { font-size: 2.4rem; }
     .panel { padding: 28px; }
-    #games-grid { grid-template-columns: repeat(3, 1fr); }
-    .lobby-actions { grid-template-columns: 1fr 1fr; }
+    .btn { padding: 14px 24px; font-size: 0.85rem; }
   }
 </style>
 </head>
@@ -412,96 +251,125 @@
   </div>
 </div>
 
-<div id="lobby-content" style="display:none;">
+<div id="form-content" style="display:none;">
 <div class="container">
-  <!-- Lobby Actions -->
-  <div class="lobby-actions">
-    <button class="action-btn" id="btn-create-new">⚔️ Create New Game</button>
-  </div>
+  <a href="/lobby" class="back-link">← Back to Lobby</a>
 
-  <!-- Games Grid -->
   <div class="panel">
-    <div class="panel-title">🏰 Your Games</div>
-    <div id="games-grid">
-      <div class="empty-state">Loading...</div>
-    </div>
+    <div class="panel-title">⚔️ Create a New Game</div>
 
-    <!-- Join Game Section -->
-    <div class="join-section">
-      <label>Join a Game</label>
-      <div class="join-input-group">
-        <input type="text" id="join-code" placeholder="Enter join code" />
-        <button id="btn-join">Join</button>
-      </div>
-    </div>
+    <label>Game Name</label>
+    <input id="game-name" type="text" placeholder="e.g., Friday Night Dragons"/>
+
+    <label>Game System</label>
+    <select id="game-system">
+      <option value="dnd5e">Dungeons & Dragons 5th Edition</option>
+      <option value="runequest">RuneQuest: Roleplaying in Glorantha</option>
+      <option value="custom">Custom / Other System</option>
+    </select>
+
+    <label style="margin-top:10px;">Opening Scene <button type="button" class="btn btn-small" id="btn-shuffle-scene">🔀 Random</button></label>
+    <textarea id="scene-prompt"></textarea>
+
+    <label style="margin-top:10px;">Party Direction <button type="button" class="btn btn-small" id="btn-shuffle-party">🔀 Random</button></label>
+    <textarea id="party-direction"></textarea>
+
+    <button class="btn btn-primary" id="btn-create">⚔️ Create Game</button>
   </div>
 </div>
 </div>
 
 <script>
-const SYSTEM_LABELS = {
-  dnd5e: 'D&D 5e',
-  runequest: 'RuneQuest',
-  custom: 'Custom',
+// ── Random prompts by system ──
+const SCENE_PROMPTS = {
+  dnd5e: [
+    'The party wakes in a ruined temple with no memory of how they got there. Something scratches behind the altar.',
+    'A merchant caravan has been ambushed on the road. Survivors beg for help as smoke rises from the wreckage.',
+    'The tavern door bursts open — a bloodied ranger stumbles in clutching a map and whispers "They\'re coming."',
+    'You stand at the entrance to the Caves of Chaos. Multiple cave mouths dot the ravine walls.',
+    'A noble hires you to investigate disappearances in the sewers beneath the city.',
+    'Thunder shakes the mountain pass as you discover an ancient dwarven door, half-buried in a rockslide.',
+    'The village elder says the dragon hasn\'t attacked in a century — until last night.',
+  ],
+  runequest: [
+    'Your clan gathers at the Ernalda temple for Sacred Time. The omens are troubled.',
+    'A Lunar patrol has been spotted near the clan tula. The tribal ring calls an emergency moot.',
+    'You\'re on a trading mission to Pavis when your caravan encounters a Praxian raiding party.',
+    'Wildfire season has come early. The clan\'s herds are threatened and the fire spirits won\'t respond.',
+  ],
+  custom: [
+    'You awaken in an unfamiliar place with nothing but the clothes on your back and a strange symbol on your palm.',
+    'The last transmission from the frontier outpost was three days ago. You\'ve been sent to investigate.',
+    'A mysterious stranger offers you a job — retrieve a package from a heavily guarded facility.',
+    'The festival turns deadly when creatures pour through a rift in the town square.',
+  ],
 };
 
-const SYSTEM_EMOJIS = {
-  dnd5e: '🐉',
-  runequest: '⚔️',
-  custom: '🎲',
+const PARTY_PROMPTS = {
+  dnd5e: [
+    '4 characters, levels 1-3, balanced party (fighter, rogue, cleric, wizard)',
+    'A band of dwarven mercenaries, 4 characters, all level 2, combat-focused',
+    '5 characters, level 1, ragtag misfits — unusual race/class combos welcome',
+    '3 characters, level 3, stealthy infiltration team',
+    '4 characters, level 1, all from the same small village',
+  ],
+  runequest: [
+    '4 Sartarite adventurers from the Colymar tribe, varied occupations',
+    'A warband of Humakt devotees, 3 warriors seeking honor',
+    '4 characters from different cults — Orlanth, Ernalda, Issaries, Lhankor Mhy',
+  ],
+  custom: [
+    '4 characters, diverse backgrounds, balanced for exploration and combat',
+    '3 characters — a face, a fighter, and a thinker',
+    '4 outcasts thrown together by circumstance',
+  ],
 };
 
-async function loadGames() {
-  const res = await fetch('/api/games');
-  const games = await res.json();
-  const grid = document.getElementById('games-grid');
+function randomFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-  if (!games.length) {
-    grid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1;">No games yet. Create one to get started!</div>';
-    return;
-  }
-
-  grid.innerHTML = '';
-  games.forEach(g => {
-    const card = document.createElement('a');
-    card.className = 'game-card';
-    card.href = '/game/' + g.id;
-
-    const systemClass = g.system || 'dnd5e';
-    const bgStyle = g.last_image_url ? `background-image: url('${g.last_image_url}')` : '';
-
-    const del = document.createElement('button');
-    del.className = 'game-card-delete';
-    del.textContent = '✕';
-    del.title = 'Delete game';
-    del.addEventListener('click', async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (confirm(`Delete "${g.name}"? This cannot be undone.`)) {
-        await fetch('/api/games/' + g.id, { method: 'DELETE' });
-        loadGames();
-      }
-    });
-
-    const emoji = SYSTEM_EMOJIS[systemClass] || '🎲';
-
-    card.innerHTML = `
-      <div class="game-card-bg ${systemClass}" style="${bgStyle}">
-        <div class="game-card-placeholder">${emoji}</div>
-      </div>
-      <div class="game-card-overlay">
-        <div class="game-card-name">${g.name}</div>
-        <span class="game-card-system">${SYSTEM_LABELS[g.system] || g.system}</span>
-      </div>
-    `;
-    card.prepend(del);
-    grid.appendChild(card);
-  });
+function shuffleScene() {
+  const s = document.getElementById('game-system').value;
+  document.getElementById('scene-prompt').value = randomFrom(SCENE_PROMPTS[s] || SCENE_PROMPTS.custom);
 }
 
-(async function initLobby() {
+function shuffleParty() {
+  const s = document.getElementById('game-system').value;
+  document.getElementById('party-direction').value = randomFrom(PARTY_PROMPTS[s] || PARTY_PROMPTS.custom);
+}
+
+// Init with random values
+shuffleScene();
+shuffleParty();
+document.getElementById('btn-shuffle-scene').addEventListener('click', (e) => { e.preventDefault(); shuffleScene(); });
+document.getElementById('btn-shuffle-party').addEventListener('click', (e) => { e.preventDefault(); shuffleParty(); });
+// Re-shuffle when system changes
+document.getElementById('game-system').addEventListener('change', () => { shuffleScene(); shuffleParty(); });
+
+// Create Game button
+document.getElementById('btn-create').addEventListener('click', async () => {
+  const name = document.getElementById('game-name').value.trim();
+  const system = document.getElementById('game-system').value;
+  const scenePrompt = document.getElementById('scene-prompt').value.trim();
+  const partyDirection = document.getElementById('party-direction').value.trim();
+  if (!name) { alert('Enter a game name.'); return; }
+
+  const res = await fetch('/api/games', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, system }),
+  });
+  const game = await res.json();
+  // Pass scene and party direction as URL params so game.html can auto-start
+  const params = new URLSearchParams();
+  if (scenePrompt) params.set('scene', scenePrompt);
+  if (partyDirection) params.set('party', partyDirection);
+  window.location.href = '/game/' + game.id + (params.toString() ? '?' + params.toString() : '');
+});
+
+// Auth check on load
+(async function initPage() {
   const authGate = document.getElementById('auth-gate');
-  const lobbyContent = document.getElementById('lobby-content');
+  const formContent = document.getElementById('form-content');
   const bar = document.getElementById('auth-bar');
 
   try {
@@ -510,7 +378,7 @@ async function loadGames() {
 
     if (data.user) {
       authGate.style.display = 'none';
-      lobbyContent.style.display = 'block';
+      formContent.style.display = 'block';
       bar.innerHTML = `
         <span class="user-name">${data.user.email}</span>
         ${!data.user.hasPassword ? '<a href="#" id="btn-set-pw">Set Password</a>' : ''}
@@ -537,56 +405,18 @@ async function loadGames() {
           alert('Password must be at least 8 characters.');
         }
       });
-      loadGames();
     } else {
       authGate.style.display = 'block';
-      lobbyContent.style.display = 'none';
+      formContent.style.display = 'none';
       bar.innerHTML = '<a href="/help">Help</a>';
     }
   } catch {
     authGate.style.display = 'block';
-    lobbyContent.style.display = 'none';
-  }
-
-  const params = new URLSearchParams(window.location.search);
-  const error = params.get('error');
-  if (error) {
-    const errEl = document.getElementById('auth-error');
-    const messages = {
-      link_expired: 'That login link has expired. Request a new one.',
-      link_used: 'That login link has already been used. Request a new one.',
-      invalid_link: 'Invalid login link. Request a new one.',
-    };
-    errEl.textContent = messages[error] || 'Login failed. Try again.';
-    errEl.style.display = 'block';
-    authGate.style.display = 'block';
-    window.history.replaceState({}, '', '/lobby');
+    formContent.style.display = 'none';
   }
 })();
 
-// Create New Game button
-document.getElementById('btn-create-new').addEventListener('click', () => {
-  window.location.href = '/new-game';
-});
-
-// Join Game functionality
-document.getElementById('btn-join').addEventListener('click', async () => {
-  const code = document.getElementById('join-code').value.trim();
-  if (!code) {
-    alert('Enter a join code');
-    return;
-  }
-  // Assume the code is a game UUID
-  window.location.href = '/game/' + code;
-});
-
-document.getElementById('join-code').addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    document.getElementById('btn-join').click();
-  }
-});
-
-// Auth form handlers
+// Auth form handlers (same as lobby)
 document.getElementById('magic-link-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const email = document.getElementById('auth-email').value.trim();

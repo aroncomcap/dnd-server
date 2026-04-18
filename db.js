@@ -107,6 +107,7 @@ async function initDB() {
     -- Add billing columns to games table
     ALTER TABLE games ADD COLUMN IF NOT EXISTS billing_mode TEXT DEFAULT 'host_pays';
     ALTER TABLE games ADD COLUMN IF NOT EXISTS host_user_id TEXT;
+    ALTER TABLE games ADD COLUMN IF NOT EXISTS last_image_url TEXT;
   `);
 
   // ── Rules Corrections table ──────────────────────────────────────
@@ -202,7 +203,7 @@ async function getGame(id) {
 
 async function listGames() {
   const { rows } = await pool.query(
-    'SELECT id, name, system, created_at FROM games ORDER BY created_at DESC'
+    'SELECT id, name, system, created_at, host_user_id, last_image_url FROM games ORDER BY created_at DESC'
   );
   return rows;
 }
@@ -212,6 +213,10 @@ async function updateGameContext(gameId, context) {
     'UPDATE games SET custom_context = $2 WHERE id = $1',
     [gameId, context]
   );
+}
+
+async function updateGameImage(gameId, imageUrl) {
+  await pool.query('UPDATE games SET last_image_url = $1 WHERE id = $2', [imageUrl, gameId]);
 }
 
 async function deleteGame(id) {
@@ -638,6 +643,7 @@ module.exports = {
   getGame,
   listGames,
   updateGameContext,
+  updateGameImage,
   deleteGame,
   getCharacters,
   upsertCharacter,
