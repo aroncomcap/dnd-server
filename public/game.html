@@ -1379,6 +1379,26 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <div class="world-section-title">🏆 Accomplishments</div>
     <div id="world-accomplishments"><p class="host-note">No accomplishments yet.</p></div>
   </div>
+
+  <!-- Bug Reports Table -->
+  <div class="panel">
+    <div class="panel-title">🐛 Bug Reports</div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;font-size:0.8rem;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--parchment-dark);">
+            <th style="text-align:left;padding:6px;color:var(--gold);">Date</th>
+            <th style="text-align:left;padding:6px;color:var(--gold);">Description</th>
+            <th style="text-align:left;padding:6px;color:var(--gold);">Status</th>
+            <th style="text-align:left;padding:6px;color:var(--gold);">AI Analysis</th>
+          </tr>
+        </thead>
+        <tbody id="bug-reports-table">
+          <tr><td colspan="4" style="padding:10px;color:var(--parchment-dark);">No bug reports yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <!-- ── MAP SCREEN (mobile) ──────────────────────────────────── -->
@@ -1547,6 +1567,21 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <label style="margin-top:16px;">My Player Name (for sending actions)</label>
     <input id="player-name-input" type="text" placeholder="Enter your character name"/>
     <p class="host-note">Or select from party below. This is a fallback — use the picker on the Game screen.</p>
+  </div>
+
+  <!-- Panel: Bug Reports -->
+  <div class="panel" style="margin-top:12px;">
+    <div class="panel-title">🐛 Bug Report</div>
+    <label>Description</label>
+    <textarea id="bug-description" placeholder="Describe the issue..." style="min-height:60px;"></textarea>
+
+    <label style="margin-top:8px;">Screenshot (optional)</label>
+    <input type="file" id="bug-screenshot" accept="image/*" style="font-size:0.9rem;"/>
+
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <button class="btn btn-primary" id="btn-submit-bug" style="flex:1;">📸 Submit Bug Report</button>
+    </div>
+    <p class="host-note" id="bug-status" style="margin-top:8px;"></p>
   </div>
 
 </div>
@@ -4149,6 +4184,119 @@ document.getElementById('btn-add-rule')?.addEventListener('click', async () => {
 document.querySelector('[data-screen="party"]')?.addEventListener('click', () => {
   loadRules();
   searchSharedRules();
+});
+
+// ── Bug Reports UI ────────────────────────────────────────────
+let bugScreenshotFile = null;
+
+async function submitBugReport(autofix = false) {
+  const description = document.getElementById('bug-description')?.value.trim();
+  if (!description) {
+    alert('Please enter a bug description');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('description', description);
+  if (bugScreenshotFile) {
+    formData.append('screenshot', bugScreenshotFile);
+  }
+
+  try {
+    const res = await fetch(`/api/games/${gameId}/bugs`, {
+      method: 'POST',
+      body: formData,
+    });
+    const bug = await res.json();
+
+    if (autofix) {
+      const fixRes = await fetch(`/api/games/${gameId}/bugs/${bug.id}/autofix`, {
+        method: 'POST',
+      });
+      const fixData = await fixRes.json();
+      alert('Bug submitted with AI analysis:\n' + fixData.analysis);
+    } else {
+      alert('Bug report submitted!');
+    }
+
+    document.getElementById('bug-description').value = '';
+    document.getElementById('bug-screenshot').value = '';
+    bugScreenshotFile = null;
+    document.getElementById('bug-status').textContent = '';
+
+    loadBugReports();
+  } catch (err) {
+    alert('Error submitting bug: ' + err.message);
+  }
+}
+
+async function loadBugReports() {
+  try {
+    const res = await fetch(`/api/games/${gameId}/bugs`);
+    const bugs = await res.json();
+
+    const table = document.getElementById('bug-reports-table');
+    if (!bugs.length) {
+      table.innerHTML = '<tr><td colspan="4" style="padding:10px;color:var(--parchment-dark);">No bug reports yet.</td></tr>';
+      return;
+    }
+
+    table.innerHTML = bugs.map(b => {
+      const dateStr = new Date(b.created_at).toLocaleDateString();
+      const desc = b.description.length > 40 ? b.description.substring(0, 40) + '...' : b.description;
+      return `
+        <tr style="border-bottom:1px solid var(--parchment-dark);">
+          <td style="padding:6px;">${dateStr}</td>
+          <td style="padding:6px;">${escapeHtml(desc)}</td>
+          <td style="padding:6px;">
+            <button class="token-btn" onclick="cycleBugStatus(${b.id}, '${b.status}')" title="Click to cycle">
+              ${b.status}
+            </button>
+          </td>
+          <td style="padding:6px;font-size:0.75rem;">
+            ${b.ai_analysis ? b.ai_analysis.substring(0, 30) + '...' : 'pending'}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Error loading bugs:', err);
+  }
+}
+
+async function cycleBugStatus(bugId, currentStatus) {
+  const statuses = ['open', 'investigating', 'auto-fixed', 'closed'];
+  const idx = statuses.indexOf(currentStatus);
+  const nextStatus = statuses[(idx + 1) % statuses.length];
+
+  try {
+    await fetch(`/api/games/${gameId}/bugs/${bugId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: nextStatus }),
+    });
+    loadBugReports();
+  } catch (err) {
+    alert('Error updating status: ' + err.message);
+  }
+}
+
+// Event listeners for bug reports
+document.getElementById('bug-screenshot')?.addEventListener('change', (e) => {
+  bugScreenshotFile = e.target.files[0] || null;
+  const statusEl = document.getElementById('bug-status');
+  if (bugScreenshotFile) {
+    statusEl.textContent = `Selected: ${bugScreenshotFile.name}`;
+  }
+});
+
+document.getElementById('btn-submit-bug')?.addEventListener('click', () => {
+  submitBugReport(false);
+});
+
+// Load bug reports when switching to world tab
+document.querySelector('[data-screen="world"]')?.addEventListener('click', () => {
+  loadBugReports();
 });
 
 // ── Billing UI ────────────────────────────────────────────────

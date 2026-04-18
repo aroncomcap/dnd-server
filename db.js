@@ -247,6 +247,24 @@ async function initDB() {
     CREATE INDEX IF NOT EXISTS idx_killshots_created ON killshots(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_killshots_drama ON killshots(drama_score DESC);
   `);
+
+  // ── Bug Reports ────────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS bug_reports (
+      id SERIAL PRIMARY KEY,
+      game_id TEXT REFERENCES games(id) ON DELETE CASCADE,
+      game_name TEXT,
+      reporter_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      description TEXT NOT NULL,
+      image_url TEXT,
+      status TEXT DEFAULT 'open',
+      ai_analysis TEXT,
+      ai_fixes_applied JSONB DEFAULT '[]',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_bug_reports_game ON bug_reports(game_id, created_at DESC);
+  `);
 }
 
 // ── Games ────────────────────────────────────────────────────────────────────
@@ -801,6 +819,47 @@ async function attachDefaultMonsterSource(gameId, system) {
   }
 }
 
+// ── Bug Reports ────────────────────────────────────────────────────
+async function saveBugReport(gameId, gameName, reporterUserId, description, imageUrl) {
+  const { rows } = await pool.query(
+    `INSERT INTO bug_reports (game_id, game_name, reporter_user_id, description, image_url, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+     RETURNING *`,
+    [gameId, gameName, reporterUserId, description, imageUrl]
+  );
+  return rows[0];
+}
+
+async function getBugReports(gameId) {
+  const { rows } = await pool.query(
+    `SELECT br.*, u.display_name AS reporter_name
+     FROM bug_reports br
+     LEFT JOIN users u ON u.id = br.reporter_user_id
+     WHERE br.game_id = $1
+     ORDER BY br.created_at DESC`,
+    [gameId]
+  );
+  return rows;
+}
+
+async function updateBugReport(id, updates) {
+  const setClauses = [];
+  const values = [];
+  let paramCount = 1;
+
+  for (const [key, value] of Object.entries(updates)) {
+    setClauses.push(`${key} = $${paramCount++}`);
+    values.push(value);
+  }
+
+  setClauses.push(`updated_at = NOW()`);
+  values.push(id);
+
+  const query = `UPDATE bug_reports SET ${setClauses.join(', ')} WHERE id = $${paramCount} RETURNING *`;
+  const { rows } = await pool.query(query, values);
+  return rows[0];
+}
+
 module.exports = {
   pool,
   initDB,
@@ -860,4 +919,8 @@ module.exports = {
   attachDefaultMonsterSource,
   getMonsterTemplates,
   saveMonsterTemplates,
+  saveBugReport,
+  getBugReports,
+  updateBugReport,
+  pool,
 };

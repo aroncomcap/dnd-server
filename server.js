@@ -237,6 +237,15 @@ const upload = multer({
   },
 });
 
+const uploadImage = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('Only image files are allowed'), false);
+  },
+});
+
 const billingTicker = new BillingTicker(io, db);
 
 const DEFAULT_TURN_DURATION = 180; // seconds
@@ -2432,6 +2441,169 @@ app.patch('/api/rules/:ruleId/promote', requireAuth, async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// ── Bug Reports API ────────────────────────────────────────────────────────────
+
+// POST: Submit a bug report
+app.post('/api/games/:id/bugs', requireAuth, uploadImage.single('screenshot'), async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    const game = await db.getGame(gameId);
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+
+    const { description } = req.body;
+    if (!description || description.trim().length === 0) {
+      return res.status(400).json({ error: 'Description required' });
+    }
+
+    let imageUrl = null;
+    if (req.file) {
+      const base64 = req.file.buffer.toString('base64');
+      imageUrl = `data:${req.file.mimetype};base64,${base64}`;
+    }
+
+    const bugReport = await db.saveBugReport(gameId, game.name, req.user.id, description, imageUrl);
+    res.json(bugReport);
+  } catch (err) {
+    console.error('Bug report error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET: Retrieve bug reports for a game
+app.get('/api/games/:id/bugs', requireAuth, async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    const game = await db.getGame(gameId);
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+
+    const bugs = await db.getBugReports(gameId);
+    res.json(bugs);
+  } catch (err) {
+    console.error('Fetch bugs error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH: Update bug report status
+app.patch('/api/games/:id/bugs/:bugId', requireAuth, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ['open', 'investigating', 'auto-fixed', 'closed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const bugReport = await db.updateBugReport(req.params.bugId, { status });
+    if (!bugReport) return res.status(404).json({ error: 'Bug report not found' });
+
+    res.json(bugReport);
+  } catch (err) {
+    console.error('Update bug error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST: Auto-fix a bug report with AI analysis
+app.post('/api/games/:id/bugs/:bugId/autofix', requireAuth, async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    const bugId = req.params.bugId;
+
+    // Get bug report to verify it exists
+    const bugs = await db.getBugReports(gameId);
+    const bug = bugs.find(b => b.id === parseInt(bugId));
+    if (!bug) return res.status(404).json({ error: 'Bug report not found' });
+
+    // Get game state
+    const gs = getGameState(gameId);
+    const game = await db.getGame(gameId);
+    const characters = await db.getCharacters(gameId);
+    const charNames = Object.keys(characters);
+    const combatActive = gs.combatEngine && gs.combatEngine.state.active;
+    const round = gs.combatEngine?.state.round || 0;
+    const turnCount = gs.turnCount || 0;
+    const recentErrors = (global._combatErrors || []).slice(-5).join('\n');
+
+    // Build state context for AI
+    const stateContext = `
+Game: ${game.name} (${game.system})
+Characters: ${charNames.join(', ') || 'none'}
+Combat Active: ${combatActive}
+Round: ${round}
+Turn Count: ${turnCount}
+Recent Errors:
+${recentErrors || 'none'}
+
+Bug Report: ${bug.description}
+`;
+
+    // Call Haiku to analyze and suggest fixes
+    const analysis = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 500,
+      messages: [
+        {
+          role: 'user',
+          content: `Analyze this game bug and suggest fixes. Return JSON only: { "analysis": "...", "fixes": [...fix actions...], "manual_steps": "..." }. Available fix actions: RESET_COMBAT, CLEAR_PAUSE, RESET_IDLE, ADVANCE_TURN, CLEAR_ERRORS.\n\n${stateContext}`,
+        },
+      ],
+    });
+
+    let fixData = { analysis: '', fixes: [], manual_steps: '' };
+    const responseText = analysis.content[0].type === 'text' ? analysis.content[0].text : '';
+    try {
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        fixData = JSON.parse(jsonMatch[0]);
+      }
+    } catch (e) {
+      fixData.analysis = responseText;
+    }
+
+    // Apply fixes to in-memory state
+    const appliedFixes = [];
+    for (const fix of (fixData.fixes || [])) {
+      if (fix === 'RESET_COMBAT' && gs.combatEngine) {
+        gs.combatEngine.state.active = false;
+        appliedFixes.push('RESET_COMBAT');
+      } else if (fix === 'CLEAR_PAUSE') {
+        gs.paused = false;
+        appliedFixes.push('CLEAR_PAUSE');
+      } else if (fix === 'RESET_IDLE') {
+        gs.idleTurns = 0;
+        appliedFixes.push('RESET_IDLE');
+      } else if (fix === 'ADVANCE_TURN') {
+        // Simple turn advance
+        const turnOrder = gs.data.turnOrder || [];
+        if (turnOrder.length > 0) {
+          gs.data.currentTurnIndex = (gs.data.currentTurnIndex + 1) % turnOrder.length;
+          appliedFixes.push('ADVANCE_TURN');
+        }
+      } else if (fix === 'CLEAR_ERRORS') {
+        global._combatErrors = [];
+        appliedFixes.push('CLEAR_ERRORS');
+      }
+    }
+
+    // Update bug report with analysis and fixes
+    const updatedBug = await db.updateBugReport(bugId, {
+      status: appliedFixes.length > 0 ? 'auto-fixed' : 'investigating',
+      ai_analysis: fixData.analysis,
+      ai_fixes_applied: JSON.stringify(appliedFixes),
+    });
+
+    // Emit system event to all clients
+    emitSystem(gameId, {
+      text: `Bug report auto-fix applied: ${appliedFixes.join(', ') || 'analysis only'}. ${fixData.manual_steps || ''}`,
+    });
+
+    res.json({ analysis: fixData.analysis, fixesApplied: appliedFixes, ok: true });
+  } catch (err) {
+    console.error('Auto-fix error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
