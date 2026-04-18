@@ -221,6 +221,19 @@
     display: none !important;
   }
 
+  #scene-panel.monster-entry {
+    animation: monster-glow 2s ease-out;
+  }
+
+  @keyframes monster-glow {
+    0% {
+      box-shadow: 0 0 30px rgba(204, 100, 100, 0.8), inset 0 0 20px rgba(255, 100, 100, 0.3);
+    }
+    100% {
+      box-shadow: 0 0 0 rgba(204, 100, 100, 0), inset 0 0 0 rgba(255, 100, 100, 0);
+    }
+  }
+
   #scene-collapse-btn {
     position: absolute;
     top: 8px;
@@ -1356,6 +1369,21 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
       <option value="overthetop">🤪 Over the Top — Zany, comedic, Critical Role energy</option>
     </select>
 
+    <label style="margin-top:12px;">🎨 Art Style</label>
+    <select id="image-style-select">
+      <option value="oil-painting">🎨 Dark Fantasy Oil Painting</option>
+      <option value="renaissance">🏛️ Renaissance Master</option>
+      <option value="mural">🏺 Ancient Mural</option>
+      <option value="tapestry">🧵 Medieval Tapestry</option>
+      <option value="russian-ikon">⛪ Russian Icon</option>
+      <option value="stained-glass">🪟 Stained Glass</option>
+      <option value="cyberpunk">🌃 Cyberpunk</option>
+      <option value="steampunk">⚙️ Steampunk</option>
+      <option value="photorealistic">📷 Photorealistic</option>
+      <option value="anime">✨ Anime</option>
+      <option value="fantasy-cartoon">🎭 Fantasy Cartoon</option>
+    </select>
+
     <label style="margin-top:12px;">📝 Verbosity</label>
     <select id="verbosity-select">
       <option value="verbose">📖 Verbose (rich, detailed)</option>
@@ -1928,6 +1956,14 @@ function showSceneImage(url, label) {
     screenGame.classList.add('has-map');
     document.getElementById('map-sidebar').style.display = 'block';
     switchSidebarTab('scene');
+
+    // Apply monster entry animation if applicable
+    if (window.pendingMonsterEntry) {
+      scenePanel.classList.add('monster-entry');
+      setTimeout(() => scenePanel.classList.remove('monster-entry'), 2000);
+      window.pendingMonsterEntry = false;
+    }
+
     // Auto-collapse after 2 seconds
     clearTimeout(sceneAutoCollapseTimer);
     sceneAutoCollapseTimer = setTimeout(() => {
@@ -2429,6 +2465,9 @@ if (state.ferocity != null) {
     document.getElementById('verbosity-select').value = state.verbosity;
   }
   document.getElementById('persona-select').value = state.dmPersona || 'epic';
+  if (state.imageStyle) {
+    document.getElementById('image-style-select').value = state.imageStyle;
+  }
   if (state.pillars) {
     document.getElementById('pillar-explore').value = state.pillars.exploration;
     document.getElementById('pillar-combat').value = state.pillars.combat;
@@ -2764,7 +2803,12 @@ socket.on('turn_change', (data) => {
   }
 });
 
-socket.on('scene_image', (data) => showSceneImage(data.url, data.label));
+socket.on('scene_image', (data) => {
+  if (data.type === 'monster_entry') {
+    window.pendingMonsterEntry = true;
+  }
+  showSceneImage(data.url, data.label);
+});
 
 socket.on('character_registered', (data) => {
   document.getElementById('char-status').textContent = `✅ ${data.name} registered!`;
@@ -3326,6 +3370,11 @@ document.getElementById('persona-select').addEventListener('change', () => {
 
 socket.on('persona_updated', (data) => {
   document.getElementById('persona-select').value = data.persona;
+});
+
+// ── Art Style selector ─────────────────────────────────────────
+document.getElementById('image-style-select')?.addEventListener('change', (e) => {
+  socket.emit('set_image_style', e.target.value);
 });
 
 // ── Verbosity selector ────────────────────────────────────────

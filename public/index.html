@@ -435,6 +435,12 @@
       </div>
     </div>
   </div>
+
+  <!-- Hall of Fame -->
+  <div class="panel" style="margin-top:30px;">
+    <div class="panel-title">⚔️ Hall of Fame</div>
+    <div id="hall-of-fame" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;"></div>
+  </div>
 </div>
 </div>
 
@@ -499,6 +505,40 @@ async function loadGames() {
   });
 }
 
+let currentKillshotIndex = 0;
+let killshots = [];
+
+async function loadHallOfFame() {
+  try {
+    killshots = await (await fetch('/api/killshots/random?count=3')).json();
+    displayKillshots();
+    setInterval(rotateKillshots, 8000);  // Rotate every 8 seconds
+  } catch (err) {
+    console.error('Failed to load killshots:', err);
+  }
+}
+
+function displayKillshots() {
+  const container = document.getElementById('hall-of-fame');
+  if (!container || !killshots.length) return;
+
+  container.innerHTML = killshots.map(k => `
+    <div style="background: rgba(0,0,0,0.3); border-radius: 8px; overflow: hidden; border: 1px solid var(--gold); cursor: pointer;" title="${k.character_name} slayed ${k.enemy_name}">
+      <img src="${k.image_url}" style="width: 100%; height: 150px; object-fit: cover;" />
+      <div style="padding: 8px; background: rgba(0,0,0,0.5); font-size: 0.75rem; color: var(--parchment);">
+        <strong style="color: var(--gold-light);">${k.character_name}</strong><br/>
+        <span style="opacity: 0.8;">vs ${k.enemy_name}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function rotateKillshots() {
+  if (killshots.length < 2) return;
+  currentKillshotIndex = (currentKillshotIndex + 1) % killshots.length;
+  displayKillshots();
+}
+
 (async function initLobby() {
   const authGate = document.getElementById('auth-gate');
   const lobbyContent = document.getElementById('lobby-content');
@@ -538,6 +578,7 @@ async function loadGames() {
         }
       });
       loadGames();
+      loadHallOfFame();
     } else {
       authGate.style.display = 'block';
       lobbyContent.style.display = 'none';

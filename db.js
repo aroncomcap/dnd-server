@@ -185,6 +185,26 @@ async function initDB() {
       PRIMARY KEY (game_id, source_id)
     );
   `);
+
+  // ── Killshots (Hall of Fame) ────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS killshots (
+      id SERIAL PRIMARY KEY,
+      game_id TEXT REFERENCES games(id) ON DELETE SET NULL,
+      game_name TEXT,
+      character_name TEXT NOT NULL,
+      player_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      enemy_name TEXT NOT NULL,
+      moment_type TEXT NOT NULL,
+      description TEXT,
+      image_url TEXT,
+      drama_score INT DEFAULT 5,
+      game_system TEXT DEFAULT 'dnd5e',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_killshots_created ON killshots(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_killshots_drama ON killshots(drama_score DESC);
+  `);
 }
 
 // ── Games ────────────────────────────────────────────────────────────────────
@@ -589,6 +609,26 @@ async function countRecentAnonSessions(ip) {
   return parseInt(rows[0].cnt);
 }
 
+// ── Killshots (Hall of Fame) ──────────────────────────────────────────────────
+async function getRandomKillshots(limit = 3) {
+  const { rows } = await pool.query(`
+    SELECT * FROM killshots
+    WHERE image_url IS NOT NULL
+    ORDER BY RANDOM() * (drama_score::FLOAT) DESC
+    LIMIT $1
+  `, [limit]);
+  return rows;
+}
+
+async function saveKillshot(gameId, gameName, characterName, playerUserId, enemyName, momentType, description, imageUrl, dramaScore, gameSystem) {
+  await pool.query(`
+    INSERT INTO killshots (game_id, game_name, character_name, player_user_id, enemy_name,
+      moment_type, description, image_url, drama_score, game_system)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+  `, [gameId, gameName, characterName, playerUserId, enemyName,
+      momentType, description, imageUrl, dramaScore, gameSystem]);
+}
+
 // ── Monster Sources ───────────────────────────────────────────────────────────
 async function getMonsterFromSources(gameId, slug) {
   const result = await pool.query(`
@@ -682,6 +722,8 @@ module.exports = {
   updateAnonMinutes,
   convertAnonSession,
   countRecentAnonSessions,
+  getRandomKillshots,
+  saveKillshot,
   getMonsterFromSources,
   saveMonsterToGameOverrides,
   attachDefaultMonsterSource,

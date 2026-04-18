@@ -21,6 +21,65 @@ const { parseStatsText } = require('./stat-parser');
 const { getMonsterStats } = require('./monster-lookup');
 const ed = require('./encounter-designer');
 
+// ── Art Styles ───────────────────────────────────────────────────────────────
+const ART_STYLES = {
+  'oil-painting': {
+    label: 'Dark Fantasy Oil Painting',
+    prefix: 'Dark fantasy oil painting, dramatic chiaroscuro lighting, muted earth tones with gold accents, highly detailed brushwork, classical composition.',
+    portraitPrefix: 'Oil painting portrait, Renaissance technique, warm studio lighting, dark background, visible brushstrokes.',
+  },
+  'renaissance': {
+    label: 'Renaissance Master',
+    prefix: 'Italian Renaissance painting, classical composition with golden ratio, sfumato technique, rich tempera colors, marble and stone architecture, Raphael and da Vinci influence, dramatic perspective.',
+    portraitPrefix: 'Renaissance portrait in the style of Raphael, three-quarter view, sfumato shading, dark umber background, ornate period clothing.',
+  },
+  'mural': {
+    label: 'Ancient Mural',
+    prefix: 'Ancient wall mural fresco painting, aged plaster texture, earthy pigments of ochre and terracotta, flat perspective, processional composition, Pompeii and Egyptian tomb art influence.',
+    portraitPrefix: 'Ancient fresco portrait, flat stylized features, bold outline, earthy pigments on aged plaster, hieratic scale.',
+  },
+  'tapestry': {
+    label: 'Medieval Tapestry',
+    prefix: 'Medieval woven tapestry art, mille-fleurs background with small flowers, flat perspective, rich jewel-toned threads, decorative border pattern, Bayeux Tapestries influence.',
+    portraitPrefix: 'Medieval tapestry portrait, woven textile texture, flat stylized figure, heraldic pose, jewel-toned threads on dark ground.',
+  },
+  'russian-ikon': {
+    label: 'Russian Icon',
+    prefix: 'Russian Orthodox icon painting, gold leaf background, tempera on wood panel, elongated solemn figures, Byzantine style, rich reds and deep blues, ornate gilded halos, spiritual gravitas.',
+    portraitPrefix: 'Russian icon portrait, gold leaf halo, tempera on wood, elongated solemn face, Byzantine frontal pose, deep jewel colors.',
+  },
+  'stained-glass': {
+    label: 'Stained Glass',
+    prefix: 'Medieval cathedral stained glass window, bold lead came lines separating jewel-toned glass segments, backlit luminous colors, Gothic tracery framing, rose window composition, deep ruby reds and cobalt blues.',
+    portraitPrefix: 'Stained glass window portrait, bold black lead lines, jewel-toned glass segments, backlit luminous glow, Gothic arch framing.',
+  },
+  'cyberpunk': {
+    label: 'Cyberpunk',
+    prefix: 'Cyberpunk neon aesthetic, rain-slicked streets reflecting holographic advertisements, high-tech dystopian cityscape, glowing cyan and magenta lighting, chrome and glass architecture, Blade Runner atmosphere.',
+    portraitPrefix: 'Cyberpunk character portrait, neon rim lighting in cyan and magenta, chrome implants, rain-wet skin, holographic UI reflections, dark urban background.',
+  },
+  'steampunk': {
+    label: 'Steampunk',
+    prefix: 'Victorian steampunk aesthetic, brass gears and copper pipes, steam-powered machinery, gaslight amber glow, airships and clockwork, sepia and burnished metal tones, industrial Gothic architecture.',
+    portraitPrefix: 'Steampunk portrait, brass goggles and gears, Victorian clothing with mechanical augments, warm gaslight glow, riveted copper background.',
+  },
+  'photorealistic': {
+    label: 'Photorealistic',
+    prefix: 'Photorealistic cinematic still, shallow depth of field, dramatic volumetric lighting, film grain, 8K detail, natural color grading, atmospheric haze.',
+    portraitPrefix: 'Photorealistic portrait photograph, shallow depth of field, Rembrandt lighting, natural skin texture, sharp focus on eyes, dark bokeh background.',
+  },
+  'anime': {
+    label: 'Anime',
+    prefix: 'High-quality anime art style, detailed character expressions, dynamic action poses, vibrant saturated colors, dramatic lighting effects, detailed backgrounds, studio Ghibli and CLAMP influence.',
+    portraitPrefix: 'Anime-style character portrait, large expressive eyes, smooth cel shading, vibrant hair colors, dramatic lighting, anime school or fantasy setting background.',
+  },
+  'fantasy-cartoon': {
+    label: 'Fantasy Cartoon',
+    prefix: 'Fantasy cartoon illustration style, bold outlines, vibrant playful colors, exaggerated proportions, whimsical details, storybook aesthetic, Adventure Time and Gravity Falls influence, charming character designs.',
+    portraitPrefix: 'Fantasy cartoon character portrait, bold black outlines, exaggerated features, vibrant colors, playful expression, whimsical storybook background.',
+  },
+};
+
 // ── Local stats parser (regex-based, no AI call) ─────────────────────────────
 function parseStatsLocal(statsText) {
   if (!statsText || statsText.length < 20) return null;
@@ -191,6 +250,8 @@ function getGameState(gameId) {
       turnTimer: null,
       turnCount: 0,
       imageUrl: null,
+      imageLabel: null,
+      imageStyle: 'oil-painting',
       turnDuration: DEFAULT_TURN_DURATION,
       verbosity: 'verbose',
       ferocity: 5,
@@ -208,6 +269,7 @@ function getGameState(gameId) {
       encounterPlanIndex: 0,
       difficultyCorrection: 1.0,
       npcMemory: {},
+      introducedEnemies: new Set(),
     };
   }
   return games[gameId];
@@ -897,6 +959,35 @@ async function initiateCombat(gameId, gameConfig, enemies) {
     return null;
   }
 
+  // Check for new monster entries
+  const newEntries = [];
+  for (const enemy of enemyCombatants) {
+    const key = (enemy.slug || enemy.name).toLowerCase();
+    if (!gs.introducedEnemies.has(key)) {
+      gs.introducedEnemies.add(key);
+      newEntries.push(enemy);
+    }
+  }
+
+  // Fire entry image if there are new enemies
+  if (newEntries.length > 0 && process.env.TOGETHER_API_KEY) {
+    const entryNames = newEntries.map(e => e.name).join(', ');
+    const actionText = newEntries.length > 1 ? 'appear' : 'appears';
+    const sceneData = {
+      action: `${entryNames} ${actionText} before the party`,
+      mood: 'tense, dramatic reveal',
+      npc: newEntries[0].name,
+    };
+    generateCompositeScene(gameId, sceneData, gameConfig).then(url => {
+      if (url) {
+        gs.imageUrl = url;
+        gs.imageLabel = `NEW FOE: ${entryNames}`;
+        db.updateGameImage(gameId, url).catch(e => console.error('[monster-entry-persist]', e));
+        emitSceneImage(gameId, { url, label: gs.imageLabel, type: 'monster_entry' });
+      }
+    });
+  }
+
   const pcCombatants = [];
   for (const [name, char] of Object.entries(gs.data.characters)) {
     let combatStats = char.combatStats;
@@ -1059,7 +1150,8 @@ async function generateCompositeScene(gameId, sceneData, gameConfig) {
   const gs = getGameState(gameId);
 
   // Global style prefix for consistency
-  const stylePrefix = 'Dark fantasy oil painting, dramatic chiaroscuro lighting, muted earth tones with gold accents, highly detailed.';
+  const styleDef = ART_STYLES[gs.imageStyle] || ART_STYLES['oil-painting'];
+  const stylePrefix = styleDef.prefix;
 
   // Get current location visual description
   const currentLoc = gs.mapGraph?.playerLocation;
@@ -1129,9 +1221,8 @@ async function generateWorldArt(gameId, item) {
   if (!process.env.TOGETHER_API_KEY) return;
   const gs = getGameState(gameId);
 
-  const style = item.type === 'npc'
-    ? 'Fantasy RPG character portrait, detailed face and upper body, dramatic lighting, painterly style.'
-    : 'Fantasy RPG landscape/location, atmospheric lighting, detailed architecture, painterly style.';
+  const styleDef = ART_STYLES[gs.imageStyle] || ART_STYLES['oil-painting'];
+  const style = item.type === 'npc' ? styleDef.portraitPrefix : styleDef.prefix;
 
   const prompt = `${style} ${item.prompt}. No text or words in the image.`;
 
@@ -1945,13 +2036,27 @@ async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false,
     const sceneLabel = isKillshot ? (hasNat20 ? `CRITICAL HIT! ${scene.action}` : `KILLSHOT: ${scene.action}`) :
       scene.npc && scene.npc.toLowerCase() !== 'none' ? scene.npc :
       scene.action || 'The adventure continues';
-    generateCompositeScene(gameId, scene, gameConfig).then(url => {
+    generateCompositeScene(gameId, scene, gameConfig).then(async url => {
       if (url) {
         gs.imageUrl = url;
         gs.imageLabel = sceneLabel;
         db.updateGameImage(gameId, url).catch(e => console.error('[image-persist]', e));
-        emitSceneImage(gameId, { url, label: sceneLabel });
+        emitSceneImage(gameId, { url, label: sceneLabel, type: isKillshot ? 'killshot' : 'scene' });
         logCost({ gameId, model: 'FLUX', inputTokens: 0, outputTokens: 0, cost: IMAGE_COST, type: 'scene-image' });
+
+        // Save killshot to hall of fame
+        if (isKillshot && url) {
+          const dramaScore = hasNat20 ? 8 : 6;
+          const momentType = hasNat20 ? 'nat20' : 'boss_kill';
+          const description = narration.slice(0, 200);
+          const gameRow = await db.getGame(gameId);
+          const charName = gs.data.turnOrder?.[gs.data.currentTurnIndex] || 'Unknown Hero';
+          const enemyName = scene.npc || 'Unknown Foe';
+
+          db.saveKillshot(gameId, gameRow?.name, charName, null, enemyName,
+            momentType, description, url, dramaScore, gameConfig.system)
+            .catch(e => console.error('[killshot-save]', e));
+        }
       } else {
         io.to(gameId).emit('scene_gen_failed');
       }
@@ -2206,6 +2311,16 @@ app.get('/api/costs', (req, res) => {
     games_detail[entry.gameId].cost += entry.cost || 0;
   }
   res.json({ ...summary, games: games_detail, recentCalls: costLog.slice(-20) });
+});
+
+app.get('/api/killshots/random', async (req, res) => {
+  try {
+    const count = parseInt(req.query.count) || 3;
+    const killshots = await db.getRandomKillshots(count);
+    res.json(killshots);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.delete('/api/games/:id', requireAuth, async (req, res) => {
@@ -2500,6 +2615,7 @@ io.on('connection', (socket) => {
       gs.verbosity = await db.getState(gameId, 'verbosity', 'verbose');
       gs.pillars = await db.getState(gameId, 'pillars', { exploration: 33, combat: 33, social: 34 });
       gs.dmPersona = await db.getState(gameId, 'dmPersona', 'epic');
+      gs.imageStyle = (await db.getGame(gameId))?.image_style || 'oil-painting';
       gs.storySummary = await db.getState(gameId, 'storySummary', null);
       gs.combatHistory = await db.getState(gameId, 'combatHistory', {});
       gs.difficultyCorrection = await db.getState(gameId, 'difficultyCorrection', 1.0);
@@ -2528,6 +2644,7 @@ io.on('connection', (socket) => {
       verbosity: gs.verbosity,
       pillars: gs.pillars,
       dmPersona: gs.dmPersona,
+      imageStyle: gs.imageStyle,
       pdfUploads: await db.getState(gameId, 'pdf_uploads', []),
       encounterPlan: gs.encounterPlan || null,
     });
@@ -2981,6 +3098,16 @@ io.on('connection', (socket) => {
     const gameId = socket.gameId;
     if (!gameId) return;
     gameEngine.setDmPersona(gameId, data.persona);
+  });
+
+  socket.on('set_image_style', async (style) => {
+    const gameId = socket.gameId;
+    if (!gameId || !ART_STYLES[style]) return;
+    const gs = getGameState(gameId);
+    gs.imageStyle = style;
+    await db.pool.query('UPDATE games SET image_style = $1 WHERE id = $2', [style, gameId])
+      .catch(e => console.error('[style-save]', e));
+    io.to(gameId).emit('setting_changed', { key: 'imageStyle', value: style });
   });
 
   socket.on('set_timer', (data) => {
