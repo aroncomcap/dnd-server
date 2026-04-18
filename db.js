@@ -120,6 +120,7 @@ async function initDB() {
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+    ALTER TABLE rules_corrections ALTER COLUMN game_id DROP NOT NULL;
     ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT false;
     ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS is_master BOOLEAN DEFAULT false;
     ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS created_by_user_id TEXT;
