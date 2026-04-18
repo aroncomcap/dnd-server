@@ -114,8 +114,15 @@ Schema auto-creates in `db.js initDB()` — no migration tool needed. `ALTER TAB
 | `purchases` | Payment and credit records (Stripe, admin grants, promo redemptions) |
 | `promo_codes` | BETA-XXXXXX codes (minutes_granted, redeemed_by, expires_at) |
 | `feature_requests` | Admin-visible feature backlog (title, description, status, priority) |
-| `rules_corrections` | Persistent house rules per game (text, category) |
+| `rules_corrections` | Persistent house rules per game (text, category, is_private, is_master, created_by_user_id, original_rule_id) |
 | `monster_templates` | Cached combat narration templates per monster × event type × persona (JSONB) |
+
+**New columns added to `rules_corrections`:**
+- `is_private` (boolean, default false) — true = visible only to creator's games; false = appears in shared library
+- `is_master` (boolean, default false) — true = library rule/template; false = game-specific
+- `created_by_user_id` (TEXT) — who authored the rule
+- `original_rule_id` (INT) — if copied from another rule, points to source (for attribution only, not sync)
+- `game_id` now NULLABLE — allows master templates with no associated game
 
 ### First-user bootstrap
 The first user to register is automatically granted `is_admin = TRUE`.
