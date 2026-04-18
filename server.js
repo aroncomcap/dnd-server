@@ -1360,6 +1360,12 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     return legacyCallClaude(gameId, gameConfig, userMessage, actingAs);
   }
 
+  // Combat turns use legacy path — combat engine integration is complex and already works well with Haiku
+  const gs0 = getGameState(gameId);
+  if (gs0.combatEngine?.state?.active) {
+    return legacyCallClaude(gameId, gameConfig, userMessage, actingAs);
+  }
+
   // Rate limit check
   if (!checkRateLimit(gameId)) {
     const gs = getGameState(gameId);
