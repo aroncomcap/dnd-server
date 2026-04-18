@@ -8,7 +8,7 @@ const { formatPlanForPrompt } = require('./encounter-designer');
 // Constants
 // ---------------------------------------------------------------------------
 
-const SONNET_MODEL = 'claude-sonnet-4-6-20250514';
+const SONNET_MODEL = 'claude-sonnet-4-5-20241022';
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 
 const VERBOSITY_RULES = {
@@ -668,7 +668,7 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
   const enemies = extractionResult.enemies || [];
   if (enemies.length > 0 && initiateCombat) {
     try {
-      await initiateCombat(gameId, enemies, gs, gameConfig);
+      await initiateCombat(gameId, gameConfig, enemies);
     } catch (err) {
       console.error(`[narration-pipeline] initiateCombat failed:`, err.message);
     }
