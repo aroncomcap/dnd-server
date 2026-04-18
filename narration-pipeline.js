@@ -563,7 +563,6 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
     }
 
     const allResults = [...playerResults, ...enemyResults];
-    console.log(`[pipeline-combat] playerResults=${playerResults.length} enemyResults=${enemyResults.length} allResults=${allResults.length}`);
 
     // Assemble template narration
     const persona = gameConfig.dmPersona || 'epic';
