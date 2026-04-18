@@ -545,7 +545,7 @@ function rotateKillshots() {
   const bar = document.getElementById('auth-bar');
 
   try {
-    const resp = await fetch('/auth/me');
+    const resp = await fetch('/auth/me', { credentials: 'include' });
     const data = await resp.json();
 
     if (data.user) {

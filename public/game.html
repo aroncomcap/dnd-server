@@ -1793,7 +1793,7 @@ const sfx = {
 // Auth gate — redirect to lobby if not logged in
 (async () => {
   try {
-    const res = await fetch('/auth/me');
+    const res = await fetch('/auth/me', { credentials: 'include' });
     const data = await res.json();
     if (!data.user) {
       window.location.href = '/lobby';
@@ -1811,10 +1811,10 @@ const gameId = window.location.pathname.split('/game/')[1];
 // Check auth status — if not logged in, create anonymous session
 async function ensureSession() {
   try {
-    const resp = await fetch('/auth/me');
+    const resp = await fetch('/auth/me', { credentials: 'include' });
     const data = await resp.json();
     if (!data.user) {
-      await fetch('/api/anonymous-session', { method: 'POST' });
+      await fetch('/api/anonymous-session', { method: 'POST', credentials: 'include' });
     }
   } catch (e) {
     console.warn('Session check failed:', e);
