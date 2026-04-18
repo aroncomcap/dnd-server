@@ -20,6 +20,8 @@ const { parseAction, parseOptions, parseActionWithAI, parseOptionsWithAI } = req
 const { parseStatsText } = require('./stat-parser');
 const { getMonsterStats } = require('./monster-lookup');
 const ed = require('./encounter-designer');
+const narrationPipeline = require('./narration-pipeline');
+const USE_SPLIT_PIPELINE = process.env.SPLIT_PIPELINE === 'true';
 
 // ── Art Styles ───────────────────────────────────────────────────────────────
 const ART_STYLES = {
@@ -1353,6 +1355,115 @@ async function refreshStorySummary(gameId, gameConfig) {
 
 // ── Claude Call (scoped to a game) ───────────────────────────────────────────
 async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
+  if (!USE_SPLIT_PIPELINE) {
+    return legacyCallClaude(gameId, gameConfig, userMessage, actingAs);
+  }
+
+  // Rate limit check
+  if (!checkRateLimit(gameId)) {
+    const gs = getGameState(gameId);
+    gs.paused = true;
+    clearTimeout(gs.turnTimer);
+    emitSystem(gameId, { text: '⚠️ Rate limit reached (60 calls/hour). Game paused.' });
+    return { narration: 'Game paused — rate limit reached.', options: [], scene: null, world: null, isKillshot: false };
+  }
+
+  const gs = getGameState(gameId);
+  const characterName = actingAs || userMessage.split(':')[0]?.trim() || 'Unknown';
+  const actionText = userMessage.replace(/^.*?:\s*/, '');
+  const prefix = actingAs ? `[AUTO-ACTION for ${actingAs}]\n` : '';
+
+  try {
+    const result = await narrationPipeline.handlePlayerAction(
+      gameId, gameConfig, gs, characterName, prefix + actionText, io,
+      { initiateCombat, parseAction, resolveEnemyTurns, persistCombatState, emitCombatUpdate }
+    );
+
+    // Save to chat history (same format as legacy)
+    const gd = gs.data;
+    const historyContent = result.narration +
+      (result.options?.length ? '\n\n' + result.options.map((o, i) => `${i + 1}️⃣ ${o}`).join('\n') : '');
+    gd.chatHistory.push(
+      { role: 'user', content: prefix + userMessage },
+      { role: 'assistant', content: historyContent }
+    );
+    if (gd.chatHistory.length > 16) {
+      gd.chatHistory = gd.chatHistory.slice(-16);
+    }
+
+    // Apply world updates to game state
+    if (result.world) {
+      applyWorldUpdates(gameId, result.world);
+    }
+
+    // Trigger story summary refresh periodically
+    const turnCount = gd.chatHistory.length / 2;
+    if (turnCount > 6 && turnCount % 25 === 0) {
+      refreshStorySummary(gameId, gameConfig).catch(() => {});
+    }
+
+    return result;
+  } catch (err) {
+    console.error('[pipeline] Error, falling back to legacy:', err.message, err.stack?.split('\n').slice(0, 3).join(' | '));
+    return legacyCallClaude(gameId, gameConfig, userMessage, actingAs);
+  }
+}
+
+function applyWorldUpdates(gameId, worldUpdates) {
+  if (!worldUpdates) return;
+  const gs = getGameState(gameId);
+  const gd = gs.data;
+  if (!gd.world) gd.world = { locations: [], npcs: [], accomplishments: [] };
+
+  // Merge locations
+  if (worldUpdates.locations) {
+    for (const loc of worldUpdates.locations) {
+      const existing = gd.world.locations.find(l => l.name.toLowerCase() === loc.name.toLowerCase());
+      if (existing) {
+        Object.assign(existing, loc);
+      } else {
+        gd.world.locations.push(loc);
+      }
+    }
+  }
+
+  // Merge NPCs
+  if (worldUpdates.npcs) {
+    for (const npc of worldUpdates.npcs) {
+      const existing = gd.world.npcs.find(n => n.name.toLowerCase() === npc.name.toLowerCase());
+      if (existing) {
+        Object.assign(existing, npc);
+      } else {
+        gd.world.npcs.push(npc);
+      }
+    }
+  }
+
+  // Map update
+  if (worldUpdates.map) {
+    gd.world.currentMap = worldUpdates.map;
+  }
+
+  // Accomplishments
+  if (worldUpdates.accomplishments) {
+    gd.world.accomplishments = [...(gd.world.accomplishments || []), ...worldUpdates.accomplishments];
+  }
+
+  // Character updates
+  if (worldUpdates.charUpdates) {
+    for (const update of worldUpdates.charUpdates) {
+      const char = gd.characters[update.character];
+      if (char && update.field && update.value) {
+        char[update.field] = update.value;
+      }
+    }
+  }
+
+  // Persist
+  db.setState(gameId, 'world', gd.world).catch(() => {});
+}
+
+async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null) {
   // Rate limit check
   if (!checkRateLimit(gameId)) {
     const gs = getGameState(gameId);
