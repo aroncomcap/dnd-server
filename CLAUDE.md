@@ -377,7 +377,10 @@ npm run test:watch # watch mode
 - `preTaggedOptions` are parsed async during player think time — no latency impact
 
 ## Common Gotchas
-- **System prompt lives in TWO places:** `buildSystemPrompt()` (turn 1) and `buildTrimmedPrompt()` (turn 2+) — update BOTH
+- **Pipeline feature flag:** `SPLIT_PIPELINE` env var controls routing. If disabled or unset, all calls go through `legacyCallClaude()`. If pipeline errors, it auto-falls back to legacy.
+- **Monster templates cache:** In-memory Map + PostgreSQL `monster_templates` table. Clear cache by restarting server. Delete from DB to force regeneration.
+- **Three prompt systems exist:** `buildNarrationPrompt()` (new pipeline), `buildSystemPrompt()` (legacy turn 1), `buildTrimmedPrompt()` (legacy turn 2+). Only modify the relevant one for the active path.
+- **System prompt lives in TWO places (legacy):** `buildSystemPrompt()` (turn 1) and `buildTrimmedPrompt()` (turn 2+) — update BOTH
 - **Rules corrections inject into every prompt** — every rule costs tokens on every call; keep them concise
 - **`parseResponse()` is order-independent** (single-pass marker extraction) — works regardless of Claude's output order
 - **`pdf-parse` v2 uses class API:** `new PDFParse({ data: buffer }).getText()` — not the old function-call style
