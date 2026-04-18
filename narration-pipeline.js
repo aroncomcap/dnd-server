@@ -198,22 +198,22 @@ ${JSON.stringify(worldState, null, 2)}
 
 Extract changes as JSON with this structure:
 {
-  "newNpcs": [],
-  "updatedNpcs": {},
-  "newLocations": [],
-  "updatedLocations": {},
-  "accomplishments": [],
-  "enemiesDetected": [],
-  "scene": "",
-  "isKillshot": false
+  "scene": {"action": "5-10 word summary", "mood": "1-3 words", "npc": "name or null"},
+  "locations": [{"name": "...", "description": "...", "distance": "...", "isNew": true, "img": "one sentence visual or null"}],
+  "npcs": [{"name": "...", "description": "...", "location": "...", "isNew": true, "img": "one sentence visual or null"}],
+  "enemies": [{"displayName": "...", "count": 1, "slug": "monster-db-slug"}],
+  "map": "current location name",
+  "accomplishments": [{"character": "...", "achievement": "..."}],
+  "charUpdates": [{"character": "...", "field": "statsText|personality|backstory|standardActions", "value": "..."}]
 }
 
 Rules:
-- enemiesDetected: array of enemy entries if combat should start (format: "Name | count | slug")
-- scene: brief scene description if location changes
-- isKillshot: true if a major villain/boss was just killed
-- Only include fields that actually changed
-- Return ONLY the JSON object, no other text`;
+- "isNew" = true ONLY if entity does NOT appear in CURRENT WORLD STATE
+- "img" ONLY for isNew entities
+- "enemies" ONLY if hostile creatures are actively threatening the party
+- "slug" must be a plausible monster database key (lowercase, hyphenated). Use "custom" if unsure.
+- Omit empty arrays entirely
+- Return ONLY the JSON object, no explanation`;
 }
 
 // ---------------------------------------------------------------------------
@@ -424,18 +424,18 @@ async function callHaikuExtraction(gameId, narration, actionText, worldState) {
     });
   } catch (err) {
     console.error(`[narration-pipeline] Haiku extraction failed for game ${gameId}:`, err.message);
-    return {};
+    return null;
   }
 
   const text = response.content[0]?.text || '';
   const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return {};
+  if (!jsonMatch) return null;
 
   try {
     return JSON.parse(jsonMatch[0]);
   } catch (err) {
     console.error(`[narration-pipeline] Haiku extraction JSON parse failed:`, err.message);
-    return {};
+    return null;
   }
 }
 
@@ -640,7 +640,7 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
   const gameStateForValidation = { system: gameConfig.system, ferocity: gs.ferocity };
 
   const [extractionResult, validationResult] = await Promise.all([
-    callHaikuExtraction(gameId, narration, actionText, worldState).catch(err => {
+    callHaikuExtraction(gameId, narration, actionText, worldState).then(r => r || {}).catch(err => {
       console.error(`[narration-pipeline] callHaikuExtraction failed:`, err.message);
       return {};
     }),
@@ -651,10 +651,10 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
   ]);
 
   // Check for enemies detected → initiate combat
-  const enemiesDetected = extractionResult.enemiesDetected || [];
-  if (enemiesDetected.length > 0 && initiateCombat) {
+  const enemies = extractionResult.enemies || [];
+  if (enemies.length > 0 && initiateCombat) {
     try {
-      await initiateCombat(gameId, enemiesDetected, gs, gameConfig);
+      await initiateCombat(gameId, enemies, gs, gameConfig);
     } catch (err) {
       console.error(`[narration-pipeline] initiateCombat failed:`, err.message);
     }
@@ -671,7 +671,7 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
     options,
     scene: extractionResult.scene || null,
     world: extractionResult,
-    isKillshot: extractionResult.isKillshot || false,
+    isKillshot: extractionResult.scene?.action?.toLowerCase().includes('killshot') || false,
   };
 }
 
