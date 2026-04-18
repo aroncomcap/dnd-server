@@ -2172,7 +2172,12 @@ app.post('/api/games/:id/rules', requireAuth, async (req, res) => {
     const { text, category, is_private } = req.body;
     const gameId = req.params.id;
     if (!text || !text.trim()) return res.status(400).json({ error: 'Text required' });
-    const rule = await db.addRuleCorrectionFull(gameId, text.trim().slice(0, 200), category, req.user.id, null, false, is_private || false);
+
+    // Get game's system
+    const game = await db.getGame(gameId);
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+
+    const rule = await db.addRuleCorrectionFull(gameId, text.trim().slice(0, 200), category, req.user.id, null, false, is_private || false, game.system);
 
     // Refresh game state
     const gs = getGameState(gameId);
@@ -2196,11 +2201,19 @@ app.delete('/api/rules/:id', requireAuth, async (req, res) => {
   res.json({ success: true });
 });
 
-// Search shared rules library
+// Search shared rules library (filtered by game system if gameId provided)
 app.get('/api/rules/shared', async (req, res) => {
   try {
-    const { search, category, limit, offset } = req.query;
-    const rules = await db.searchSharedRules(search, category, parseInt(limit) || 20, parseInt(offset) || 0);
+    const { search, category, gameId, limit, offset } = req.query;
+
+    // If gameId is provided, get the game's system
+    let gameSystem = null;
+    if (gameId) {
+      const game = await db.getGame(gameId);
+      if (game) gameSystem = game.system;
+    }
+
+    const rules = await db.searchSharedRules(search, category, gameSystem, parseInt(limit) || 20, parseInt(offset) || 0);
     res.json(rules);
   } catch (err) {
     res.status(500).json({ error: err.message });

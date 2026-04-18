@@ -124,27 +124,28 @@ async function initDB() {
     ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS is_master BOOLEAN DEFAULT false;
     ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS created_by_user_id TEXT;
     ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS original_rule_id INT;
-    CREATE INDEX IF NOT EXISTS idx_rules_shared ON rules_corrections (is_private, is_master) WHERE is_private = false AND is_master = true;
+    ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS game_system TEXT DEFAULT 'dnd5e';
+    CREATE INDEX IF NOT EXISTS idx_rules_shared ON rules_corrections (is_private, is_master, game_system) WHERE is_private = false AND is_master = true;
   `);
 
   // Seed common rules templates (one-time, skipped if exists)
   const templates = [
-    { text: 'Natural 1 on attack rolls is always a miss, regardless of modifiers', category: 'combat' },
-    { text: 'Critical hits deal maximum weapon damage plus rolled damage dice', category: 'combat' },
-    { text: 'Potions can be consumed as a bonus action instead of a full action', category: 'combat' },
-    { text: 'Flanking grants advantage on melee attack rolls', category: 'combat' },
-    { text: 'Players can spend inspiration to reroll any single d20', category: 'general' },
-    { text: 'Short rests are 10 minutes instead of 1 hour', category: 'pacing' },
-    { text: 'No player-vs-player combat without mutual consent', category: 'social' },
-    { text: 'Death saving throws are rolled privately by the DM', category: 'combat' },
-    { text: 'Spell components are not tracked unless they have a gold cost', category: 'general' },
-    { text: 'Characters can attempt to intimidate in combat as a bonus action (DC 12 + target CR)', category: 'combat' },
+    { text: 'Natural 1 on attack rolls is always a miss, regardless of modifiers', category: 'combat', system: 'dnd5e' },
+    { text: 'Critical hits deal maximum weapon damage plus rolled damage dice', category: 'combat', system: 'dnd5e' },
+    { text: 'Potions can be consumed as a bonus action instead of a full action', category: 'combat', system: 'dnd5e' },
+    { text: 'Flanking grants advantage on melee attack rolls', category: 'combat', system: 'dnd5e' },
+    { text: 'Players can spend inspiration to reroll any single d20', category: 'general', system: 'dnd5e' },
+    { text: 'Short rests are 10 minutes instead of 1 hour', category: 'pacing', system: 'dnd5e' },
+    { text: 'No player-vs-player combat without mutual consent', category: 'social', system: 'all' },
+    { text: 'Death saving throws are rolled privately by the DM', category: 'combat', system: 'dnd5e' },
+    { text: 'Spell components are not tracked unless they have a gold cost', category: 'general', system: 'dnd5e' },
+    { text: 'Characters can attempt to intimidate in combat as a bonus action (DC 12 + target CR)', category: 'combat', system: 'dnd5e' },
   ];
 
   for (const tmpl of templates) {
     await pool.query(
-      'INSERT INTO rules_corrections (text, category, is_master, is_private, created_by_user_id, game_id, created_at) VALUES ($1, $2, true, false, NULL, NULL, NOW()) ON CONFLICT (text) DO NOTHING',
-      [tmpl.text, tmpl.category]
+      'INSERT INTO rules_corrections (text, category, is_master, is_private, created_by_user_id, game_id, game_system, created_at) VALUES ($1, $2, true, false, NULL, NULL, $3, NOW()) ON CONFLICT (text) DO NOTHING',
+      [tmpl.text, tmpl.category, tmpl.system]
     );
   }
 
@@ -584,9 +585,13 @@ async function getRulesCorrections(gameId) {
 }
 
 async function addRuleCorrection(gameId, text, category) {
+  // Get the game's system
+  const gameResult = await pool.query('SELECT system FROM games WHERE id = $1', [gameId]);
+  const gameSystem = gameResult.rows.length ? gameResult.rows[0].system : 'dnd5e';
+
   const { rows } = await pool.query(
-    'INSERT INTO rules_corrections (game_id, text, category) VALUES ($1, $2, $3) RETURNING *',
-    [gameId, text, category || 'general']
+    'INSERT INTO rules_corrections (game_id, text, category, game_system) VALUES ($1, $2, $3, $4) RETURNING *',
+    [gameId, text, category || 'general', gameSystem]
   );
   return rows[0];
 }
@@ -599,9 +604,9 @@ async function deleteRuleCorrection(id) {
   await pool.query('DELETE FROM rules_corrections WHERE id = $1', [id]);
 }
 
-async function searchSharedRules(search, category, limit = 20, offset = 0) {
+async function searchSharedRules(search, category, gameSystem = null, limit = 20, offset = 0) {
   const { rows } = await pool.query(`
-    SELECT rc.id, rc.text, rc.category, rc.created_at,
+    SELECT rc.id, rc.text, rc.category, rc.created_at, rc.game_system,
            u.display_name AS author_name,
            (SELECT COUNT(*) FROM rules_corrections WHERE original_rule_id = rc.id) AS usage_count
     FROM rules_corrections rc
@@ -609,16 +614,17 @@ async function searchSharedRules(search, category, limit = 20, offset = 0) {
     WHERE rc.is_master = true AND rc.is_private = false
       AND ($1::text IS NULL OR rc.text ILIKE '%' || $1 || '%')
       AND ($2::text IS NULL OR rc.category = $2)
+      AND ($3::text IS NULL OR rc.game_system = $3 OR rc.game_system = 'all')
     ORDER BY usage_count DESC, rc.created_at DESC
-    LIMIT $3 OFFSET $4
-  `, [search || null, category || null, limit, offset]);
+    LIMIT $4 OFFSET $5
+  `, [search || null, category || null, gameSystem || null, limit, offset]);
   return rows;
 }
 
-async function addRuleCorrectionFull(gameId, text, category, userId, originalRuleId = null, isMaster = false, isPrivate = false) {
+async function addRuleCorrectionFull(gameId, text, category, userId, originalRuleId = null, isMaster = false, isPrivate = false, gameSystem = 'dnd5e') {
   const result = await pool.query(
-    'INSERT INTO rules_corrections (game_id, text, category, created_by_user_id, original_rule_id, is_master, is_private, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id',
-    [gameId || null, text, category || 'general', userId || null, originalRuleId, isMaster, isPrivate]
+    'INSERT INTO rules_corrections (game_id, text, category, created_by_user_id, original_rule_id, is_master, is_private, game_system, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING id',
+    [gameId || null, text, category || 'general', userId || null, originalRuleId, isMaster, isPrivate, gameSystem]
   );
   return result.rows[0];
 }
@@ -627,8 +633,13 @@ async function copyRuleToGame(ruleId, targetGameId, userId) {
   const sourceRule = await pool.query('SELECT * FROM rules_corrections WHERE id = $1', [ruleId]);
   if (!sourceRule.rows.length) throw new Error('Rule not found');
 
+  // Get target game's system
+  const gameResult = await pool.query('SELECT system FROM games WHERE id = $1', [targetGameId]);
+  if (!gameResult.rows.length) throw new Error('Game not found');
+
   const rule = sourceRule.rows[0];
-  return addRuleCorrectionFull(targetGameId, rule.text, rule.category, userId, ruleId, false, false);
+  const targetSystem = gameResult.rows[0].system;
+  return addRuleCorrectionFull(targetGameId, rule.text, rule.category, userId, ruleId, false, false, targetSystem);
 }
 
 async function setRulePrivacy(ruleId, isPrivate, userId) {

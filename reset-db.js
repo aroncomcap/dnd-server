@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 /**
- * Reset Database: Delete all games and characters
- * Keeps: users, auth data, settings, killshots
+ * Reset Database: Delete game instances and characters only
+ * Preserves: users, auth data, house rules, killshots, all user-loaded data
  *
  * Usage: node reset-db.js
  */
@@ -15,24 +15,32 @@ const pool = new Pool({
 
 (async () => {
   try {
-    console.log('🗑️  Resetting database...');
+    console.log('🗑️  Resetting game instances and characters...');
 
-    // Delete games and cascade to characters, game_state, etc
+    // Delete games (cascades to characters, game_state, channel_links, etc)
     await pool.query('DELETE FROM games');
-    console.log('✅ Deleted all games (cascade deletes characters, game_state)');
+    console.log('✅ Deleted all game instances');
+    console.log('✅ Deleted all character sheets (cascade)');
 
     // Verify deletion
     const gamesCount = await pool.query('SELECT COUNT(*) FROM games');
     const charsCount = await pool.query('SELECT COUNT(*) FROM characters');
+    const usersCount = await pool.query('SELECT COUNT(*) FROM users');
+    const rulesCount = await pool.query('SELECT COUNT(*) FROM rules_corrections');
+    const killshotsCount = await pool.query('SELECT COUNT(*) FROM killshots');
 
-    console.log(`\n📊 Database state:`);
+    console.log(`\n📊 Database state after reset:`);
     console.log(`   Games: ${gamesCount.rows[0].count}`);
     console.log(`   Characters: ${charsCount.rows[0].count}`);
-    console.log(`   Users: Preserved`);
-    console.log(`   Killshots: Preserved`);
+    console.log(`   Users: ${usersCount.rows[0].count} (preserved)`);
+    console.log(`   House Rules: ${rulesCount.rows[0].count} (preserved)`);
+    console.log(`   Killshots: ${killshotsCount.rows[0].count} (preserved)`);
+    console.log(`   Balances: Preserved`);
+    console.log(`   Purchases: Preserved`);
 
     console.log('\n✅ Database reset complete!');
-    console.log('Ready for fresh start. Run test-harness.js to create test data.');
+    console.log('Fresh start ready. All player data, house rules, and achievements preserved.');
+    console.log('Run test-harness.js to create test game instances.');
 
     process.exit(0);
   } catch (err) {

@@ -3963,7 +3963,7 @@ function searchSharedRules() {
   clearTimeout(ruleSearchTimeout);
   ruleSearchTimeout = setTimeout(async () => {
     try {
-      const res = await fetch(`/api/rules/shared?search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}`);
+      const res = await fetch(`/api/rules/shared?search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}&gameId=${encodeURIComponent(gameId)}`);
       const rules = await res.json();
       renderSharedRulesList(rules);
     } catch (err) {
