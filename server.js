@@ -2441,6 +2441,158 @@ app.get('/api/killshots/random', async (req, res) => {
   }
 });
 
+// ── Server-side Combat Test Endpoint ─────────────────────────────────────────
+app.post('/api/test/combat', requireAuth, async (req, res) => {
+  const startTime = Date.now();
+  const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+
+  const partyMode = req.body.party || 'balanced';
+  const numTurns = Math.min(parseInt(req.body.turns) || 30, 100);
+  const verbosity = req.body.verbosity || 'terse';
+
+  // Load stock party
+  const stockParties = require('./tests/fixtures/stock-parties.json');
+  const party = stockParties[partyMode];
+  if (!party) {
+    return res.status(400).json({ error: `Unknown party: "${partyMode}". Valid: balanced, melee-heavy, caster-heavy` });
+  }
+
+  // Create ephemeral game — prefix with test- so rate limiter gives 300 calls/hour
+  const gameId = `test-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+
+  try {
+    // Minimal game row for getGame calls inside callClaude
+    await db.pool.query(
+      `INSERT INTO games (id, name, system, host_user_id) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+      [gameId, `Combat Test ${gameId}`, 'dnd5e', req.user.id]
+    );
+  } catch (e) {
+    return res.status(500).json({ error: 'Failed to create test game: ' + e.message });
+  }
+
+  // Bootstrap game state
+  const gs = getGameState(gameId);
+  gs.verbosity = verbosity;
+  gs.ferocity = 3;
+  gs.pillars = { exploration: 20, combat: 60, social: 20 };
+  gs.dmPersona = 'epic';
+  gs.rulesCorrections = [];
+
+  // Register characters
+  for (const char of party) {
+    gs.data.characters[char.name] = {
+      name: char.name,
+      class: char.class,
+      level: char.level,
+      personality: char.personality,
+      backstory: char.backstory,
+      standardActions: char.standardActions,
+      statsText: char.statsText,
+      combatStats: char.combatStats,
+      token: null,
+    };
+    gs.data.turnOrder.push(char.name);
+  }
+
+  const gameConfig = await db.getGame(gameId);
+
+  // Tracking
+  const turnLog = [];
+  let combatsDetected = 0;
+  let totalWords = 0;
+  let errors = 0;
+  let lastOptions = [];
+  let wasInCombat = false;
+  let timedOut = false;
+
+  // Cost snapshot before test
+  const costBefore = costLog.filter(e => e.gameId === gameId).reduce((s, e) => s + (e.cost || 0), 0);
+
+  console.log(`[test/combat] Starting ${numTurns}-turn test (party: ${partyMode}, verbosity: ${verbosity}, gameId: ${gameId})`);
+
+  for (let turn = 1; turn <= numTurns; turn++) {
+    if (Date.now() - startTime >= TIMEOUT_MS) {
+      timedOut = true;
+      console.log(`[test/combat] Timeout after ${turn - 1} turns`);
+      break;
+    }
+
+    // Pick action: use a previous option or a sensible default
+    let action;
+    if (lastOptions.length > 0) {
+      // Strip markdown formatting from option text before sending as action
+      const raw = lastOptions[Math.floor(Math.random() * lastOptions.length)];
+      action = raw.replace(/\*\*|__|\[.*?\]|\(.*?\)|[🎲🗡️🛡️🔥⚔️💫🌟✨]/gu, '').trim() || 'I attack';
+    } else {
+      action = turn === 1 ? 'We enter the dungeon, weapons ready.' : 'I attack';
+    }
+
+    const currentChar = gs.data.turnOrder[gs.data.currentTurnIndex % gs.data.turnOrder.length];
+    const userMessage = `${currentChar}: ${action}`;
+    const turnStart = Date.now();
+
+    try {
+      const result = await callClaude(gameId, gameConfig, userMessage);
+      const turnElapsed = Date.now() - turnStart;
+
+      // Word count from narration
+      const words = result.narration ? result.narration.split(/\s+/).filter(Boolean).length : 0;
+      totalWords += words;
+      lastOptions = result.options || [];
+
+      // Combat detection: check engine state change
+      const nowInCombat = !!gs.combatEngine?.state?.active;
+      if (nowInCombat && !wasInCombat) {
+        combatsDetected++;
+        console.log(`[test/combat] Turn ${turn}: Combat #${combatsDetected} started`);
+      }
+      wasInCombat = nowInCombat;
+
+      turnLog.push({ turn, words, combat: nowInCombat, elapsed_ms: turnElapsed });
+      console.log(`[test/combat] Turn ${turn}/${numTurns}: ${words}w, combat=${nowInCombat}, ${turnElapsed}ms`);
+
+      // Advance turn index
+      gs.data.currentTurnIndex = (gs.data.currentTurnIndex + 1) % gs.data.turnOrder.length;
+    } catch (err) {
+      errors++;
+      const turnElapsed = Date.now() - turnStart;
+      console.error(`[test/combat] Turn ${turn} error: ${err.message}`);
+      turnLog.push({ turn, words: 0, combat: wasInCombat, elapsed_ms: turnElapsed, error: err.message });
+
+      // Reset options on error
+      lastOptions = [];
+    }
+  }
+
+  // Cost snapshot after test
+  const costAfter = costLog.filter(e => e.gameId === gameId).reduce((s, e) => s + (e.cost || 0), 0);
+  const testCost = Math.round((costAfter - costBefore) * 10000) / 10000;
+
+  // Cleanup — remove from in-memory games and delete ephemeral DB row
+  delete games[gameId];
+  db.pool.query('DELETE FROM games WHERE id = $1', [gameId]).catch(() => {});
+
+  const totalElapsed = Date.now() - startTime;
+  const completedTurns = turnLog.length;
+  const avgWordsPerTurn = completedTurns > 0 ? Math.round(totalWords / completedTurns) : 0;
+
+  console.log(`[test/combat] Done: ${completedTurns} turns, ${combatsDetected} combats, $${testCost}, ${totalElapsed}ms`);
+
+  res.json({
+    turns: completedTurns,
+    combatsDetected,
+    avgWordsPerTurn,
+    errors,
+    elapsed_ms: totalElapsed,
+    end_time: new Date().toISOString(),
+    cost: testCost,
+    timedOut,
+    party: partyMode,
+    verbosity,
+    turnLog,
+  });
+});
+
 app.delete('/api/games/:id', requireAuth, async (req, res) => {
   try {
     const gameId = req.params.id;
