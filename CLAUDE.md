@@ -115,6 +115,7 @@ Schema auto-creates in `db.js initDB()` — no migration tool needed. `ALTER TAB
 | `promo_codes` | BETA-XXXXXX codes (minutes_granted, redeemed_by, expires_at) |
 | `feature_requests` | Admin-visible feature backlog (title, description, status, priority) |
 | `rules_corrections` | Persistent house rules per game (text, category) |
+| `monster_templates` | Cached combat narration templates per monster × event type × persona (JSONB) |
 
 ### First-user bootstrap
 The first user to register is automatically granted `is_admin = TRUE`.
