@@ -57,6 +57,10 @@ let inCombat = false, combatStartTurn = 0, combatWords = 0;
 let consecutiveFailures = 0, reconnectCount = 0;
 let combatIndicatorCount = 0, noCombatCount = 0;
 let authToken = null;
+// Engine-event tracking: true when server has confirmed combat is active via socket events
+let engineCombatActive = false;
+// Last round number seen via combat_update (to detect stalled combat)
+let lastEngineRound = 0;
 
 // Load stock party fixture (if not using generate mode)
 let stockParty = null;
@@ -292,21 +296,43 @@ async function init() {
 
   socket.on('dm_stream_start', () => {});
 
-  // Engine events kept as bonus detection path
+  // ── Engine event handlers (PRIMARY combat detection path) ────────────────────
+  // These are authoritative: if the engine says combat started/ended, we trust it.
+
   socket.on('combat_started', (data) => {
+    engineCombatActive = true;
+    lastEngineRound = data.round || 1;
     if (!inCombat) {
       inCombat = true;
       combatStartTurn = turnCount;
       combatWords = 0;
       combatIndicatorCount = 1;
       noCombatCount = 0;
-      console.log(`\n   ⚔️  Combat started (engine event) at turn ${turnCount}`);
+      console.log(`\n   ⚔️  Combat started (engine) at turn ${turnCount} | round ${lastEngineRound}`);
+    }
+  });
+
+  // combat_update fires every round — use it as a heartbeat to confirm combat is still active
+  // and to capture the round count for accurate post-combat reporting.
+  socket.on('combat_update', (data) => {
+    engineCombatActive = true;
+    lastEngineRound = data.round || lastEngineRound;
+    if (!inCombat) {
+      // We missed the combat_started event — recover from combat_update
+      inCombat = true;
+      combatStartTurn = turnCount;
+      combatWords = 0;
+      combatIndicatorCount = 1;
+      noCombatCount = 0;
+      console.log(`\n   ⚔️  Combat detected (update event) at turn ${turnCount} | round ${lastEngineRound}`);
     }
   });
 
   socket.on('combat_ended', (data) => {
+    engineCombatActive = false;
     if (inCombat) {
-      const rounds = turnCount - combatStartTurn;
+      // Use engine round count if available; fall back to turn-based estimate
+      const rounds = lastEngineRound > 0 ? lastEngineRound : Math.max(1, turnCount - combatStartTurn);
       combatsCompleted++;
       results.combats.push({
         num: combatsCompleted, rounds,
@@ -316,6 +342,7 @@ async function init() {
       inCombat = false;
       combatIndicatorCount = 0;
       noCombatCount = 0;
+      lastEngineRound = 0;
       const roundsOk = rounds >= 2 && rounds <= 6 ? '✅' : '⚠️';
       console.log(`\n   Combat #${combatsCompleted}: ${rounds} rounds ${roundsOk} | avg ${results.combats[results.combats.length - 1].words} words/turn | ${data.reason || ''}`);
     }
@@ -328,36 +355,44 @@ async function init() {
     const wordCount = (data.text || '').split(/\s+/).filter(Boolean).length;
     if (inCombat) combatWords += wordCount;
 
-    // ── Combat detection from narration ──────────────────────────────────────
+    // ── Combat detection from narration (SECONDARY / fallback) ───────────────
+    // Only used when engine events are not firing (e.g. legacy pipeline or missed events).
+    // Skipped entirely when engineCombatActive is true — engine events are authoritative.
     const hasCombatKeywords = /(?:TURN_ORDER|initiative|🎲|d20\+|rolls?\s+\d+|HIT!|MISS!|(?:\d+)\s*(?:slashing|piercing|bludgeoning|fire|cold|necrotic|radiant)\s*damage|HP[:\s]*\d+)/i.test(data.text || '');
 
-    if (hasCombatKeywords && !inCombat) {
-      combatIndicatorCount++;
-      if (combatIndicatorCount >= 1) { // Even 1 turn with dice/damage = combat
-        inCombat = true;
-        combatStartTurn = turnCount;
-        combatWords = wordCount; // Include this turn's words
-        noCombatCount = 0;
-        console.log(`\n   ⚔️  Combat detected at turn ${turnCount}`);
+    if (!engineCombatActive) {
+      // Engine is silent — use narration keyword heuristic
+      if (hasCombatKeywords && !inCombat) {
+        combatIndicatorCount++;
+        if (combatIndicatorCount >= 1) { // Even 1 turn with dice/damage = combat
+          inCombat = true;
+          combatStartTurn = turnCount;
+          combatWords = wordCount; // Include this turn's words
+          noCombatCount = 0;
+          console.log(`\n   ⚔️  Combat detected (narration fallback) at turn ${turnCount}`);
+        }
+      } else if (!hasCombatKeywords && inCombat) {
+        noCombatCount++;
+        if (noCombatCount >= 2) { // 2 turns without combat keywords = combat ended
+          combatsCompleted++;
+          const rounds = Math.max(1, turnCount - combatStartTurn - noCombatCount);
+          results.combats.push({
+            num: combatsCompleted, rounds,
+            words: Math.round(combatWords / Math.max(1, rounds)),
+            reason: 'narration-detected',
+          });
+          const roundsOk = rounds >= 2 && rounds <= 6 ? '✅' : '⚠️';
+          console.log(`\n   Combat #${combatsCompleted}: ${rounds} rounds ${roundsOk} | avg ${results.combats[results.combats.length - 1].words} words/turn`);
+          inCombat = false;
+          combatIndicatorCount = 0;
+          noCombatCount = 0;
+        }
+      } else if (hasCombatKeywords && inCombat) {
+        noCombatCount = 0; // Reset non-combat counter
       }
-    } else if (!hasCombatKeywords && inCombat) {
-      noCombatCount++;
-      if (noCombatCount >= 2) { // 2 turns without combat = combat ended
-        combatsCompleted++;
-        const rounds = turnCount - combatStartTurn - noCombatCount;
-        results.combats.push({
-          num: combatsCompleted, rounds: Math.max(1, rounds),
-          words: Math.round(combatWords / Math.max(1, rounds)),
-          reason: 'narration-detected',
-        });
-        const roundsOk = rounds >= 2 && rounds <= 6 ? '✅' : '⚠️';
-        console.log(`\n   Combat #${combatsCompleted}: ${Math.max(1, rounds)} rounds ${roundsOk} | avg ${results.combats[results.combats.length - 1].words} words/turn`);
-        inCombat = false;
-        combatIndicatorCount = 0;
-        noCombatCount = 0;
-      }
-    } else if (hasCombatKeywords && inCombat) {
-      noCombatCount = 0; // Reset non-combat counter
+    } else if (inCombat) {
+      // Engine is active — reset narration counters so they don't interfere
+      noCombatCount = 0;
     }
 
     // ── Challenge detection from narration ───────────────────────────────────
