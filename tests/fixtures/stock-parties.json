@@ -1,0 +1,391 @@
+{
+  "balanced": [
+    {
+      "name": "Kael",
+      "class": "Fighter",
+      "level": 5,
+      "personality": "Stoic warrior, leads from the front",
+      "backstory": "Former soldier turned adventurer",
+      "standardActions": "Attack with greatsword, Second Wind",
+      "statsText": "Level 5 Human Fighter (Champion)\nSTR 18 (+4) DEX 12 (+1) CON 16 (+3) INT 10 (+0) WIS 13 (+1) CHA 11 (+0)\nHP: 44/44 | AC: 16 (chain mail) | Speed: 30ft\nProficiency Bonus: +3\nWeapons: Greatsword (2d6+4 slashing)\nFeatures: Extra Attack, Second Wind, Action Surge, Improved Critical\nFighting Style: Great Weapon Fighting",
+      "combatStats": {
+        "level": 5,
+        "ac": 16,
+        "hp": 44,
+        "maxHp": 44,
+        "speed": 30,
+        "abilities": { "str": 18, "dex": 12, "con": 16, "int": 10, "wis": 13, "cha": 11 },
+        "proficiencyBonus": 3,
+        "weapons": [
+          { "name": "Greatsword", "attackMod": 7, "damage": "2d6+4", "damageType": "slashing", "properties": ["heavy", "two-handed"] }
+        ],
+        "spells": [],
+        "spellSlots": {},
+        "spellcastingAbility": null,
+        "features": ["Extra Attack", "Second Wind", "Action Surge", "Improved Critical"],
+        "conditions": [],
+        "concentrating": null,
+        "deathSaves": { "successes": 0, "failures": 0 }
+      }
+    },
+    {
+      "name": "Mira",
+      "class": "Wizard",
+      "level": 5,
+      "personality": "Curious scholar, prefers elegant solutions",
+      "backstory": "Academy-trained evoker seeking ancient knowledge",
+      "standardActions": "Cast Fireball, Fire Bolt, use Shield reaction",
+      "statsText": "Level 5 Half-Elf Wizard (Evocation)\nSTR 8 (-1) DEX 14 (+2) CON 13 (+1) INT 18 (+4) WIS 12 (+1) CHA 14 (+2)\nHP: 28/28 | AC: 12 (mage armor) | Speed: 30ft\nProficiency Bonus: +3\nSpells: Fireball (3rd, 8d6 fire, DC 15), Counterspell (3rd), Shield (1st reaction)\nCantrips: Fire Bolt (2d10 fire, +7 attack)\nSpell Slots: 1st: 4, 2nd: 3, 3rd: 2\nFeatures: Sculpt Spells, Potent Cantrip",
+      "combatStats": {
+        "level": 5,
+        "ac": 12,
+        "hp": 28,
+        "maxHp": 28,
+        "speed": 30,
+        "abilities": { "str": 8, "dex": 14, "con": 13, "int": 18, "wis": 12, "cha": 14 },
+        "proficiencyBonus": 3,
+        "weapons": [
+          { "name": "Fire Bolt", "attackMod": 7, "damage": "2d10", "damageType": "fire", "properties": ["cantrip", "ranged"] }
+        ],
+        "spells": [
+          { "name": "Fireball", "level": 3, "damage": "8d6", "damageType": "fire", "save": "dex", "saveDC": 15, "aoe": true },
+          { "name": "Shield", "level": 1, "effect": "reaction +5 AC", "damageType": null },
+          { "name": "Counterspell", "level": 3, "effect": "reaction negate spell", "damageType": null }
+        ],
+        "spellSlots": { "1": 4, "2": 3, "3": 2 },
+        "spellcastingAbility": "int",
+        "spellSaveDC": 15,
+        "spellAttackMod": 7,
+        "features": ["Sculpt Spells", "Potent Cantrip"],
+        "conditions": [],
+        "concentrating": null,
+        "deathSaves": { "successes": 0, "failures": 0 }
+      }
+    },
+    {
+      "name": "Theron",
+      "class": "Rogue",
+      "level": 5,
+      "personality": "Sly and opportunistic, always looking for an angle",
+      "backstory": "Former guild thief turned mercenary scout",
+      "standardActions": "Attack with shortsword, Sneak Attack, Cunning Action",
+      "statsText": "Level 5 Wood Elf Rogue (Assassin)\nSTR 10 (+0) DEX 18 (+4) CON 13 (+1) INT 12 (+1) WIS 14 (+2) CHA 11 (+0)\nHP: 33/33 | AC: 15 (leather + DEX) | Speed: 35ft\nProficiency Bonus: +3\nWeapons: Shortsword (1d6+4 piercing), off-hand Shortsword (1d6 piercing)\nSneak Attack: 3d6 (when advantage or ally adjacent)\nFeatures: Cunning Action, Uncanny Dodge, Assassinate",
+      "combatStats": {
+        "level": 5,
+        "ac": 15,
+        "hp": 33,
+        "maxHp": 33,
+        "speed": 35,
+        "abilities": { "str": 10, "dex": 18, "con": 13, "int": 12, "wis": 14, "cha": 11 },
+        "proficiencyBonus": 3,
+        "weapons": [
+          { "name": "Shortsword", "attackMod": 7, "damage": "1d6+4", "damageType": "piercing", "properties": ["finesse", "light"] },
+          { "name": "Shortsword (off-hand)", "attackMod": 7, "damage": "1d6", "damageType": "piercing", "properties": ["finesse", "light", "off-hand"] }
+        ],
+        "spells": [],
+        "spellSlots": {},
+        "spellcastingAbility": null,
+        "sneakAttack": "3d6",
+        "features": ["Cunning Action", "Uncanny Dodge", "Assassinate", "Sneak Attack 3d6"],
+        "conditions": [],
+        "concentrating": null,
+        "deathSaves": { "successes": 0, "failures": 0 }
+      }
+    },
+    {
+      "name": "Lyra",
+      "class": "Cleric",
+      "level": 5,
+      "personality": "Compassionate healer, firm moral compass",
+      "backstory": "Dwarven temple priestess called to adventure",
+      "standardActions": "Cast Cure Wounds, Spiritual Weapon, Spirit Guardians, attack with mace",
+      "statsText": "Level 5 Hill Dwarf Cleric (Life)\nSTR 14 (+2) DEX 10 (+0) CON 15 (+2) INT 10 (+0) WIS 18 (+4) CHA 13 (+1)\nHP: 40/40 | AC: 18 (scale mail + shield) | Speed: 25ft\nProficiency Bonus: +3\nWeapons: Mace (1d6+2 bludgeoning)\nSpells: Cure Wounds (1d8+4 healing), Spiritual Weapon (2nd, 1d8+4 force), Spirit Guardians (3rd, 3d8 radiant, concentration)\nCantrips: Sacred Flame (2d8 radiant, DEX DC 15), Guidance\nSpell Slots: 1st: 4, 2nd: 3, 3rd: 2\nFeatures: Channel Divinity, Disciple of Life, Blessed Healer",
+      "combatStats": {
+        "level": 5,
+        "ac": 18,
+        "hp": 40,
+        "maxHp": 40,
+        "speed": 25,
+        "abilities": { "str": 14, "dex": 10, "con": 15, "int": 10, "wis": 18, "cha": 13 },
+        "proficiencyBonus": 3,
+        "weapons": [
+          { "name": "Mace", "attackMod": 5, "damage": "1d6+2", "damageType": "bludgeoning", "properties": [] },
+          { "name": "Sacred Flame", "attackMod": null, "damage": "2d8", "damageType": "radiant", "save": "dex", "saveDC": 15, "properties": ["cantrip", "ranged"] }
+        ],
+        "spells": [
+          { "name": "Cure Wounds", "level": 1, "damage": "1d8+4", "damageType": "healing", "heal": true },
+          { "name": "Spiritual Weapon", "level": 2, "damage": "1d8+4", "damageType": "force", "bonus": true },
+          { "name": "Spirit Guardians", "level": 3, "damage": "3d8", "damageType": "radiant", "concentration": true, "aoe": true, "save": "wis", "saveDC": 15 }
+        ],
+        "spellSlots": { "1": 4, "2": 3, "3": 2 },
+        "spellcastingAbility": "wis",
+        "spellSaveDC": 15,
+        "spellAttackMod": 7,
+        "features": ["Channel Divinity", "Disciple of Life", "Blessed Healer"],
+        "conditions": [],
+        "concentrating": null,
+        "deathSaves": { "successes": 0, "failures": 0 }
+      }
+    }
+  ],
+  "melee-heavy": [
+    {
+      "name": "Bjorn",
+      "class": "Barbarian",
+      "level": 5,
+      "personality": "Fierce and passionate, lives for battle",
+      "backstory": "Half-orc berserker from the northern clans",
+      "standardActions": "Rage and attack with greataxe, Reckless Attack",
+      "statsText": "Level 5 Half-Orc Barbarian (Berserker)\nSTR 20 (+5) DEX 13 (+1) CON 18 (+4) INT 8 (-1) WIS 11 (+0) CHA 10 (+0)\nHP: 55/55 | AC: 15 (unarmored + CON) | Speed: 30ft\nProficiency Bonus: +3\nWeapons: Greataxe (1d12+5 slashing, 1d12+7 while raging)\nFeatures: Rage (3/day, +2 damage, resistance), Reckless Attack, Frenzy, Extra Attack, Brutal Critical",
+      "combatStats": {
+        "level": 5,
+        "ac": 15,
+        "hp": 55,
+        "maxHp": 55,
+        "speed": 30,
+        "abilities": { "str": 20, "dex": 13, "con": 18, "int": 8, "wis": 11, "cha": 10 },
+        "proficiencyBonus": 3,
+        "weapons": [
+          { "name": "Greataxe", "attackMod": 8, "damage": "1d12+5", "damageType": "slashing", "properties": ["heavy", "two-handed"] },
+          { "name": "Greataxe (Raging)", "attackMod": 8, "damage": "1d12+7", "damageType": "slashing", "properties": ["heavy", "two-handed", "rage"] }
+        ],
+        "spells": [],
+        "spellSlots": {},
+        "spellcastingAbility": null,
+        "features": ["Rage", "Reckless Attack", "Frenzy", "Extra Attack", "Brutal Critical", "Relentless Rage"],
+        "conditions": [],
+        "concentrating": null,
+        "deathSaves": { "successes": 0, "failures": 0 }
+      }
+    },
+    {
+      "name": "Sera",
+      "class": "Paladin",
+      "level": 5,
+      "personality": "Righteous and inspiring, never backs down",
+      "backstory": "Human knight sworn to the Oath of Devotion",
+      "standardActions": "Attack with longsword, Divine Smite, Lay on Hands",
+      "statsText": "Level 5 Human Paladin (Oath of Devotion)\nSTR 18 (+4) DEX 10 (+0) CON 14 (+2) INT 10 (+0) WIS 12 (+1) CHA 16 (+3)\nHP: 44/44 | AC: 18 (plate + shield) | Speed: 30ft\nProficiency Bonus: +3\nWeapons: Longsword (1d8+4 slashing, versatile 1d10+4)\nFeatures: Divine Smite (2d8 radiant on hit using spell slot), Lay on Hands (25 HP pool), Extra Attack, Aura of Protection (+3 to saves)\nSpell Slots: 1st: 4, 2nd: 2",
+      "combatStats": {
+        "level": 5,
+        "ac": 18,
+        "hp": 44,
+        "maxHp": 44,
+        "speed": 30,
+        "abilities": { "str": 18, "dex": 10, "con": 14, "int": 10, "wis": 12, "cha": 16 },
+        "proficiencyBonus": 3,
+        "weapons": [
+          { "name": "Longsword", "attackMod": 7, "damage": "1d8+4", "damageType": "slashing", "properties": ["versatile"] }
+        ],
+        "spells": [
+          { "name": "Divine Smite", "level": 1, "damage": "2d8", "damageType": "radiant", "onHit": true },
+          { "name": "Shield of Faith", "level": 1, "effect": "+2 AC concentration", "damageType": null }
+        ],
+        "spellSlots": { "1": 4, "2": 2 },
+        "spellcastingAbility": "cha",
+        "spellSaveDC": 14,
+        "spellAttackMod": 6,
+        "features": ["Divine Smite", "Lay on Hands", "Extra Attack", "Aura of Protection", "Sacred Weapon"],
+        "conditions": [],
+        "concentrating": null,
+        "deathSaves": { "successes": 0, "failures": 0 }
+      }
+    },
+    {
+      "name": "Dax",
+      "class": "Monk",
+      "level": 5,
+      "personality": "Calm and centered, speaks in measured tones",
+      "backstory": "Halfling monastery graduate seeking enlightenment",
+      "standardActions": "Flurry of Blows, unarmed strikes, Stunning Strike",
+      "statsText": "Level 5 Halfling Monk (Open Hand)\nSTR 10 (+0) DEX 18 (+4) CON 13 (+1) INT 11 (+0) WIS 16 (+3) CHA 10 (+0)\nHP: 33/33 | AC: 17 (unarmored defense) | Speed: 40ft\nProficiency Bonus: +3\nWeapons: Unarmed Strike (1d6+4 bludgeoning), Short Sword (1d6+4 piercing)\nKi Points: 5\nFeatures: Flurry of Blows (2 unarmed strikes for 1 ki), Stunning Strike (1 ki, CON DC 14), Patient Defense, Step of the Wind, Slow Fall",
+      "combatStats": {
+        "level": 5,
+        "ac": 17,
+        "hp": 33,
+        "maxHp": 33,
+        "speed": 40,
+        "abilities": { "str": 10, "dex": 18, "con": 13, "int": 11, "wis": 16, "cha": 10 },
+        "proficiencyBonus": 3,
+        "weapons": [
+          { "name": "Unarmed Strike", "attackMod": 7, "damage": "1d6+4", "damageType": "bludgeoning", "properties": ["monk"] },
+          { "name": "Shortsword", "attackMod": 7, "damage": "1d6+4", "damageType": "piercing", "properties": ["finesse", "light"] }
+        ],
+        "spells": [],
+        "spellSlots": {},
+        "spellcastingAbility": null,
+        "kiPoints": 5,
+        "features": ["Flurry of Blows", "Stunning Strike", "Patient Defense", "Step of the Wind", "Extra Attack", "Stunning Strike"],
+        "conditions": [],
+        "concentrating": null,
+        "deathSaves": { "successes": 0, "failures": 0 }
+      }
+    },
+    {
+      "name": "Zara",
+      "class": "Warlock",
+      "level": 5,
+      "personality": "Dark and sardonic, hides vulnerability behind wit",
+      "backstory": "Tiefling who bargained with a fiend for power",
+      "standardActions": "Eldritch Blast, Hex, Hunger of Hadar",
+      "statsText": "Level 5 Tiefling Warlock (Fiend)\nSTR 9 (-1) DEX 14 (+2) CON 13 (+1) INT 13 (+1) WIS 11 (+0) CHA 18 (+4)\nHP: 33/33 | AC: 13 (leather) | Speed: 30ft\nProficiency Bonus: +3\nWeapons: Eldritch Blast (2 beams, 1d10+4 force each, +7 attack)\nSpells: Hex (1st concentration, +1d6 necrotic on attacks), Hunger of Hadar (3rd, concentration AoE), Hypnotic Pattern (3rd, concentration)\nSpell Slots: 2 (short rest), Slot Level: 3rd\nFeatures: Agonizing Blast, Devil's Sight, Dark One's Blessing, Dark One's Own Luck",
+      "combatStats": {
+        "level": 5,
+        "ac": 13,
+        "hp": 33,
+        "maxHp": 33,
+        "speed": 30,
+        "abilities": { "str": 9, "dex": 14, "con": 13, "int": 13, "wis": 11, "cha": 18 },
+        "proficiencyBonus": 3,
+        "weapons": [
+          { "name": "Eldritch Blast", "attackMod": 7, "damage": "1d10+4", "damageType": "force", "properties": ["cantrip", "ranged", "two-beams"] }
+        ],
+        "spells": [
+          { "name": "Hex", "level": 1, "damage": "1d6", "damageType": "necrotic", "concentration": true, "effect": "+1d6 necrotic on attacks" },
+          { "name": "Hunger of Hadar", "level": 3, "damageType": "cold", "concentration": true, "aoe": true }
+        ],
+        "spellSlots": { "3": 2 },
+        "spellcastingAbility": "cha",
+        "spellSaveDC": 15,
+        "spellAttackMod": 7,
+        "features": ["Agonizing Blast", "Devil's Sight", "Dark One's Blessing", "Dark One's Own Luck"],
+        "conditions": [],
+        "concentrating": null,
+        "deathSaves": { "successes": 0, "failures": 0 }
+      }
+    }
+  ],
+  "caster-heavy": [
+    {
+      "name": "Grom",
+      "class": "Fighter",
+      "level": 5,
+      "personality": "Disciplined tactician, steady under pressure",
+      "backstory": "Dragonborn veteran who mastered martial maneuvers",
+      "standardActions": "Attack with longsword, use Battle Master maneuvers",
+      "statsText": "Level 5 Dragonborn Fighter (Battle Master)\nSTR 18 (+4) DEX 12 (+1) CON 16 (+3) INT 12 (+1) WIS 11 (+0) CHA 14 (+2)\nHP: 44/44 | AC: 18 (plate + shield) | Speed: 30ft\nProficiency Bonus: +3\nWeapons: Longsword (1d8+4 slashing, versatile 1d10+4)\nSuperior Dice: 4 (d8)\nManeuvers: Riposte, Precision Attack, Trip Attack\nFeatures: Extra Attack, Action Surge, Second Wind, Combat Superiority",
+      "combatStats": {
+        "level": 5,
+        "ac": 18,
+        "hp": 44,
+        "maxHp": 44,
+        "speed": 30,
+        "abilities": { "str": 18, "dex": 12, "con": 16, "int": 12, "wis": 11, "cha": 14 },
+        "proficiencyBonus": 3,
+        "weapons": [
+          { "name": "Longsword", "attackMod": 7, "damage": "1d8+4", "damageType": "slashing", "properties": ["versatile"] }
+        ],
+        "spells": [],
+        "spellSlots": {},
+        "spellcastingAbility": null,
+        "features": ["Extra Attack", "Action Surge", "Second Wind", "Combat Superiority", "Riposte", "Precision Attack", "Trip Attack"],
+        "conditions": [],
+        "concentrating": null,
+        "deathSaves": { "successes": 0, "failures": 0 }
+      }
+    },
+    {
+      "name": "Elara",
+      "class": "Wizard",
+      "level": 5,
+      "personality": "Meticulous and protective, obsessed with magical theory",
+      "backstory": "High elf abjurer from an ancient noble house",
+      "standardActions": "Cast Fireball, Counterspell, Shield reaction, Ray of Frost cantrip",
+      "statsText": "Level 5 High Elf Wizard (Abjuration)\nSTR 8 (-1) DEX 14 (+2) CON 13 (+1) INT 18 (+4) WIS 13 (+1) CHA 12 (+1)\nHP: 28/28 | AC: 12 (base) | Speed: 30ft\nProficiency Bonus: +3\nArcane Ward: 10 HP buffer\nSpells: Fireball (3rd, 8d6 fire DC 15), Counterspell (3rd reaction), Shield (1st reaction, +5 AC)\nCantrips: Ray of Frost (2d8 cold, +7 attack, -10 speed)\nSpell Slots: 1st: 4, 2nd: 3, 3rd: 2\nFeatures: Arcane Ward, Projected Ward",
+      "combatStats": {
+        "level": 5,
+        "ac": 12,
+        "hp": 28,
+        "maxHp": 28,
+        "speed": 30,
+        "abilities": { "str": 8, "dex": 14, "con": 13, "int": 18, "wis": 13, "cha": 12 },
+        "proficiencyBonus": 3,
+        "weapons": [
+          { "name": "Ray of Frost", "attackMod": 7, "damage": "2d8", "damageType": "cold", "properties": ["cantrip", "ranged"] }
+        ],
+        "spells": [
+          { "name": "Fireball", "level": 3, "damage": "8d6", "damageType": "fire", "save": "dex", "saveDC": 15, "aoe": true },
+          { "name": "Shield", "level": 1, "effect": "reaction +5 AC", "damageType": null },
+          { "name": "Counterspell", "level": 3, "effect": "reaction negate spell", "damageType": null }
+        ],
+        "spellSlots": { "1": 4, "2": 3, "3": 2 },
+        "spellcastingAbility": "int",
+        "spellSaveDC": 15,
+        "spellAttackMod": 7,
+        "features": ["Arcane Ward", "Projected Ward"],
+        "conditions": [],
+        "concentrating": null,
+        "deathSaves": { "successes": 0, "failures": 0 }
+      }
+    },
+    {
+      "name": "Finn",
+      "class": "Bard",
+      "level": 5,
+      "personality": "Charismatic storyteller, silver-tongued diplomat",
+      "backstory": "Human bard of the College of Lore, collector of secrets",
+      "standardActions": "Cutting Words, Healing Word, Heat Metal, Vicious Mockery cantrip",
+      "statsText": "Level 5 Human Bard (College of Lore)\nSTR 10 (+0) DEX 15 (+2) CON 13 (+1) INT 13 (+1) WIS 12 (+1) CHA 18 (+4)\nHP: 33/33 | AC: 14 (studded leather) | Speed: 30ft\nProficiency Bonus: +3\nBardic Inspiration: d8 (5/long rest)\nSpells: Healing Word (1st, 1d4+4 heal bonus action), Heat Metal (2nd, 2d8 fire concentration), Hypnotic Pattern (3rd, concentration)\nCantrips: Vicious Mockery (2d4 psychic, WIS DC 15), Minor Illusion\nSpell Slots: 1st: 4, 2nd: 3, 3rd: 2\nFeatures: Cutting Words, Jack of All Trades, Song of Rest, Magical Secrets",
+      "combatStats": {
+        "level": 5,
+        "ac": 14,
+        "hp": 33,
+        "maxHp": 33,
+        "speed": 30,
+        "abilities": { "str": 10, "dex": 15, "con": 13, "int": 13, "wis": 12, "cha": 18 },
+        "proficiencyBonus": 3,
+        "weapons": [
+          { "name": "Vicious Mockery", "attackMod": null, "damage": "2d4", "damageType": "psychic", "save": "wis", "saveDC": 15, "properties": ["cantrip", "ranged"] },
+          { "name": "Rapier", "attackMod": 5, "damage": "1d8+2", "damageType": "piercing", "properties": ["finesse"] }
+        ],
+        "spells": [
+          { "name": "Healing Word", "level": 1, "damage": "1d4+4", "damageType": "healing", "heal": true, "bonus": true },
+          { "name": "Heat Metal", "level": 2, "damage": "2d8", "damageType": "fire", "concentration": true },
+          { "name": "Hypnotic Pattern", "level": 3, "effect": "concentration AoE charm", "damageType": null, "concentration": true }
+        ],
+        "spellSlots": { "1": 4, "2": 3, "3": 2 },
+        "spellcastingAbility": "cha",
+        "spellSaveDC": 15,
+        "spellAttackMod": 7,
+        "features": ["Cutting Words", "Jack of All Trades", "Song of Rest", "Magical Secrets", "Bardic Inspiration d8"],
+        "conditions": [],
+        "concentrating": null,
+        "deathSaves": { "successes": 0, "failures": 0 }
+      }
+    },
+    {
+      "name": "Nessa",
+      "class": "Druid",
+      "level": 5,
+      "personality": "Patient and nurturing, deeply attuned to nature",
+      "backstory": "Gnome Circle of the Moon druid, guardian of ancient groves",
+      "standardActions": "Wild Shape (CR 1 beasts), Moonbeam, Entangle, Shillelagh cantrip",
+      "statsText": "Level 5 Gnome Druid (Circle of the Moon)\nSTR 10 (+0) DEX 13 (+1) CON 14 (+2) INT 13 (+1) WIS 18 (+4) CHA 11 (+0)\nHP: 35/35 | AC: 14 (hide armor + shield) | Speed: 25ft\nProficiency Bonus: +3\nWild Shape: CR 1 (2/short rest)\nSpells: Moonbeam (2nd, 2d10 radiant per turn, concentration), Entangle (1st, concentration), Healing Word (1st, 1d4+4 heal)\nCantrips: Shillelagh (1d8+4 bludgeoning, WIS), Guidance\nSpell Slots: 1st: 4, 2nd: 3, 3rd: 2\nFeatures: Wild Shape (CR 1), Combat Wild Shape, Circle Forms, Timeless Body",
+      "combatStats": {
+        "level": 5,
+        "ac": 14,
+        "hp": 35,
+        "maxHp": 35,
+        "speed": 25,
+        "abilities": { "str": 10, "dex": 13, "con": 14, "int": 13, "wis": 18, "cha": 11 },
+        "proficiencyBonus": 3,
+        "weapons": [
+          { "name": "Shillelagh", "attackMod": 7, "damage": "1d8+4", "damageType": "bludgeoning", "properties": ["cantrip", "melee"] }
+        ],
+        "spells": [
+          { "name": "Moonbeam", "level": 2, "damage": "2d10", "damageType": "radiant", "concentration": true, "save": "con", "saveDC": 15 },
+          { "name": "Entangle", "level": 1, "effect": "concentration AoE restrained", "damageType": null, "concentration": true, "save": "str", "saveDC": 15 },
+          { "name": "Healing Word", "level": 1, "damage": "1d4+4", "damageType": "healing", "heal": true, "bonus": true }
+        ],
+        "spellSlots": { "1": 4, "2": 3, "3": 2 },
+        "spellcastingAbility": "wis",
+        "spellSaveDC": 15,
+        "spellAttackMod": 7,
+        "features": ["Wild Shape CR 1", "Combat Wild Shape", "Circle Forms", "Timeless Body"],
+        "conditions": [],
+        "concentrating": null,
+        "deathSaves": { "successes": 0, "failures": 0 }
+      }
+    }
+  ]
+}

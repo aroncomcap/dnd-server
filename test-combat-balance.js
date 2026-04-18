@@ -6,15 +6,36 @@
  * Always uses terse mode. Reports party DPR, monster DPR, round counts, deaths.
  * Includes socket reconnection and retry logic.
  *
- * Usage: node test-combat-balance.js [url]
+ * Usage: node test-combat-balance.js [url] [--party balanced|melee-heavy|caster-heavy|generate]
  * Cost: ~$0.30 for 10 combats + 5 challenges (~30 turns)
+ *
+ * --party generate  : use generate_party API (original behavior, adds ~$0.01 + 5-10s)
+ * --party balanced  : use stock balanced party from tests/fixtures/stock-parties.json (default)
+ * --party melee-heavy : use stock melee-heavy party
+ * --party caster-heavy : use stock caster-heavy party
  */
 
 const ioModule = require(__dirname + '/node_modules/socket.io/client-dist/socket.io.js');
 const Client = ioModule.io || ioModule;
 const ed = require('./encounter-designer');
+const path = require('path');
+const fs = require('fs');
 
-const SERVER_URL = process.argv[2] || 'https://dnd-server-production-9b61.up.railway.app';
+// ── CLI args ──────────────────────────────────────────────────────────────────
+
+const args = process.argv.slice(2);
+let SERVER_URL = 'https://dnd-server-production-9b61.up.railway.app';
+let partyMode = 'balanced'; // default
+
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === '--party' && args[i + 1]) {
+    partyMode = args[i + 1];
+    i++;
+  } else if (!args[i].startsWith('--')) {
+    SERVER_URL = args[i];
+  }
+}
+
 const GAME_ID = `test-combat-${Date.now().toString(36)}`;
 const TARGET_COMBATS = 10;
 const TARGET_CHALLENGES = 5;
@@ -37,9 +58,22 @@ let consecutiveFailures = 0, reconnectCount = 0;
 let combatIndicatorCount = 0, noCombatCount = 0;
 let authToken = null;
 
+// Load stock party fixture (if not using generate mode)
+let stockParty = null;
+if (partyMode !== 'generate') {
+  const fixturePath = path.join(__dirname, 'tests', 'fixtures', 'stock-parties.json');
+  const fixtures = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+  stockParty = fixtures[partyMode];
+  if (!stockParty) {
+    console.error(`Unknown party mode: "${partyMode}". Valid: balanced, melee-heavy, caster-heavy, generate`);
+    process.exit(1);
+  }
+}
+
 console.log(`\n⚔️  Combat Balance Test — ${TARGET_COMBATS} combats + ${TARGET_CHALLENGES} challenges (terse)`);
 console.log(`   Server: ${SERVER_URL}`);
-console.log(`   Game: ${GAME_ID}\n`);
+console.log(`   Game: ${GAME_ID}`);
+console.log(`   Party: ${partyMode}\n`);
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -145,8 +179,16 @@ async function init() {
       socket.emit('set_verbosity', { level: 'terse' });
       socket.emit('set_ferocity', { level: 3 });
       socket.emit('set_pillars', { exploration: 20, combat: 60, social: 20 });
-      console.log('   Generating party...');
-      socket.emit('generate_party', { direction: 'Level 5 balanced party: Fighter, Cleric, Rogue, Wizard' });
+
+      if (partyMode === 'generate') {
+        // Legacy path: generate party via API
+        console.log('   Generating party (via API)...');
+        socket.emit('generate_party', { direction: 'Level 5 balanced party: Fighter, Cleric, Rogue, Wizard' });
+      } else {
+        // Stock party path: register each character individually
+        console.log(`   Registering stock party: ${stockParty.map(c => c.name).join(', ')}...`);
+        registerStockParty(socket);
+      }
     } else if (!gameStarted && Object.keys(characters).length > 0) {
       analyzePartyAndStart();
     } else if (gameStarted) {
@@ -156,8 +198,51 @@ async function init() {
     }
   });
 
+  // ── Stock party registration ───────────────────────────────────────────────
+
+  function registerStockParty(socket) {
+    let registered = 0;
+    const total = stockParty.length;
+
+    // Listen for character_registered events to track completion
+    const onRegistered = (data) => {
+      // Merge combatStats from our fixture into the local characters map
+      const fixture = stockParty.find(c => c.name === data.name);
+      if (fixture && fixture.combatStats) {
+        characters[data.name] = { ...data.character, combatStats: fixture.combatStats };
+      } else {
+        characters[data.name] = data.character;
+      }
+      registered++;
+      if (registered === total) {
+        socket.off('character_registered', onRegistered);
+        console.log(`   All ${total} characters registered`);
+        analyzePartyAndStart();
+      }
+    };
+
+    socket.on('character_registered', onRegistered);
+
+    // Emit register_character for each stock party member
+    for (const char of stockParty) {
+      socket.emit('register_character', {
+        name: char.name,
+        statsText: char.statsText,
+        personality: char.personality,
+        backstory: char.backstory,
+        standardActions: char.standardActions,
+        combatStats: char.combatStats,
+      });
+    }
+  }
+
+  // ── Legacy generate_party path ────────────────────────────────────────────
+
   socket.on('character_registered', (data) => {
-    characters[data.name] = data.character;
+    // Only fires when NOT in stock party registration (handled above via off())
+    if (!characters[data.name]) {
+      characters[data.name] = data.character;
+    }
   });
 
   socket.on('party_generated', () => {
@@ -291,8 +376,7 @@ async function init() {
     // Done check
     if ((combatsCompleted >= TARGET_COMBATS && challengesCompleted >= TARGET_CHALLENGES) || turnCount > 80) {
       console.log('');
-      printReport();
-      setTimeout(() => process.exit(0), 2000);
+      printReport().then(() => setTimeout(() => process.exit(0), 2000));
       return;
     }
 
@@ -332,8 +416,7 @@ async function init() {
       console.log(`\n   ⚠️  Error (${consecutiveFailures}/${MAX_CONSECUTIVE_FAILURES}): ${data.text}`);
       if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
         console.log('   ❌ Too many consecutive failures. Stopping.');
-        printReport();
-        process.exit(1);
+        printReport().then(() => process.exit(1));
       }
       setTimeout(() => {
         socket.emit('player_action', { playerName: currentPlayer, action: 'I look around and prepare.' });
@@ -358,8 +441,7 @@ async function init() {
 
   socket.on('reconnect_failed', () => {
     console.log('   ❌ Reconnection failed after all attempts');
-    printReport();
-    process.exit(1);
+    printReport().then(() => process.exit(1));
   });
 
   socket.on('connect_error', (err) => {
@@ -373,8 +455,29 @@ async function init() {
 
 init();
 
-function printReport() {
+// ── Cost fetch ────────────────────────────────────────────────────────────────
+
+async function fetchGameCost() {
+  try {
+    const res = await fetch(`${SERVER_URL}/api/costs`, {
+      headers: { 'Cookie': `tt_token=${authToken || ''}` },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const gameEntry = data.games && data.games[GAME_ID];
+    return gameEntry ? gameEntry.cost : null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Report ─────────────────────────────────────────────────────────────────────
+
+async function printReport() {
+  const endTime = new Date().toISOString();
   const elapsed = Math.round((Date.now() - results.startTime) / 1000);
+  const gameCost = await fetchGameCost();
+
   const combatRounds = results.combats.map(c => c.rounds);
   const avgRounds = combatRounds.length > 0 ? (combatRounds.reduce((a, b) => a + b, 0) / combatRounds.length).toFixed(1) : 'N/A';
   const cWords = results.combats.map(c => c.words);
@@ -387,7 +490,14 @@ function printReport() {
   console.log('  COMBAT BALANCE TEST — RESULTS');
   console.log('═'.repeat(65));
   console.log(`  Party Level: ${results.partyLevel} | Party DPR: ${results.partyDPR} | Party HP: ${results.partyHP}`);
-  console.log(`  Mode: terse | Turns: ${results.totalTurns} | Time: ${elapsed}s | Errors: ${results.errors}`);
+  console.log(`  Party Mode: ${partyMode}`);
+  console.log(`  Mode: terse | Turns: ${results.totalTurns} | Errors: ${results.errors}`);
+  console.log(`  Elapsed: ${elapsed}s | End: ${endTime}`);
+  if (gameCost !== null) {
+    console.log(`  Cost: $${gameCost.toFixed(4)}`);
+  } else {
+    console.log('  Cost: unavailable');
+  }
   console.log('─'.repeat(65));
 
   if (results.combats.length > 0) {
@@ -416,6 +526,5 @@ function printReport() {
 // Safety timeout: 15 minutes (longer for reconnections)
 setTimeout(() => {
   console.log('\n   ⏰ Timeout (15 min)');
-  printReport();
-  process.exit(results.combats.length > 0 ? 0 : 1);
+  printReport().then(() => process.exit(results.combats.length > 0 ? 0 : 1));
 }, 15 * 60 * 1000);
