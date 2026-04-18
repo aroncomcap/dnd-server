@@ -98,6 +98,13 @@ Multiplayer RPG game server with AI Game Master (Claude as DM). Express.js + Soc
 - Billing toggle: `BILLING_ENABLED` env var (default: OFF, safe for dev)
 - Cost logging: every API call logged with model, tokens, cost, elapsed time
 
+### Master House Rules Library
+- **Shared library:** Rules with `is_master = true AND is_private = false` appear in system-wide searchable library
+- **Private rules:** Rules with `is_private = true` visible only in creator's own games
+- **Templates:** 10 common rules pre-seeded at init with `game_id = NULL, is_master = true`
+- **Copy model:** One-way copy only — no sync between games. Copied rules are independent rows with `original_rule_id` tracking source (attribution only)
+- **Injection:** All rules in `gs.rulesCorrections` are injected into prompts regardless of source — no special handling needed
+
 ## Database
 
 Schema auto-creates in `db.js initDB()` — no migration tool needed. `ALTER TABLE … ADD COLUMN IF NOT EXISTS` handles upgrades safely.
