@@ -100,9 +100,10 @@ Multiplayer RPG game server with AI Game Master (Claude as DM). Express.js + Soc
 
 ### Master House Rules Library
 - **Shared library:** Rules with `is_master = true AND is_private = false` appear in system-wide searchable library
+- **System segmentation:** Library is filtered by game system — D&D 5e rules only show in D&D 5e games, RuneQuest rules in RQ games, etc. Rules with `game_system = 'all'` show in all games
 - **Private rules:** Rules with `is_private = true` visible only in creator's own games
-- **Templates:** 10 common rules pre-seeded at init with `game_id = NULL, is_master = true`
-- **Copy model:** One-way copy only — no sync between games. Copied rules are independent rows with `original_rule_id` tracking source (attribution only)
+- **Templates:** 10 common rules pre-seeded at init with `game_id = NULL, is_master = true`, system-assigned (mostly dnd5e, 1 marked 'all')
+- **Copy model:** One-way copy only — no sync between games. Copied rules are independent rows with `original_rule_id` tracking source and inherit target game's system
 - **Injection:** All rules in `gs.rulesCorrections` are injected into prompts regardless of source — no special handling needed
 
 ## Database
