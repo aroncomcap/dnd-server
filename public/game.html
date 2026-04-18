@@ -848,6 +848,42 @@
     font-size: 0.8rem;
   }
 
+  /* Mobile: Turn order collapsed by default, clickable to expand */
+  #turn-order-overlay {
+    max-height: 48px !important;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    cursor: pointer;
+  }
+  #turn-order-overlay.expanded {
+    max-height: 500px !important;
+  }
+  #turn-order-overlay #turn-order-list {
+    display: none;
+  }
+  #turn-order-overlay.expanded #turn-order-list {
+    display: block;
+  }
+
+  /* Mobile: Scene panel starts collapsed on small screens */
+  @media (max-width: 640px) {
+    #screen-game #map-sidebar {
+      display: none !important;
+    }
+    #screen-game.has-scene #map-sidebar {
+      display: block !important;
+    }
+    #map-sidebar #scene-panel.collapsed {
+      min-height: 0;
+      height: auto;
+    }
+    /* When scene is collapsed, give chat panel more space */
+    #screen-game.has-scene #chat-panel {
+      min-height: 200px;
+      flex: 2;
+    }
+  }
+
   /* ══════════════════════════════════════════════════════════
      TABLET  (640px – 1024px)
      ══════════════════════════════════════════════════════════ */
@@ -1968,7 +2004,7 @@ function showSceneImage(url, label) {
     clearTimeout(sceneAutoCollapseTimer);
     sceneAutoCollapseTimer = setTimeout(() => {
       collapseScene();
-    }, 2000);
+    }, 3000);
   };
 }
 
@@ -2001,7 +2037,7 @@ function expandScene() {
   clearTimeout(sceneAutoCollapseTimer);
   sceneAutoCollapseTimer = setTimeout(() => {
     collapseScene();
-  }, 2000);
+  }, 3000);
 }
 
 function switchSidebarTab(level) {
@@ -2155,7 +2191,7 @@ socket.on('combat_started', (data) => {
   const waitMsg = document.getElementById('waiting-msg');
   if (myTurn) myTurn.style.display = '';
   if (waitMsg) waitMsg.style.display = 'none';
-  document.getElementById('combat-log').style.display = 'block';
+  document.getElementById('combat-log').style.display = 'none';
   document.getElementById('combat-log-toggle').style.display = 'block';
   document.getElementById('combat-log').innerHTML = '<div class="round-header">Combat Begins!</div>';
   updateCombatTurnOrder(data);
@@ -3463,6 +3499,15 @@ document.querySelectorAll('.map-level-btn-mobile').forEach(btn => {
 document.addEventListener('click', (e) => {
   if (e.target.id === 'scene-collapse-btn') {
     collapseScene();
+  }
+});
+
+// Mobile: Turn order toggle (collapse/expand on click)
+document.getElementById('turn-order-overlay')?.addEventListener('click', (e) => {
+  const overlay = document.getElementById('turn-order-overlay');
+  // Only toggle if clicking the header, not the list
+  if (e.target.closest('#turn-order-handle') || !overlay.classList.contains('expanded')) {
+    overlay.classList.toggle('expanded');
   }
 });
 
