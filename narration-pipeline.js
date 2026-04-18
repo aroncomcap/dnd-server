@@ -13,8 +13,8 @@ const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 
 const VERBOSITY_RULES = {
   verbose: 'Write ~100 words of narration. Vivid detail and atmosphere.',
-  brief:   'Write ~50 words of narration. Punchy and evocative.',
-  terse:   'Write ~20 words of narration. Minimal — action and consequence only.',
+  brief:   'BRIEF MODE — HARD LIMIT: 75 words max narration. 4-5 sentences. Punchy and direct.',
+  terse:   'TERSE MODE — ABSOLUTE LIMIT: 50 words max. 3 sentences max. No atmosphere, no descriptions, no internal thoughts. State what happens mechanically. Count your words. If you write more than 50 words, you have failed.',
 };
 
 const FEROCITY_LABELS = {
@@ -138,7 +138,8 @@ function buildNarrationPrompt(gameId, gameConfig, gs) {
     `Pillars: ${pillarsLine}`,
     '',
     `=== NARRATION RULES ===`,
-    verbosityRule,
+    `VERBOSITY: ${verbosityRule}`,
+    ``,
     `Always end your response with exactly 3 numbered player options using this format:`,
     `1️⃣ [option one]`,
     `2️⃣ [option two]`,
@@ -385,9 +386,12 @@ async function callSonnetNarration(gameId, gameConfig, gs, characterName, action
     io.to(gameId).emit('dm_stream_start', { gameId });
   }
 
+  const verbosityMaxTokens = { terse: 250, brief: 400, verbose: 1500 };
+  const maxTokens = verbosityMaxTokens[gs.verbosity] || verbosityMaxTokens.brief;
+
   const stream = anthropic.messages.stream({
     model: SONNET_MODEL,
-    max_tokens: 1024,
+    max_tokens: maxTokens,
     system: [
       {
         type: 'text',
