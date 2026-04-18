@@ -556,13 +556,14 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
     let enemyResults = [];
     if (resolveEnemyTurns) {
       try {
-        enemyResults = await resolveEnemyTurns(gameId, combatEngine, gameConfig, gs);
+        enemyResults = await resolveEnemyTurns(gameId, gameConfig);
       } catch (err) {
         console.error(`[narration-pipeline] resolveEnemyTurns failed:`, err.message);
       }
     }
 
     const allResults = [...playerResults, ...enemyResults];
+    console.log(`[pipeline-combat] playerResults=${playerResults.length} enemyResults=${enemyResults.length} allResults=${allResults.length}`);
 
     // Assemble template narration
     const persona = gameConfig.dmPersona || 'epic';
