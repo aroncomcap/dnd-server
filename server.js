@@ -1977,8 +1977,7 @@ app.post('/api/games', requireAuth, async (req, res) => {
   try {
     const { system } = req.body;
     const name = truncate(req.body.name, 100);
-    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-      || crypto.randomBytes(4).toString('hex');
+    const id = crypto.randomUUID();
     await db.createGame(id, name, system || 'dnd5e');
     // Set host_user_id (authenticated user required)
     const hostId = req.user.id;
