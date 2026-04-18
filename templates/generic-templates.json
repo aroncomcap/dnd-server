@@ -1,0 +1,1746 @@
+{
+  "humanoid": {
+    "attack_hit": {
+      "epic": [
+        "The blade finds its mark, biting into {target}.",
+        "{target} staggers as the blow connects.",
+        "Steel meets flesh — {target} takes {damage} damage.",
+        "A vicious strike catches {target} off-guard.",
+        "{target} grunts as the weapon tears through armor.",
+        "With deadly precision, {attacker} drives the blow home against {target}."
+      ],
+      "over_the_top": [
+        "BONK! {target} takes {damage} right in the everything.",
+        "The hit lands and {target} does NOT look happy about it.",
+        "{target} catches a face full of {weapon}. Ouch.",
+        "That's gonna leave a mark — {damage} damage to {target}!",
+        "Critical workplace injury! {target} takes {damage}.",
+        "{attacker} absolutely wallops {target} for {damage} — physics happened!"
+      ]
+    },
+    "attack_miss": {
+      "epic": [
+        "The strike goes wide, whistling past {target}.",
+        "{target} sidesteps the clumsy blow.",
+        "Steel scrapes stone as the attack misses {target}.",
+        "The swing falls short, cutting only air.",
+        "{target} twists away at the last moment.",
+        "The blow glances off, denied by {target}'s swift reflexes."
+      ],
+      "over_the_top": [
+        "Swing and a miss! {target} does a little dodge dance.",
+        "Not even close. {target} didn't even have to try.",
+        "Air sword! The attack whiffs past {target} entirely.",
+        "That attack had the accuracy of a blindfolded cat.",
+        "{target} ducks and the weapon hits absolutely nothing.",
+        "{attacker} misses so hard that {target} files for a restraining order."
+      ]
+    },
+    "attack_crit": {
+      "epic": [
+        "A thunderous blow lands true — {target} reels from {damage} crushing damage.",
+        "The strike finds a gap in the armor, devastating {target} for {damage}.",
+        "{target} cries out as a savage critical lands for {damage} damage.",
+        "Fortune favors the attacker — a perfect strike deals {damage} to {target}.",
+        "The blow lands with bone-shattering force, {damage} damage rocking {target}.",
+        "Every ounce of force channels into the hit — {target} staggers with {damage} damage."
+      ],
+      "over_the_top": [
+        "CRITICAL HIT! {target} takes {damage} straight to the face-region!",
+        "BOOM! Nat 20 energy! {target} eats {damage} damage and hates life!",
+        "The universe conspires to absolutely ruin {target}'s day for {damage} damage!",
+        "That's a CRIT, baby! {damage} damage and {target}'s pride is shattered!",
+        "Holy smokes! {target} takes {damage} damage and files a formal complaint.",
+        "Maximum impact! {damage} damage delivered to {target} with extreme prejudice!"
+      ]
+    },
+    "takes_damage": {
+      "epic": [
+        "{attacker} lands a blow — {damage} damage chips away at resolve.",
+        "Pain flashes across the face as {damage} damage strikes home.",
+        "The {weapon} connects for {damage}, leaving {hp} of {maxHp} remaining.",
+        "A grunt escapes as {damage} damage tears through defenses.",
+        "Staggering back, {damage} damage absorbed — {hp} HP remain.",
+        "{attacker} draws blood with {weapon}, dealing {damage} damage."
+      ],
+      "over_the_top": [
+        "Oof! {damage} damage! That's gonna show up on the health insurance claim.",
+        "{attacker} bonks for {damage}! Only {hp}/{maxHp} HP left, yikes!",
+        "PAIN! {damage} incoming courtesy of {attacker} and their trusty {weapon}!",
+        "Welp, {damage} damage. The {weapon} did not hold back.",
+        "Down to {hp} HP! At this rate, someone's getting a chalk outline.",
+        "Ouch! {attacker} scores {damage} damage — {hp} left on the HP meter!"
+      ]
+    },
+    "takes_crit": {
+      "epic": [
+        "The critical blow staggers — {damage} brutal damage lands without mercy.",
+        "A perfect strike connects for devastating {damage} damage.",
+        "{attacker} finds the weak point — {damage} crushing damage lands.",
+        "The {weapon} strikes true with terrible force, dealing {damage} damage.",
+        "A catastrophic hit drives {damage} damage through every defense.",
+        "Reeling from {damage} critical damage, survival instincts kick in."
+      ],
+      "over_the_top": [
+        "CRITICAL SMACKDOWN! {damage} damage from {attacker}! Someone call a medic!",
+        "OH NO! Crit for {damage}! {attacker}'s {weapon} just became a problem!",
+        "MAXIMUM BONK! {damage} damage! The {weapon} is operating at 110%!",
+        "{attacker} rolls lucky and delivers {damage} to the face-zone! Classic!",
+        "YIKES! {damage} crit damage! Even the bystanders winced at that one.",
+        "That's a CRITICAL HIT, {damage} damage! Physics and fate conspire together!"
+      ]
+    },
+    "death": {
+      "epic": [
+        "The creature crumples with a final wheeze.",
+        "Eyes go wide, then dark. It topples.",
+        "With a gurgling cry, it collapses to the ground.",
+        "The body hits the floor, still and silent.",
+        "Life leaves its eyes as it sinks to its knees.",
+        "The last breath escapes, and the figure crumples in defeat."
+      ],
+      "over_the_top": [
+        "It does a full backflip into the afterlife. Absolutely yeeted.",
+        "And THAT'S how you make a corpse, folks!",
+        "It ragdolls into the ground with zero dignity.",
+        "RIP. It was annoying and now it's dead.",
+        "Critical existence failure. It has ceased to be.",
+        "Achievement unlocked: No Longer Alive. Good riddance."
+      ]
+    },
+    "taunt": {
+      "epic": [
+        "\"Face me, {target}, if you dare call yourself a warrior!\"",
+        "A sneer curls across the lips — the challenge is unmistakable.",
+        "\"Your courage is as thin as your armor, {target}.\"",
+        "Cold eyes fix on {target} with murderous intent.",
+        "\"I've broken better heroes than you before breakfast.\"",
+        "The warrior flexes, daring {target} to make the first move."
+      ],
+      "over_the_top": [
+        "\"Come at me, {target}! I've fought scarier rabbits!\"",
+        "It does an exaggerated flex and waits for {target} to be impressed.",
+        "\"Is that the best you've got, {target}? My grandmother hits harder!\"",
+        "The creature trash-talks with the confidence of someone winning badly.",
+        "\"You fight like a dairy farmer, {target}! Embarrassing!\"",
+        "A rude gesture is made in {target}'s general direction. Very rude."
+      ]
+    },
+    "spell_hit": {
+      "epic": [
+        "{spell} arcs through the air and slams into {target} for {damage}.",
+        "Arcane energies coalesce — {spell} finds {target} and deals {damage} damage.",
+        "The incantation completes and {spell} detonates on {target} for {damage}.",
+        "Mystical force carries {spell} true, striking {target} for {damage} damage.",
+        "{spell} crackles with power as it connects with {target}, dealing {damage}.",
+        "Words of power shape {spell} — {target} takes {damage} damage as it lands."
+      ],
+      "over_the_top": [
+        "MAGIC MISSILE! {spell} hits {target} for {damage} — bam, alakazam!",
+        "{spell} goes WHOOSH and smacks {target} for {damage}! Spooky fingers did it!",
+        "Abracadabra! {spell} nails {target} for {damage} damage! The wizard wins!",
+        "{target} gets a face full of {spell} for {damage}! Magical violence!",
+        "ZAP! {spell} connects! {target} takes {damage} and is NOT having fun!",
+        "The magic works! {spell} hits {target} for {damage}! Science: 0, Magic: 1!"
+      ]
+    },
+    "spell_miss": {
+      "epic": [
+        "{spell} dissipates as {target} evades the arcane assault.",
+        "The incantation falls short — {spell} fails to find {target}.",
+        "Mystical energies scatter harmlessly as {target} avoids {spell}.",
+        "{spell} blazes past {target}, spending its fury on empty air.",
+        "The magical strike misses as {target} disrupts the casting.",
+        "{spell} goes wide, leaving {target} unscathed and emboldened."
+      ],
+      "over_the_top": [
+        "{spell} goes completely rogue and misses {target} by a country mile.",
+        "The spell fizzles! {target} dodges {spell} and does a victory shimmy.",
+        "{spell}? More like {spell}-MISS! {target} laughs it off.",
+        "Whoops! {spell} misses {target} entirely. Magic is hard, apparently.",
+        "That was a very dramatic spell that hit nothing. {target} is unimpressed.",
+        "{spell} misses and {target} gets to live another turn. Today's a good day."
+      ]
+    },
+    "pc_attack_hit": {
+      "epic": [
+        "{attacker}'s {weapon} bites deep — {damage} damage connects.",
+        "A clean strike from {attacker} deals {damage} damage with {weapon}.",
+        "The blow lands true — {attacker} scores {damage} with the {weapon}.",
+        "{damage} damage from {attacker}'s {weapon} — {hp} HP remain.",
+        "Precise and deadly, {attacker} drives {weapon} home for {damage}.",
+        "{attacker} finds the opening and exploits it — {damage} damage from {weapon}."
+      ],
+      "over_the_top": [
+        "YEAH! {attacker} smashes for {damage} with {weapon}! Take that!",
+        "{attacker} absolutely demolishes for {damage}! The {weapon} is a menace!",
+        "POW! {attacker} delivers {damage} courtesy of {weapon}! Classic hero move!",
+        "{damage} damage! {attacker} and their {weapon} are not messing around!",
+        "Boom! {attacker} connects for {damage} and it looked COOL doing it!",
+        "{attacker} rampages for {damage} damage! {weapon} is working overtime today!"
+      ]
+    },
+    "pc_attack_miss": {
+      "epic": [
+        "{attacker}'s {weapon} swings wide — the opening is wasted.",
+        "The attack from {attacker} fails to connect — {weapon} cuts only air.",
+        "{attacker} overextends with {weapon}, the blow falling short.",
+        "Nimble footwork turns aside {attacker}'s strike with {weapon}.",
+        "The {weapon} glances off as {attacker}'s timing proves off.",
+        "{attacker} commits to the swing with {weapon} — and misses entirely."
+      ],
+      "over_the_top": [
+        "WHOOSH! {attacker} misses completely! The {weapon} is embarrassed for them.",
+        "{attacker} flails with {weapon} and hits precisely nothing. Oof.",
+        "That was a big swing and a big miss from {attacker}. The crowd gasps.",
+        "{attacker} missed! The {weapon} made a really dramatic noise for nothing.",
+        "Not today! {attacker}'s {weapon} fails to connect. Try again maybe?",
+        "{attacker} whiffs with {weapon}! The air takes {damage}... which is 0."
+      ]
+    },
+    "pc_spell_hit": {
+      "epic": [
+        "{attacker}'s {spell} strikes true for {damage} arcane damage.",
+        "The {spell} from {attacker} finds its mark — {damage} damage dealt.",
+        "Magical force from {attacker}'s {spell} lands for {damage} damage.",
+        "{attacker} channels {spell} with precision — {damage} damage resonates.",
+        "{damage} damage from {attacker}'s {spell}, leaving {hp} HP remaining.",
+        "{attacker} weaves {spell} perfectly — {damage} damage cuts through."
+      ],
+      "over_the_top": [
+        "MAGIC! {attacker}'s {spell} zaps for {damage}! Wizard things!",
+        "{attacker} casts {spell} and BOOM — {damage} damage! Sorcery!",
+        "ZAP ZAP! {spell} from {attacker} deals {damage}! Absolutely magical!",
+        "{attacker} spell-slaps for {damage} with {spell}! Who needs a sword?",
+        "Scientific magic! {attacker}'s {spell} connects for {damage} damage!",
+        "CRITICAL WIZARDING! {spell} hits for {damage}! {attacker} is unstoppable!"
+      ]
+    }
+  },
+  "beast": {
+    "attack_hit": {
+      "epic": [
+        "Claws rake across {target}, leaving {damage} damage in their wake.",
+        "{target} is bowled over by the beast's savage lunge — {damage} damage.",
+        "Fangs close around {target} — {damage} brutal damage lands.",
+        "The beast pounces with primal fury, dealing {damage} to {target}.",
+        "{target} stumbles as the powerful strike connects for {damage} damage.",
+        "Muscle and instinct drive the attack home — {damage} damage on {target}."
+      ],
+      "over_the_top": [
+        "CHOMP! {target} gets bitten for {damage}! The beast is NOT a pet!",
+        "The beast goes RAWR and {target} takes {damage}! Classic beast behavior!",
+        "{target} gets clawed for {damage}! Should've brought more animal crackers.",
+        "Feral strike! {target} takes {damage} from the enthusiastic beast!",
+        "POUNCE! {target} gets {damage} damage and covered in beast slobber!",
+        "The beast bites {target} for {damage}! Tetanus shot, anyone?"
+      ]
+    },
+    "attack_miss": {
+      "epic": [
+        "The beast's lunge falls short as {target} leaps aside.",
+        "Claws score stone as the beast misses {target} entirely.",
+        "{target} rolls clear of the snapping jaws.",
+        "The pounce overshoots — the beast crashes past {target}.",
+        "Instinct and timing save {target} from the beast's fury.",
+        "The wild swing goes wide, the beast stumbling with the miss."
+      ],
+      "over_the_top": [
+        "The beast lunges and faceplants into the ground! {target} escapes!",
+        "Total whiff! The beast bites air near {target}. Embarrassing!",
+        "MISS! The beast needs glasses apparently. {target} is fine.",
+        "The pounce fails spectacularly. {target} slow-claps sarcastically.",
+        "Swing and a miss! The beast forgot {target} can dodge.",
+        "All that growling and no bite! {target} steps aside with ease."
+      ]
+    },
+    "attack_crit": {
+      "epic": [
+        "The beast's instincts peak — a devastating strike deals {damage} to {target}.",
+        "Primal fury unleashed — {damage} crushing damage rips into {target}.",
+        "A perfect predator's blow catches {target} for {damage} brutal damage.",
+        "Fangs find the throat — a savage critical deals {damage} to {target}.",
+        "The beast moves with terrifying precision — {damage} damage cracks ribs.",
+        "Claws and momentum combine for {damage} critical damage against {target}."
+      ],
+      "over_the_top": [
+        "MEGA-CHOMP CRITICAL! {target} takes {damage}! The beast is in beast mode!",
+        "SUPER CRIT POUNCE! {damage} damage! {target} should've stayed in bed!",
+        "THE BEAST GOES WILD! {damage} crit damage! Someone call an exterminator!",
+        "OMEGA CLAW! {damage} damage! {target} briefly regrets adventuring as a career.",
+        "FERAL CRIT! {damage} to {target}! The animal kingdom says hello!",
+        "RAMPAGE ENERGY! The beast crits for {damage}! {target} is not loving this!"
+      ]
+    },
+    "takes_damage": {
+      "epic": [
+        "The beast staggers, absorbing {damage} damage from {attacker}.",
+        "A pained cry escapes as {damage} damage lands — {hp} HP remain.",
+        "The animal shudders from {attacker}'s {weapon}, {damage} damage scored.",
+        "Fur and blood — {damage} damage cuts through the beast's hide.",
+        "The blow connects for {damage}, the beast circling warily at {hp} HP.",
+        "{attacker}'s strike draws blood — {damage} damage, {hp} of {maxHp} remain."
+      ],
+      "over_the_top": [
+        "OW! The beast takes {damage} from {attacker}! Angry animal noises!",
+        "{damage} damage! The beast is NOT a happy camper right now!",
+        "Oof! {attacker}'s {weapon} deals {damage}! Only {hp}/{maxHp} HP left!",
+        "The beast yelps! {damage} damage! Who's a bad boy? Not this beast.",
+        "{damage} incoming! The beast does not appreciate {attacker}'s enthusiasm.",
+        "Hurt beast incoming! {damage} damage and {hp} HP left — watch out!"
+      ]
+    },
+    "takes_crit": {
+      "epic": [
+        "A devastating critical lands — {damage} damage breaks the beast's momentum.",
+        "The perfect blow staggers the creature — {damage} brutal damage strikes.",
+        "Critical force drives {damage} through the beast's tough hide.",
+        "{attacker} exploits the perfect moment — {damage} crit damage lands.",
+        "The beast reels from {damage} critical damage, instincts screaming.",
+        "Bone cracks under {damage} critical damage — the beast stumbles back."
+      ],
+      "over_the_top": [
+        "CRITICAL BEAST SMACK! {damage} damage! The beast did not enjoy that!",
+        "MEGA HIT! {damage} crit damage! The beast's Yelp review will be scathing!",
+        "CATASTROPHIC BONK! {damage} to the beast! Someone call a vet!",
+        "SUPER CRIT! {damage} damage! The beast is reconsidering its life choices!",
+        "OH NO the beast! {damage} critical damage! This is fine. It's not fine.",
+        "CRIT CITY! {damage} damage! The beast is having a very bad Tuesday!"
+      ]
+    },
+    "death": {
+      "epic": [
+        "The beast lets out a final howl and collapses.",
+        "Primal strength spent, the creature sinks to the earth.",
+        "The last snarl fades as the beast falls still.",
+        "Ancient instincts go quiet — the creature breathes its last.",
+        "The predator becomes prey as it crumples to the ground.",
+        "With a shudder and a whimper, the beast lies still."
+      ],
+      "over_the_top": [
+        "The beast ragdolls with maximum drama. A solid 10/10 fall.",
+        "Animal down! The beast expires with theatrical flair!",
+        "And the beast is NO MORE! Nature loses one today.",
+        "The beast departs this realm dramatically. It was a good beast.",
+        "RIP to a real one. The beast died as it lived — aggressively.",
+        "Critical existential crisis! The beast transitions to the afterlife!"
+      ]
+    },
+    "taunt": {
+      "epic": [
+        "The beast circles slowly, a low growl rumbling in its chest.",
+        "Eyes lock onto {target} — the predator has chosen its prey.",
+        "A guttural warning fills the air as the beast fixes its gaze.",
+        "The creature bares fangs at {target}, hackles rising.",
+        "Territorial fury radiates from the beast as it faces {target}.",
+        "A haunting shriek challenges {target} to approach."
+      ],
+      "over_the_top": [
+        "The beast growls at {target} like it's the most important job in the world.",
+        "ROAR! The beast is very rude to {target} in animal language.",
+        "The creature snorts at {target}. In beast-speak, that's a real insult.",
+        "The beast does the 'gonna eat you' face at {target}. It means business.",
+        "Aggressive growling in {target}'s direction! The beast is NOT impressed.",
+        "The beast puffs up and glares at {target}. Maximum animal intimidation achieved."
+      ]
+    },
+    "spell_hit": {
+      "epic": [
+        "Primal energy surges — the beast's attack lands for {damage} on {target}.",
+        "Ancient power channels through the beast, striking {target} for {damage}.",
+        "The creature's innate magic crashes into {target} dealing {damage} damage.",
+        "{target} staggers as magical force from the beast deals {damage} damage.",
+        "The beast's supernatural ability finds {target} — {damage} damage lands.",
+        "Wild magic spirals from the beast, striking {target} for {damage}."
+      ],
+      "over_the_top": [
+        "BEAST MAGIC! {target} gets {damage} hit by something primal and weird!",
+        "The beast uses a SPELL! {target} takes {damage}! Nobody expected this!",
+        "ZAP from the BEAST! {target} gets {damage} magical damage! Wild!",
+        "SUPERNATURAL CHOMP ENERGY! {target} takes {damage}! The beast has POWERS!",
+        "Magic beast moment! {target} eats {damage} damage from nature itself!",
+        "Unexpected sorcery from the beast! {target} takes {damage} and is confused!"
+      ]
+    },
+    "spell_miss": {
+      "epic": [
+        "The beast's supernatural assault passes harmlessly over {target}.",
+        "Primal energy dissipates as {target} weaves clear of the attack.",
+        "The creature's innate power fails to find {target} this time.",
+        "Wild magic scatters as {target} avoids the beast's supernatural lunge.",
+        "The attack passes wide, the beast's magical instinct leading astray.",
+        "{target} reads the beast's motion and sidesteps the supernatural blow."
+      ],
+      "over_the_top": [
+        "The beast's fancy move totally misses {target}! All that growling for nothing!",
+        "MISS! The beast tried something special and it whiffed completely!",
+        "The beast's power attack goes rogue and {target} is totally fine. Awkward.",
+        "Supernatural miss! The beast is embarrassed in front of nature.",
+        "Oops! The beast's special move didn't work. {target} moonwalks away.",
+        "Big energy, no hit. {target} ducks the beast's wild attack easily."
+      ]
+    },
+    "pc_attack_hit": {
+      "epic": [
+        "{attacker}'s {weapon} bites into fur and muscle — {damage} damage lands.",
+        "A practiced strike from {attacker} deals {damage} to the beast.",
+        "{attacker} strikes true — the beast takes {damage} damage from {weapon}.",
+        "The beast recoils from {attacker}'s blow — {damage} damage scored.",
+        "{damage} damage from {attacker}'s {weapon} slows the creature's charge.",
+        "{attacker} lands a clean hit — {damage} damage, {hp} HP remain."
+      ],
+      "over_the_top": [
+        "{attacker} boops the beast for {damage}! Aggressive booping!",
+        "SMACK! {attacker}'s {weapon} deals {damage} to the beast! Beastbuster!",
+        "{attacker} hits the beast for {damage}! Animal control was unavailable.",
+        "POW! {attacker} delivers {damage} damage! The beast files a complaint.",
+        "{attacker} whale on the beast for {damage}! Victory through violence!",
+        "COMBAT! {attacker}'s {weapon} lands {damage} on the beast! Classic!"
+      ]
+    },
+    "pc_attack_miss": {
+      "epic": [
+        "The beast's instincts save it — {attacker}'s {weapon} finds only air.",
+        "{attacker} lunges forward with {weapon} but the beast pivots clear.",
+        "The strike falls short as the beast weaves under {attacker}'s blow.",
+        "{attacker}'s {weapon} swings wide — the beast moves with surprising grace.",
+        "Reflexes honed by the wild save the beast from {attacker}'s assault.",
+        "The beast dodges low as {attacker}'s {weapon} passes overhead."
+      ],
+      "over_the_top": [
+        "{attacker} swings and misses the beast! The beast doesn't even blink!",
+        "WHOOSH! {attacker}'s {weapon} goes nowhere near the beast! Rude!",
+        "The beast dodges {attacker}'s attack like it's no big deal. It's not.",
+        "{attacker} misses the beast! Animals are surprisingly slippery!",
+        "NOPE! The beast sidesteps {attacker}'s {weapon} with animal grace!",
+        "Swing and a miss! {attacker} should've brought more {weapon}s!"
+      ]
+    },
+    "pc_spell_hit": {
+      "epic": [
+        "{attacker}'s {spell} sears through the beast's defenses for {damage}.",
+        "Magic from {attacker} disrupts the beast's instincts — {damage} damage.",
+        "The {spell} from {attacker} finds the beast — {damage} damage connects.",
+        "Arcane power overwhelms the beast's hide — {damage} damage from {attacker}.",
+        "{attacker} channels {spell} effectively — {damage} to the beast.",
+        "The beast shudders under {attacker}'s {spell} — {damage} damage dealt."
+      ],
+      "over_the_top": [
+        "{attacker} zaps the beast with {spell} for {damage}! Magical pest control!",
+        "Magic beats nature! {attacker}'s {spell} deals {damage} to the beast!",
+        "ZAP! {attacker} spell-whacks the beast for {damage}! Science wins!",
+        "MYSTICAL BEAST BONKING! {spell} deals {damage}! The beast is shook!",
+        "{attacker} goes full wizard on the beast — {damage} from {spell}!",
+        "Enchanted violence! {attacker}'s {spell} hits the beast for {damage}!"
+      ]
+    }
+  },
+  "undead": {
+    "attack_hit": {
+      "epic": [
+        "Cold dead hands close around {target} — {damage} damage from beyond the grave.",
+        "The undead's strike carries the chill of the grave — {damage} to {target}.",
+        "Desiccated fingers find {target}'s throat — {damage} necrotic damage.",
+        "{target} recoils as the creature's blow connects for {damage} unholy damage.",
+        "The attack lands with the weight of centuries — {damage} damage on {target}.",
+        "Grave-cold steel bites into {target} — {damage} damage from the unliving."
+      ],
+      "over_the_top": [
+        "ZOMBIE PUNCH! {target} takes {damage} from beyond the grave! Rude!",
+        "The undead smacks {target} for {damage}! Death doesn't stop rudeness!",
+        "{target} gets hit for {damage} by something that SHOULDN'T BE ALIVE!",
+        "UNDEAD VIOLENCE! {target} takes {damage}! The afterlife is angry today!",
+        "Creepy dead hit! {target} takes {damage}! The zombie has OPINIONS!",
+        "GRAVE BONK! {damage} damage to {target}! Even death wants to hurt you!"
+      ]
+    },
+    "attack_miss": {
+      "epic": [
+        "The unliving strike falls wide — {target} escapes the death-cold touch.",
+        "{target} stumbles clear as the grave-cold blow goes wide.",
+        "The undead's lurch carries it past {target} — the blow misses.",
+        "Ancient reflexes fail — the attack passes harmlessly by {target}.",
+        "{target} ducks under the swipe of desiccated limbs.",
+        "The creature's deliberate strike misses {target} by a hair's breadth."
+      ],
+      "over_the_top": [
+        "The zombie misses {target} and lurches into a wall. Still undead, still clumsy.",
+        "MISS! The undead can't hit {target}! Even death has off days!",
+        "That was a very dramatic miss from the undead. {target} is relieved.",
+        "The skeleton swings and {target} just steps aside. Bone accuracy: poor.",
+        "The ghost-punch misses {target}! Haunting is harder than it looks.",
+        "Undead miss! The creature shambles past {target} in confusion."
+      ]
+    },
+    "attack_crit": {
+      "epic": [
+        "The grave's touch finds the vulnerable spot — {damage} crit damage on {target}.",
+        "Unholy fortune guides the blow — {damage} devastating damage to {target}.",
+        "Death's precision lands perfectly — {damage} critical damage rocks {target}.",
+        "Necrotic energy fuels a perfect strike — {damage} damage shatters defenses.",
+        "The undead's critical blow channels grave-cold force for {damage} damage.",
+        "An unholy crit drives {damage} necrotic damage into {target}."
+      ],
+      "over_the_top": [
+        "UNDEAD CRIT! {damage} damage! Death said 'not today' and meant it!",
+        "MEGA ZOMBIE SMACK! {target} takes {damage} crit! The grave levels up!",
+        "CRITICAL FROM BEYOND! {damage} damage! {target} should've worn more garlic!",
+        "THE UNDEAD HITS THE JACKPOT! {damage} damage! Skeleton hands did this!",
+        "SPOOKY CRIT! {damage} to {target}! The dead have opinions and fists!",
+        "GRAVE CRIT! {damage} damage! {target} needs a doctor — and a priest!"
+      ]
+    },
+    "takes_damage": {
+      "epic": [
+        "The undead absorbs {damage} without flinching — {hp} of {maxHp} remain.",
+        "{attacker}'s blow lands for {damage} — the creature barely registers it.",
+        "Ancient flesh tears from {damage} damage — still the creature advances.",
+        "{damage} damage chips away at the unliving — {hp} HP remain.",
+        "The undead shudders from {attacker}'s {weapon} — {damage} damage dealt.",
+        "Rotting flesh parts for {damage} — the creature's drive does not falter."
+      ],
+      "over_the_top": [
+        "The zombie takes {damage} damage and keeps walking. Classic zombie.",
+        "{damage} damage! The undead barely notices! This is fine. Very fine.",
+        "OOF! {attacker} deals {damage} but the undead just shrugs. Creepy!",
+        "{damage} damage and {hp} HP left! Dead things don't feel pain — lucky!",
+        "The undead gets bonked for {damage} by {attacker}! Doesn't even blink!",
+        "{damage} damage! The skeleton loses some bones but soldiers on!"
+      ]
+    },
+    "takes_crit": {
+      "epic": [
+        "The critical blow disrupts the necrotic energy — {damage} damage lands.",
+        "Even the undead staggers from {damage} critical damage.",
+        "Holy or brutal force drives {damage} through the unliving's defenses.",
+        "The perfect strike deals {damage} — even death can be wounded.",
+        "{attacker} finds the critical point — {damage} damage rocks the undead.",
+        "Catastrophic damage disrupts the unliving — {damage} critical damage lands."
+      ],
+      "over_the_top": [
+        "CRIT ON UNDEAD! {damage} damage! Even dead things feel that one!",
+        "MAXIMUM UNDEAD BONK! {damage} crit! Parts may be flying. That's normal.",
+        "HOLY CRIT! {damage} damage to undead! Even the afterlife is mad!",
+        "SKELETAL CATASTROPHE! {damage} critical! Bones everywhere! So many bones!",
+        "CRIT! {damage} damage! The undead has a bad afterlife experience!",
+        "UNDEAD CRIT! {damage} and pieces of {target} go in different directions!"
+      ]
+    },
+    "death": {
+      "epic": [
+        "The animating force departs — the undead collapses to scattered bones.",
+        "Dark magic spent, the creature returns to true death at last.",
+        "The unliving falters, crumbles, and lies still.",
+        "Whatever dark will drove it forward surrenders — it falls.",
+        "The undead's second life ends as it crumples in a heap.",
+        "Silence falls as the creature's necrotic spark finally gutters out."
+      ],
+      "over_the_top": [
+        "The undead dies AGAIN! Double dead! Extra dead! Completely dead!",
+        "The skeleton collapses like a terrible Jenga game. Bones everywhere.",
+        "The zombie has been re-killed! Death: 2, Undead: 0. Justice!",
+        "IT DIES AGAIN! And THIS time it's going to STAY dead! Probably.",
+        "Critical re-death! The undead achieves maximum deadness. RIP again.",
+        "The creature returns to wherever undead things go when they finally stop!"
+      ]
+    },
+    "taunt": {
+      "epic": [
+        "A hollow moan echoes from the creature — a terrible summons.",
+        "Empty eye sockets fix on {target} with deathly purpose.",
+        "The undead's rasping breath carries an ancient, wordless threat.",
+        "Bone-cold silence precedes the creature's advance on {target}.",
+        "The unliving turns its hollow gaze on {target} — a death sentence.",
+        "Grave-cold air surrounds the creature as it regards {target}."
+      ],
+      "over_the_top": [
+        "The undead moans at {target} very rudely. Rude AND dead. Wow.",
+        "Skeleton arms reach menacingly toward {target}. Boney intimidation!",
+        "The zombie groans at {target} in a way that says 'I want your brains.'",
+        "The undead stares at {target} with maximum dead-eye intensity.",
+        "UUUUUGH! The undead makes that noise at {target}. Classic undead move.",
+        "The skeleton rattles aggressively at {target}. Very threatening bones!"
+      ]
+    },
+    "spell_hit": {
+      "epic": [
+        "Necrotic energy surges from the undead, striking {target} for {damage}.",
+        "Dark magic channels through the creature — {spell} deals {damage} to {target}.",
+        "The unliving's curse finds {target} — {damage} necrotic damage lands.",
+        "{spell} erupts from withered hands, dealing {damage} damage to {target}.",
+        "Ancient dark power crackles as {spell} strikes {target} for {damage}.",
+        "The undead's {spell} carries death's touch — {damage} damage connects."
+      ],
+      "over_the_top": [
+        "SPOOKY SPELL! The undead's {spell} hits {target} for {damage}! Boo!",
+        "NECRO-MAGIC! {spell} deals {damage} to {target}! The dead are sorcerers now!",
+        "DARK ZAPPY! {target} gets {damage} from {spell}! Ghost fingers did this!",
+        "UNDEAD MAGIC ATTACK! {spell} hits {target} for {damage}! Absolutely haunting!",
+        "THE SKELETON CAST A SPELL! {damage} damage! {target} is baffled and hurt!",
+        "Magical undead violence! {spell} connects for {damage}! Ghosts: 1, {target}: 0!"
+      ]
+    },
+    "spell_miss": {
+      "epic": [
+        "The necrotic surge dissipates as {target} breaks the creature's focus.",
+        "{spell} fades to wisps as {target} resists the dark incantation.",
+        "The undead's curse falls short — {target} escapes the dark magic.",
+        "Dark energy scatters as {target} disrupts the unliving's concentration.",
+        "{target} breaks through the death-magic — {spell} fails to land.",
+        "The dark spell misses {target}, the necrotic energy bleeding into shadows."
+      ],
+      "over_the_top": [
+        "SPOOKY MISS! The undead's {spell} whiffs! Haunting is hard!",
+        "The skeleton's spell fizzles! {target} is fine! Magic is NOT easy, buddy!",
+        "{spell} fails! {target} escapes the undead's dramatic dark magic! Phew!",
+        "The dead wizard misses! {spell} goes nowhere! {target} dodges death!",
+        "Necro-miss! The undead's {spell} fails to connect! Embarrassing!",
+        "The ghost spell misses {target}! Even dark magic has bad days!"
+      ]
+    },
+    "pc_attack_hit": {
+      "epic": [
+        "{attacker}'s {weapon} tears through necrotic flesh — {damage} damage.",
+        "Holy or sharp, {attacker}'s blow deals {damage} to the undead.",
+        "The undead shudders as {attacker}'s {weapon} lands for {damage} damage.",
+        "{attacker} strikes the unliving creature — {damage} damage connects.",
+        "The {weapon} finds its mark — {damage} damage slows the undead.",
+        "{attacker} drives {damage} damage through the creature's defenses."
+      ],
+      "over_the_top": [
+        "{attacker} fights the undead for {damage}! Totally normal Tuesday!",
+        "UNDEAD BONKING! {attacker}'s {weapon} deals {damage} to the zombie!",
+        "{attacker} hits the undead for {damage}! That's heroism right there!",
+        "POW! {attacker} smacks the unliving for {damage}! Go team living!",
+        "{attacker} beats the undead for {damage}! The dead are outnumbered today!",
+        "ANTI-UNDEAD VIOLENCE! {attacker} deals {damage} with {weapon}! Yes!"
+      ]
+    },
+    "pc_attack_miss": {
+      "epic": [
+        "The undead sways aside — {attacker}'s {weapon} passes through empty air.",
+        "{attacker}'s strike on the undead fails to connect with {weapon}.",
+        "The creature twists aside from {attacker}'s blow — {weapon} misses.",
+        "{attacker} overcommits — the undead avoids the {weapon} effortlessly.",
+        "The unliving steps clear of {attacker}'s strike.",
+        "{attacker}'s {weapon} swings wide of the undead's shambling form."
+      ],
+      "over_the_top": [
+        "{attacker} misses the undead! Even zombies can dodge apparently!",
+        "WHOOSH! {attacker}'s {weapon} misses the zombie! It just keeps walking!",
+        "The undead avoids {attacker}'s attack! Unlife finds a way!",
+        "{attacker} misses the skeleton! Bones: surprisingly evasive!",
+        "Strike misses! The undead shambles clear of {attacker}'s {weapon}!",
+        "{attacker} swings and misses the undead! At least it wasn't from fear!"
+      ]
+    },
+    "pc_spell_hit": {
+      "epic": [
+        "Holy light from {attacker}'s {spell} sears the undead for {damage}.",
+        "{attacker}'s {spell} is anathema to the undead — {damage} damage lands.",
+        "Radiant or arcane, {attacker}'s {spell} deals {damage} to the unliving.",
+        "The undead recoils from {attacker}'s magic — {damage} damage scored.",
+        "{spell} from {attacker} finds the creature's weakness — {damage} damage.",
+        "{attacker} channels {spell} against the undead — {damage} damage dealt."
+      ],
+      "over_the_top": [
+        "{attacker} hits the undead with {spell} for {damage}! Ghost hunting 101!",
+        "ANTI-UNDEAD MAGIC! {attacker}'s {spell} deals {damage}! They hate that!",
+        "HOLY ZAPPY! {attacker} uses {spell} for {damage}! The undead is shook!",
+        "ZAP! {spell} hits the undead for {damage}! {attacker} is an undead menace!",
+        "{attacker} spell-bonks the undead for {damage} with {spell}! Spooky!",
+        "UNDEAD WEAKNESS EXPLOITED! {spell} deals {damage}! {attacker} did research!"
+      ]
+    }
+  },
+  "fiend": {
+    "attack_hit": {
+      "epic": [
+        "Hellfire-touched claws rake across {target} — {damage} infernal damage.",
+        "The fiend's strike carries the heat of the Nine Hells — {damage} to {target}.",
+        "Demonic strength drives the blow home — {damage} damage on {target}.",
+        "{target} staggers from the infernal assault — {damage} damage landed.",
+        "Brimstone-hot blade bites into {target} for {damage} infernal damage.",
+        "The fiend's blow carries corruption's touch — {damage} damage on {target}."
+      ],
+      "over_the_top": [
+        "HELLFIRE SMACK! {target} takes {damage}! Satan's middle management is here!",
+        "INFERNAL BONK! {target} gets {damage} from the fiend! Demon hand!",
+        "The devil hits {target} for {damage}! Hell has an HR department.",
+        "DEMONIC VIOLENCE! {target} takes {damage}! The Nine Hells are annoyed!",
+        "FIENDISH HIT! {damage} to {target}! Evil is very physical today!",
+        "The demon smacks {target} for {damage}! Corporate evil at its finest!"
+      ]
+    },
+    "attack_miss": {
+      "epic": [
+        "Infernal precision fails — the fiend's strike misses {target}.",
+        "The demonic blow goes wide as {target} calls upon fortune.",
+        "{target} is spared the fiend's touch — the attack misses.",
+        "Hellfire and fury — and the blow still misses {target}.",
+        "The fiend overreaches — the strike fails to find {target}.",
+        "{target} sidesteps the infernal assault, escaping unscathed."
+      ],
+      "over_the_top": [
+        "The demon misses {target}! Hell is embarrassed! Satan files a complaint!",
+        "FIEND MISS! The demon can't hit {target}! Evil is having an off day!",
+        "Infernal miss! The fiend whiffs! Good triumphs by dodging!",
+        "The devil swings and {target} just... moves. Awkward for evil.",
+        "DEMONIC WHIFF! The fiend misses {target}! Hell notes this in the report.",
+        "Miss from the abyss! The fiend fails to hurt {target}! Victory!"
+      ]
+    },
+    "attack_crit": {
+      "epic": [
+        "Hellfire and fury channel into a devastating blow — {damage} to {target}.",
+        "The fiend's perfect strike sears deep — {damage} infernal crit damage.",
+        "Dark fortune favors the demon — a critical deals {damage} to {target}.",
+        "Infernal precision lands the perfect blow — {damage} crit damage.",
+        "The Nine Hells conspire to land the crit — {damage} damage on {target}.",
+        "The fiend's critical fury deals {damage} — {target} reels in agony."
+      ],
+      "over_the_top": [
+        "INFERNAL CRIT! {damage} damage! Hell put in EXTRA effort today!",
+        "DEMON CRITICAL! {damage} to {target}! Evil is working overtime!",
+        "HELLFIRE CRIT! {damage} damage! The devil rolled well! Unfair!",
+        "MAXIMUM EVIL STRIKE! {damage} crit! Satan is personally proud of this!",
+        "FIENDISH CRITICAL! {damage} damage! The abyss sends its regards to {target}!",
+        "INFERNAL JACKPOT! Crit for {damage}! {target} is having a HELL of a time!"
+      ]
+    },
+    "takes_damage": {
+      "epic": [
+        "The fiend absorbs {damage} with infernal resilience — {hp} remain.",
+        "{attacker}'s holy or physical blow deals {damage} — the demon endures.",
+        "Demonic flesh mends even as {damage} damage lands — {hp} of {maxHp}.",
+        "The fiend snarls at {damage} damage — still {hp} HP left.",
+        "{attacker}'s {weapon} drives {damage} through infernal hide.",
+        "Pain registers briefly — {damage} damage — before the fiend refocuses."
+      ],
+      "over_the_top": [
+        "OW! Even demons feel {damage} damage! Hell has pain receptors apparently!",
+        "The fiend takes {damage}! {hp}/{maxHp} HP! Even evil can be hurt!",
+        "{damage} damage on the demon! {attacker}'s {weapon} makes an impression!",
+        "OUCH! The fiend takes {damage} and is not pleased about it one bit!",
+        "{attacker} deals {damage} to the fiend! It's inconvenient at worst!",
+        "The demon takes {damage} damage! Files grievance with infernal HR!"
+      ]
+    },
+    "takes_crit": {
+      "epic": [
+        "Even the fiend staggers — {damage} critical damage penetrates its defenses.",
+        "The perfect blow drives {damage} through infernal hide.",
+        "A devastating critical force — {damage} damage disrupts the demon's form.",
+        "Holy or physical precision deals {damage} crit damage to the fiend.",
+        "The fiend recoils from {damage} critical damage — a rare vulnerability shown.",
+        "{damage} critical damage rattles the demon's infernal constitution."
+      ],
+      "over_the_top": [
+        "DEMON CRITICAL HIT! {damage} damage! Evil is taking a beating today!",
+        "CRIT ON THE FIEND! {damage} damage! The abyss is shaken!",
+        "HOLY SMOKES! {damage} crit on the demon! {attacker} is a hero!",
+        "INFERNAL CRIT DAMAGE! {damage}! The fiend is reconsidering its career!",
+        "MAXIMUM DEMON HURT! {damage} critical! The Nine Hells log a concern!",
+        "CRIT! {damage} damage! The demon files an emergency complaint upstairs!"
+      ]
+    },
+    "death": {
+      "epic": [
+        "With a shriek that shakes the air, the fiend dissolves back to shadow.",
+        "Infernal fire consumes the demon as it falls — banished at last.",
+        "The fiend's form collapses inward and vanishes with a sulfurous crack.",
+        "A final curse escapes its lips before the demon is unmade.",
+        "Dark energies scatter as the fiend is driven from the mortal world.",
+        "The demon snarls one last time before dissolving into brimstone smoke."
+      ],
+      "over_the_top": [
+        "The fiend explodes dramatically! Back to hell with MAXIMUM flair!",
+        "Demon defeated! It returns to the pit making very angry noises!",
+        "BANISHED! The fiend sulks all the way back to the infernal planes!",
+        "The demon pops like a brimstone balloon! Smells terrible! Worth it!",
+        "RIP demon! Back to HR in hell to file this incident report.",
+        "The fiend is returned to sender! Hell's inbox receives one defeated devil!"
+      ]
+    },
+    "taunt": {
+      "epic": [
+        "\"Your soul will make a fine addition to my collection, {target}.\"",
+        "Malevolent eyes fix on {target} — a deal being calculated.",
+        "\"I have watched empires fall. You are an amusing footnote.\"",
+        "The fiend's smile promises suffering beyond mortal comprehension.",
+        "\"Kneel before true power, {target}, and perhaps I'll make it quick.\"",
+        "A voice like crackling fire whispers promises of doom to {target}."
+      ],
+      "over_the_top": [
+        "\"Your soul is worth exactly three infernal credits, {target}. Pathetic.\"",
+        "The demon trash-talks in seventeen infernal dialects simultaneously.",
+        "\"I've destroyed better heroes than you as a warm-up exercise, {target}.\"",
+        "The fiend makes a rude gesture that's probably illegal in three planes.",
+        "\"Come now, {target} — surely you can do better than THIS?\"",
+        "The demon reviews {target}'s HR file and is visibly unimpressed."
+      ]
+    },
+    "spell_hit": {
+      "epic": [
+        "Hellfire arcs from the fiend's hands — {spell} deals {damage} to {target}.",
+        "Infernal magic channels through the demon — {spell} strikes for {damage}.",
+        "Dark energy coalesces into {spell}, searing {target} for {damage} damage.",
+        "The fiend's unholy incantation lands — {spell} deals {damage} to {target}.",
+        "{spell} erupts with brimstone fury — {damage} damage burns into {target}.",
+        "Demonic power fuels {spell} — {damage} infernal damage strikes {target}."
+      ],
+      "over_the_top": [
+        "HELLFIRE SPELL! {spell} hits {target} for {damage}! The devil does magic!",
+        "DEMONIC ZAP! {spell} deals {damage}! The Nine Hells have Wi-Fi apparently!",
+        "INFERNAL MAGIC! {target} takes {damage} from {spell}! Very on-brand for evil!",
+        "The demon casts {spell}! {damage} damage! Legally obligated to do evil!",
+        "FIRE AND BRIMSTONE SPELL! {damage} damage! {target} should've read the waiver!",
+        "HELLISH SPELL DAMAGE! {spell} hits for {damage}! Evil is efficient today!"
+      ]
+    },
+    "spell_miss": {
+      "epic": [
+        "The infernal incantation fades — {spell} fails to find {target}.",
+        "Dark magic scatters as {target} disrupts the fiend's concentration.",
+        "The hellfire of {spell} dissipates before reaching {target}.",
+        "{target} resists the dark pull — the fiend's {spell} misses.",
+        "Demonic power bleeds away as {spell} goes wide of {target}.",
+        "The fiend's infernal magic fails — {spell} doesn't reach {target}."
+      ],
+      "over_the_top": [
+        "INFERNAL MISS! The demon's {spell} whiffs! Hell is disappointed!",
+        "The fiend's magic fails! {spell} misses {target}! Evil fails today!",
+        "DEMONIC SPELL MISS! {target} dodges {spell}! Good triumphs via movement!",
+        "The demon's {spell} misses! Satan personally notes this blunder!",
+        "MISS! {spell} fails! {target} is unharmed! Evil takes a note.",
+        "Infernal miss! {spell} goes nowhere near {target}! The abyss sighs."
+      ]
+    },
+    "pc_attack_hit": {
+      "epic": [
+        "Holy or sharp, {attacker}'s {weapon} finds the demon for {damage} damage.",
+        "{attacker} strikes true against the fiend — {damage} damage lands.",
+        "The fiend recoils as {attacker}'s {weapon} deals {damage} damage.",
+        "{attacker} drives {weapon} through infernal defenses — {damage} damage.",
+        "The demon staggers from {attacker}'s blow — {damage} damage scored.",
+        "{attacker}'s {weapon} proves effective — {damage} damage against the fiend."
+      ],
+      "over_the_top": [
+        "{attacker} hits the demon for {damage}! Good vs Evil: +{damage} today!",
+        "DEMON BONK! {attacker}'s {weapon} deals {damage}! Heroic violence!",
+        "POW! {attacker} smacks the fiend for {damage}! Hell files a complaint!",
+        "{attacker} whacks the demon for {damage}! The abyss is offended!",
+        "INFERNAL DAMAGE INVERSION! {attacker} deals {damage} to the fiend! Poetic!",
+        "{attacker} hits the demon for {damage} with {weapon}! Justice is physical!"
+      ]
+    },
+    "pc_attack_miss": {
+      "epic": [
+        "The fiend twists clear — {attacker}'s {weapon} misses the demon.",
+        "Infernal reflexes save the fiend — {attacker}'s attack misses.",
+        "{attacker} swings wide with {weapon} — the demon avoids the blow.",
+        "The fiend steps aside from {attacker}'s assault — {weapon} strikes air.",
+        "{attacker}'s strike fails to find the fiend — it counters with a sneer.",
+        "The demon deflects {attacker}'s {weapon} — the blow goes wide."
+      ],
+      "over_the_top": [
+        "{attacker} misses the demon! Evil dodged! Annoying!",
+        "MISS! {attacker}'s {weapon} whiffs on the fiend! Evil laughs!",
+        "The fiend avoids {attacker}! Demonic evasion at its finest!",
+        "{attacker} fails to hit the demon! The fiend looks smug about it!",
+        "Strike misses the fiend! {attacker}'s {weapon} angers only the air!",
+        "{attacker} swings and misses! The demon literally does not move!"
+      ]
+    },
+    "pc_spell_hit": {
+      "epic": [
+        "Holy power from {attacker}'s {spell} sears the fiend for {damage}.",
+        "{attacker}'s {spell} proves anathema to the demon — {damage} damage.",
+        "Radiant or arcane, {spell} finds the fiend's weakness for {damage}.",
+        "The demon recoils from {attacker}'s {spell} — {damage} damage lands.",
+        "{attacker} channels {spell} against the fiend — {damage} damage strikes.",
+        "The fiend writhes under {attacker}'s {spell} — {damage} damage dealt."
+      ],
+      "over_the_top": [
+        "HOLY SPELL! {attacker}'s {spell} deals {damage} to the demon! Ouch!",
+        "ANTI-FIEND MAGIC! {spell} hits for {damage}! Demons hate this!",
+        "ZAP! {attacker} spell-bonks the fiend for {damage} with {spell}! Yes!",
+        "DIVINE VIOLENCE VIA MAGIC! {spell} deals {damage}! The fiend is upset!",
+        "{attacker} hits the demon with {spell} for {damage}! Satisfying!",
+        "INFERNAL COUNTERSPELL FAIL! {attacker}'s {spell} deals {damage}! Amazing!"
+      ]
+    }
+  },
+  "dragon": {
+    "attack_hit": {
+      "epic": [
+        "The dragon's claw rakes across {target} — {damage} devastating damage.",
+        "{target} is hurled back by the dragon's strike — {damage} damage.",
+        "Ancient power drives the blow — {damage} damage crashes into {target}.",
+        "The dragon moves with terrifying speed — {damage} damage hits {target}.",
+        "{target} is caught in the sweep of enormous claws — {damage} damage.",
+        "The dragon's strike carries the weight of ages — {damage} to {target}."
+      ],
+      "over_the_top": [
+        "DRAGON SMACK! {target} takes {damage}! Congratulations, you angered a dragon!",
+        "CLAW ATTACK! {target} gets {damage} damage! Dragons are not pets!",
+        "The dragon hits {target} for {damage}! Hoard guard duties: accomplished!",
+        "DRACONIC VIOLENCE! {target} takes {damage}! The dragon has strong feelings!",
+        "WHOMP! Dragon strikes {target} for {damage}! Scales and fury!",
+        "The dragon bonks {target} for {damage}! Legend says it still hurts!"
+      ]
+    },
+    "attack_miss": {
+      "epic": [
+        "The dragon's titanic strike crashes just wide of {target}.",
+        "{target} throws themselves clear as the claw sweeps past.",
+        "Ancient reflexes betray the dragon — the strike misses {target}.",
+        "The massive blow shakes the earth but misses {target}.",
+        "{target} rolls aside as the dragon's strike scores stone.",
+        "The dragon overshoots — {target} escapes by inches."
+      ],
+      "over_the_top": [
+        "The dragon misses {target}! Dragons CAN miss! Today is a good day!",
+        "DRAGON MISS! {target} survives! The dragon is incredulous!",
+        "The most terrifying creature alive misses {target}. Wild.",
+        "WHIFF! The dragon misses! {target} takes a victory lap!",
+        "The dragon's claw misses! Even ancient evil has off days!",
+        "MISS! The dragon is embarrassed. This doesn't happen often."
+      ]
+    },
+    "attack_crit": {
+      "epic": [
+        "The dragon's claw finds the perfect gap — {damage} catastrophic damage.",
+        "Ancient fury peaks in a devastating blow — {damage} crit damage on {target}.",
+        "The perfect predator lands the perfect strike — {damage} to {target}.",
+        "Draconic precision and power combine — {damage} critical damage.",
+        "The dragon exploits every weakness — a crit deals {damage} to {target}.",
+        "Centuries of battle instinct drives {damage} critical damage into {target}."
+      ],
+      "over_the_top": [
+        "DRAGON CRITICAL! {damage} damage! The ancient evil is showing off!",
+        "MEGA CLAW CRIT! {damage} to {target}! The dragon expected this all along!",
+        "LEGENDARY CRIT! {damage} damage! The dragon adds this to its highlight reel!",
+        "ANCIENT DRACONIC CRITICAL! {damage}! The hoard just got a bit safer!",
+        "CRIT FROM A DRAGON! {damage} damage! {target} made a very bad life choice!",
+        "MAXIMUM DRAGON ENERGY! {damage} crit damage! Songs will be sung. Probably."
+      ]
+    },
+    "takes_damage": {
+      "epic": [
+        "The dragon absorbs {damage} — scales dented but resolve unbroken.",
+        "{attacker}'s blow deals {damage} — the dragon turns slowly to regard them.",
+        "Ancient scales part for {damage} damage — the dragon is unimpressed.",
+        "{damage} damage against the dragon — {hp} HP remain, vast as mountains.",
+        "The blow registers {damage} damage — the dragon's eyes narrow dangerously.",
+        "{attacker}'s {weapon} scores {damage} damage against dragonhide."
+      ],
+      "over_the_top": [
+        "OW! {damage} damage on the DRAGON! It is mildly inconvenienced!",
+        "The dragon takes {damage}! It is annoyed! {hp}/{maxHp} HP remain!",
+        "{attacker} pokes the dragon for {damage}! This was a mistake!",
+        "Someone hurt the dragon! {damage} damage! It will remember this!",
+        "{damage} damage on the ancient dragon! It barely notices! Yikes!",
+        "DRAGON HURT! {damage} damage! The beast logs this for its grudge list!"
+      ]
+    },
+    "takes_crit": {
+      "epic": [
+        "Even the dragon shudders — {damage} critical damage finds the scale gap.",
+        "The perfect strike deals {damage} through ancient dragonhide.",
+        "A devastating blow forces a grunt from the dragon — {damage} crit damage.",
+        "{damage} critical damage against the dragon — a rare vulnerability exposed.",
+        "The dragon recoils briefly from {damage} critical damage.",
+        "Ancient hide parts under {damage} critical damage — the dragon reconsiders."
+      ],
+      "over_the_top": [
+        "CRIT ON A DRAGON! {damage} damage! This is ACTUALLY impressive!",
+        "THE DRAGON FELT THAT! {damage} crit! {attacker} is either brave or insane!",
+        "MAXIMUM DRAGON HURT! {damage} critical! Someone tell the bards immediately!",
+        "DRAGON CRITICAL! {damage} damage! {attacker} has a death wish and STYLE!",
+        "CRIT! {damage} on the DRAGON! Songs will absolutely be written about this!",
+        "LEGENDARY DAMAGE! {damage} crit on the dragon! Absolutely unprecedented!"
+      ]
+    },
+    "death": {
+      "epic": [
+        "The ancient beast crashes to earth — centuries of fury gone silent.",
+        "With a final breath of fire, the dragon collapses in ruin.",
+        "The dragon's eyes dim like dying stars — it falls at last.",
+        "An age ends as the great dragon crumples to the ground.",
+        "The beast gives one last roar that shakes the world, then lies still.",
+        "The dragon falls, and the very air seems lighter for it."
+      ],
+      "over_the_top": [
+        "THE DRAGON IS DEAD! An era ends! Loot opportunities begin!",
+        "DRAGON DOWN! Earthquakes! Drama! Treasure redistribution imminent!",
+        "THE ANCIENT BEAST IS SLAIN! {target} achieves maximum legend status!",
+        "The dragon dies with MAXIMUM drama! Ground shakes! Everyone cheers!",
+        "HOARD UNLOCKED! The dragon expires and its treasure becomes a question!",
+        "DEAD DRAGON! The bards are already composing the twelve-volume epic!"
+      ]
+    },
+    "taunt": {
+      "epic": [
+        "\"Insects. You dare challenge ME?\" The earth shakes with each word.",
+        "Ancient contempt rolls off the dragon as it regards {target}.",
+        "\"I have outlasted kingdoms. You will not outlast this encounter.\"",
+        "A sound between a laugh and a roar fills the air — {target} has amused it.",
+        "\"Face me then, {target}. I grow bored of waiting.\"",
+        "The dragon's gaze could wither stone — {target} feels it deeply."
+      ],
+      "over_the_top": [
+        "\"Come now, {target}. This will be quick for one of us. Guess which.\"",
+        "The dragon laughs. At {target}. Specifically at {target}.",
+        "\"My hoard has more personality than your entire party, {target}.\"",
+        "The dragon does an eye-roll so hard it creates a breeze.",
+        "\"I've forgotten more battles than you've lived, {target}. Adorable.\"",
+        "The dragon looks at {target} and sighs the sigh of disappointed ancients."
+      ]
+    },
+    "spell_hit": {
+      "epic": [
+        "Draconic magic surges — {spell} strikes {target} for {damage} damage.",
+        "Ancient words of power channel {spell} — {damage} damage lands.",
+        "The dragon's innate magic finds {target} — {spell} deals {damage}.",
+        "Elemental force channels through {spell} — {damage} damage crashes into {target}.",
+        "{spell} erupts with draconic fury, dealing {damage} to {target}.",
+        "Ancient power shapes {spell} — {target} takes {damage} damage."
+      ],
+      "over_the_top": [
+        "DRAGON SPELL! {spell} hits {target} for {damage}! Dragons can DO MAGIC!",
+        "DRACONIC SORCERY! {spell} deals {damage}! The dragon multitasks!",
+        "THE DRAGON CASTS A SPELL! {damage} damage! Nobody was ready for this!",
+        "ANCIENT MAGIC ATTACK! {spell} hits {target} for {damage}! Terrifying!",
+        "DRAGON WIZARD MODE! {spell} connects for {damage}! Absolutely unfair!",
+        "The dragon uses MAGIC on {target}! {damage} from {spell}! Seriously?!"
+      ]
+    },
+    "spell_miss": {
+      "epic": [
+        "Ancient magic scatters as {target} avoids the dragon's {spell}.",
+        "Draconic power disperses — {spell} fails to find {target}.",
+        "{target} weaves clear of {spell} — the dragon's fury goes wide.",
+        "The massive magical assault passes {target} — {spell} misses.",
+        "Fortune favors {target} as the dragon's {spell} falls short.",
+        "Even draconic precision falters — {spell} misses {target}."
+      ],
+      "over_the_top": [
+        "DRAGON SPELL MISS! {spell} fails! The dragon is professionally offended!",
+        "The dragon's {spell} misses {target}! Even ancient power can whiff!",
+        "MISS! Dragon {spell} goes nowhere near {target}! Victory of movement!",
+        "The dragon wasted {spell}! {target} escapes! The dragon will NOT forget!",
+        "DRACONIC MISS! {spell} fails! The dragon takes notes for next time!",
+        "{spell} misses! The dragon makes an angry note in its ancient grudge-book!"
+      ]
+    },
+    "pc_attack_hit": {
+      "epic": [
+        "{attacker}'s {weapon} finds the scale gap — {damage} damage on the dragon.",
+        "A heroic strike from {attacker} deals {damage} to the great beast.",
+        "The dragon flinches — {attacker}'s {weapon} scores {damage} damage.",
+        "{attacker} drives {weapon} through dragonhide — {damage} damage.",
+        "Against all odds, {attacker}'s blow lands — {damage} damage on the dragon.",
+        "{attacker}'s {weapon} proves equal to the task — {damage} damage."
+      ],
+      "over_the_top": [
+        "{attacker} HITS A DRAGON for {damage}! That goes on the resume!",
+        "DRAGON BONKED! {attacker}'s {weapon} deals {damage}! Hero material!",
+        "{attacker} actually hurt the dragon for {damage}! Absolutely wild!",
+        "POW! {attacker} smacks the ancient beast for {damage}! Legend status!",
+        "{attacker} hits the dragon for {damage}! The bards are writing this down!",
+        "HEROIC VIOLENCE! {attacker}'s {weapon} deals {damage} to the dragon!"
+      ]
+    },
+    "pc_attack_miss": {
+      "epic": [
+        "The dragon turns aside {attacker}'s blow — {weapon} glances off scales.",
+        "{attacker}'s strike fails against the dragon's hide — the blow misses.",
+        "Dragonscale turns {attacker}'s {weapon} — the hit doesn't connect.",
+        "{attacker} overreaches — the dragon avoids the {weapon} with contempt.",
+        "The dragon lets {attacker}'s blow miss, testing their nerve.",
+        "{attacker}'s {weapon} swings wide — the dragon barely moves."
+      ],
+      "over_the_top": [
+        "{attacker} misses the dragon! The dragon looks personally insulted!",
+        "MISS! {attacker}'s {weapon} fails on the dragon! Today is hard for everyone!",
+        "The dragon evades {attacker}! Ancient reflexes: quite good actually!",
+        "{attacker} fails to hit the dragon! The dragon sighs. Actually sighs.",
+        "DRAGON DODGE! {attacker}'s {weapon} hits scales and slides off!",
+        "Strike misses! The dragon barely notices {attacker}'s effort. Humbling."
+      ]
+    },
+    "pc_spell_hit": {
+      "epic": [
+        "{attacker}'s {spell} finds a draconic weakness — {damage} damage.",
+        "The dragon recoils from {attacker}'s magic — {spell} deals {damage}.",
+        "{spell} from {attacker} pierces ancient defenses — {damage} damage.",
+        "Arcane or divine, {attacker}'s {spell} lands for {damage} damage.",
+        "{attacker} channels {spell} effectively — {damage} damage on the dragon.",
+        "The dragon's resistance wavers under {attacker}'s {spell} — {damage}."
+      ],
+      "over_the_top": [
+        "{attacker} spell-hits the DRAGON for {damage}! With {spell}! Amazing!",
+        "ANTI-DRAGON MAGIC! {attacker}'s {spell} deals {damage}! Researched!",
+        "THE WIZARD HURTS THE DRAGON! {spell} for {damage}! Books were worth it!",
+        "ZAP! {attacker}'s {spell} connects with the dragon for {damage}! Bold!",
+        "DRACONIC MAGICAL WEAKNESS FOUND! {spell} deals {damage}! Scholarship!",
+        "{attacker} hits the dragon with {spell} for {damage}! Academic victory!"
+      ]
+    }
+  },
+  "construct": {
+    "attack_hit": {
+      "epic": [
+        "Metal and precision drive the blow home — {damage} damage on {target}.",
+        "The construct's mechanical arm strikes {target} for {damage} damage.",
+        "Gears and force align — {damage} damage crashes into {target}.",
+        "The automaton's strike is relentless — {damage} damage on {target}.",
+        "Steel meets flesh as the construct deals {damage} to {target}.",
+        "Mechanical precision finds {target} — {damage} damage connects."
+      ],
+      "over_the_top": [
+        "ROBOT PUNCH! {target} takes {damage}! The machine is not messing around!",
+        "MECHANICAL BONK! {target} gets {damage} damage! Gears and violence!",
+        "The golem hits {target} for {damage}! Metal fist, much damage!",
+        "AUTOMATED VIOLENCE! {target} takes {damage}! The construct completes task!",
+        "CLOCKWORK SMACK! {damage} to {target}! Precision engineering at work!",
+        "The robot hits {target} for {damage}! Programmed to punch: success!"
+      ]
+    },
+    "attack_miss": {
+      "epic": [
+        "Mechanical precision fails — the construct's blow misses {target}.",
+        "The automaton's attack goes wide — {target} sidesteps.",
+        "Gears misalign — the construct's strike falls short of {target}.",
+        "The relentless machine misses for once as {target} ducks under the blow.",
+        "{target} finds the gap in the construct's mechanical pattern.",
+        "The automaton overextends — the blow misses {target}."
+      ],
+      "over_the_top": [
+        "ERROR! The construct misses {target}! Malfunction in the violence subroutine!",
+        "ROBOT MISS! {target} dodges! The machine is confused by organic movement!",
+        "Construct attack: FAILED! {target} lives! Bugs in the hit detection!",
+        "The golem swings and misses! {target} exploits non-mechanical agility!",
+        "MISS! The automaton recalibrates while {target} very much escapes!",
+        "Technical difficulty! The construct misses {target}! Firmware update pending!"
+      ]
+    },
+    "attack_crit": {
+      "epic": [
+        "Mechanical perfection — a critical delivers {damage} crushing damage.",
+        "The construct's optimal strike deals {damage} critical damage to {target}.",
+        "Algorithmic precision finds the perfect spot — {damage} crit damage.",
+        "The automaton's perfect blow drives {damage} into {target}.",
+        "Steel fist meets weakness — {damage} critical damage lands.",
+        "The construct achieves maximum force — {damage} crit damage on {target}."
+      ],
+      "over_the_top": [
+        "CRITICAL HIT ACHIEVED! {damage} damage! OBJECTIVE: CRUSH accomplished!",
+        "MAXIMUM BONK SUBROUTINE ACTIVATED! {damage} crit on {target}!",
+        "CONSTRUCT CRIT! {damage} damage! The algorithm found the sweet spot!",
+        "OPTIMAL VIOLENCE ACHIEVED! {damage} critical damage! 10/10 efficiency!",
+        "MECHANICAL CRIT! {damage} damage! The construct logs this as a success!",
+        "AUTOMATED CRITICAL! {damage} to {target}! Precision engineering at its finest!"
+      ]
+    },
+    "takes_damage": {
+      "epic": [
+        "Metal groans as {damage} damage dents the construct's frame.",
+        "{attacker}'s blow scores {damage} against the automaton — gears grind.",
+        "The construct absorbs {damage} damage — {hp} of {maxHp} remain.",
+        "Steel and magic absorb {damage} damage — the automaton advances.",
+        "{attacker}'s {weapon} deals {damage} — the construct recalibrates.",
+        "{damage} damage registers on the construct — it does not slow."
+      ],
+      "over_the_top": [
+        "DAMAGE REGISTERED! {damage} to the construct! Metal goes CLANG!",
+        "The robot takes {damage}! Needs repairs! {hp}/{maxHp} HP left!",
+        "OW — wait, robots don't say ow. {damage} damage registered. Noted.",
+        "{attacker} dents the construct for {damage}! The machine does not care!",
+        "{damage} damage to the automaton! Minor structural integrity loss!",
+        "DAMAGE LOGGED: {damage}. Construct continues operation. Humans beware."
+      ]
+    },
+    "takes_crit": {
+      "epic": [
+        "Critical damage disrupts the construct's core — {damage} damage lands.",
+        "The perfect blow deals {damage}, cracking the automaton's chassis.",
+        "A devastating hit drives {damage} through the construct's defenses.",
+        "{damage} critical damage registers — gears grind ominously.",
+        "The construct stutters from {damage} critical damage.",
+        "{attacker}'s perfect strike deals {damage} — the construct recalibrates."
+      ],
+      "over_the_top": [
+        "CRIT ON ROBOT! {damage} damage! Sparks fly! Systems: compromised!",
+        "MAXIMUM CONSTRUCT DAMAGE! {damage} crit! The machine is having issues!",
+        "CRITICAL MACHINERY MALFUNCTION! {damage}! The robot does not appreciate!",
+        "CRIT! {damage} damage! Gears and sparks everywhere! Very dramatic!",
+        "CONSTRUCT CRIT DAMAGE! {damage}! Even machines feel bad about that one!",
+        "STRUCTURAL FAILURE INCOMING! {damage} critical! The robot files a complaint!"
+      ]
+    },
+    "death": {
+      "epic": [
+        "Gears grind to silence as the construct shudders and powers down.",
+        "The animating force departs — the automaton collapses in a heap of metal.",
+        "One final motion, then stillness — the construct's purpose ends here.",
+        "With a grinding screech, the construct winds down and falls.",
+        "The light leaves the construct's eyes, and it crumples to the floor.",
+        "Metal and magic collapse together as the construct's spark goes dark."
+      ],
+      "over_the_top": [
+        "CRITICAL SHUTDOWN! The robot powers off dramatically! SYSTEM OFFLINE!",
+        "The construct dies! Gears everywhere! 10/10 dramatic malfunction!",
+        "CONSTRUCT DESTROYED! All systems: offline! Error: dead. Very dead.",
+        "The golem collapses like a very expensive pile of scrap! Achievement!",
+        "ROBOT DOWN! The machine's final act was falling over. Mission: failed.",
+        "ERROR 404: Construct not found. Also it's very broken on the floor."
+      ]
+    },
+    "taunt": {
+      "epic": [
+        "The construct fixes {target} with empty eyes — purpose incarnate.",
+        "No words — just the grinding advance of mechanical inevitability.",
+        "The automaton's presence is its threat — it does not stop.",
+        "Metal grinds on stone as the construct turns its full attention to {target}.",
+        "The construct's silence is more threatening than any words.",
+        "Mechanical eyes lock onto {target} — programming complete."
+      ],
+      "over_the_top": [
+        "The robot stares at {target}. Menacingly. In a very robotic way.",
+        "OBJECTIVE: INTIMIDATE {target}. STATUS: IN PROGRESS. RESULT: TBD.",
+        "The construct makes a threatening mechanical noise at {target}. Very rude.",
+        "The golem does the robot version of cracking its knuckles. CLANK CLANK.",
+        "The automaton is technically not taunting {target}, just... computing.",
+        "The robot looks at {target} with zero emotion. Somehow this is worse."
+      ]
+    },
+    "spell_hit": {
+      "epic": [
+        "The construct channels arcane force — {spell} strikes {target} for {damage}.",
+        "Magical energy flows through metal — {spell} deals {damage} to {target}.",
+        "The automaton's enchanted systems fire — {spell} lands for {damage}.",
+        "Arcane power channels through the construct — {spell} hits for {damage}.",
+        "{spell} erupts from the construct's chassis — {damage} damage lands.",
+        "The magical automaton's {spell} connects — {damage} damage to {target}."
+      ],
+      "over_the_top": [
+        "THE ROBOT HAS MAGIC! {spell} hits {target} for {damage}! Unexpected!",
+        "ENCHANTED CONSTRUCT SPELL! {spell} deals {damage}! Magic tech combo!",
+        "ARCANE ROBOT ATTACK! {damage} from {spell}! Science and magic!",
+        "THE GOLEM CASTS A SPELL! {damage} damage! This is not in the user manual!",
+        "MAGICAL AUTOMATION! {spell} hits {target} for {damage}! Upgrade complete!",
+        "The robot uses {spell} for {damage}! Mages hate this one weird trick!"
+      ]
+    },
+    "spell_miss": {
+      "epic": [
+        "The arcane systems misfire — {spell} fails to find {target}.",
+        "Magical energy dissipates as the construct's {spell} misses.",
+        "The enchanted automaton's attack goes wide — {spell} falls short.",
+        "{target} avoids the construct's arcane assault — {spell} misses.",
+        "The magical systems glitch — {spell} fails to reach {target}.",
+        "Arcane power bleeds away as {spell} misses {target}."
+      ],
+      "over_the_top": [
+        "SPELL MISS! The robot's {spell} fails! ERROR IN MAGIC TARGETING!",
+        "ARCANE MALFUNCTION! {spell} misses {target}! Software bug!",
+        "The construct's {spell} whiffs! {target} exploits the lag!",
+        "MISS! Robot magic fails! {spell} does nothing! Recalibrating...",
+        "The enchanted robot misses with {spell}! Needs a software update!",
+        "MAGICAL MISS! {spell} fails! The golem googles 'how to aim spells'."
+      ]
+    },
+    "pc_attack_hit": {
+      "epic": [
+        "{attacker}'s {weapon} finds the joint — {damage} damage on the construct.",
+        "The construct staggers from {attacker}'s precise blow — {damage} damage.",
+        "{attacker} drives {damage} through steel plating with {weapon}.",
+        "A perfect strike from {attacker} cracks the construct — {damage} damage.",
+        "{attacker}'s {weapon} deals {damage} — the construct's gears grind.",
+        "The blow connects where metal is weakest — {damage} damage from {attacker}."
+      ],
+      "over_the_top": [
+        "{attacker} dents the robot for {damage}! Mechanic energy!",
+        "ROBOT BASHED! {attacker}'s {weapon} deals {damage}! Warranty voided!",
+        "{attacker} bonks the construct for {damage}! Metal goes clang!",
+        "POW! {attacker} smacks the automaton for {damage}! Tech support needed!",
+        "{attacker} hits the robot for {damage}! Repair bill incoming!",
+        "MECHANICAL VIOLENCE RETURNED! {attacker} deals {damage} to the construct!"
+      ]
+    },
+    "pc_attack_miss": {
+      "epic": [
+        "The construct's plating turns {attacker}'s {weapon} — the blow glances off.",
+        "{attacker}'s strike fails against the automaton's frame — {weapon} skids.",
+        "Metal resists {attacker}'s blow — {weapon} fails to penetrate.",
+        "{attacker} aims for the joint but misses — the construct advances.",
+        "The blow fails to find weakness — {attacker}'s {weapon} goes wide.",
+        "{attacker}'s {weapon} swings at the construct and connects with nothing vital."
+      ],
+      "over_the_top": [
+        "{attacker} fails to dent the robot! Even metal has a defense stat!",
+        "MISS! {attacker}'s {weapon} bounces off the construct! That HAD to hurt!",
+        "The robot doesn't even notice {attacker}'s miss! It just keeps walking!",
+        "{attacker} misses the automaton! The machine is unimpressed!",
+        "Strike fails on the construct! {attacker}'s {weapon} did nothing!",
+        "{attacker} swings at the robot and achieves: metal clang. Nothing else."
+      ]
+    },
+    "pc_spell_hit": {
+      "epic": [
+        "{attacker}'s {spell} disrupts the construct's magic — {damage} damage.",
+        "Arcane disruption from {attacker} deals {damage} to the automaton.",
+        "{spell} from {attacker} finds the construct's weakness — {damage}.",
+        "The construct's enchantment wavers under {spell} — {damage} damage.",
+        "{attacker} channels {spell} into the automaton — {damage} damage.",
+        "Magical interference from {attacker}'s {spell} deals {damage}."
+      ],
+      "over_the_top": [
+        "{attacker} magic-hacks the robot with {spell} for {damage}! Cyber-wizard!",
+        "MAGICAL EMP! {attacker}'s {spell} deals {damage} to the construct!",
+        "ZAP! {spell} disrupts the robot for {damage}! Technology vs magic!",
+        "{attacker} short-circuits the construct with {spell} for {damage}! Epic!",
+        "ARCANE DAMAGE! {attacker}'s {spell} deals {damage} to the automaton!",
+        "{spell} hits the robot for {damage}! The IT department is unavailable!"
+      ]
+    }
+  },
+  "aberration": {
+    "attack_hit": {
+      "epic": [
+        "Tentacles whip across {target} — {damage} alien damage from beyond.",
+        "The aberration's appendage connects — {damage} wrongness-damage on {target}.",
+        "Reality bends as the creature strikes {target} for {damage} damage.",
+        "The attack defies natural motion — {damage} damage lands on {target}.",
+        "{target} reels from the alien assault — {damage} damage connects.",
+        "Something from beyond reaches out — {damage} damage on {target}."
+      ],
+      "over_the_top": [
+        "TENTACLE SMACK! {target} takes {damage}! The void has opinions!",
+        "ELDRITCH BONK! {target} gets {damage} from something VERY weird!",
+        "The aberration hits {target} for {damage}! Nature is offended!",
+        "REALITY-DEFYING STRIKE! {target} takes {damage}! Physics is crying!",
+        "VOID ATTACK! {damage} to {target}! The aberration is enthusiastic!",
+        "Something hits {target} for {damage}! Difficult to describe but painful!"
+      ]
+    },
+    "attack_miss": {
+      "epic": [
+        "The aberration's alien strike passes through where {target} was.",
+        "{target} retreats from the wrongness — the attack misses.",
+        "Something about the creature's motion allows {target} to dodge.",
+        "The attack from beyond reality falls short of {target}.",
+        "{target} instinctively avoids the aberration's disturbing strike.",
+        "The alien blow misses — {target} escapes the touch of the beyond."
+      ],
+      "over_the_top": [
+        "TENTACLE MISS! {target} dodges the void! Reality breathes a sigh of relief!",
+        "The aberration misses {target}! Even eldritch horrors have off days!",
+        "MISS from beyond! The creature fails to hit {target}! Sanity preserved!",
+        "The aberration whiffs! {target} dodges something truly unspeakable!",
+        "VOID MISS! The aberration is confused! Linear cause-effect: hard!",
+        "The eldritch horror misses {target}! Lovecraft is disappointed!"
+      ]
+    },
+    "attack_crit": {
+      "epic": [
+        "The aberration's perfect alien strike deals {damage} wrong damage to {target}.",
+        "Beyond-reality force drives {damage} critical damage into {target}.",
+        "The creature's alien crit carries {damage} sanity-breaking damage.",
+        "Reality cracks around the perfect strike — {damage} critical damage.",
+        "The aberration's devastating blow delivers {damage} to {target}.",
+        "Something from beyond lands the perfect hit — {damage} crit damage."
+      ],
+      "over_the_top": [
+        "ELDRITCH CRIT! {damage} damage! The void is having a GREAT day!",
+        "ABERRANT CRITICAL! {damage} to {target}! Physics has filed a complaint!",
+        "TENTACLE CRIT! {damage} damage! Several dimensions are confused!",
+        "MAXIMUM VOID STRIKE! {damage} crit! The aberration celebrates somehow!",
+        "REALITY-BREAKING CRIT! {damage} damage! This shouldn't be possible!",
+        "COSMIC CRITICAL! {damage} to {target}! The stars are screaming!"
+      ]
+    },
+    "takes_damage": {
+      "epic": [
+        "The aberration absorbs {damage} — its alien biology defies expectation.",
+        "{attacker}'s blow deals {damage} to the creature — it barely registers.",
+        "The beyond-creature takes {damage} — {hp} of {maxHp} remaining.",
+        "Normal damage laws apply partially — {damage} lands on the aberration.",
+        "{damage} damage connects with the aberration — it reacts strangely.",
+        "The alien creature takes {damage} from {attacker}'s {weapon}."
+      ],
+      "over_the_top": [
+        "OW? Does it feel pain? It takes {damage} damage and makes a noise!",
+        "The aberration takes {damage}! It is confused by this sensation!",
+        "{damage} damage on the eldritch thing! {hp}/{maxHp} HP! It processes this!",
+        "The void-creature takes {damage}! Pain is a new experience for it!",
+        "{attacker} hurts the aberration for {damage}! Science, probably!",
+        "{damage} damage on the alien horror! It adjusts its tentacles thoughtfully!"
+      ]
+    },
+    "takes_crit": {
+      "epic": [
+        "Even the aberration staggers — {damage} critical damage disrupts its form.",
+        "The perfect blow deals {damage} through alien defenses.",
+        "Critical damage disrupts the aberration's alien coherence — {damage}.",
+        "The creature's alien biology fails to absorb {damage} crit damage fully.",
+        "{damage} critical damage forces a disturbing sound from the aberration.",
+        "The aberration is disrupted by {damage} critical damage."
+      ],
+      "over_the_top": [
+        "CRIT ON ELDRITCH HORROR! {damage} damage! Even the void has feelings!",
+        "ABERRANT CRITICAL DAMAGE! {damage}! The creature emits an unpleasant sound!",
+        "MAXIMUM ELDRITCH HURT! {damage} crit! Several dimensions took notice!",
+        "CRIT! {damage} damage! The aberration is NOT pleased! Its tentacles say so!",
+        "VOID CRITICAL! {damage} damage! The cosmic horror is having a bad time!",
+        "ELDRITCH CRIT HIT! {damage} damage! Even wrong things can be hurt righter!"
+      ]
+    },
+    "death": {
+      "epic": [
+        "The aberration collapses inward, reality sighing with its passing.",
+        "With a sound that isn't quite a sound, the creature ceases to be.",
+        "The wrongness departs — the aberration unmakes itself as it falls.",
+        "Something from beyond retreats as the aberration's form dissolves.",
+        "The alien creature folds out of existence with a final alien cry.",
+        "Reality reknits as the aberration's presence is extinguished."
+      ],
+      "over_the_top": [
+        "The aberration dies! Reality cheers! Physics is restored! Hooray!",
+        "ELDRITCH HORROR: DEFEATED! Several dimensions sigh with relief!",
+        "The void creature expires! Tentacles retract! Nature is healed!",
+        "THE ABERRATION IS DEAD! Reality has won! Science celebrates!",
+        "COSMIC HORROR BANISHED! The stars un-scream! Great job everyone!",
+        "The eldritch thing is dead! Lovecraft is spinning in his grave! Win!"
+      ]
+    },
+    "taunt": {
+      "epic": [
+        "The creature's mind brushes against {target}'s thoughts — unwelcome.",
+        "Words that aren't quite words fill the air around {target}.",
+        "The aberration's alien attention fixes on {target} — sanity frays.",
+        "A presence presses against {target}'s consciousness — not-quite-language.",
+        "The creature's gaze carries meaning that bleeds into {target}'s mind.",
+        "The aberration communicates something. {target} wishes it hadn't."
+      ],
+      "over_the_top": [
+        "The aberration psychically trash-talks {target} in alien nonsense.",
+        "The creature makes a noise at {target} that isn't a noise. Rude!",
+        "ELDRITCH TAUNT! The aberration does the cosmic equivalent of trash talk!",
+        "The void-thing insults {target} in a language of pure wrongness.",
+        "The aberration does something at {target} that defies description. Mean.",
+        "Psychic tentacle insults! {target} is offended on a cellular level!"
+      ]
+    },
+    "spell_hit": {
+      "epic": [
+        "Void energy channels through the aberration — {spell} lands for {damage}.",
+        "Alien power shapes {spell} — {damage} wrong-damage strikes {target}.",
+        "The creature's psychic assault deals {damage} through {spell}.",
+        "Reality bends around {spell} — {damage} alien damage on {target}.",
+        "The aberration's {spell} defies natural law — {damage} damage lands.",
+        "Cosmic power flows through {spell} — {damage} damage crashes into {target}."
+      ],
+      "over_the_top": [
+        "PSYCHIC ATTACK! {spell} hits {target} for {damage}! Brain tentacles!",
+        "VOID SPELL! {spell} deals {damage}! The universe is upset about this!",
+        "ELDRITCH MAGIC! {target} gets {damage} from {spell}! So many tentacles!",
+        "The aberration uses {spell} for {damage}! Even spells are weird here!",
+        "COSMIC SPELL HIT! {spell} connects for {damage}! Reality is offended!",
+        "ALIEN MAGIC! {spell} deals {damage} to {target}! Stars were involved!"
+      ]
+    },
+    "spell_miss": {
+      "epic": [
+        "The aberration's alien magic dissipates — {spell} fails to reach {target}.",
+        "Cosmic energy scatters as {target} avoids the alien {spell}.",
+        "The creature's {spell} goes wide — {target} escapes the void.",
+        "Psychic assault misses {target} — the aberration recalibrates.",
+        "The alien incantation fails — {spell} doesn't find {target}.",
+        "Void energy bleeds away as {spell} falls short of {target}."
+      ],
+      "over_the_top": [
+        "PSYCHIC MISS! {spell} fails! {target}'s brain is temporarily safe!",
+        "VOID SPELL MISS! The aberration whiffs! The cosmos is embarrassed!",
+        "ELDRITCH MISS! {spell} fails! Physics wins this round!",
+        "The alien {spell} misses {target}! Natural law: 1, Aberration: 0!",
+        "COSMIC MISS! {spell} fails! The aberration makes an upset void noise!",
+        "The psychic attack misses {target}! Brain not scrambled today! Hooray!"
+      ]
+    },
+    "pc_attack_hit": {
+      "epic": [
+        "{attacker}'s {weapon} connects — {damage} damage against alien flesh.",
+        "The aberration recoils from {attacker}'s {weapon} — {damage} damage.",
+        "{attacker} strikes the creature — {damage} damage on its alien form.",
+        "Normal matter strikes the aberration for {damage} — {attacker} succeeds.",
+        "{attacker}'s {weapon} proves effective — {damage} damage against the void.",
+        "The blow connects with alien biology — {damage} damage from {attacker}."
+      ],
+      "over_the_top": [
+        "{attacker} hits the eldritch horror for {damage}! Normal physics win!",
+        "ANTI-VOID STRIKE! {attacker}'s {weapon} deals {damage}! Sanity restored!",
+        "{attacker} bonks the aberration for {damage}! Brave! Very brave!",
+        "POW! {attacker} smacks the cosmic horror for {damage}! Science!",
+        "{attacker} hits the alien thing for {damage}! The aberration is offended!",
+        "ANTI-ELDRITCH VIOLENCE! {attacker} deals {damage} to the aberration!"
+      ]
+    },
+    "pc_attack_miss": {
+      "epic": [
+        "The aberration shifts in ways {attacker}'s {weapon} can't track — a miss.",
+        "{attacker}'s strike fails to find the creature — it exists elsewhere.",
+        "The alien creature avoids {attacker}'s blow through alien motion.",
+        "{attacker}'s {weapon} passes through where the aberration was.",
+        "Alien biology dodges {attacker}'s strike — the blow fails.",
+        "The aberration is simply not where {attacker}'s {weapon} arrives."
+      ],
+      "over_the_top": [
+        "{attacker} misses the aberration! It just... wasn't there! Rude!",
+        "MISS! {attacker}'s {weapon} fails! The horror exists non-linearly!",
+        "The aberration dodges {attacker}! Alien movement: surprisingly effective!",
+        "{attacker} swings at the void-thing and misses! Philosophy was unhelpful!",
+        "Strike misses! The aberration simply teleports its weak spots away!",
+        "{attacker} fails to hit the eldritch horror! It was in a different phase!"
+      ]
+    },
+    "pc_spell_hit": {
+      "epic": [
+        "The void is pushed back — {attacker}'s {spell} deals {damage}.",
+        "{attacker}'s {spell} finds the aberration's core — {damage} damage.",
+        "Counter-cosmic magic from {attacker} deals {damage} via {spell}.",
+        "The aberration recoils from {attacker}'s {spell} — {damage} damage.",
+        "{spell} from {attacker} disrupts alien coherence — {damage} damage.",
+        "Arcane power versus void — {attacker}'s {spell} wins for {damage}."
+      ],
+      "over_the_top": [
+        "{attacker} hits the cosmic horror with {spell} for {damage}! Brave!",
+        "ANTI-ELDRITCH MAGIC! {spell} deals {damage} to the aberration! Wizard!",
+        "ZAP! {attacker}'s {spell} connects with the void for {damage}!",
+        "SCIENCE VS MAGIC VS VOID! {spell} hits for {damage}! Science-magic wins!",
+        "{attacker} smacks the alien thing with {spell} for {damage}! Research!",
+        "ELDRITCH COUNTERMEASURE! {spell} deals {damage}! {attacker} prepared!"
+      ]
+    }
+  },
+  "elemental": {
+    "attack_hit": {
+      "epic": [
+        "Elemental fury slams into {target} — {damage} raw primal damage.",
+        "Fire and force drive the blow — {damage} damage crashes into {target}.",
+        "The elemental's strike carries the weight of nature — {damage} to {target}.",
+        "Raw elemental power crashes against {target} for {damage} damage.",
+        "{target} is battered by primal force — {damage} elemental damage.",
+        "The element itself lashes out — {damage} damage connects with {target}."
+      ],
+      "over_the_top": [
+        "ELEMENTAL SMACK! {target} takes {damage}! Nature is violent today!",
+        "PRIMAL BONK! {target} gets {damage} from ACTUAL FIRE/WATER/EARTH/AIR!",
+        "The element hits {target} for {damage}! Physics is the weapon!",
+        "RAW NATURE VIOLENCE! {target} takes {damage}! The elements are angry!",
+        "ELEMENTAL HIT! {damage} to {target}! The environment fights back!",
+        "The elemental bonks {target} for {damage}! Carbon footprint: relevant!"
+      ]
+    },
+    "attack_miss": {
+      "epic": [
+        "The elemental's primal assault washes past {target} harmlessly.",
+        "{target} weaves through the elemental forces — the attack misses.",
+        "Natural fury dissipates as {target} avoids the blow.",
+        "The elemental's strike falls short — {target} escapes the primal force.",
+        "Elemental power disperses before reaching {target}.",
+        "{target} sidesteps the raw natural force — the elemental misses."
+      ],
+      "over_the_top": [
+        "ELEMENTAL MISS! {target} dodges ACTUAL LAVA! Impressive!",
+        "PRIMAL WHIFF! The element misses {target}! Nature needs aim practice!",
+        "The fire/water/earth/air misses {target}! Even nature has off days!",
+        "ELEMENTAL FAIL! The raw force goes nowhere near {target}! Phew!",
+        "MISS! The elemental whiffs! {target} lives to tell the tale!",
+        "The element fails to hit {target}! Even entropy takes a break sometimes!"
+      ]
+    },
+    "attack_crit": {
+      "epic": [
+        "Primal fury peaks — {damage} devastating elemental damage on {target}.",
+        "The perfect elemental strike carries {damage} raw natural force.",
+        "Nature itself conspires for a critical — {damage} damage on {target}.",
+        "The elemental's perfect blow drives {damage} primal damage home.",
+        "Raw elemental force lands perfectly — {damage} critical damage.",
+        "The element achieves perfect expression — {damage} crit on {target}."
+      ],
+      "over_the_top": [
+        "ELEMENTAL CRITICAL! {damage} damage! Nature is VERY angry today!",
+        "PRIMAL CRIT! {damage} to {target}! The elements hit the jackpot!",
+        "MAXIMUM NATURE VIOLENCE! {damage} crit! The environment goes hard!",
+        "RAW FORCE CRITICAL! {damage} damage! Even rocks can score crits!",
+        "ELEMENTAL JACKPOT! {damage} crit damage! The primal forces celebrate!",
+        "NATURAL CRITICAL! {damage} to {target}! Earth/fire/air/water said yes!"
+      ]
+    },
+    "takes_damage": {
+      "epic": [
+        "The elemental absorbs {damage} — primal matter disperses and reforms.",
+        "{attacker}'s blow deals {damage} — the element reshapes around the strike.",
+        "{damage} damage disrupts the elemental's form — {hp} remain.",
+        "Normal matter versus elemental form — {damage} damage connects.",
+        "The elemental registers {damage} from {attacker}'s {weapon}.",
+        "Primal cohesion holds through {damage} damage — {hp} of {maxHp} remain."
+      ],
+      "over_the_top": [
+        "OW! Can fire be hurt? Apparently yes! {damage} damage to the elemental!",
+        "The elemental takes {damage}! Physics happens to physics!",
+        "{damage} damage on the elemental! {hp}/{maxHp} HP! Even nature bleeds!",
+        "The element gets hurt for {damage}! Science is confusing today!",
+        "{attacker} damages the elemental for {damage}! Nature is weakened!",
+        "ELEMENT HURT! {damage} damage! The primal force is momentarily annoyed!"
+      ]
+    },
+    "takes_crit": {
+      "epic": [
+        "The perfect blow disrupts elemental cohesion — {damage} critical damage.",
+        "Critical force drives {damage} through the elemental's primal form.",
+        "The elemental's form scatters from {damage} critical damage.",
+        "Even elemental matter can't ignore {damage} critical damage.",
+        "The blow disrupts the elemental's nature — {damage} crit damage.",
+        "{attacker} deals {damage} critical damage, staggering the elemental."
+      ],
+      "over_the_top": [
+        "ELEMENTAL CRIT! {damage} damage! Even lava gets hurt sometimes!",
+        "PRIMAL CRITICAL! {damage} damage! Physics vs physics: physics loses!",
+        "MAXIMUM ELEMENTAL HURT! {damage} crit! Nature is shaken!",
+        "CRIT! {damage} damage! The element didn't see that coming! Nor did we!",
+        "NATURAL CRITICAL DAMAGE! {damage}! The elemental is having words with physics!",
+        "ELEMENT CRITICAL! {damage} crit damage! Primal matter: upset today!"
+      ]
+    },
+    "death": {
+      "epic": [
+        "The elemental disperses, returning its essence to the primal chaos.",
+        "Primal energy dissipates as the elemental's form dissolves.",
+        "With a final rush of wind, flame, earth, or water — it's gone.",
+        "The elemental loses cohesion and scatters back to its origin.",
+        "The primal force subsides as the elemental fades away.",
+        "Nature's fury calms as the elemental's will is extinguished."
+      ],
+      "over_the_top": [
+        "The elemental explodes back into primal chaos! Very dramatic dispersal!",
+        "ELEMENTAL DISBANDED! The fire/water/earth/air says goodbye forever!",
+        "Nature retreats! The elemental disperses with maximum drama!",
+        "THE ELEMENT IS DEFEATED! Physics win! Science celebrates!",
+        "PRIMAL FORCE DISSIPATED! The elemental returns to the cosmic slush pile!",
+        "The elemental goes POOF! Nature is down one member. Moment of silence."
+      ]
+    },
+    "taunt": {
+      "epic": [
+        "The elemental swirls menacingly — a primal challenge without words.",
+        "Raw force gathers around the elemental as it focuses on {target}.",
+        "The element itself regards {target} — nature has chosen its target.",
+        "A surge of primal energy communicates the elemental's intent.",
+        "The elemental's very presence is its challenge to {target}.",
+        "Primal fury focuses on {target} — the elemental has chosen."
+      ],
+      "over_the_top": [
+        "The elemental swirls aggressively at {target}. VERY rude for a cloud.",
+        "The fire crackles at {target}. In fire language, that's trash talk.",
+        "The earth-thing rumbles at {target}. Seismic insults were exchanged.",
+        "PRIMAL TAUNT! The elemental does the elemental version of trash talk!",
+        "The water waves menacingly at {target}. Wet intimidation achieved.",
+        "The wind howls at {target} rudely! Nature: unexpectedly rude today!"
+      ]
+    },
+    "spell_hit": {
+      "epic": [
+        "The elemental channels its nature into {spell} — {damage} damage on {target}.",
+        "Primal magic amplifies {spell} — {damage} elemental damage strikes.",
+        "Raw elemental power shapes {spell} — {damage} damage lands on {target}.",
+        "The element's {spell} carries primal force — {damage} to {target}.",
+        "Natural magic flows through {spell} — {damage} damage crashes into {target}.",
+        "The elemental's {spell} channels primal wrath — {damage} damage."
+      ],
+      "over_the_top": [
+        "ELEMENTAL SPELL! The fire/water/earth/air uses MAGIC! {damage} damage!",
+        "PRIMAL SPELL HIT! {spell} connects for {damage}! Nature levels up!",
+        "NATURAL MAGIC! {spell} hits {target} for {damage}! Elements + spells!",
+        "THE ELEMENT CASTS {spell}! {damage} damage! Unfair! Unfair!",
+        "ELEMENTAL SPELL COMBO! {spell} deals {damage}! The primal realm smirks!",
+        "NATURE MAGIC! {spell} hits for {damage}! Go green, hurt enemies!"
+      ]
+    },
+    "spell_miss": {
+      "epic": [
+        "The elemental's primal spell dissipates — {spell} fails to find {target}.",
+        "Natural magic scatters as {target} avoids the elemental {spell}.",
+        "The primal {spell} goes wide — {target} escapes elemental fury.",
+        "Elemental power bleeds away as {spell} falls short of {target}.",
+        "The element's assault fails — {spell} doesn't reach {target}.",
+        "Primal energy disperses as {spell} misses {target}."
+      ],
+      "over_the_top": [
+        "ELEMENTAL SPELL MISS! {spell} fails! Nature is embarrassed!",
+        "PRIMAL MISS! The element's {spell} whiffs! {target} stays dry/cool/solid!",
+        "Natural magic fails! {spell} misses {target}! Science prevails!",
+        "ELEMENT MISS! {spell} goes wide! The primal realm does not approve!",
+        "The elemental's {spell} misses! {target} dodges actual weather!",
+        "NATURAL FAIL! {spell} misses {target}! Even entropy needs a good roll!"
+      ]
+    },
+    "pc_attack_hit": {
+      "epic": [
+        "{attacker}'s {weapon} disrupts elemental cohesion — {damage} damage.",
+        "The elemental shudders from {attacker}'s blow — {damage} damage.",
+        "{attacker} strikes the primal form — {damage} damage connects.",
+        "Solid matter drives through elemental form — {damage} from {attacker}.",
+        "{attacker}'s {weapon} finds the elemental's core — {damage} damage.",
+        "The blow disrupts primal energy — {damage} damage from {attacker}."
+      ],
+      "over_the_top": [
+        "{attacker} hits the elemental for {damage}! Punched actual fire!",
+        "ELEMENT BONK! {attacker}'s {weapon} deals {damage} to the primal thing!",
+        "{attacker} smacks the elemental for {damage}! Environmentalism reversed!",
+        "POW! {attacker} hits the natural force for {damage}! Nature's shocked!",
+        "{attacker} fights weather for {damage} damage with {weapon}! Bold!",
+        "ANTI-NATURE STRIKE! {attacker} deals {damage} to the elemental! Wow!"
+      ]
+    },
+    "pc_attack_miss": {
+      "epic": [
+        "{attacker}'s {weapon} passes through the elemental's shifting form.",
+        "The elemental disperses around {attacker}'s strike — the blow misses.",
+        "{attacker} swings through where the element was — {weapon} finds nothing.",
+        "Natural matter avoids {attacker}'s {weapon} — the blow fails.",
+        "The elemental flows clear of {attacker}'s strike.",
+        "{attacker}'s {weapon} disrupts nothing — the elemental reforms around it."
+      ],
+      "over_the_top": [
+        "{attacker} misses the elemental! You can't punch weather! Mostly!",
+        "MISS! {attacker}'s {weapon} goes through the elemental! It's elemental!",
+        "The element flows around {attacker}'s strike! Fluid dynamics!",
+        "{attacker} swings at the fire/water/earth/air and gets: nothing!",
+        "Strike misses! The elemental literally rearranges itself! Annoying!",
+        "{attacker} fails to hit the primal force! Even {weapon} has limits!"
+      ]
+    },
+    "pc_spell_hit": {
+      "epic": [
+        "Counter-elemental magic from {attacker} deals {damage} via {spell}.",
+        "{attacker}'s {spell} disrupts the elemental — {damage} damage lands.",
+        "Opposing elemental force from {spell} deals {damage} to the creature.",
+        "{spell} from {attacker} finds elemental weakness — {damage} damage.",
+        "The elemental recoils from {attacker}'s {spell} — {damage} damage.",
+        "{attacker} channels counter-energy through {spell} — {damage} damage."
+      ],
+      "over_the_top": [
+        "{attacker} fights fire with {spell} for {damage}! Literally!",
+        "COUNTER-ELEMENTAL MAGIC! {spell} deals {damage}! The element is owned!",
+        "ZAP! {attacker}'s {spell} hits the primal thing for {damage}!",
+        "OPPOSING ELEMENT MAGIC! {spell} deals {damage}! Science of opposition!",
+        "{attacker} hits the elemental with {spell} for {damage}! Nature loses!",
+        "ELEMENTAL COUNTERMEASURE! {spell} connects for {damage}! Smart tactics!"
+      ]
+    }
+  }
+}
