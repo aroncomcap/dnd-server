@@ -8,6 +8,8 @@ const {
   pickTemplate,
   getEventDescription,
   GENERIC_TEMPLATES,
+  mapResultToTemplate,
+  generateCombatOptions,
 } = require('../template-engine');
 
 describe('substituteVariables', () => {
@@ -83,5 +85,123 @@ describe('GENERIC_TEMPLATES', () => {
         }
       }
     }
+  });
+});
+
+describe('mapResultToTemplate', () => {
+  const mockEngine = {
+    state: {
+      combatants: {
+        'player-kael': { type: 'PC', name: 'Kael', hp: 30, maxHp: 35, slug: null,
+          weapons: [{ name: 'Greatsword' }], spells: [], spellSlots: {} },
+        'goblin-1': { type: 'Enemy', name: 'Goblin Archer', hp: 10, maxHp: 15,
+          slug: 'goblin', creatureType: 'humanoid', personality: 'Cowardly and sneaky' },
+      },
+    },
+  };
+
+  it('maps monster attack hit correctly', () => {
+    const result = { type: 'attack', attackerId: 'goblin-1', targetId: 'player-kael', hit: true, damage: 7, weapon: 'Shortbow' };
+    const mapped = mapResultToTemplate(result, mockEngine);
+    assert.strictEqual(mapped.monsterSlug, 'goblin');
+    assert.strictEqual(mapped.eventType, 'attack_hit');
+    assert.strictEqual(mapped.vars.target, 'Kael');
+    assert.strictEqual(mapped.vars.damage, 7);
+  });
+
+  it('maps monster attack miss', () => {
+    const result = { type: 'attack', attackerId: 'goblin-1', targetId: 'player-kael', hit: false, weapon: 'Shortbow' };
+    const mapped = mapResultToTemplate(result, mockEngine);
+    assert.strictEqual(mapped.eventType, 'attack_miss');
+  });
+
+  it('maps monster attack crit', () => {
+    const result = { type: 'attack', attackerId: 'goblin-1', targetId: 'player-kael', hit: true, critical: true, damage: 14, weapon: 'Shortbow' };
+    const mapped = mapResultToTemplate(result, mockEngine);
+    assert.strictEqual(mapped.eventType, 'attack_crit');
+  });
+
+  it('maps PC attack hit to pc_attack_hit', () => {
+    const result = { type: 'attack', attackerId: 'player-kael', targetId: 'goblin-1', hit: true, damage: 12, weapon: 'Greatsword' };
+    const mapped = mapResultToTemplate(result, mockEngine);
+    assert.strictEqual(mapped.monsterSlug, 'goblin');
+    assert.strictEqual(mapped.eventType, 'pc_attack_hit');
+  });
+
+  it('maps killing blow to death event', () => {
+    const deadEngine = {
+      state: {
+        combatants: {
+          'player-kael': { type: 'PC', name: 'Kael', hp: 30, maxHp: 35 },
+          'goblin-1': { type: 'Enemy', name: 'Goblin', hp: 0, maxHp: 15, slug: 'goblin', creatureType: 'humanoid' },
+        },
+      },
+    };
+    const result = { type: 'attack', attackerId: 'player-kael', targetId: 'goblin-1', hit: true, damage: 15 };
+    const mapped = mapResultToTemplate(result, deadEngine);
+    assert.strictEqual(mapped.eventType, 'death');
+  });
+
+  it('returns empty for heal results', () => {
+    const result = { type: 'heal', casterId: 'player-kael' };
+    const mapped = mapResultToTemplate(result, mockEngine);
+    assert.deepStrictEqual(mapped, {});
+  });
+
+  it('returns empty for death_save results', () => {
+    const result = { type: 'death_save', actorId: 'player-kael' };
+    const mapped = mapResultToTemplate(result, mockEngine);
+    assert.deepStrictEqual(mapped, {});
+  });
+});
+
+describe('generateCombatOptions', () => {
+  it('generates 3 options for a fighter', () => {
+    const engine = {
+      state: {
+        combatants: {
+          'player-kael': { type: 'PC', name: 'Kael', hp: 30, maxHp: 35,
+            weapons: [{ name: 'Greatsword' }], spells: [], spellSlots: {},
+            features: ['Extra Attack'] },
+          'goblin-1': { type: 'Enemy', name: 'Goblin', hp: 10, maxHp: 15 },
+        },
+      },
+    };
+    const options = generateCombatOptions(engine, 'Kael');
+    assert.strictEqual(options.length, 3);
+    assert.ok(options[0].includes('Greatsword'));
+    assert.ok(options[1].includes('Dodge'));
+    assert.ok(options[2].includes('Extra Attack'));
+  });
+
+  it('suggests spell for caster with slots', () => {
+    const engine = {
+      state: {
+        combatants: {
+          'player-mira': { type: 'PC', name: 'Mira', hp: 20, maxHp: 20,
+            weapons: [{ name: 'Dagger' }],
+            spells: [{ name: 'Fireball', level: 3 }, { name: 'Fire Bolt', level: 0 }],
+            spellSlots: { 1: 2, 2: 1, 3: 1 }, features: [] },
+          'goblin-1': { type: 'Enemy', name: 'Goblin', hp: 10, maxHp: 15 },
+        },
+      },
+    };
+    const options = generateCombatOptions(engine, 'Mira');
+    assert.ok(options[2].includes('Fireball'));
+  });
+
+  it('falls back to reckless for character with no spells or features', () => {
+    const engine = {
+      state: {
+        combatants: {
+          'player-bob': { type: 'PC', name: 'Bob', hp: 15, maxHp: 15,
+            weapons: [{ name: 'Club' }], spells: [], spellSlots: {}, features: [] },
+          'goblin-1': { type: 'Enemy', name: 'Goblin', hp: 10, maxHp: 15 },
+        },
+      },
+    };
+    const options = generateCombatOptions(engine, 'Bob');
+    assert.strictEqual(options.length, 3);
+    assert.ok(options[2].includes('reckless'));
   });
 });
