@@ -126,6 +126,7 @@ async function initDB() {
     ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS original_rule_id INT;
     ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS game_system TEXT DEFAULT 'dnd5e';
     CREATE INDEX IF NOT EXISTS idx_rules_shared ON rules_corrections (is_private, is_master, game_system) WHERE is_private = false AND is_master = true;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_rules_master_text ON rules_corrections (text, game_system) WHERE is_master = true AND game_id IS NULL;
   `);
 
   // Seed common rules templates (one-time, skipped if exists)
@@ -144,7 +145,7 @@ async function initDB() {
 
   for (const tmpl of templates) {
     await pool.query(
-      'INSERT INTO rules_corrections (text, category, is_master, is_private, created_by_user_id, game_id, game_system, created_at) VALUES ($1, $2, true, false, NULL, NULL, $3, NOW()) ON CONFLICT (text) DO NOTHING',
+      'INSERT INTO rules_corrections (text, category, is_master, is_private, created_by_user_id, game_id, game_system, created_at) VALUES ($1, $2, true, false, NULL, NULL, $3, NOW()) ON CONFLICT (text, game_system) WHERE is_master = true AND game_id IS NULL DO NOTHING',
       [tmpl.text, tmpl.category, tmpl.system]
     );
   }
