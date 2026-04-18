@@ -21,9 +21,11 @@ Multiplayer RPG game server with AI Game Master (Claude as DM). Express.js + Soc
 | File | Lines | Purpose |
 |------|-------|---------|
 | `server.js` | ~2500 | Express server, Socket.io, game engine, Claude API, system prompts |
+| `public/index.html` | ~480 | Lobby (game browser, join code input, redesigned grid) |
+| `public/new-game.html` | ~420 | Game creation form (name, system, scene, party direction) |
 | `public/game.html` | ~3000 | Game UI, all client JS, CSS |
 | `discord-bot.js` | ~900 | Discord bot with /tt and /tavern commands |
-| `db.js` | ~500 | PostgreSQL schema, queries, billing functions |
+| `db.js` | ~520 | PostgreSQL schema, queries, billing functions |
 | `auth.js` | ~250 | Passport.js auth (email, Google, Discord OAuth) |
 | `billing.js` | ~225 | Billing ticker, spectator mode, balance tracking |
 | `payments.js` | ~75 | Stripe checkout integration |
