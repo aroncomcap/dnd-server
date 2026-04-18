@@ -1380,6 +1380,8 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
       { initiateCombat, parseAction, resolveEnemyTurns, persistCombatState, emitCombatUpdate }
     );
 
+    console.log(`[pipeline] Result: narration=${result.narration?.length || 0}ch options=${result.options?.length || 0} scene=${!!result.scene} world=${!!result.world}`);
+
     // Save to chat history (same format as legacy)
     const gd = gs.data;
     const historyContent = result.narration +
