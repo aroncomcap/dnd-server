@@ -280,6 +280,7 @@ Check costs: `GET /api/costs`
 | `DATABASE_URL` | PostgreSQL (auto-set by Railway addon) | Yes |
 | `DISCORD_BOT_TOKEN` | Discord bot | Yes |
 | `JWT_SECRET` | Auth token signing (auto-generated if missing) | Recommended |
+| `SPLIT_PIPELINE` | `"true"` to use Sonnet/Haiku split pipeline (default: legacy Haiku-only) | No |
 | `BILLING_ENABLED` | `"true"` to enforce billing (default: off) | No |
 | `STRIPE_SECRET_KEY` | Stripe payments | For payments |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook verification | For payments |
