@@ -20,7 +20,10 @@ Multiplayer RPG game server with AI Game Master (Claude as DM). Express.js + Soc
 ## Key Files
 | File | Lines | Purpose |
 |------|-------|---------|
-| `server.js` | ~2500 | Express server, Socket.io, game engine, Claude API, system prompts |
+| `server.js` | ~3800 | Express server, Socket.io, game engine, Claude API, system prompts |
+| `narration-pipeline.js` | ~350 | Pipeline orchestrator — Sonnet/Haiku calls, prompt builders, parsing |
+| `template-engine.js` | ~360 | Monster template cache, lazy generation, combat narration assembly |
+| `templates/generic-templates.json` | ~2000 | Hardcoded fallback templates by creature type (8 types × 12 events × 2 personas) |
 | `public/index.html` | ~480 | Lobby (game browser, join code input, redesigned grid) |
 | `public/new-game.html` | ~420 | Game creation form (name, system, scene, party direction) |
 | `public/game.html` | ~3000 | Game UI, all client JS, CSS |
