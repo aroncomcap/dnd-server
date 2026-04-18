@@ -125,14 +125,14 @@ async function init() {
   }
 
   const socket = Client(SERVER_URL, {
-    transports: ['websocket'],
+    transports: ['websocket', 'polling'],
     extraHeaders: { Cookie: `tt_token=${authToken}` },
     reconnection: true,
-    reconnectionAttempts: 10,
-    reconnectionDelay: 3000,
+    reconnectionAttempts: 20,
+    reconnectionDelay: 2000,
     reconnectionDelayMax: 10000,
-    timeout: 30000,
-    pingTimeout: 60000,
+    timeout: 60000,
+    pingTimeout: 120000,
     pingInterval: 25000,
   });
 
