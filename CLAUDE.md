@@ -124,6 +124,7 @@ Schema auto-creates in `db.js initDB()` — no migration tool needed. `ALTER TAB
 | `feature_requests` | Admin-visible feature backlog (title, description, status, priority) |
 | `rules_corrections` | Persistent house rules per game (text, category, is_private, is_master, created_by_user_id, original_rule_id) |
 | `monster_templates` | Cached combat narration templates per monster × event type × persona (JSONB) |
+| `bug_reports` | Game bug reports (game_id, description, image_url, status, ai_analysis, ai_fixes_applied) |
 
 **New columns added to `rules_corrections`:**
 - `is_private` (boolean, default false) — true = visible only to creator's games; false = appears in shared library
