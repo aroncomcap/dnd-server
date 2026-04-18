@@ -36,7 +36,7 @@ for (let i = 0; i < args.length; i++) {
   }
 }
 
-const GAME_ID = `test-combat-${Date.now().toString(36)}`;
+let GAME_ID = `test-combat-${Date.now().toString(36)}`;
 const TARGET_COMBATS = 10;
 const TARGET_CHALLENGES = 5;
 const MAX_CONSECUTIVE_FAILURES = 3;
@@ -152,8 +152,10 @@ async function init() {
           body: JSON.stringify({ name: GAME_ID, system: 'dnd5e' }),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const gameData = await res.json();
+        GAME_ID = gameData.id; // Use the server-assigned UUID
         gameCreated = true;
-        console.log('   Game created');
+        console.log(`   Game created (${GAME_ID})`);
       } catch (err) {
         console.error('   Setup failed:', err.message);
         process.exit(1);
