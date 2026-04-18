@@ -2641,6 +2641,11 @@ app.post('/api/test/combat', requireAuth, async (req, res) => {
 
   console.log(`[test/combat] Starting ${numTurns}-turn test (party: ${partyMode}, verbosity: ${verbosity}, gameId: ${gameId})`);
 
+  // Stream NDJSON to avoid Railway gateway timeout (30s)
+  res.setHeader('Content-Type', 'application/x-ndjson');
+  res.setHeader('Transfer-Encoding', 'chunked');
+  res.flushHeaders();
+
   for (let turn = 1; turn <= numTurns; turn++) {
     if (Date.now() - startTime >= TIMEOUT_MS) {
       timedOut = true;
@@ -2680,6 +2685,7 @@ app.post('/api/test/combat', requireAuth, async (req, res) => {
       wasInCombat = nowInCombat;
 
       turnLog.push({ turn, words, combat: nowInCombat, elapsed_ms: turnElapsed });
+      res.write(JSON.stringify({ type: 'turn', turn, words, combat: nowInCombat, elapsed_ms: turnElapsed }) + '\n');
       console.log(`[test/combat] Turn ${turn}/${numTurns}: ${words}w, combat=${nowInCombat}, ${turnElapsed}ms`);
 
       // Advance turn index
@@ -2689,6 +2695,7 @@ app.post('/api/test/combat', requireAuth, async (req, res) => {
       const turnElapsed = Date.now() - turnStart;
       console.error(`[test/combat] Turn ${turn} error: ${err.message}`);
       turnLog.push({ turn, words: 0, combat: wasInCombat, elapsed_ms: turnElapsed, error: err.message });
+      res.write(JSON.stringify({ type: 'turn', turn, words: 0, combat: wasInCombat, elapsed_ms: turnElapsed, error: err.message }) + '\n');
 
       // Reset options on error
       lastOptions = [];
@@ -2709,7 +2716,8 @@ app.post('/api/test/combat', requireAuth, async (req, res) => {
 
   console.log(`[test/combat] Done: ${completedTurns} turns, ${combatsDetected} combats, $${testCost}, ${totalElapsed}ms`);
 
-  res.json({
+  res.write(JSON.stringify({
+    type: 'summary',
     turns: completedTurns,
     combatsDetected,
     avgWordsPerTurn,
@@ -2720,8 +2728,8 @@ app.post('/api/test/combat', requireAuth, async (req, res) => {
     timedOut,
     party: partyMode,
     verbosity,
-    turnLog,
-  });
+  }) + '\n');
+  res.end();
 });
 
 app.delete('/api/games/:id', requireAuth, async (req, res) => {

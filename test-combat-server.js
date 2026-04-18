@@ -112,41 +112,46 @@ async function run() {
     process.exit(1);
   }
 
-  const data = await res.json();
+  // Parse NDJSON stream — each line is a JSON object
+  const turnLog = [];
+  let summary = null;
+  const body = await res.text();
+  for (const line of body.split('\n').filter(Boolean)) {
+    try {
+      const obj = JSON.parse(line);
+      if (obj.type === 'summary') {
+        summary = obj;
+      } else if (obj.type === 'turn') {
+        turnLog.push(obj);
+        const combatFlag = obj.combat ? '⚔️' : '  ';
+        const err = obj.error ? ` [ERR]` : '';
+        process.stdout.write(`  ${combatFlag} Turn ${String(obj.turn).padStart(3)}: ${String(obj.words).padStart(4)}w ${(obj.elapsed_ms / 1000).toFixed(1)}s${err}\n`);
+      }
+    } catch (e) { /* skip malformed lines */ }
+  }
   const clientElapsed = Date.now() - callStart;
 
-  // Print summary
-  console.log('='.repeat(60));
-  console.log('RESULTS');
-  console.log('='.repeat(60));
-  console.log(`  Party:              ${data.party}`);
-  console.log(`  Verbosity:          ${data.verbosity}`);
-  console.log(`  Turns completed:    ${data.turns}`);
-  console.log(`  Combats detected:   ${data.combatsDetected}`);
-  console.log(`  Avg words/turn:     ${data.avgWordsPerTurn}`);
-  console.log(`  Errors:             ${data.errors}`);
-  console.log(`  Timed out:          ${data.timedOut}`);
-  console.log(`  Cost:               $${data.cost}`);
-  console.log(`  Server elapsed:     ${(data.elapsed_ms / 1000).toFixed(1)}s`);
-  console.log(`  Client elapsed:     ${(clientElapsed / 1000).toFixed(1)}s`);
-  console.log(`  End time:           ${data.end_time}`);
-
-  if (data.turnLog && data.turnLog.length > 0) {
-    console.log('\nTURN LOG (first 10):');
-    console.log('  Turn | Words | Combat | Elapsed');
-    console.log('  -----|-------|--------|--------');
-    const sample = data.turnLog.slice(0, 10);
-    for (const t of sample) {
-      const combatFlag = t.combat ? 'YES' : 'no ';
-      const err = t.error ? ` [ERR: ${t.error.slice(0, 40)}]` : '';
-      console.log(`  ${String(t.turn).padStart(4)} | ${String(t.words).padStart(5)} | ${combatFlag}    | ${t.elapsed_ms}ms${err}`);
-    }
-    if (data.turnLog.length > 10) {
-      console.log(`  ... (${data.turnLog.length - 10} more turns)`);
-    }
+  if (!summary) {
+    console.error('No summary received — test may have crashed server-side');
+    process.exit(1);
   }
 
+  // Print summary
   console.log('\n' + '='.repeat(60));
+  console.log('RESULTS');
+  console.log('='.repeat(60));
+  console.log(`  Party:              ${summary.party}`);
+  console.log(`  Verbosity:          ${summary.verbosity}`);
+  console.log(`  Turns completed:    ${summary.turns}`);
+  console.log(`  Combats detected:   ${summary.combatsDetected}`);
+  console.log(`  Avg words/turn:     ${summary.avgWordsPerTurn}`);
+  console.log(`  Errors:             ${summary.errors}`);
+  console.log(`  Timed out:          ${summary.timedOut}`);
+  console.log(`  Cost:               $${summary.cost}`);
+  console.log(`  Server elapsed:     ${(summary.elapsed_ms / 1000).toFixed(1)}s`);
+  console.log(`  Client elapsed:     ${(clientElapsed / 1000).toFixed(1)}s`);
+  console.log(`  End time:           ${summary.end_time}`);
+  console.log('='.repeat(60));
 }
 
 run().catch(err => {
