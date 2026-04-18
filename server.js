@@ -2168,10 +2168,20 @@ app.get('/api/games/:id/rules', async (req, res) => {
 });
 
 app.post('/api/games/:id/rules', requireAuth, async (req, res) => {
-  const { text, category } = req.body;
-  if (!text || !text.trim()) return res.status(400).json({ error: 'Text required' });
-  const rule = await db.addRuleCorrection(req.params.id, text.trim().slice(0, 200), category);
-  res.json(rule);
+  try {
+    const { text, category, is_private } = req.body;
+    const gameId = req.params.id;
+    if (!text || !text.trim()) return res.status(400).json({ error: 'Text required' });
+    const rule = await db.addRuleCorrectionFull(gameId, text.trim().slice(0, 200), category, req.user.id, null, false, is_private || false);
+
+    // Refresh game state
+    const gs = getGameState(gameId);
+    gs.rulesCorrections = await db.getRulesCorrections(gameId);
+
+    res.json(rule);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.patch('/api/rules/:id', requireAuth, async (req, res) => {
@@ -2184,6 +2194,114 @@ app.patch('/api/rules/:id', requireAuth, async (req, res) => {
 app.delete('/api/rules/:id', requireAuth, async (req, res) => {
   await db.deleteRuleCorrection(req.params.id);
   res.json({ success: true });
+});
+
+// Search shared rules library
+app.get('/api/rules/shared', async (req, res) => {
+  try {
+    const { search, category, limit, offset } = req.query;
+    const rules = await db.searchSharedRules(search, category, parseInt(limit) || 20, parseInt(offset) || 0);
+    res.json(rules);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add shared rule to current game
+app.post('/api/games/:gameId/rules/add-shared', requireAuth, async (req, res) => {
+  try {
+    const { rule_id } = req.body;
+    const gameId = req.params.gameId;
+
+    // Verify user is host/participant of the game
+    const game = await db.getGame(gameId);
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+
+    // Get the shared rule
+    const ruleRes = await db.pool.query('SELECT * FROM rules_corrections WHERE id = $1 AND is_master = true AND is_private = false', [rule_id]);
+    if (!ruleRes.rows.length) return res.status(404).json({ error: 'Rule not found' });
+
+    // Copy it to the game
+    const newRule = await db.copyRuleToGame(rule_id, gameId, req.user.id);
+
+    // Refresh in-memory state
+    const gs = getGameState(gameId);
+    gs.rulesCorrections = await db.getRulesCorrections(gameId);
+
+    res.json(newRule);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Copy rules from another game
+app.post('/api/games/:gameId/rules/copy-from-game', requireAuth, async (req, res) => {
+  try {
+    const { source_game_id, rule_ids } = req.body;
+    const targetGameId = req.params.gameId;
+
+    // Verify user owns/hosts both games
+    const sourceGame = await db.getGame(source_game_id);
+    const targetGame = await db.getGame(targetGameId);
+
+    if (!sourceGame || !targetGame) return res.status(404).json({ error: 'Game not found' });
+    if (sourceGame.host_user_id !== req.user.id || targetGame.host_user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    // Copy each rule
+    const copied = [];
+    for (const ruleId of rule_ids) {
+      const newRule = await db.copyRuleToGame(ruleId, targetGameId, req.user.id);
+      copied.push(newRule);
+    }
+
+    // Refresh in-memory state
+    const gs = getGameState(targetGameId);
+    gs.rulesCorrections = await db.getRulesCorrections(targetGameId);
+
+    res.json({ copied: copied.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get exportable rules from a game (for import picker)
+app.get('/api/games/:gameId/rules/exportable', requireAuth, async (req, res) => {
+  try {
+    const gameId = req.params.gameId;
+    const game = await db.getGame(gameId);
+
+    if (!game || game.host_user_id !== req.user.id) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const rules = await db.getExportableRules(gameId);
+    res.json(rules);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Toggle rule privacy
+app.patch('/api/rules/:ruleId/privacy', requireAuth, async (req, res) => {
+  try {
+    const { is_private } = req.body;
+    await db.setRulePrivacy(req.params.ruleId, is_private, req.user.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Promote rule to master library
+app.patch('/api/rules/:ruleId/promote', requireAuth, async (req, res) => {
+  try {
+    await db.promoteToMaster(req.params.ruleId, req.user.id);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 // ── PDF Management API ─────────────────────────────────────────────────────────

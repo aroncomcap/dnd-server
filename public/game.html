@@ -1269,11 +1269,39 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     <div class="panel-title">📏 House Rules & Corrections</div>
     <div id="rules-list"></div>
     <div style="margin-top:8px;">
-      <textarea id="rule-edit-box" rows="3" placeholder="Add a house rule or rules correction..." style="width:100%;"></textarea>
-      <div style="display:flex;gap:6px;margin-top:4px;">
+      <textarea id="rule-edit-box" rows="3" placeholder="Add a house rule..." style="width:100%;"></textarea>
+      <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;align-items:center;">
+        <label style="display:flex;align-items:center;gap:4px;font-size:0.8rem;color:var(--parchment-dark);">
+          <input type="checkbox" id="rule-private-check"> Private
+        </label>
         <button class="btn btn-primary" id="btn-add-rule" style="flex:1;">+ Add Rule</button>
       </div>
     </div>
+  </div>
+
+  <div class="panel" style="margin-top:12px;">
+    <div class="panel-title">📜 Rule Library</div>
+    <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+      <input type="text" id="rule-search" placeholder="Search shared rules..." style="flex:1;min-width:150px;">
+      <select id="rule-category-filter" style="min-width:120px;">
+        <option value="">All Categories</option>
+        <option value="combat">Combat</option>
+        <option value="general">General</option>
+        <option value="pacing">Pacing</option>
+        <option value="social">Social</option>
+        <option value="homebrew">Homebrew</option>
+      </select>
+    </div>
+    <div id="shared-rules-list" style="max-height:300px;overflow-y:auto;"></div>
+  </div>
+
+  <div class="panel" style="margin-top:12px;">
+    <div class="panel-title">📥 Import from Another Game</div>
+    <select id="import-game-select" style="width:100%;margin-bottom:8px;">
+      <option value="">Select a game you host...</option>
+    </select>
+    <div id="import-rules-list" style="max-height:300px;overflow-y:auto;margin-bottom:8px;"></div>
+    <button class="btn" id="btn-import-rules" style="width:100%;display:none;">Import Selected</button>
   </div>
 </div>
 
@@ -3874,56 +3902,209 @@ function renderPdfList(pdfs) {
 // ── Rules Corrections UI ──────────────────────────────────────
 let editingRuleId = null;
 
+// Rule management
+let ruleSearchTimeout;
+const CATEGORIES = ['combat', 'general', 'pacing', 'social', 'homebrew'];
+
+function renderRulesList() {
+  const list = document.getElementById('rules-list');
+  const rules = (state.rulesCorrections || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+  list.innerHTML = rules.map(r => `
+    <div style="background:rgba(0,0,0,0.2);padding:8px;border-radius:6px;margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:8px;">
+        <div style="flex:1;">
+          <div style="color:var(--parchment);font-size:0.9rem;line-height:1.3;">${escapeHtml(r.text)}</div>
+          <div style="font-size:0.75rem;color:var(--parchment-dark);margin-top:4px;">
+            ${r.category} ${r.is_private ? '🔒' : r.is_master ? '📚' : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:4px;">
+          ${r.created_by_user_id === state.currentUserId ? `
+            <button class="btn-icon" onclick="toggleRulePrivacy(${r.id}, ${!r.is_private})" title="${r.is_private ? 'Make shared' : 'Make private'}" style="font-size:0.8rem;">
+              ${r.is_private ? '🔒' : '🌐'}
+            </button>
+            ${!r.is_master ? `<button class="btn-icon" onclick="promoteRuleToMaster(${r.id})" title="Share to library" style="font-size:0.8rem;">↗️</button>` : ''}
+          ` : ''}
+          <button class="btn-icon" onclick="deleteRule(${r.id})" style="font-size:0.8rem;">✕</button>
+        </div>
+      </div>
+    </div>
+  `).join('') || '<div style="color:var(--parchment-dark);font-size:0.9rem;">No house rules yet.</div>';
+}
+
+function renderSharedRulesList(rules) {
+  const list = document.getElementById('shared-rules-list');
+
+  if (!rules.length) {
+    list.innerHTML = '<div style="color:var(--parchment-dark);font-size:0.9rem;">No rules found</div>';
+    return;
+  }
+
+  list.innerHTML = rules.map(r => `
+    <div style="background:rgba(0,0,0,0.2);padding:8px;border-radius:6px;margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:8px;">
+        <div style="flex:1;font-size:0.85rem;">
+          <div style="color:var(--parchment);">${escapeHtml(r.text)}</div>
+          <div style="font-size:0.75rem;color:var(--parchment-dark);margin-top:3px;">
+            ${r.author_name || 'Template'} • Used by ${r.usage_count} games
+          </div>
+        </div>
+        <button class="btn-icon" onclick="addSharedRule(${r.id})" style="font-size:0.8rem;white-space:nowrap;">+ Add</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function searchSharedRules() {
+  const search = document.getElementById('rule-search').value.trim();
+  const category = document.getElementById('rule-category-filter').value;
+
+  clearTimeout(ruleSearchTimeout);
+  ruleSearchTimeout = setTimeout(async () => {
+    try {
+      const res = await fetch(`/api/rules/shared?search=${encodeURIComponent(search)}&category=${encodeURIComponent(category)}`);
+      const rules = await res.json();
+      renderSharedRulesList(rules);
+    } catch (err) {
+      console.error('Search error:', err);
+    }
+  }, 300);
+}
+
+async function addSharedRule(ruleId) {
+  try {
+    await fetch(`/api/games/${gameId}/rules/add-shared`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rule_id: ruleId }),
+    });
+    loadRules();
+    alert('Rule added to this game!');
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function toggleRulePrivacy(ruleId, isPrivate) {
+  try {
+    await fetch(`/api/rules/${ruleId}/privacy`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_private: isPrivate }),
+    });
+    loadRules();
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function promoteRuleToMaster(ruleId) {
+  try {
+    await fetch(`/api/rules/${ruleId}/promote`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    loadRules();
+    alert('Rule shared to library!');
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function deleteRule(ruleId) {
+  try {
+    await fetch(`/api/rules/${ruleId}`, { method: 'DELETE' });
+    loadRules();
+    socket.emit('rules_updated');
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function copyRulesFromGame() {
+  const sourceGameId = document.getElementById('import-game-select').value;
+  if (!sourceGameId) return alert('Select a game');
+
+  const checkboxes = document.querySelectorAll('#import-rules-list input[type=checkbox]:checked');
+  const ruleIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+  if (!ruleIds.length) return alert('Select at least one rule');
+
+  try {
+    await fetch(`/api/games/${gameId}/rules/copy-from-game`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source_game_id: sourceGameId, rule_ids: ruleIds }),
+    });
+    loadRules();
+    document.getElementById('import-game-select').value = '';
+    document.getElementById('import-rules-list').innerHTML = '';
+    alert('Rules imported!');
+  } catch (err) {
+    alert('Error: ' + err.message);
+  }
+}
+
 async function loadRules() {
   const res = await fetch(`/api/games/${gameId}/rules`);
   const rules = await res.json();
-  const list = document.getElementById('rules-list');
-  list.innerHTML = '';
-  if (!rules.length) {
-    list.innerHTML = '<p class="host-note">No house rules yet. Add OOC corrections or type them here.</p>';
-    return;
-  }
-  rules.forEach(r => {
-    const div = document.createElement('div');
-    div.className = 'world-item';
-    div.style.cursor = 'pointer';
-    div.innerHTML = `<span>${escapeHtml(r.text)}</span>`;
-    const del = document.createElement('button');
-    del.textContent = '✕';
-    del.style.cssText = 'float:right;background:none;border:none;color:var(--red);cursor:pointer;';
-    del.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      await fetch(`/api/rules/${r.id}`, { method: 'DELETE' });
-      loadRules();
-      socket.emit('rules_updated');
-    });
-    div.appendChild(del);
-    div.addEventListener('click', () => {
-      document.getElementById('rule-edit-box').value = r.text;
-      editingRuleId = r.id;
-      document.getElementById('btn-add-rule').textContent = '💾 Save Edit';
-    });
-    list.appendChild(div);
-  });
+  state.rulesCorrections = rules;
+  renderRulesList();
 }
 
-document.getElementById('btn-add-rule').addEventListener('click', async () => {
+// Event listeners
+document.getElementById('rule-search')?.addEventListener('input', searchSharedRules);
+document.getElementById('rule-category-filter')?.addEventListener('change', searchSharedRules);
+
+document.getElementById('import-game-select')?.addEventListener('change', async (e) => {
+  const sourceGameId = e.target.value;
+  if (!sourceGameId) return;
+
+  try {
+    const res = await fetch(`/api/games/${sourceGameId}/rules/exportable`);
+    const rules = await res.json();
+
+    const list = document.getElementById('import-rules-list');
+    list.innerHTML = rules.map(r => `
+      <label style="display:block;padding:6px;margin:2px;background:rgba(0,0,0,0.2);border-radius:4px;cursor:pointer;">
+        <input type="checkbox" value="${r.id}"> ${escapeHtml(r.text)}
+      </label>
+    `).join('');
+
+    document.getElementById('btn-import-rules').style.display = 'block';
+  } catch (err) {
+    console.error('Error loading rules:', err);
+  }
+});
+
+document.getElementById('btn-import-rules')?.addEventListener('click', copyRulesFromGame);
+
+document.getElementById('btn-add-rule')?.addEventListener('click', async () => {
   const text = document.getElementById('rule-edit-box').value.trim();
   if (!text) return;
-  if (editingRuleId) {
-    await fetch(`/api/rules/${editingRuleId}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({text}) });
-    editingRuleId = null;
-    document.getElementById('btn-add-rule').textContent = '+ Add Rule';
-  } else {
-    await fetch(`/api/games/${gameId}/rules`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({text}) });
+
+  const isPrivate = document.getElementById('rule-private-check').checked;
+
+  try {
+    await fetch(`/api/games/${gameId}/rules`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, is_private: isPrivate }),
+    });
+    document.getElementById('rule-edit-box').value = '';
+    document.getElementById('rule-private-check').checked = false;
+    loadRules();
+    socket.emit('rules_updated');
+  } catch (err) {
+    alert('Error: ' + err.message);
   }
-  document.getElementById('rule-edit-box').value = '';
-  loadRules();
-  socket.emit('rules_updated');
 });
 
 // Load rules on party tab click
-document.querySelector('[data-screen="party"]').addEventListener('click', loadRules);
+document.querySelector('[data-screen="party"]')?.addEventListener('click', () => {
+  loadRules();
+  searchSharedRules();
+});
 
 // ── Billing UI ────────────────────────────────────────────────
 

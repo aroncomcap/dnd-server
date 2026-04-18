@@ -114,13 +114,39 @@ async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS rules_corrections (
       id SERIAL PRIMARY KEY,
-      game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      game_id TEXT REFERENCES games(id) ON DELETE CASCADE,
       text TEXT NOT NULL,
       category TEXT DEFAULT 'general',
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+    ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT false;
+    ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS is_master BOOLEAN DEFAULT false;
+    ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS created_by_user_id TEXT;
+    ALTER TABLE rules_corrections ADD COLUMN IF NOT EXISTS original_rule_id INT;
+    CREATE INDEX IF NOT EXISTS idx_rules_shared ON rules_corrections (is_private, is_master) WHERE is_private = false AND is_master = true;
   `);
+
+  // Seed common rules templates (one-time, skipped if exists)
+  const templates = [
+    { text: 'Natural 1 on attack rolls is always a miss, regardless of modifiers', category: 'combat' },
+    { text: 'Critical hits deal maximum weapon damage plus rolled damage dice', category: 'combat' },
+    { text: 'Potions can be consumed as a bonus action instead of a full action', category: 'combat' },
+    { text: 'Flanking grants advantage on melee attack rolls', category: 'combat' },
+    { text: 'Players can spend inspiration to reroll any single d20', category: 'general' },
+    { text: 'Short rests are 10 minutes instead of 1 hour', category: 'pacing' },
+    { text: 'No player-vs-player combat without mutual consent', category: 'social' },
+    { text: 'Death saving throws are rolled privately by the DM', category: 'combat' },
+    { text: 'Spell components are not tracked unless they have a gold cost', category: 'general' },
+    { text: 'Characters can attempt to intimidate in combat as a bonus action (DC 12 + target CR)', category: 'combat' },
+  ];
+
+  for (const tmpl of templates) {
+    await pool.query(
+      'INSERT INTO rules_corrections (text, category, is_master, is_private, created_by_user_id, game_id, created_at) VALUES ($1, $2, true, false, NULL, NULL, NOW()) ON CONFLICT (text) DO NOTHING',
+      [tmpl.text, tmpl.category]
+    );
+  }
 
   // ── Feature Requests table ──────────────────────────────────────
   await pool.query(`
@@ -573,6 +599,61 @@ async function deleteRuleCorrection(id) {
   await pool.query('DELETE FROM rules_corrections WHERE id = $1', [id]);
 }
 
+async function searchSharedRules(search, category, limit = 20, offset = 0) {
+  const { rows } = await pool.query(`
+    SELECT rc.id, rc.text, rc.category, rc.created_at,
+           u.display_name AS author_name,
+           (SELECT COUNT(*) FROM rules_corrections WHERE original_rule_id = rc.id) AS usage_count
+    FROM rules_corrections rc
+    LEFT JOIN users u ON u.id = rc.created_by_user_id
+    WHERE rc.is_master = true AND rc.is_private = false
+      AND ($1::text IS NULL OR rc.text ILIKE '%' || $1 || '%')
+      AND ($2::text IS NULL OR rc.category = $2)
+    ORDER BY usage_count DESC, rc.created_at DESC
+    LIMIT $3 OFFSET $4
+  `, [search || null, category || null, limit, offset]);
+  return rows;
+}
+
+async function addRuleCorrectionFull(gameId, text, category, userId, originalRuleId = null, isMaster = false, isPrivate = false) {
+  const result = await pool.query(
+    'INSERT INTO rules_corrections (game_id, text, category, created_by_user_id, original_rule_id, is_master, is_private, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id',
+    [gameId || null, text, category || 'general', userId || null, originalRuleId, isMaster, isPrivate]
+  );
+  return result.rows[0];
+}
+
+async function copyRuleToGame(ruleId, targetGameId, userId) {
+  const sourceRule = await pool.query('SELECT * FROM rules_corrections WHERE id = $1', [ruleId]);
+  if (!sourceRule.rows.length) throw new Error('Rule not found');
+
+  const rule = sourceRule.rows[0];
+  return addRuleCorrectionFull(targetGameId, rule.text, rule.category, userId, ruleId, false, false);
+}
+
+async function setRulePrivacy(ruleId, isPrivate, userId) {
+  // Check ownership
+  const rule = await pool.query('SELECT created_by_user_id FROM rules_corrections WHERE id = $1', [ruleId]);
+  if (!rule.rows.length) throw new Error('Rule not found');
+  if (rule.rows[0].created_by_user_id !== userId) throw new Error('Not authorized');
+
+  await pool.query('UPDATE rules_corrections SET is_private = $1 WHERE id = $2', [isPrivate, ruleId]);
+}
+
+async function promoteToMaster(ruleId, userId) {
+  // Check ownership
+  const rule = await pool.query('SELECT created_by_user_id FROM rules_corrections WHERE id = $1', [ruleId]);
+  if (!rule.rows.length) throw new Error('Rule not found');
+  if (rule.rows[0].created_by_user_id !== userId) throw new Error('Not authorized');
+
+  await pool.query('UPDATE rules_corrections SET is_master = true WHERE id = $1', [ruleId]);
+}
+
+async function getExportableRules(gameId) {
+  const { rows } = await pool.query('SELECT * FROM rules_corrections WHERE game_id = $1 ORDER BY created_at DESC', [gameId]);
+  return rows;
+}
+
 // ── Anonymous Sessions ───────────────────────────────────────────────────────
 async function createAnonSession(id, ip) {
   await pool.query(
@@ -717,6 +798,12 @@ module.exports = {
   addRuleCorrection,
   updateRuleCorrection,
   deleteRuleCorrection,
+  searchSharedRules,
+  addRuleCorrectionFull,
+  copyRuleToGame,
+  setRulePrivacy,
+  promoteToMaster,
+  getExportableRules,
   createAnonSession,
   getAnonSession,
   updateAnonMinutes,
@@ -727,4 +814,5 @@ module.exports = {
   getMonsterFromSources,
   saveMonsterToGameOverrides,
   attachDefaultMonsterSource,
+  pool,
 };
