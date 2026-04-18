@@ -201,6 +201,18 @@ Requires `is_admin = TRUE`. Features:
 - Injected into EVERY prompt (full and trimmed) — keep rules short; they cost tokens every call
 - Editable from the Party tab in game UI
 
+## Bug Report Feature
+- **Host Tab:** Form to submit bug report with optional screenshot (stored as inline base64 data URL)
+- **World Tab:** Table view of all bug reports for the game (Date, Description, Status, AI Analysis)
+- **Status lifecycle:** open → investigating → auto-fixed → closed (click status button to cycle)
+- **Auto-fix endpoint:** POST `/api/games/:id/bugs/:bugId/autofix` calls Haiku to analyze bug and suggest fixes (RESET_COMBAT, CLEAR_PAUSE, RESET_IDLE, ADVANCE_TURN, CLEAR_ERRORS)
+- **API endpoints:**
+  - `POST /api/games/:id/bugs` — submit new bug report with screenshot
+  - `GET /api/games/:id/bugs` — fetch all bug reports for game
+  - `PATCH /api/games/:id/bugs/:bugId` — update status
+  - `POST /api/games/:id/bugs/:bugId/autofix` — AI analysis + fix application
+- **Database:** `bug_reports` table stores game_id, reporter_user_id, description, image_url, status, ai_analysis, ai_fixes_applied (JSONB)
+
 ## Pre-gen Party
 - Claude generates 4 balanced characters with a direction input from the host
 - Produces name, class, background, stats, and visual description
