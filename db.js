@@ -186,6 +186,19 @@ async function initDB() {
     );
   `);
 
+  // ── Monster Templates (cached narrative templates per monster × event × persona) ──
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS monster_templates (
+      id SERIAL PRIMARY KEY,
+      monster_slug TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      persona TEXT NOT NULL DEFAULT 'epic',
+      templates JSONB NOT NULL DEFAULT '[]',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(monster_slug, event_type, persona)
+    );
+  `);
+
   // ── Killshots (Hall of Fame) ────────────────────────────────────
   await pool.query(`
     CREATE TABLE IF NOT EXISTS killshots (
@@ -664,6 +677,24 @@ async function saveMonsterToGameOverrides(gameId, slug, monsterData) {
   }
 }
 
+// ── Monster Templates ─────────────────────────────────────────────────────────
+async function getMonsterTemplates(monsterSlug, eventType, persona) {
+  const { rows } = await pool.query(
+    'SELECT templates FROM monster_templates WHERE monster_slug = $1 AND event_type = $2 AND persona = $3',
+    [monsterSlug, eventType, persona]
+  );
+  return rows[0]?.templates || null;
+}
+
+async function saveMonsterTemplates(monsterSlug, eventType, persona, templates) {
+  await pool.query(`
+    INSERT INTO monster_templates (monster_slug, event_type, persona, templates)
+    VALUES ($1, $2, $3, $4)
+    ON CONFLICT (monster_slug, event_type, persona)
+    DO UPDATE SET templates = $4
+  `, [monsterSlug, eventType, persona, JSON.stringify(templates)]);
+}
+
 async function attachDefaultMonsterSource(gameId, system) {
   const source = await pool.query(
     `SELECT id FROM monster_sources WHERE scope = 'global' AND system = $1 LIMIT 1`, [system]
@@ -727,4 +758,6 @@ module.exports = {
   getMonsterFromSources,
   saveMonsterToGameOverrides,
   attachDefaultMonsterSource,
+  getMonsterTemplates,
+  saveMonsterTemplates,
 };
