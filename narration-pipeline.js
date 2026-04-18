@@ -8,7 +8,7 @@ const { formatPlanForPrompt } = require('./encounter-designer');
 // Constants
 // ---------------------------------------------------------------------------
 
-const SONNET_MODEL = 'claude-sonnet-4-5-20241022';
+const SONNET_MODEL = 'claude-sonnet-4-6';
 const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 
 const VERBOSITY_RULES = {
@@ -608,9 +608,9 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
 
     // Persist combat state
     if (persistCombatState) {
-      persistCombatState(gameId).catch(err => {
+      try { persistCombatState(gameId); } catch (err) {
         console.error(`[narration-pipeline] persistCombatState failed:`, err.message);
-      });
+      }
     }
 
     // Emit combat update
