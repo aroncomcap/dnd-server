@@ -1118,9 +1118,9 @@ function shouldGenerateImage(gameId, sceneData, mapMoved, isKillshot) {
   if (mapMoved) return true;
   // Generate if a named NPC is present in the scene
   if (sceneData.npc && sceneData.npc.toLowerCase() !== 'none') return true;
-  // Generate every 3rd turn as a baseline (so players always see images)
+  // Generate every 20th turn as a baseline (reduce frequency to lower costs)
   const gs = getGameState(gameId);
-  if (gs.turnCount > 0 && gs.turnCount % 3 === 0) return true;
+  if (gs.turnCount > 0 && gs.turnCount % 20 === 0) return true;
   return false;
 }
 

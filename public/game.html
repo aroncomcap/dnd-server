@@ -209,6 +209,57 @@
     pointer-events: none;
   }
 
+  #scene-panel.collapsed {
+    min-height: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  #scene-panel.collapsed img,
+  #scene-panel.collapsed .scene-overlay,
+  #scene-panel.collapsed #scene-label {
+    display: none !important;
+  }
+
+  #scene-collapse-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 3;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(200,146,42,0.4);
+    color: var(--gold-light);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+  #scene-collapse-btn:hover {
+    background: rgba(0,0,0,0.8);
+    border-color: var(--gold-light);
+  }
+
+  #scene-expand-btn {
+    background: rgba(0,0,0,0.6);
+    border: 1px solid var(--gold);
+    color: var(--gold-light);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
+  #scene-expand-btn:hover {
+    background: rgba(0,0,0,0.8);
+    border-color: var(--gold-light);
+  }
+
   /* ── Chat ── */
   #chat-log {
     flex: 1;
@@ -1077,6 +1128,7 @@
       <div id="scene-panel" style="flex:1;min-height:200px;position:relative;">
         <img id="scene-img" src="" alt="Scene"/>
         <div class="scene-overlay"></div>
+        <button id="scene-collapse-btn" title="Collapse scene image">−</button>
         <div id="scene-label" style="position:absolute;bottom:0;left:0;right:0;padding:8px 12px;background:linear-gradient(transparent 0%, rgba(0,0,0,0.85) 40%);color:var(--gold-light);font-family:'Cinzel Decorative',cursive;font-size:0.8rem;text-align:center;display:none;z-index:2;"></div>
       </div>
       <div id="map-container" style="flex:1;min-height:200px;display:none;"></div>
@@ -1854,6 +1906,8 @@ function showOptions(options) {
 const scenePanel = document.getElementById('scene-panel');
 const sceneImg = document.getElementById('scene-img');
 
+let sceneAutoCollapseTimer = null;
+
 function showSceneImage(url, label) {
   if (!url) return;
   sceneImg.style.opacity = '0';
@@ -1867,13 +1921,51 @@ function showSceneImage(url, label) {
   }
   sceneImg.onload = () => {
     scenePanel.style.display = 'block';
+    scenePanel.classList.remove('collapsed');
     sceneImg.style.opacity = '1';
     const screenGame = document.getElementById('screen-game');
     screenGame.classList.add('has-scene');
     screenGame.classList.add('has-map');
     document.getElementById('map-sidebar').style.display = 'block';
     switchSidebarTab('scene');
+    // Auto-collapse after 2 seconds
+    clearTimeout(sceneAutoCollapseTimer);
+    sceneAutoCollapseTimer = setTimeout(() => {
+      collapseScene();
+    }, 2000);
   };
+}
+
+function collapseScene() {
+  scenePanel.classList.add('collapsed');
+  const expandBtn = document.createElement('button');
+  expandBtn.id = 'scene-expand-btn';
+  expandBtn.textContent = '🖼️ View Scene';
+  expandBtn.addEventListener('click', expandScene);
+  scenePanel.innerHTML = '';
+  scenePanel.appendChild(expandBtn);
+}
+
+function expandScene() {
+  scenePanel.classList.remove('collapsed');
+  scenePanel.innerHTML = `
+    <img id="scene-img" src="${sceneImg.src}" alt="Scene" style="width: 100%; height: auto; max-height: 500px; object-fit: cover; display: block; transition: opacity 0.8s ease; opacity: 1;"/>
+    <div class="scene-overlay"></div>
+    <button id="scene-collapse-btn" title="Collapse scene image">−</button>
+    <div id="scene-label" style="position:absolute;bottom:0;left:0;right:0;padding:8px 12px;background:linear-gradient(transparent 0%, rgba(0,0,0,0.85) 40%);color:var(--gold-light);font-family:'Cinzel Decorative',cursive;font-size:0.8rem;text-align:center;display:none;z-index:2;"></div>
+  `;
+  const labelEl = document.getElementById('scene-label');
+  if (labelEl) {
+    labelEl.textContent = document.querySelector('div[id="scene-label"]')?.textContent || '';
+    labelEl.style.display = document.querySelector('div[id="scene-label"]')?.style.display || 'none';
+  }
+  document.getElementById('scene-collapse-btn')?.addEventListener('click', collapseScene);
+  sceneImg = document.getElementById('scene-img');
+  // Reset auto-collapse timer
+  clearTimeout(sceneAutoCollapseTimer);
+  sceneAutoCollapseTimer = setTimeout(() => {
+    collapseScene();
+  }, 2000);
 }
 
 function switchSidebarTab(level) {
@@ -3316,6 +3408,13 @@ document.querySelectorAll('.map-level-btn-mobile').forEach(btn => {
     btn.classList.add('active');
     if (mapRendererMobile) mapRendererMobile.setLevel(level);
   });
+});
+
+// Scene collapse button
+document.addEventListener('click', (e) => {
+  if (e.target.id === 'scene-collapse-btn') {
+    collapseScene();
+  }
 });
 
 // Node click → travel request
