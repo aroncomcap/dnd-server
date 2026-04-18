@@ -161,8 +161,9 @@ const DEPLOY_TIME = new Date().toISOString();
 function truncate(str, max) { return str ? String(str).slice(0, max) : ''; }
 
 const app = express();
+app.set('trust proxy', 1); // Railway runs behind a reverse proxy
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, { cors: { origin: '*' }, pingTimeout: 120000, pingInterval: 25000 });
 
 // Stripe webhook must come BEFORE express.json() to receive raw body
 app.post('/api/webhooks/stripe',
