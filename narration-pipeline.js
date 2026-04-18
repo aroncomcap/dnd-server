@@ -46,7 +46,11 @@ function buildNarrationPrompt(gameId, gameConfig, gs) {
   const personaBlock = PERSONA_BLOCKS[persona] || PERSONA_BLOCKS.epic;
 
   // Character block — names/personalities only, NO stat blocks
-  const characters = (gs.characters || []);
+  // Accept either gs.characters (array of { name, data }) or gs.data.characters (dict of { [name]: charData })
+  let characters = (gs.characters || []);
+  if (characters.length === 0 && gs.data && gs.data.characters && typeof gs.data.characters === 'object') {
+    characters = Object.entries(gs.data.characters).map(([name, charData]) => ({ name, data: charData }));
+  }
   const charLines = characters.map(ch => {
     const d = ch.data || {};
     const firstSentenceOfBackstory = d.backstory
@@ -55,9 +59,11 @@ function buildNarrationPrompt(gameId, gameConfig, gs) {
     const catchphrases = Array.isArray(d.catchphrases) && d.catchphrases.length > 0
       ? `Catchphrases: "${d.catchphrases.join('", "')}".`
       : '';
-    const standardActions = Array.isArray(d.standardActions) && d.standardActions.length > 0
-      ? `Typical actions: ${d.standardActions.join(', ')}.`
-      : '';
+    const standardActions = Array.isArray(d.standardActions)
+      ? (d.standardActions.length > 0 ? `Typical actions: ${d.standardActions.join(', ')}.` : '')
+      : (typeof d.standardActions === 'string' && d.standardActions
+          ? `Typical actions: ${d.standardActions}.`
+          : '');
     return [
       `  - ${ch.name} (${d.class || 'Adventurer'} ${d.level || 1})`,
       d.personality ? `    Personality: ${d.personality}` : '',
@@ -157,7 +163,11 @@ function buildUserMessage(gs, characterName, actionText) {
   // Inject corrections if present, then clear them
   const corrections = gs.pendingCorrections || [];
   if (corrections.length > 0) {
-    parts.push(`[DM CORRECTIONS — apply immediately and silently:\n${corrections.map((c, i) => `${i + 1}. ${c}`).join('\n')}]`);
+    // Corrections may be stored as strings (key/message format) or objects (type/description/correction format)
+    const correctionTexts = corrections.map(c =>
+      typeof c === 'string' ? c : (c.correction || c.description || JSON.stringify(c))
+    );
+    parts.push(`[DM CORRECTIONS — apply immediately and silently:\n${correctionTexts.map((c, i) => `${i + 1}. ${c}`).join('\n')}]`);
     gs.pendingCorrections = [];
   }
 
@@ -315,10 +325,14 @@ function processViolation(gs, violation) {
   if (!gs.pendingCorrections) gs.pendingCorrections = [];
   if (!gs.minorViolationCounts) gs.minorViolationCounts = {};
 
-  const { severity, key, message } = violation;
+  const { severity } = violation;
+  // Support both { key, message } (Haiku validation format) and { type, description, correction } (pipeline format)
+  const key = violation.key || violation.type;
+  // Store the full violation object when using the type/description format, else store message string
+  const payload = violation.description !== undefined ? violation : violation.message;
 
   if (severity === 'critical') {
-    gs.pendingCorrections.push(message);
+    gs.pendingCorrections.push(payload);
     return;
   }
 
@@ -327,7 +341,7 @@ function processViolation(gs, violation) {
   const next = current + 1;
 
   if (next >= 3) {
-    gs.pendingCorrections.push(message);
+    gs.pendingCorrections.push(payload);
     gs.minorViolationCounts[key] = 0;
   } else {
     gs.minorViolationCounts[key] = next;

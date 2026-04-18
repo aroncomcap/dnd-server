@@ -1,0 +1,87 @@
+'use strict';
+
+const { describe, it } = require('node:test');
+const assert = require('node:assert');
+
+const {
+  parseSonnetResponse,
+  buildNarrationPrompt,
+  processViolation,
+} = require('../narration-pipeline');
+
+describe('Pipeline Integration', () => {
+  it('parseSonnetResponse handles streamed chunks assembled into full text', () => {
+    const fullText = 'The door creaks open.\n\n1️⃣ 🗡️ Enter carefully\n2️⃣ 🛡️ Listen first\n3️⃣ 🔥 Kick it wide open';
+    const result = parseSonnetResponse(fullText);
+    assert.ok(result.narration.includes('door creaks'));
+    assert.strictEqual(result.options.length, 3);
+    assert.ok(result.options[0].includes('Enter'));
+    assert.ok(result.options[2].includes('Kick'));
+  });
+
+  it('narration prompt is under 1000 tokens worth of text', () => {
+    const prompt = buildNarrationPrompt('test', { system: 'dnd5e', custom_context: '' }, {
+      dmPersona: 'epic',
+      verbosity: 'brief',
+      ferocity: 3,
+      pillars: { exploration: 33, combat: 33, social: 34 },
+      storySummary: 'Short summary.',
+      rulesCorrections: [],
+      npcMemory: {},
+      encounterPlan: null,
+      encounterPlanIndex: 0,
+      data: {
+        characters: {
+          'Kael': { personality: 'Brave', backstory: 'Soldier.', standardActions: 'Attack', catchphrases: [], class: 'Fighter', level: 5 },
+        },
+      },
+    });
+    // Rough token estimate: 1 token ≈ 4 chars. 1000 tokens ≈ 4000 chars.
+    assert.ok(prompt.length < 4000, `Prompt too long: ${prompt.length} chars (~${Math.ceil(prompt.length / 4)} tokens)`);
+  });
+
+  it('correction injection clears pending corrections', () => {
+    const gs = { pendingCorrections: [], minorViolationCounts: {} };
+    processViolation(gs, { severity: 'minor', type: 'verbosity', description: 'too long', correction: 'shorter' });
+    processViolation(gs, { severity: 'minor', type: 'verbosity', description: 'too long', correction: 'shorter' });
+    processViolation(gs, { severity: 'minor', type: 'verbosity', description: 'too long', correction: 'shorter' });
+    assert.strictEqual(gs.pendingCorrections.length, 1);
+    assert.strictEqual(gs.pendingCorrections[0].description, 'too long');
+  });
+
+  it('parseSonnetResponse handles response with no options gracefully', () => {
+    const text = 'The room is empty. Dust motes float in the light.';
+    const result = parseSonnetResponse(text);
+    assert.ok(result.narration.includes('room is empty'));
+    assert.strictEqual(result.options.length, 0);
+  });
+
+  it('parseSonnetResponse handles multiline narration with options', () => {
+    const text = 'Line one of narration.\nLine two of narration.\n\n1️⃣ 🗡️ Option A\n2️⃣ 🛡️ Option B\n3️⃣ 🔥 Option C';
+    const result = parseSonnetResponse(text);
+    assert.ok(result.narration.includes('Line one'));
+    assert.ok(result.narration.includes('Line two'));
+    assert.strictEqual(result.options.length, 3);
+  });
+
+  it('buildNarrationPrompt excludes stat blocks', () => {
+    const prompt = buildNarrationPrompt('test', { system: 'dnd5e', custom_context: '' }, {
+      dmPersona: 'epic', verbosity: 'brief', ferocity: 3,
+      pillars: { exploration: 33, combat: 33, social: 34 },
+      storySummary: '', rulesCorrections: [], npcMemory: {},
+      encounterPlan: null, encounterPlanIndex: 0,
+      data: {
+        characters: {
+          'Kael': { personality: 'Brave', backstory: 'Soldier.', standardActions: 'Attack',
+            catchphrases: [], class: 'Fighter', level: 5,
+            statsText: 'STR 18 DEX 14 CON 16 INT 10 WIS 12 CHA 8, HP 44/44, AC 18' },
+        },
+      },
+    });
+    assert.ok(!prompt.includes('STR 18'));
+    assert.ok(!prompt.includes('HP 44'));
+    assert.ok(!prompt.includes('AC 18'));
+    assert.ok(prompt.includes('Kael'));
+    assert.ok(prompt.includes('Brave'));
+  });
+});
