@@ -88,7 +88,7 @@ Schema auto-creates in `db.js initDB()` — no migration tool needed. `ALTER TAB
 ### Tables
 | Table | Purpose |
 |-------|---------|
-| `games` | Game instances (id, name, system, custom_context, billing_mode, host_user_id) |
+| `games` | Game instances (id, name, system, custom_context, billing_mode, host_user_id, last_image_url) |
 | `characters` | Per-game character data (JSONB) |
 | `game_state` | Key-value store per game (chatHistory, world, map, ferocity, verbosity, pillars, dmPersona, storySummary, turnOrder, discord_bindings) |
 | `channel_links` | Discord channel → game mappings |
