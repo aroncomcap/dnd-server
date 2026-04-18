@@ -129,6 +129,7 @@ Schema auto-creates in `db.js initDB()` — no migration tool needed. `ALTER TAB
 - `is_master` (boolean, default false) — true = library rule/template; false = game-specific
 - `created_by_user_id` (TEXT) — who authored the rule
 - `original_rule_id` (INT) — if copied from another rule, points to source (for attribution only, not sync)
+- `game_system` (TEXT, default 'dnd5e') — system this rule applies to (dnd5e, runequest, custom, or 'all' for universal rules). Library searches filtered by current game's system
 - `game_id` now NULLABLE — allows master templates with no associated game
 
 ### First-user bootstrap
