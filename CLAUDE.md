@@ -11,7 +11,7 @@ Multiplayer RPG game server with AI Game Master (Claude as DM). Express.js + Soc
 
 ## Stack
 - Express.js, Socket.io, PostgreSQL (pg pool), Passport.js auth
-- Anthropic Claude API (Haiku ONLY — hardcoded, never use Sonnet/Opus for game calls)
+- Anthropic Claude API (Split Pipeline: Sonnet for narration, Haiku for extraction/validation/templates; legacy Haiku-only path behind feature flag)
 - Together AI FLUX.1-schnell for images ($0.003/image)
 - Stripe for payments
 - Single-page HTML files (no framework), vanilla JS, CSS
