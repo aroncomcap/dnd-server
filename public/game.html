@@ -2817,9 +2817,10 @@ socket.on('dm_stream_end', (data) => {
   const body = document.getElementById('dm-stream-body');
   if (!body) return;
   // Replace plain text with fully formatted HTML
-  body.innerHTML = renderDmText(data.narration);
-  if (/\bHIT\b/.test(data.narration)) sfx.hit();
-  else if (/\bMISS\b/.test(data.narration)) sfx.miss();
+  const narration = data.narration || '';
+  body.innerHTML = renderDmText(narration);
+  if (/\bHIT\b/.test(narration)) sfx.hit();
+  else if (/\bMISS\b/.test(narration)) sfx.miss();
   body.removeAttribute('id');
 
   const wrap = document.getElementById('dm-stream-bubble');
