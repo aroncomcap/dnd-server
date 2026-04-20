@@ -327,14 +327,40 @@ const PARTY_PROMPTS = {
 
 function randomFrom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-function shuffleScene() {
+async function shuffleScene() {
   const s = document.getElementById('game-system').value;
-  document.getElementById('scene-prompt').value = randomFrom(SCENE_PROMPTS[s] || SCENE_PROMPTS.custom);
+  const input = document.getElementById('scene-prompt');
+  input.style.opacity = '0.5';
+  try {
+    const res = await fetch('/api/generate-prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'scene', system: s }),
+    });
+    const data = await res.json();
+    input.value = data.prompt || randomFrom(SCENE_PROMPTS[s] || SCENE_PROMPTS.custom);
+  } catch (err) {
+    input.value = randomFrom(SCENE_PROMPTS[s] || SCENE_PROMPTS.custom);
+  }
+  input.style.opacity = '1';
 }
 
-function shuffleParty() {
+async function shuffleParty() {
   const s = document.getElementById('game-system').value;
-  document.getElementById('party-direction').value = randomFrom(PARTY_PROMPTS[s] || PARTY_PROMPTS.custom);
+  const input = document.getElementById('party-direction');
+  input.style.opacity = '0.5';
+  try {
+    const res = await fetch('/api/generate-prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'party', system: s }),
+    });
+    const data = await res.json();
+    input.value = data.prompt || randomFrom(PARTY_PROMPTS[s] || PARTY_PROMPTS.custom);
+  } catch (err) {
+    input.value = randomFrom(PARTY_PROMPTS[s] || PARTY_PROMPTS.custom);
+  }
+  input.style.opacity = '1';
 }
 
 // Init with random values

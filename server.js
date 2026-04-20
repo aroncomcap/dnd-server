@@ -3104,6 +3104,38 @@ app.post('/api/purchase', requireAuth, async (req, res) => {
   }
 });
 
+// ── Generate truly random prompts (scene/party) ──
+app.post('/api/generate-prompt', async (req, res) => {
+  try {
+    const { type, system } = req.body;
+    if (!type || !system) return res.status(400).json({ error: 'Missing type or system' });
+
+    const systemLabels = {
+      dnd5e: 'D&D 5e',
+      runequest: 'RuneQuest Glorantha',
+      custom: 'generic fantasy RPG',
+    };
+    const systemName = systemLabels[system] || 'fantasy RPG';
+
+    const prompts = {
+      scene: `Generate a single, unique opening scene prompt for a ${systemName} adventure. The prompt should be evocative, specific, and 1-2 sentences. It should create immediate intrigue or action. Return ONLY the prompt text, nothing else.`,
+      party: `Generate a unique party composition description for a ${systemName} campaign. Describe the party in 1-2 sentences, specifying number of characters, approximate level/capability, and general theme/style. Return ONLY the description text, nothing else.`,
+    };
+
+    const msg = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 150,
+      messages: [{ role: 'user', content: prompts[type] }],
+    });
+
+    const prompt = msg.content[0]?.text?.trim() || '';
+    res.json({ prompt });
+  } catch (err) {
+    console.error('Prompt generation error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/redeem', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'redeem.html'));
 });
