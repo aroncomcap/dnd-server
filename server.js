@@ -4275,7 +4275,7 @@ Generate the characters now.`;
 discord.setGameEngine(gameEngine);
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3020;
 
 async function boot() {
   await db.initDB();
