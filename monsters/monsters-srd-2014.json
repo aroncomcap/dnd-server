@@ -6334,13 +6334,17 @@
         "properties": []
       }
     ],
+    "spells": [],
+    "spellSlots": {},
     "features": [
       "Nimble Escape"
     ],
+    "conditions": [],
     "resistances": [],
     "immunities": [],
     "vulnerabilities": [],
     "saveProficiencies": [],
+    "proficiencyBonus": 2,
     "personality": "",
     "combatStyle": "aggressive",
     "tactics": "",
