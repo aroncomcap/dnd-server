@@ -2680,7 +2680,8 @@ if (state.ferocity != null) {
     overlay.id = 'loading-overlay';
     overlay.style.cssText = 'position:fixed;inset:0;z-index:20000;background:rgba(26,15,5,0.95);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;';
     overlay.innerHTML = `
-      <div style="font-family:'Cinzel Decorative',cursive;font-size:1.4rem;color:var(--gold-light);margin-bottom:20px;">Preparing Your Adventure</div>
+      <div style="font-family:'Cinzel Decorative',cursive;font-size:1.4rem;color:var(--gold-light);margin-bottom:16px;">Preparing Your Adventure</div>
+      <div id="loading-portraits" style="display:flex;gap:12px;margin-bottom:20px;justify-content:center;flex-wrap:wrap;max-width:600px;"></div>
       <div id="loading-msg" style="color:var(--parchment-dark);font-size:1.1rem;font-style:italic;min-height:1.5em;">${loadingMessages[0]}</div>
       <div style="margin-top:24px;width:200px;height:4px;background:rgba(200,146,42,0.2);border-radius:2px;overflow:hidden;">
         <div id="loading-bar" style="width:0%;height:100%;background:var(--gold);border-radius:2px;transition:width 0.5s;"></div>
@@ -2688,6 +2689,19 @@ if (state.ferocity != null) {
       <div id="loading-tip" style="margin-top:32px;max-width:420px;padding:0 20px;font-size:0.9rem;line-height:1.5;color:var(--parchment);opacity:0.7;min-height:3em;"></div>
     `;
     document.body.appendChild(overlay);
+
+    // Populate character portraits
+    if (state.chars && state.chars.length > 0) {
+      const portraitsDiv = document.getElementById('loading-portraits');
+      state.chars.forEach(ch => {
+        const img = document.createElement('img');
+        img.src = ch.portrait || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23333" width="80" height="80"/%3E%3C/svg%3E';
+        img.style.cssText = 'width:80px;height:80px;border-radius:8px;border:2px solid rgba(212,175,55,0.5);object-fit:cover;';
+        img.title = ch.name;
+        portraitsDiv.appendChild(img);
+      });
+    }
+
     let msgIdx = 0;
     const msgInterval = setInterval(() => {
       msgIdx = (msgIdx + 1) % loadingMessages.length;
