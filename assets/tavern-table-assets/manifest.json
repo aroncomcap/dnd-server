@@ -1,0 +1,202 @@
+{
+  "generatedAt": "2026-04-20T21:57:25.781Z",
+  "sets": {
+    "icons": {
+      "description": "Bardic Ledger deed type icons",
+      "images": [
+        {
+          "filename": "deed-swords.png",
+          "prompt": "Medieval fantasy icon: crossed swords in gold (#D4AF37), clean vector art, medieval manuscript illum...",
+          "path": "icons/deed-swords.png"
+        },
+        {
+          "filename": "deed-shield.png",
+          "prompt": "Medieval fantasy icon: raised shield in gold (#D4AF37), clean vector art, medieval manuscript illumi...",
+          "path": "icons/deed-shield.png"
+        },
+        {
+          "filename": "deed-heart.png",
+          "prompt": "Medieval fantasy icon: glowing heart in gold (#D4AF37), clean vector art, medieval manuscript illumi...",
+          "path": "icons/deed-heart.png"
+        },
+        {
+          "filename": "deed-star.png",
+          "prompt": "Medieval fantasy icon: star burst in gold (#D4AF37), clean vector art, medieval manuscript illuminat...",
+          "path": "icons/deed-star.png"
+        }
+      ]
+    },
+    "flames": {
+      "description": "Renown tier progression flame icons",
+      "images": [
+        {
+          "filename": "renown-1-candle.png",
+          "prompt": "Medieval fantasy icon: single lit candle flame in gold (#D4AF37) and orange (#E67E22). Pixel art or ...",
+          "path": "flames/renown-1-candle.png"
+        },
+        {
+          "filename": "renown-2-torch.png",
+          "prompt": "Medieval fantasy icon: candle and torch side by side, gold (#D4AF37) and orange (#E67E22) with warm ...",
+          "path": "flames/renown-2-torch.png"
+        },
+        {
+          "filename": "renown-3-campfire.png",
+          "prompt": "Medieval fantasy icon: campfire with logs burning, gold (#D4AF37) and orange (#E67E22) flames. Pixel...",
+          "path": "flames/renown-3-campfire.png"
+        },
+        {
+          "filename": "renown-4-brazier.png",
+          "prompt": "Medieval fantasy icon: ornate brazier with rising flames, gold (#D4AF37) and orange (#E67E22) fire. ...",
+          "path": "flames/renown-4-brazier.png"
+        },
+        {
+          "filename": "renown-5-bonfire.png",
+          "prompt": "Medieval fantasy icon: roaring bonfire, gold (#D4AF37) and orange (#E67E22) flames rising high. Pixe...",
+          "path": "flames/renown-5-bonfire.png"
+        }
+      ]
+    },
+    "tokens": {
+      "description": "Lyre token (Bardic Inspiration currency)",
+      "images": [
+        {
+          "filename": "lyre-token.png",
+          "prompt": "Medieval fantasy coin token: ornate golden lyre taking up most of the coin face. Embossed coin style...",
+          "path": "tokens/lyre-token.png"
+        }
+      ]
+    },
+    "parchment": {
+      "description": "Parchment card backgrounds (3 variants)",
+      "images": [
+        {
+          "filename": "parchment-scroll.png",
+          "prompt": "Aged parchment scroll background, 4:3 aspect ratio (400x300px). Rolled edges at top and bottom with ...",
+          "path": "parchment/parchment-scroll.png"
+        },
+        {
+          "filename": "parchment-deed-card.png",
+          "prompt": "Aged parchment deed card, portrait orientation (300x400px). Space for deed icon (top-left area). Wax...",
+          "path": "parchment/parchment-deed-card.png"
+        },
+        {
+          "filename": "parchment-legend-card.png",
+          "prompt": "Aged parchment legend card, landscape orientation (400x300px). Left side has circular frame space (1...",
+          "path": "parchment/parchment-legend-card.png"
+        }
+      ]
+    },
+    "borders": {
+      "description": "Ornate borders and flourishes",
+      "images": [
+        {
+          "filename": "border-top-flourish.png",
+          "prompt": "Medieval manuscript decorative top border flourish, ~400px wide × 60px tall. Ornate corner spirals w...",
+          "path": "borders/border-top-flourish.png"
+        },
+        {
+          "filename": "border-bottom-flourish.png",
+          "prompt": "Medieval manuscript decorative bottom border flourish, ~400px wide × 60px tall. Matching style to to...",
+          "path": "borders/border-bottom-flourish.png"
+        },
+        {
+          "filename": "border-horizontal-band.png",
+          "prompt": "Medieval manuscript decorative horizontal band for section dividers, ~400px wide × 60px tall. Ornate...",
+          "path": "borders/border-horizontal-band.png"
+        },
+        {
+          "filename": "initial-D.png",
+          "prompt": "Ornate medieval initial letter \"D\" in fantasy blackletter style, 64x64px design, gold (#D4AF37) with...",
+          "path": "borders/initial-D.png"
+        },
+        {
+          "filename": "initial-S.png",
+          "prompt": "Ornate medieval initial letter \"S\" in fantasy blackletter style, 64x64px design, gold (#D4AF37) with...",
+          "path": "borders/initial-S.png"
+        },
+        {
+          "filename": "initial-K.png",
+          "prompt": "Ornate medieval initial letter \"K\" in fantasy blackletter style, 64x64px design, gold (#D4AF37) with...",
+          "path": "borders/initial-K.png"
+        },
+        {
+          "filename": "initial-T.png",
+          "prompt": "Ornate medieval initial letter \"T\" in fantasy blackletter style, 64x64px design, gold (#D4AF37) with...",
+          "path": "borders/initial-T.png"
+        },
+        {
+          "filename": "gold-leaf-sprigs.png",
+          "prompt": "Medieval gold leaf flourish cluster, ~60x60px design. Decorative sprigs with leaves and tendrils in ...",
+          "path": "borders/gold-leaf-sprigs.png"
+        }
+      ]
+    },
+    "banners": {
+      "description": "Achievement banners",
+      "images": [
+        {
+          "filename": "chorus-banner.png",
+          "prompt": "Fantasy RPG achievement banner with \"CHORUS\" text. Landscape orientation, ~400px wide × 180px tall. ...",
+          "path": "banners/chorus-banner.png"
+        }
+      ]
+    },
+    "frames": {
+      "description": "Killshot frame and couplet banner",
+      "images": [
+        {
+          "filename": "killshot-frame.png",
+          "prompt": "Ornate square frame border (1:1 aspect, ~256x256px) for killshot images. Gold (#D4AF37) and crimson ...",
+          "path": "frames/killshot-frame.png"
+        },
+        {
+          "filename": "couplet-banner.png",
+          "prompt": "Semi-transparent dark overlay band for bottom ~25% of image (~400px wide × 100px tall). Gold ornate ...",
+          "path": "frames/couplet-banner.png"
+        }
+      ]
+    },
+    "backgrounds": {
+      "description": "Tavern bulletin board background",
+      "images": [
+        {
+          "filename": "tavern-notice-board.png",
+          "prompt": "Atmospheric medieval tavern notice board scene, ~1600x1000px or suitable for full webpage background...",
+          "path": "backgrounds/tavern-notice-board.png"
+        }
+      ]
+    },
+    "icons-misc": {
+      "description": "Miscellaneous icons",
+      "images": [
+        {
+          "filename": "bard-silhouette.png",
+          "prompt": "Simple elegant line art bard/minstrel icon for fantasy RPG UI. Figure sitting or standing with lute/...",
+          "path": "icons-misc/bard-silhouette.png"
+        },
+        {
+          "filename": "tankard-icon.png",
+          "prompt": "Fantasy RPG icon: foaming ale tankard raised in toast, gold (#D4AF37) with warm tones. Simple, iconi...",
+          "path": "icons-misc/tankard-icon.png"
+        }
+      ]
+    },
+    "animations": {
+      "description": "Animation assets",
+      "images": [
+        {
+          "filename": "ripple-burst.png",
+          "prompt": "Radial burst or ripple effect asset for fantasy RPG UI animation. Concentric circular ripples or rad...",
+          "path": "animations/ripple-burst.png"
+        }
+      ]
+    }
+  },
+  "stats": {
+    "totalImages": 28,
+    "successCount": 28,
+    "failureCount": 0,
+    "totalCost": 0.08400000000000003,
+    "estimatedTokens": 0
+  }
+}
