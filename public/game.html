@@ -2690,17 +2690,21 @@ if (state.ferocity != null) {
     `;
     document.body.appendChild(overlay);
 
-    // Populate character portraits
-    if (state.chars && state.chars.length > 0) {
+    // Populate character portraits (with delay to ensure state is loaded)
+    setTimeout(() => {
       const portraitsDiv = document.getElementById('loading-portraits');
-      state.chars.forEach(ch => {
-        const img = document.createElement('img');
-        img.src = ch.portrait || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23333" width="80" height="80"/%3E%3C/svg%3E';
-        img.style.cssText = 'width:80px;height:80px;border-radius:8px;border:2px solid rgba(212,175,55,0.5);object-fit:cover;';
-        img.title = ch.name;
-        portraitsDiv.appendChild(img);
-      });
-    }
+      if (!portraitsDiv) return;
+      if (state && state.chars && state.chars.length > 0) {
+        portraitsDiv.innerHTML = ''; // Clear placeholders
+        state.chars.forEach(ch => {
+          const img = document.createElement('img');
+          img.src = ch.portrait || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect fill="%23333" width="80" height="80"/%3E%3C/svg%3E';
+          img.style.cssText = 'width:80px;height:80px;border-radius:8px;border:2px solid rgba(212,175,55,0.5);object-fit:cover;';
+          img.title = ch.name;
+          portraitsDiv.appendChild(img);
+        });
+      }
+    }, 100);
 
     let msgIdx = 0;
     const msgInterval = setInterval(() => {
