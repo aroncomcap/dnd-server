@@ -111,9 +111,8 @@ async function queueTemplateGeneration(monsterSlug, eventType, persona, monsterM
 }
 
 async function generateTemplates(monsterSlug, eventType, persona, monsterMeta) {
-  // Lazy require to avoid circular dependency
-  const Anthropic = require('@anthropic-ai/sdk');
-  const anthropic = new Anthropic();
+  // Lazy require to avoid circular dependency: server requires template-engine
+  const { anthropic } = require('./server');
 
   const monsterName = monsterMeta?.name || monsterSlug.replace(/-/g, ' ');
   const monsterDesc = monsterMeta?.description || monsterMeta?.personality || '';

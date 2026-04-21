@@ -1,6 +1,5 @@
 'use strict';
 
-const Anthropic = require('@anthropic-ai/sdk');
 const templateEngine = require('./template-engine');
 const { formatPlanForPrompt } = require('./encounter-designer');
 
@@ -374,7 +373,8 @@ function shouldCallSonnetForFlavor(combatState) {
  * Emits: dm_stream_start, dm_stream_chunk, dm_stream_end via io.
  */
 async function callSonnetNarration(gameId, gameConfig, gs, characterName, actionText, io) {
-  const anthropic = new Anthropic();
+  // Lazy require to avoid circular dependency: server requires narration-pipeline
+  const { anthropic } = require('./server');
 
   const systemPrompt = buildNarrationPrompt(gameId, gameConfig, gs);
   const userMessage = buildUserMessage(gs, characterName, actionText);
@@ -429,7 +429,8 @@ async function callSonnetNarration(gameId, gameConfig, gs, characterName, action
  * Haiku extraction API call. Returns parsed world state changes.
  */
 async function callHaikuExtraction(gameId, narration, actionText, worldState) {
-  const anthropic = new Anthropic();
+  // Lazy require to avoid circular dependency: server requires narration-pipeline
+  const { anthropic } = require('./server');
 
   const prompt = buildExtractionPrompt(narration, actionText, worldState);
 
@@ -465,7 +466,8 @@ async function callHaikuExtraction(gameId, narration, actionText, worldState) {
  * Haiku validation API call. Returns { violations: [] } on failure.
  */
 async function callHaikuValidation(gameId, narration, options, gameState) {
-  const anthropic = new Anthropic();
+  // Lazy require to avoid circular dependency: server requires narration-pipeline
+  const { anthropic } = require('./server');
 
   const prompt = buildValidationPrompt(narration, options, gameState);
 
