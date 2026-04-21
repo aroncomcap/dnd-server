@@ -2038,14 +2038,18 @@ let sceneAutoCollapseTimer = null;
 
 function showSceneImage(url, label) {
   if (!url) return;
+  sceneImg = document.getElementById('scene-img') || sceneImg;
+  if (!sceneImg) return;
   sceneImg.style.opacity = '0';
   sceneImg.src = url;
   const labelEl = document.getElementById('scene-label');
-  if (label) {
-    labelEl.textContent = label;
-    labelEl.style.display = 'block';
-  } else {
-    labelEl.style.display = 'none';
+  if (labelEl) {
+    if (label) {
+      labelEl.textContent = label;
+      labelEl.style.display = 'block';
+    } else {
+      labelEl.style.display = 'none';
+    }
   }
   sceneImg.onload = () => {
     scenePanel.style.display = 'block';
