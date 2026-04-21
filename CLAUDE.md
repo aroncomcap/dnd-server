@@ -1,10 +1,10 @@
-# Tavern Table — CLAUDE.md
-<!-- Last updated: 2026-04-18 -->
+# They Still Sing — CLAUDE.md
+<!-- Last updated: 2026-04-21 -->
 
 ## Project Overview
 Multiplayer RPG game server with AI Game Master (Claude as DM). Express.js + Socket.io + PostgreSQL on Railway. Discord bot integration. Supports D&D 5e, RuneQuest, and Custom systems.
 
-**URL:** https://dnd-server-production-9b61.up.railway.app
+**URL:** https://theystillsing.com
 **Repo:** github.com/aroncomcap/dnd-server
 **DB:** Railway PostgreSQL
 **Discord Bot:** TotMTable#4445
