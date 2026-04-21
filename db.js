@@ -843,13 +843,21 @@ async function getBugReports(gameId) {
 }
 
 async function updateBugReport(id, updates) {
+  // Whitelist allowed columns to prevent SQL injection
+  const allowedColumns = new Set(['status', 'ai_analysis', 'ai_fixes_applied']);
   const setClauses = [];
   const values = [];
   let paramCount = 1;
 
   for (const [key, value] of Object.entries(updates)) {
+    if (!allowedColumns.has(key)) continue; // skip invalid columns
     setClauses.push(`${key} = $${paramCount++}`);
     values.push(value);
+  }
+
+  // Return early if no valid columns to update
+  if (setClauses.length === 0) {
+    return null;
   }
 
   setClauses.push(`updated_at = NOW()`);
@@ -922,5 +930,4 @@ module.exports = {
   saveBugReport,
   getBugReports,
   updateBugReport,
-  pool,
 };

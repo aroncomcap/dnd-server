@@ -158,6 +158,15 @@ function parseStatsLocal(statsText) {
 
 const DEPLOY_TIME = new Date().toISOString();
 
+// ── Magic number constants ──────────────────────────────────────────────────────
+const MAX_CHAT_HISTORY = 16;
+const MAX_CONTEXT_CHARS = 50000;
+const MAX_CHAR_FIELD = 5000;
+const MAX_RULE_TEXT = 200;
+const MAX_ANON_MINUTES = 120;
+const WELCOME_BONUS_MINUTES = 600;
+const GAME_EVICTION_MINUTES = 60;
+
 function truncate(str, max) { return str ? String(str).slice(0, max) : ''; }
 
 const app = express();
@@ -205,7 +214,7 @@ app.get('/help', (req, res) => {
 // Diagnostic: combat engine errors (no auth — returns only error count in prod, full details with ?key=)
 app.get('/api/diag/combat-errors', (req, res) => {
   const errors = global._combatErrors || [];
-  if (req.query.key === process.env.ADMIN_DIAG_KEY || req.query.key === 'tavern2026') {
+  if (req.query.key === process.env.ADMIN_DIAG_KEY) {
     res.type('text/plain').send(errors.length ? errors.join('\n') : 'No errors.');
   } else {
     res.json({ count: errors.length, hint: 'Add ?key= for details' });
@@ -214,7 +223,7 @@ app.get('/api/diag/combat-errors', (req, res) => {
 
 app.get('/api/diag/parse-errors', (req, res) => {
   const errors = global._parseErrors || [];
-  if (req.query.key === process.env.ADMIN_DIAG_KEY || req.query.key === 'tavern2026') {
+  if (req.query.key === process.env.ADMIN_DIAG_KEY) {
     res.type('text/plain').send(errors.length ? errors.join('\n') : 'No parse errors.');
   } else {
     res.json({ count: errors.length });
@@ -250,7 +259,6 @@ const billingTicker = new BillingTicker(io, db);
 
 const DEFAULT_TURN_DURATION = 180; // seconds
 const IMAGE_COOLDOWN = 2;
-const MAX_CONTEXT_CHARS = 50000;
 
 // ── Per-game in-memory state ─────────────────────────────────────────────────
 const games = {}; // gameId -> { data, turnTimer, turnCount, imageUrl }
@@ -1403,8 +1411,8 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
       { role: 'user', content: prefix + userMessage },
       { role: 'assistant', content: historyContent }
     );
-    if (gd.chatHistory.length > 16) {
-      gd.chatHistory = gd.chatHistory.slice(-16);
+    if (gd.chatHistory.length > MAX_CHAT_HISTORY) {
+      gd.chatHistory = gd.chatHistory.slice(-MAX_CHAT_HISTORY);
     }
 
     // Apply world updates to game state
@@ -1805,8 +1813,8 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     { role: 'user', content: prefix + userMessage },
     { role: 'assistant', content: historyContent }
   );
-  if (gd.chatHistory.length > 16) {
-    gd.chatHistory = gd.chatHistory.slice(-16);
+  if (gd.chatHistory.length > MAX_CHAT_HISTORY) {
+    gd.chatHistory = gd.chatHistory.slice(-MAX_CHAT_HISTORY);
   }
 
   // If no options were extracted and this isn't an auto-action, make a cheap follow-up call
@@ -2304,7 +2312,7 @@ app.post('/api/games/:id/rules', requireAuth, async (req, res) => {
     const game = await db.getGame(gameId);
     if (!game) return res.status(404).json({ error: 'Game not found' });
 
-    const rule = await db.addRuleCorrectionFull(gameId, text.trim().slice(0, 200), category, req.user.id, null, false, is_private || false, game.system);
+    const rule = await db.addRuleCorrectionFull(gameId, text.trim().slice(0, MAX_RULE_TEXT), category, req.user.id, null, false, is_private || false, game.system);
 
     // Refresh game state
     const gs = getGameState(gameId);
@@ -2319,7 +2327,7 @@ app.post('/api/games/:id/rules', requireAuth, async (req, res) => {
 app.patch('/api/rules/:id', requireAuth, async (req, res) => {
   const { text } = req.body;
   if (!text || !text.trim()) return res.status(400).json({ error: 'Text required' });
-  await db.updateRuleCorrection(req.params.id, text.trim().slice(0, 200));
+  await db.updateRuleCorrection(req.params.id, text.trim().slice(0, MAX_RULE_TEXT));
   res.json({ success: true });
 });
 
@@ -3157,7 +3165,7 @@ setInterval(() => {
     const clients = getConnectedClients(gameId);
     if (clients === 0) {
       if (!gs._lastActivity) gs._lastActivity = now;
-      if (now - gs._lastActivity > 3600000) { // 1 hour
+      if (now - gs._lastActivity > GAME_EVICTION_MINUTES * 60 * 1000) { // 1 hour
         clearTimeout(gs.turnTimer);
         delete games[gameId];
         console.log(`Evicted idle game from memory: ${gameId}`);
@@ -3197,6 +3205,18 @@ io.use((socket, next) => {
   }
   next();
 });
+
+// ── Safe Socket Handler Wrapper ────────────────────────────────────────────────
+function safeSocketHandler(handler) {
+  return async (data, callback) => {
+    try {
+      return await handler(data, callback);
+    } catch (err) {
+      console.error('[Socket Error]', err.message);
+      if (callback) callback({ error: err.message });
+    }
+  };
+}
 
 // ── Socket Events ─────────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
@@ -3304,10 +3324,10 @@ io.on('connection', (socket) => {
 
     data.name = truncate(data.name, 50);
     const charData = {
-      statsText: truncate(data.statsText, 5000) || '',
-      personality: truncate(data.personality, 5000) || 'Brave and curious',
-      standardActions: truncate(data.standardActions, 5000) || '',
-      backstory: truncate(data.backstory, 5000) || '',
+      statsText: truncate(data.statsText, MAX_CHAR_FIELD) || '',
+      personality: truncate(data.personality, MAX_CHAR_FIELD) || 'Brave and curious',
+      standardActions: truncate(data.standardActions, MAX_CHAR_FIELD) || '',
+      backstory: truncate(data.backstory, MAX_CHAR_FIELD) || '',
       token: data.token === null ? null : (data.token || (existing && existing.token) || null),
     };
 
@@ -3401,7 +3421,7 @@ io.on('connection', (socket) => {
     // Block anonymous users past 120-minute limit
     if (socket.anonId && !socket.userId) {
       const anonSession = await db.getAnonSession(socket.anonId);
-      if (anonSession && anonSession.minutes_used >= 120) {
+      if (anonSession && anonSession.minutes_used >= MAX_ANON_MINUTES) {
         socket.emit('signup_required', {
           minutesUsed: anonSession.minutes_used,
           message: 'Create a free account to keep playing. It takes 10 seconds.',
@@ -3496,7 +3516,7 @@ io.on('connection', (socket) => {
       discord.onSystem(gameId, { text: `💭 [OOC] ${playerName}: ${message}\n💭 [GM]: ${reply}` }).catch(() => {});
 
       // Auto-save OOC instruction as a rules correction
-      await db.addRuleCorrection(gameId, message.slice(0, 200), 'ooc');
+      await db.addRuleCorrection(gameId, message.slice(0, MAX_RULE_TEXT), 'ooc');
       gs.rulesCorrections = await db.getRulesCorrections(gameId);
 
       // Add 1 minute to current turn timer
@@ -3663,10 +3683,10 @@ io.on('connection', (socket) => {
     const gs = getGameState(gameId);
     const char = gs.data.characters[data.name];
     if (!char) return;
-    if (data.statsText !== undefined) char.statsText = truncate(data.statsText, 5000);
-    if (data.personality !== undefined) char.personality = truncate(data.personality, 5000);
-    if (data.standardActions !== undefined) char.standardActions = truncate(data.standardActions, 5000);
-    if (data.backstory !== undefined) char.backstory = truncate(data.backstory, 5000);
+    if (data.statsText !== undefined) char.statsText = truncate(data.statsText, MAX_CHAR_FIELD);
+    if (data.personality !== undefined) char.personality = truncate(data.personality, MAX_CHAR_FIELD);
+    if (data.standardActions !== undefined) char.standardActions = truncate(data.standardActions, MAX_CHAR_FIELD);
+    if (data.backstory !== undefined) char.backstory = truncate(data.backstory, MAX_CHAR_FIELD);
     await db.upsertCharacter(gameId, data.name, char);
     socket.emit('system', { text: `✅ ${data.name}'s character sheet saved.` });
     io.to(gameId).emit('character_updated', { name: data.name, character: char });
@@ -3683,37 +3703,37 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('skip_turn', async () => {
+  socket.on('skip_turn', safeSocketHandler(async () => {
     const gameId = socket.gameId;
     if (!gameId) return;
     await gameEngine.skipTurn(gameId);
-  });
+  }));
 
-  socket.on('set_pillars', async (data) => {
+  socket.on('set_pillars', safeSocketHandler(async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
     await gameEngine.setPillars(gameId, data.exploration || 33, data.combat || 33, data.social || 34);
-  });
+  }));
 
-  socket.on('set_verbosity', async (data) => {
+  socket.on('set_verbosity', safeSocketHandler(async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
     await gameEngine.setVerbosity(gameId, data.level);
-  });
+  }));
 
-  socket.on('set_ferocity', async (data) => {
+  socket.on('set_ferocity', safeSocketHandler(async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
     await gameEngine.setFerocity(gameId, data.level);
-  });
+  }));
 
-  socket.on('set_dm_persona', async (data) => {
+  socket.on('set_dm_persona', safeSocketHandler(async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
     gameEngine.setDmPersona(gameId, data.persona);
-  });
+  }));
 
-  socket.on('set_image_style', async (style) => {
+  socket.on('set_image_style', safeSocketHandler(async (style) => {
     const gameId = socket.gameId;
     if (!gameId || !ART_STYLES[style]) return;
     const gs = getGameState(gameId);
@@ -3721,13 +3741,13 @@ io.on('connection', (socket) => {
     await db.pool.query('UPDATE games SET image_style = $1 WHERE id = $2', [style, gameId])
       .catch(e => console.error('[style-save]', e));
     io.to(gameId).emit('setting_changed', { key: 'imageStyle', value: style });
-  });
+  }));
 
-  socket.on('set_timer', (data) => {
+  socket.on('set_timer', safeSocketHandler(async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
     gameEngine.setTimer(gameId, data.seconds);
-  });
+  }));
 
   socket.on('set_billing_mode', async (data) => {
     const gameId = socket.gameId;

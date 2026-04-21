@@ -24,6 +24,7 @@ class BillingTicker {
     this.tickers = {};          // gameId → intervalId
     this.spectatorTimers = {};  // gameId → { userId → setTimeout id }
     this.autonomousTicks = {};  // gameId → count (for half-rate deduction)
+    this.expiryTickCounts = {};  // gameId → count (for hourly expiry checks)
     this.gameStates = {};       // gameId → reference to in-memory game state
     this.payers = {};           // gameId → payerId passed at start
   }
@@ -61,6 +62,7 @@ class BillingTicker {
       delete this.tickers[gameId];
     }
     delete this.autonomousTicks[gameId];
+    delete this.expiryTickCounts[gameId];
     delete this.payers[gameId];
     delete this.gameStates[gameId];
 
@@ -141,18 +143,20 @@ class BillingTicker {
     if (billingMode === 'host_pays') {
       if (game.host_user_id) userIds = [game.host_user_id];
     } else {
-      // player_pays: bill each connected user
-      const sockets = await this.io.in(gameId).fetchSockets();
+      // player_pays: bill each connected user (reuse sockets from earlier)
       userIds = [...new Set(sockets.map(s => s.userId).filter(Boolean))];
     }
 
-    for (const userId of userIds) {
-      // Run expiry checks once per hour (every 60 ticks) to avoid per-tick DB overhead
-      this._expiryTickCount = (this._expiryTickCount || 0) + 1;
-      if (this._expiryTickCount % 60 === 0) {
+    // Run expiry checks once per hour (every 60 ticks) to avoid per-tick DB overhead
+    this.expiryTickCounts[gameId] = (this.expiryTickCounts[gameId] || 0) + 1;
+    if (this.expiryTickCounts[gameId] % 60 === 0) {
+      for (const userId of userIds) {
         await this.db.checkAndResetFree(userId);
         await this.db.expireOldCredits(userId);
       }
+    }
+
+    for (const userId of userIds) {
 
       const balance = await this.db.getUserBalance(userId);
       if (!balance) continue;
