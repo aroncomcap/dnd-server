@@ -2372,10 +2372,14 @@ function toggleCombatLog() {
 
 function showReactionPrompt(data) {
   const modal = document.getElementById('reaction-modal');
-  document.getElementById('reaction-title').textContent = (data.type || 'Reaction').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  document.getElementById('reaction-context').textContent = (data.context?.damage ? `Taking ${data.context.damage} damage. ` : '') + `DC ${data.context?.dc || 10} save required.`;
-
+  const titleEl = document.getElementById('reaction-title');
+  const contextEl = document.getElementById('reaction-context');
   const optionsDiv = document.getElementById('reaction-options');
+
+  if (!modal || !titleEl || !contextEl || !optionsDiv) return;
+
+  titleEl.textContent = (data.type || 'Reaction').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  contextEl.textContent = (data.context?.damage ? `Taking ${data.context.damage} damage. ` : '') + `DC ${data.context?.dc || 10} save required.`;
   optionsDiv.innerHTML = '';
   for (const opt of (data.options || [])) {
     const btn = document.createElement('button');
