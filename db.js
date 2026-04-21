@@ -1,10 +1,133 @@
 const crypto = require('crypto');
 const { Pool } = require('pg');
 
+// ── Pool Configuration ──────────────────────────────────────────────────────
+// Production-grade configuration with tunable parameters
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL?.includes('localhost') ? false : { rejectUnauthorized: false },
+  // Connection pool sizing
+  min: parseInt(process.env.DB_POOL_MIN || '2', 10),
+  max: parseInt(process.env.DB_POOL_MAX || '20', 10),
+  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS || '30000', 10),
+  connectionTimeoutMillis: parseInt(process.env.DB_CONN_TIMEOUT_MS || '5000', 10),
+  // Application metadata for monitoring
+  application_name: 'tavern-table-app',
+  // Statement timeout applied per connection (in PostgreSQL)
+  statement_timeout: parseInt(process.env.DB_STATEMENT_TIMEOUT_MS || '30000', 10),
 });
+
+// ── Slow Query Detection ────────────────────────────────────────────────────
+// Threshold in ms for warning and critical logging (0 = disabled)
+const SLOW_QUERY_WARN_MS = parseInt(process.env.DB_SLOW_QUERY_THRESHOLD_MS || '1000', 10);
+const SLOW_QUERY_CRITICAL_MS = 5000;
+
+let slowQueryMonitorEnabled = false;
+
+function initSlowQueryMonitor() {
+  if (slowQueryMonitorEnabled || SLOW_QUERY_WARN_MS === 0) return;
+  slowQueryMonitorEnabled = true;
+
+  const originalQuery = pool.query.bind(pool);
+  pool.query = async function wrappedQuery(...args) {
+    const startTime = Date.now();
+    try {
+      const result = await originalQuery(...args);
+      const duration = Date.now() - startTime;
+
+      // Extract query text and parameters
+      const query = typeof args[0] === 'string' ? args[0] : args[0]?.text || '';
+      const params = Array.isArray(args[1]) ? args[1] : [];
+
+      // Log warnings for slow queries
+      if (duration > SLOW_QUERY_CRITICAL_MS) {
+        const paramStr = params.slice(0, 3).map(p =>
+          typeof p === 'string' ? `"${p.substring(0, 50)}"` : String(p)
+        ).join(', ') + (params.length > 3 ? '...' : '');
+        console.warn(
+          `[POOL_SLOW_CRITICAL] ${new Date().toISOString()} | ${duration}ms | ${query.substring(0, 100)} | params: [${paramStr}]`
+        );
+      } else if (duration > SLOW_QUERY_WARN_MS) {
+        const paramStr = params.slice(0, 3).map(p =>
+          typeof p === 'string' ? `"${p.substring(0, 50)}"` : String(p)
+        ).join(', ') + (params.length > 3 ? '...' : '');
+        console.warn(
+          `[POOL_SLOW_QUERY] ${new Date().toISOString()} | ${duration}ms | ${query.substring(0, 100)}`
+        );
+      }
+
+      return result;
+    } catch (err) {
+      const duration = Date.now() - startTime;
+      throw err;
+    }
+  };
+}
+
+// ── Pool Health Check ───────────────────────────────────────────────────────
+let healthCheckIntervalId = null;
+let healthCheckFailures = 0;
+const HEALTH_CHECK_MAX_FAILURES = 3;
+
+async function initPoolHealthCheck() {
+  // Verify pool is working before starting interval
+  try {
+    await pool.query('SELECT 1');
+  } catch (err) {
+    console.error(
+      `[POOL_ERROR] ${new Date().toISOString()} | INIT_FAILED | Pool initialization check failed: ${err.message}`
+    );
+    return;
+  }
+
+  // Start recurring health check every 60 seconds
+  healthCheckIntervalId = setInterval(async () => {
+    try {
+      const startTime = Date.now();
+      await pool.query('SELECT 1');
+      const duration = Date.now() - startTime;
+      healthCheckFailures = 0; // reset on success
+
+      // Log pool stats on successful health check
+      const poolStats = {
+        activeClients: pool._clients ? pool._clients.length : 0,
+        idleClients: pool._idle ? pool._idle.length : 0,
+        waitingClients: pool._queue ? pool._queue.length : 0,
+        duration,
+      };
+      // Only log if interesting (queue building up or degraded response)
+      if (poolStats.waitingClients > 0 || duration > 100) {
+        console.log(
+          `[POOL_HEALTH] ${new Date().toISOString()} | OK | active=${poolStats.activeClients} idle=${poolStats.idleClients} waiting=${poolStats.waitingClients} duration=${duration}ms`
+        );
+      }
+    } catch (err) {
+      healthCheckFailures++;
+      if (healthCheckFailures >= HEALTH_CHECK_MAX_FAILURES) {
+        console.error(
+          `[POOL_CRITICAL] ${new Date().toISOString()} | HEALTH_CHECK_FAILED_${healthCheckFailures}x | ${err.message}`
+        );
+      } else {
+        console.warn(
+          `[POOL_ERROR] ${new Date().toISOString()} | HEALTH_CHECK_${healthCheckFailures} | ${err.message}`
+        );
+      }
+    }
+  }, 60000); // 60 seconds
+
+  healthCheckIntervalId.unref(); // don't keep process alive
+}
+
+// ── Pool Error Handler ──────────────────────────────────────────────────────
+pool.on('error', (err, client) => {
+  console.error(
+    `[POOL_ERROR] ${new Date().toISOString()} | ${err.code || 'UNKNOWN'} | ${err.message}`
+  );
+});
+
+// Initialize monitoring on module load
+initSlowQueryMonitor();
+initPoolHealthCheck();
 
 // ── Schema ───────────────────────────────────────────────────────────────────
 async function initDB() {
@@ -868,6 +991,14 @@ async function updateBugReport(id, updates) {
   return rows[0];
 }
 
+// ── Graceful Shutdown ──────────────────────────────────────────────────────
+function shutdownPoolHealthCheck() {
+  if (healthCheckIntervalId) {
+    clearInterval(healthCheckIntervalId);
+    healthCheckIntervalId = null;
+  }
+}
+
 module.exports = {
   pool,
   initDB,
@@ -930,4 +1061,8 @@ module.exports = {
   saveBugReport,
   getBugReports,
   updateBugReport,
+  // Pool monitoring exports
+  initPoolHealthCheck,
+  initSlowQueryMonitor,
+  shutdownPoolHealthCheck,
 };
