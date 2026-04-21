@@ -468,6 +468,8 @@ describe('Integration: Prompt formatting', () => {
 
     if (result.hit) {
       assert.ok(text.includes('HIT'), 'hit attack should say HIT');
+    } else if (result.fumble) {
+      assert.ok(text.includes('FUMBLE'), 'fumbled attack should say FUMBLE');
     } else {
       assert.ok(text.includes('MISS'), 'miss attack should say MISS');
     }
