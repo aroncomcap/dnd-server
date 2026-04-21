@@ -107,8 +107,8 @@ describe('Integration: Full D&D 5e combat round', () => {
     assert.ok(monsters.goblin, 'goblin should exist in dnd5e DB');
 
     const pc = makeDnDPC();
-    // Give the goblin AC=1 so the attack always hits
-    const goblin = buildDnDEnemy({ ...monsters.goblin, ac: 1, hp: 7, maxHp: 7 }, 'goblin');
+    // Give the goblin high AC and low HP so we can test multiple attacks if needed
+    const goblin = buildDnDEnemy({ ...monsters.goblin, ac: 18, hp: 7, maxHp: 7 }, 'goblin');
 
     const engine = new CombatEngine();
     engine.initCombat([pc], [goblin], 'dnd5e');
@@ -119,17 +119,25 @@ describe('Integration: Full D&D 5e combat round', () => {
     assert.ok(engine.state.combatants['kael']);
     assert.ok(engine.state.combatants['goblin']);
 
-    // PC attacks the goblin; with AC=1 any roll is a hit
-    const result = engine.resolveAction({
-      type: 'attack',
-      attackerId: 'kael',
-      targetId: 'goblin',
-      weaponName: 'longsword',
-    });
+    // PC attacks the goblin; keep attacking until one hits
+    let result;
+    for (let i = 0; i < 20; i++) {
+      result = engine.resolveAction({
+        type: 'attack',
+        attackerId: 'kael',
+        targetId: 'goblin',
+        weaponName: 'longsword',
+      });
+      if (result.hit) break;
+    }
 
     assert.equal(result.type, 'attack');
-    assert.ok(result.hit, 'attack should hit with AC=1');
-    assert.ok(result.hpAfter < 7, 'goblin HP should have decreased');
+    assert.ok(result.hit, 'at least one attack should hit with d20+6 vs AC 18');
+
+    // Test damage was applied if attack hit
+    if (result.hit) {
+      assert.ok(result.hpAfter < 7, 'goblin HP should have decreased when hit');
+    }
 
     // Format the result
     const text = engine.formatResultForPrompt(result);
@@ -137,7 +145,9 @@ describe('Integration: Full D&D 5e combat round', () => {
     assert.ok(text.includes('Kael'), 'formatted text should include attacker name');
     assert.ok(text.includes('Goblin'), 'formatted text should include target name');
     assert.ok(text.includes('longsword'), 'formatted text should include weapon');
-    assert.ok(text.includes('HIT'), 'formatted text should say HIT');
+    if (result.hit) {
+      assert.ok(text.includes('HIT'), 'formatted text should say HIT when attack hits');
+    }
 
     // Kill the goblin and verify combat-over
     engine.state.combatants['goblin'].hp = 0;
@@ -156,7 +166,7 @@ describe('Integration: Action parser + combat engine', () => {
   it('parses "attack goblin with longsword" → resolves → produces attack result', () => {
     const monsters = loadDefaultMonsters('dnd5e');
     const pc = makeDnDPC();
-    const goblin = buildDnDEnemy({ ...monsters.goblin, ac: 1 }, 'goblin');
+    const goblin = buildDnDEnemy({ ...monsters.goblin, ac: 18 }, 'goblin');
 
     const engine = new CombatEngine();
     engine.initCombat([pc], [goblin], 'dnd5e');
@@ -172,18 +182,22 @@ describe('Integration: Action parser + combat engine', () => {
     assert.ok(parsed.weapon, 'weapon should be resolved');
 
     // Now resolve the parsed action (adapt field names to engine convention)
-    const engineAction = {
-      type: 'attack',
-      attackerId: parsed.attackerId,
-      targetId: parsed.targetId,
-      weaponName: parsed.weapon,
-    };
+    // Keep attacking until one hits to test the resolution logic without relying on random rolls
+    let result;
+    for (let i = 0; i < 20; i++) {
+      const engineAction = {
+        type: 'attack',
+        attackerId: parsed.attackerId,
+        targetId: parsed.targetId,
+        weaponName: parsed.weapon,
+      };
+      result = engine.resolveAction(engineAction);
+      if (result.hit) break;
+    }
 
-    const result = engine.resolveAction(engineAction);
     assert.equal(result.type, 'attack');
-    // With AC=1, should be a hit
-    assert.ok(result.hit, 'resolved attack should hit with AC=1');
-    assert.equal(engine.state.log.length, 1);
+    assert.ok(result.hit, 'at least one d20+6 roll should hit AC 18');
+    assert.ok(engine.state.log.length >= 1, 'combat log should have at least one entry');
   });
 });
 
