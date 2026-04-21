@@ -359,9 +359,31 @@ Server-side combat engine that owns all dice rolls, math, HP tracking, and condi
 
 ### Testing
 ```bash
-npm test           # node --test tests/*.test.js (310 tests)
+npm test           # node --test tests/*.test.js (532 tests)
 npm run test:watch # watch mode
 ```
+
+**Core test suites (532 tests total):**
+
+| Test File | Tests | Purpose |
+|-----------|-------|---------|
+| `tests/parseResponse.test.js` | 29 | Marker/block parsing from AI responses (NARRATION/OPTIONS/WORLD/SCENE) |
+| `tests/socket-contract.test.js` | 39 | Socket emit message shape validation (dm_message, player_message, turn_changed, etc.) |
+| `tests/combat-engine.test.js` | 99 | Combat state, turn routing, condition/effect tracking |
+| `tests/action-parser.test.js` | 85 | Player intent parsing (attacks, spells, skills, reactions) |
+| `tests/dnd5e-resolver.test.js` | 54 | D&D 5e rule resolution (rolls, saves, damage, conditions) |
+| `tests/runequest-resolver.test.js` | 28 | RuneQuest rule resolution (strike ranks, hit locations, fumbles) |
+| `tests/dice.test.js` | 18 | RNG and dice rolls (d4-d100, advantage, disadvantage) |
+| `tests/stat-parser.test.js` | 14 | Character stats extraction from text |
+| `tests/encounter-designer.test.js` | 31 | Difficulty scaling, monster selection, adventuring day planning |
+| `tests/monster-lookup.test.js` | 19 | Monster resolution from DB/JSON/AI |
+| `tests/narration-pipeline.test.js` | 25 | Sonnet/Haiku split pipeline orchestration |
+| And 10+ more specialized tests | ~95 | Integration, template engine, NPC personality, etc. |
+
+**Prevention focuses:**
+- **parseResponse:** Tests all marker variations (---OPTIONS---, ## OPTIONS, missing markers, malformed blocks) — catches AI output parsing bugs before they break games
+- **socket-contract:** Validates every server→client message has required fields (text/options/forPlayer for dm_message, etc.) — catches silent failures where clients receive malformed data
+- **Combat:** Full D&D 5e + RuneQuest rules validation, effect tracking, death saves, concentration
 
 ### Key Files
 | File | Purpose |
