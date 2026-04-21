@@ -152,7 +152,7 @@ if (process.env.GOOGLE_CLIENT_ID) {
   passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: '/auth/google/callback',
+    callbackURL: (process.env.BASE_URL || 'https://theystillsing.com') + '/auth/google/callback',
   }, async (accessToken, refreshToken, profile, done) => {
     try {
       const email = profile.emails?.[0]?.value?.toLowerCase();
@@ -181,7 +181,7 @@ if (process.env.DISCORD_CLIENT_ID) {
   passport.use(new DiscordStrategy({
     clientID: process.env.DISCORD_CLIENT_ID,
     clientSecret: process.env.DISCORD_CLIENT_SECRET,
-    callbackURL: '/auth/discord/callback',
+    callbackURL: (process.env.BASE_URL || 'https://theystillsing.com') + '/auth/discord/callback',
     scope: ['identify', 'email'],
   }, async (accessToken, refreshToken, profile, done) => {
     try {
