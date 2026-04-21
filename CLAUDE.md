@@ -295,12 +295,17 @@ Requires `is_admin = TRUE`. Features:
 - `/health` endpoint for Railway health checks
 
 ## Deployment
+Railway automatically deploys main branch via GitHub webhook. No manual deploy step needed.
+
 ```bash
-cd "/Users/aron/Dropbox (Personal)/claude/dnd-server"
-git push origin main && railway up --detach
+# Just push to main — Railway deploys automatically (~10-30 seconds)
+git push origin main
 ```
-Check logs: `railway logs`
-Check costs: `GET /api/costs`
+
+To monitor deployment:
+- Check logs: `railway logs` (from project directory)
+- View live metrics: `GET /api/costs` (cost tracking)
+- Dashboard: https://railway.com/project/54f5c441-0d4b-4266-befc-ac4c35fbb697/services
 
 ## Environment Variables (Railway)
 | Variable | Purpose | Required |
