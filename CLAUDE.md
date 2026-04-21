@@ -15,7 +15,7 @@ Multiplayer RPG game server with AI Game Master (Claude as DM). Express.js + Soc
 - Together AI FLUX.1-schnell for images ($0.003/image)
 - Stripe for payments
 - Single-page HTML files (no framework), vanilla JS, CSS
-- Railway deployment (main branch auto-deploys via `railway up`)
+- Railway deployment (main branch auto-deploys via GitHub webhook, ~10-30 seconds after push)
 
 ## Key Files
 | File | Lines | Purpose |
