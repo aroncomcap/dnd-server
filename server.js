@@ -582,6 +582,11 @@ async function resolveEnemyTurns(gameId, gameConfig) {
   const results = [];
   const resolver = engine.getResolver();
 
+  // OPTIMIZATION: Parallelize enemy API calls
+  // Step 1: Collect all active enemy combatants and their decision prompts
+  const enemyDecisions = [];
+  const tempEngine = { ...engine.state, turnIndex: engine.state.turnIndex }; // Snapshot current position
+
   while (true) {
     const current = engine.getCurrentTurn();
     if (!current || current.type !== 'Enemy') break;
@@ -611,22 +616,57 @@ Can: ${availableActions.slice(0, 6).map(a => a.label).join(', ')}
 Targets: ${pcs.map(p => `${p.name}(${p.id},${p.hp ?? p.totalHp}HP${p.concentrating ? ',conc:' + p.concentrating : ''})`).join(', ')}
 Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
 
-    let actionType = 'attack';
-    let targetId = pcs[0]?.id;
+    // Queue up API call without awaiting
+    enemyDecisions.push({
+      enemyId: current.id,
+      name: current.name,
+      weaponName: current.weapons?.[0]?.name,
+      prompt: tacticalPrompt,
+    });
 
-    try {
-      const response = await anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001', max_tokens: 80,
-        messages: [{ role: 'user', content: tacticalPrompt }],
-      });
-      const text = response.content[0].text.trim();
-      const m = text.match(/ACTION:\s*\S+\s+(\S+)\s+(\S+)/);
-      if (m) { actionType = m[1]; targetId = m[2]; }
-    } catch (e) {
-      console.error('Enemy tactics error:', e.message);
-    }
+    if (engine.isCombatOver().over) break;
+    engine.advanceTurn();
+  }
 
-    const weaponName = current.weapons?.[0]?.name;
+  // Step 2: Fetch ALL tactical decisions in parallel
+  const decisions = await Promise.all(
+    enemyDecisions.map(async (enemy) => {
+      let actionType = 'attack';
+      let targetId = Object.values(engine.state.combatants).find(c => c.type === 'PC')?.id;
+
+      try {
+        const response = await anthropic.messages.create({
+          model: 'claude-haiku-4-5-20251001', max_tokens: 80,
+          messages: [{ role: 'user', content: enemy.prompt }],
+        });
+        const text = response.content[0].text.trim();
+        const m = text.match(/ACTION:\s*\S+\s+(\S+)\s+(\S+)/);
+        if (m) { actionType = m[1]; targetId = m[2]; }
+      } catch (e) {
+        console.error(`Enemy tactics error for ${enemy.name}:`, e.message);
+      }
+
+      return { enemyId: enemy.enemyId, actionType, targetId, weaponName: enemy.weaponName };
+    })
+  );
+
+  // Step 3: Reset engine to initial position and apply decisions sequentially (deterministic)
+  engine.state.turnIndex = tempEngine.turnIndex;
+
+  while (true) {
+    const current = engine.getCurrentTurn();
+    if (!current || current.type !== 'Enemy') break;
+    if (resolver.checkDeath(current).status === 'dead') { engine.advanceTurn(); continue; }
+
+    const pcs = Object.values(engine.state.combatants).filter(c => c.type === 'PC' && (c.hp > 0 || (c.totalHp && c.totalHp > 0)));
+    if (pcs.length === 0) break;
+
+    // Find this enemy's pre-computed decision
+    const decision = decisions.find(d => d.enemyId === current.id);
+    const actionType = decision?.actionType || 'attack';
+    const targetId = decision?.targetId || pcs[0]?.id;
+    const weaponName = decision?.weaponName;
+
     const result = engine.resolveAction({
       type: actionType.startsWith('attack') ? 'attack' : actionType,
       attackerId: current.id,
