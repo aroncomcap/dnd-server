@@ -15,7 +15,7 @@ Multiplayer RPG game server with AI Game Master (Claude as DM). Express.js + Soc
 - Together AI FLUX.1-schnell for images ($0.003/image)
 - Stripe for payments
 - Single-page HTML files (no framework), vanilla JS, CSS
-- Railway deployment (main branch auto-deploys via GitHub webhook)
+- Railway deployment (main branch auto-deploys via GitHub webhook, ~10-30 seconds after push)
 
 ## Key Files
 | File | Lines | Purpose |
@@ -295,23 +295,17 @@ Requires `is_admin = TRUE`. Features:
 - `/health` endpoint for Railway health checks
 
 ## Deployment
-
 Railway automatically deploys main branch via GitHub webhook. No manual deploy step needed.
 
 ```bash
-# Push to main — Railway deploys automatically (~10-30 seconds)
+# Just push to main — Railway deploys automatically (~10-30 seconds)
 git push origin main
 ```
 
-To monitor:
-- Check logs: `railway logs`
-- View metrics: `GET /api/costs`
-- Dashboard: Visit your Railway project
-
-**Why GitHub auto-deploy (not `railway up`):**
-- `railway up --detach` = uploads local filesystem (can get stale, race conditions)
-- GitHub webhook = uses latest git commits (always correct, single source of truth)
-- Use only one method to eliminate sync issues
+To monitor deployment:
+- Check logs: `railway logs` (from project directory)
+- View live metrics: `GET /api/costs` (cost tracking)
+- Dashboard: https://railway.com/project/54f5c441-0d4b-4266-befc-ac4c35fbb697/services
 
 ## Environment Variables (Railway)
 | Variable | Purpose | Required |
@@ -371,13 +365,11 @@ Server-side combat engine that owns all dice rolls, math, HP tracking, and condi
 
 ### Testing
 ```bash
-npm test           # node --test tests/*.test.js (745 tests)
+npm test           # node --test tests/*.test.js (532 tests)
 npm run test:watch # watch mode
 ```
 
-**Total test count: 745 tests (~325ms execution)**
-
-**Unit tests (707 tests) — logic & state validation:**
+**Core test suites (532 tests total):**
 
 | Test File | Tests | Purpose |
 |-----------|-------|---------|
@@ -394,25 +386,10 @@ npm run test:watch # watch mode
 | `tests/narration-pipeline.test.js` | 25 | Sonnet/Haiku split pipeline orchestration |
 | And 10+ more specialized tests | ~95 | Integration, template engine, NPC personality, etc. |
 
-**Integration tests (38 tests) — end-to-end with real PostgreSQL:**
-
-| Test File | Tests | Purpose |
-|-----------|-------|---------|
-| `tests/integration-game-lifecycle.test.js` | 9 | Game creation, state persistence, character management, round-trip DB serialization |
-| `tests/integration-combat-flow.test.js` | 9 | Combat init, damage tracking, state persistence, reload, resume after game crash |
-| `tests/integration-billing.test.js` | 10 | Balance tracking, minute deduction, credit expiry, independent user balances |
-| `tests/integration-rules-corrections.test.js` | 10 | Rule persistence, prompt injection, game system filtering, private rules |
-
-**Integration test database:**
-- Tests use PostgreSQL (checks TEST_DATABASE_URL env var, defaults to `postgres://postgres:postgres@localhost:5432/tavern_test`)
-- If database unavailable: tests gracefully skip with message "⊘ Skipping tests: PostgreSQL not available" — non-blocking in CI
-- Helper: `tests/test-db-setup.js` — pool management, schema creation, test data cleanup
-
 **Prevention focuses:**
 - **parseResponse:** Tests all marker variations (---OPTIONS---, ## OPTIONS, missing markers, malformed blocks) — catches AI output parsing bugs before they break games
 - **socket-contract:** Validates every server→client message has required fields (text/options/forPlayer for dm_message, etc.) — catches silent failures where clients receive malformed data
 - **Combat:** Full D&D 5e + RuneQuest rules validation, effect tracking, death saves, concentration
-- **Integration:** Real PostgreSQL tests verify game state survives crashes, billing is accurate, rules inject correctly, and state never leaks between games
 
 ### Key Files
 | File | Purpose |
