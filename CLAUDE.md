@@ -403,6 +403,11 @@ npm run test:watch # watch mode
 | `tests/integration-billing.test.js` | 10 | Balance tracking, minute deduction, credit expiry, independent user balances |
 | `tests/integration-rules-corrections.test.js` | 10 | Rule persistence, prompt injection, game system filtering, private rules |
 
+**Integration test database:**
+- Tests use PostgreSQL (checks TEST_DATABASE_URL env var, defaults to `postgres://postgres:postgres@localhost:5432/tavern_test`)
+- If database unavailable: tests gracefully skip with message "⊘ Skipping tests: PostgreSQL not available" — non-blocking in CI
+- Helper: `tests/test-db-setup.js` — pool management, schema creation, test data cleanup
+
 **Prevention focuses:**
 - **parseResponse:** Tests all marker variations (---OPTIONS---, ## OPTIONS, missing markers, malformed blocks) — catches AI output parsing bugs before they break games
 - **socket-contract:** Validates every server→client message has required fields (text/options/forPlayer for dm_message, etc.) — catches silent failures where clients receive malformed data
