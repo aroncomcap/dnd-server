@@ -435,6 +435,26 @@ npm run test:watch # watch mode
 - Combat prompt injection replaces normal COMBAT section when `combatState.active`
 - `preTaggedOptions` are parsed async during player think time — no latency impact
 
+### Performance Optimizations
+
+#### Enemy Turn Parallelization (server.js `resolveEnemyTurns()`)
+- **Problem:** Enemy tactical decisions were fetched serially — 3 goblins × ~3s/call = ~9s total latency
+- **Solution:** Collects all enemy prompts → fires all Haiku API calls via `Promise.all()` → applies decisions sequentially
+- **Result:** ~3 enemies now resolve in ~3s parallel time instead of 9s serial
+- **Order preservation:** Decisions applied in original turn order for deterministic results
+- **Game logic:** Zero changes — only parallelization + minor refactoring
+
+#### Story Summary Fire-and-Forget
+- `refreshStorySummary()` called at lines 145 and 775 (game-engine.js) with `.catch()` — already non-blocking
+- Haiku API call + DB saves happen in background without blocking next turn
+- Already optimized — no additional work needed
+
+#### Other Background Tasks (Already Optimized)
+- Image generation (generateWorldArt) — fire-and-forget with error handling
+- Combat initiation (initiateCombat) — fire-and-forget
+- Database writes (Promise.all) — batch async, no await
+- Pre-tagged option parsing — async during player think time
+
 ## Common Gotchas
 - **Pipeline feature flag:** `SPLIT_PIPELINE` env var controls routing. If disabled or unset, all calls go through `legacyCallClaude()`. If pipeline errors, it auto-falls back to legacy.
 - **Monster templates cache:** In-memory Map + PostgreSQL `monster_templates` table. Clear cache by restarting server. Delete from DB to force regeneration.
