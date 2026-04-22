@@ -47,8 +47,32 @@ const MAX_ANON_SESSIONS_PER_IP = 3;
 
 const JWT_EXPIRY = '7d';
 const BCRYPT_ROUNDS = 12;
+const WELCOME_BONUS_MINUTES = 600;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
+
+async function mergeAnonymousSession(req, userId) {
+  if (!req.cookies?.tt_token) return;
+  try {
+    const decoded = jwt.verify(req.cookies.tt_token, JWT_SECRET);
+    if (decoded.anonymous && decoded.anonId) {
+      const anonSession = await db.getAnonSession(decoded.anonId);
+      if (anonSession && !anonSession.converted_to_user_id) {
+        await db.convertAnonSession(decoded.anonId, userId);
+        // Adjust welcome bonus: subtract anonymous playtime already used
+        const minutesUsed = anonSession.minutes_used || 0;
+        if (minutesUsed > 0) {
+          const remaining = Math.max(0, WELCOME_BONUS_MINUTES - minutesUsed);
+          await db.pool.query(
+            'UPDATE user_balances SET free_minutes_remaining = $1 WHERE user_id = $2',
+            [remaining, userId]
+          );
+        }
+      }
+    }
+  } catch { /* invalid anon token — ignore */ }
+}
+
 
 function generateToken(user) {
   return jwt.sign(
@@ -230,27 +254,7 @@ router.post('/auth/register', registerLimiter, async (req, res) => {
     const user = await db.getUserById(id);
 
     // Merge anonymous session if one exists
-    const anonToken = req.cookies?.tt_token;
-    if (anonToken) {
-      try {
-        const decoded = jwt.verify(anonToken, JWT_SECRET);
-        if (decoded.anonymous && decoded.anonId) {
-          const anonSession = await db.getAnonSession(decoded.anonId);
-          if (anonSession && !anonSession.converted_to_user_id) {
-            await db.convertAnonSession(decoded.anonId, id);
-            // Adjust welcome bonus: subtract anonymous playtime already used
-            const minutesUsed = anonSession.minutes_used || 0;
-            if (minutesUsed > 0) {
-              const remaining = Math.max(0, 600 - minutesUsed);
-              await db.pool.query(
-                'UPDATE user_balances SET free_minutes_remaining = $1 WHERE user_id = $2',
-                [remaining, id]
-              );
-            }
-          }
-        }
-      } catch { /* invalid anon token — ignore */ }
-    }
+    await mergeAnonymousSession(req, id);
 
     const token = generateToken(user);
     setTokenCookie(res, token);
@@ -448,26 +452,7 @@ router.get('/auth/google/callback', (req, res, next) => {
       const token = generateToken(user);
       setTokenCookie(res, token);
       // Merge anonymous session
-      const anonCookie = req.cookies?.tt_token;
-      if (anonCookie) {
-        try {
-          const anonDecoded = jwt.verify(anonCookie, JWT_SECRET);
-          if (anonDecoded.anonymous && anonDecoded.anonId) {
-            const anonSession = await db.getAnonSession(anonDecoded.anonId);
-            if (anonSession && !anonSession.converted_to_user_id) {
-              await db.convertAnonSession(anonDecoded.anonId, user.id);
-              const minutesUsed = anonSession.minutes_used || 0;
-              if (minutesUsed > 0) {
-                const remaining = Math.max(0, 600 - minutesUsed);
-                await db.pool.query(
-                  'UPDATE user_balances SET free_minutes_remaining = $1 WHERE user_id = $2',
-                  [remaining, user.id]
-                );
-              }
-            }
-          }
-        } catch { /* ignore JWT decode errors */ }
-      }
+      await mergeAnonymousSession(req, user.id);
       res.redirect('/lobby');
     } catch (error) {
       console.error('Google OAuth callback error:', error.message);
@@ -486,26 +471,7 @@ router.get('/auth/discord/callback', (req, res, next) => {
       const token = generateToken(user);
       setTokenCookie(res, token);
       // Merge anonymous session
-      const anonCookie = req.cookies?.tt_token;
-      if (anonCookie) {
-        try {
-          const anonDecoded = jwt.verify(anonCookie, JWT_SECRET);
-          if (anonDecoded.anonymous && anonDecoded.anonId) {
-            const anonSession = await db.getAnonSession(anonDecoded.anonId);
-            if (anonSession && !anonSession.converted_to_user_id) {
-              await db.convertAnonSession(anonDecoded.anonId, user.id);
-              const minutesUsed = anonSession.minutes_used || 0;
-              if (minutesUsed > 0) {
-                const remaining = Math.max(0, 600 - minutesUsed);
-                await db.pool.query(
-                  'UPDATE user_balances SET free_minutes_remaining = $1 WHERE user_id = $2',
-                  [remaining, user.id]
-                );
-              }
-            }
-          }
-        } catch { /* ignore JWT decode errors */ }
-      }
+      await mergeAnonymousSession(req, user.id);
       res.redirect('/lobby');
     } catch (error) {
       console.error('Discord OAuth callback error:', error.message);
