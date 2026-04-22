@@ -371,11 +371,13 @@ Server-side combat engine that owns all dice rolls, math, HP tracking, and condi
 
 ### Testing
 ```bash
-npm test           # node --test tests/*.test.js (532 tests)
+npm test           # node --test tests/*.test.js (745 tests)
 npm run test:watch # watch mode
 ```
 
-**Core test suites (532 tests total):**
+**Total test count: 745 tests (~325ms execution)**
+
+**Unit tests (707 tests) — logic & state validation:**
 
 | Test File | Tests | Purpose |
 |-----------|-------|---------|
@@ -392,10 +394,20 @@ npm run test:watch # watch mode
 | `tests/narration-pipeline.test.js` | 25 | Sonnet/Haiku split pipeline orchestration |
 | And 10+ more specialized tests | ~95 | Integration, template engine, NPC personality, etc. |
 
+**Integration tests (38 tests) — end-to-end with real PostgreSQL:**
+
+| Test File | Tests | Purpose |
+|-----------|-------|---------|
+| `tests/integration-game-lifecycle.test.js` | 9 | Game creation, state persistence, character management, round-trip DB serialization |
+| `tests/integration-combat-flow.test.js` | 9 | Combat init, damage tracking, state persistence, reload, resume after game crash |
+| `tests/integration-billing.test.js` | 10 | Balance tracking, minute deduction, credit expiry, independent user balances |
+| `tests/integration-rules-corrections.test.js` | 10 | Rule persistence, prompt injection, game system filtering, private rules |
+
 **Prevention focuses:**
 - **parseResponse:** Tests all marker variations (---OPTIONS---, ## OPTIONS, missing markers, malformed blocks) — catches AI output parsing bugs before they break games
 - **socket-contract:** Validates every server→client message has required fields (text/options/forPlayer for dm_message, etc.) — catches silent failures where clients receive malformed data
 - **Combat:** Full D&D 5e + RuneQuest rules validation, effect tracking, death saves, concentration
+- **Integration:** Real PostgreSQL tests verify game state survives crashes, billing is accurate, rules inject correctly, and state never leaks between games
 
 ### Key Files
 | File | Purpose |
