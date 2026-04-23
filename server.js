@@ -731,7 +731,7 @@ async function generateWorldArt(gameId, item) {
 
 // ── Cost Tracking & Rate Limiting ─────────────────────────────────────────────
 // (Moved to cost-tracker.js)
-const { estimateCost, logCost, checkRateLimit, getCostSummary, IMAGE_COST } = costTracker;
+const { estimateCost, logCost, checkRateLimit, getCostSummary, IMAGE_COST, MAX_CALLS_PER_HOUR } = costTracker;
 
 // ── Rolling Story Summary ─────────────────────────────────────────────────────
 async function refreshStorySummary(gameId, gameConfig) {
