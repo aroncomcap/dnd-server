@@ -3305,7 +3305,7 @@ io.on('connection', (socket) => {
 });
 
 // ── Game Engine API (used by Discord bot) ────────────────────────────────────
-const gameEngine = {
+const discordGameEngine = {
   getGameState,
 
   async playerAction(gameId, playerName, action) {
