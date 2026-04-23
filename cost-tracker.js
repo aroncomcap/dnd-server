@@ -63,4 +63,5 @@ module.exports = {
   checkRateLimit,
   MODEL_COSTS,
   IMAGE_COST,
+  MAX_CALLS_PER_HOUR,
 };
