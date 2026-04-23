@@ -1,5 +1,13 @@
 # They Still Sing — CLAUDE.md
-<!-- Last updated: 2026-04-21 -->
+<!-- Last updated: 2026-04-22 -->
+
+## Recent Fixes
+
+### 2026-04-22: Server Crash on Boot (MAX_CALLS_PER_HOUR)
+- **Issue:** ReferenceError: MAX_CALLS_PER_HOUR is not defined at boot
+- **Root Cause:** During modularization refactor (commit 1de317b), `cost-tracker.js` was extracted from `server.js` with `MAX_CALLS_PER_HOUR` constant definition, but the constant was not added to module.exports
+- **Fix:** Added `MAX_CALLS_PER_HOUR` to module.exports in `cost-tracker.js` (line 67)
+- **Status:** DEPLOYED - Railway auto-deployed 2026-04-22 ~01:55 UTC
 
 ## Project Overview
 Multiplayer RPG game server with AI Game Master (Claude as DM). Express.js + Socket.io + PostgreSQL on Railway. Discord bot integration. Supports D&D 5e, RuneQuest, and Custom systems.
