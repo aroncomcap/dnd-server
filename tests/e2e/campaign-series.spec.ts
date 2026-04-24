@@ -6,14 +6,15 @@ import { loginTestUserInBrowser } from './test-user';
  * Each game is a "session" in a multi-session campaign
  */
 
-test('Campaign Series: Multi-Session Campaign Level 1-2', async ({ page, baseURL }) => {
-  console.log(`\n🏰 CAMPAIGN SERIES - LEVEL 1-2`);
-  console.log(`🎯 Objective: Complete a campaign from level 1 to level 2\n`);
+test('Campaign Series: Multi-Session Campaign Level 1-3', async ({ page, baseURL }) => {
+  console.log(`\n🏰 CAMPAIGN SERIES - LEVEL 1-3`);
+  console.log(`🎯 Objective: Complete a campaign from level 1 to level 3\n`);
+  console.log(`📊 Capturing all narration, combat, and game events\n`);
 
   let totalTurns = 0;
   let gameCount = 0;
   let currentLevel = 1;
-  const targetLevel = 2;
+  const targetLevel = 3;
   const turnsPerLevel = 30;
 
   while (currentLevel < targetLevel) {
@@ -166,33 +167,36 @@ test('Campaign Series: Multi-Session Campaign Level 1-2', async ({ page, baseURL
         sessionTurns++;
         totalTurns++;
 
-        // Capture narration after action
+        // Capture narration and combat after action
         await page.waitForTimeout(1500); // Wait for narration to stream
-        const narration = await page.evaluate(() => {
-          // Get the last DM message from chat log
+        const content = await page.evaluate(() => {
           const chatLog = document.getElementById('chat-log');
-          if (!chatLog) return '';
+          if (!chatLog) return { narration: '', combat: false };
 
-          // Get all msg-dm elements and take the last one
+          // Get all msg-dm elements
           const allMsgs = document.querySelectorAll('#chat-log .msg-dm');
-          if (allMsgs.length === 0) return '';
+          if (allMsgs.length === 0) return { narration: '', combat: false };
 
           const lastMsg = allMsgs[allMsgs.length - 1];
-
-          // The message structure is: .msg-dm > (optional img/label) > div with content
-          // Get all divs and take the last one which should be the message body
           const divs = lastMsg.querySelectorAll('div');
-          if (divs.length === 0) return '';
+          if (divs.length === 0) return { narration: '', combat: false };
 
           const msgBody = divs[divs.length - 1];
           const text = (msgBody.textContent || '').trim();
 
-          return text.substring(0, 600);
+          // Check for combat indicators
+          const isCombat = /\b(COMBAT|attack|hit|miss|damage|spell|initiative)\b/i.test(text);
+
+          return {
+            narration: text.substring(0, 800),
+            combat: isCombat
+          };
         });
 
-        if (narration && narration.length > 50) {
-          console.log(`\n📖 Turn ${sessionTurns}:`);
-          console.log(narration.split('\n')[0]); // First line
+        if (content.narration && content.narration.length > 50) {
+          const indicator = content.combat ? '⚔️  COMBAT' : '📖 Narration';
+          console.log(`\n${indicator} - Turn ${sessionTurns}:`);
+          console.log(content.narration.split('\n')[0]); // First line
           console.log('');
         }
 
