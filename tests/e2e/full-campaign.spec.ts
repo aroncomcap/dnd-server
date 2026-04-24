@@ -31,16 +31,33 @@ test('Full Campaign: Play game from level 1-10', async ({ page, baseURL }) => {
 
   // Step 2: Navigate to new game form
   console.log(`\n2️⃣  CREATING GAME`);
-  await page.goto(`${baseURL}/new-game`, { waitUntil: 'networkidle', timeout: 30000 });
+  await page.goto(`${baseURL}/new-game`, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.waitForTimeout(2000);  // Extra wait for form to fully load
+
+  // Verify form is visible
+  const gameNameInput = page.locator('#game-name');
+  const formContent = page.locator('#form-content');
+
+  // Check if form content is visible
+  const formIsVisible = await formContent.isVisible().catch(() => false);
+  if (!formIsVisible) {
+    console.log(`⚠️  Form content not visible, checking page state...`);
+    const pageTitle = await page.title();
+    const pageUrl = page.url();
+    console.log(`   Title: ${pageTitle}`);
+    console.log(`   URL: ${pageUrl}`);
+    const bodyText = await page.locator('body').textContent();
+    console.log(`   Page has auth gate: ${bodyText?.includes('Enter the Tavern')}`);
+  }
 
   // Fill game creation form
-  const gameNameInput = page.locator('#game-name');
   const systemSelect = page.locator('#game-system');
   const sceneInput = page.locator('#scene-prompt');
   const partyInput = page.locator('#party-direction');
   const createBtn = page.locator('#btn-create');
 
-  expect(await gameNameInput.isVisible()).toBe(true);
+  const isInputVisible = await gameNameInput.isVisible().catch(() => false);
+  expect(isInputVisible).toBe(true);
 
   await gameNameInput.fill(gameName);
   await systemSelect.selectOption('dnd5e');

@@ -69,44 +69,46 @@ export async function loginTestUserInBrowser(page: any, baseURL: string): Promis
   try {
     console.log(`🔐 Logging in test user: ${TEST_USER.email}`);
 
-    // Navigate to lobby (will redirect to login if not authenticated)
-    await page.goto(`${baseURL}/lobby`);
+    // First, use API to login and get the auth cookie
+    const loginRes = await page.request.post(`${baseURL}/auth/login`, {
+      data: {
+        email: TEST_USER.email,
+        password: TEST_USER.password,
+      },
+    });
 
-    // Check if auth gate is visible
-    const authGate = page.locator('#auth-gate');
-    const isAuthGateVisible = await authGate.isVisible().catch(() => false);
-
-    if (!isAuthGateVisible) {
-      console.log('✅ Already authenticated');
-      return true;
-    }
-
-    // Find and fill email/password inputs
-    const emailInput = page.locator('#auth-email');
-    const passwordInput = page.locator('#auth-password');
-    const loginBtn = page.locator('#btn-password-login');
-
-    if (
-      !(await emailInput.isVisible().catch(() => false)) ||
-      !(await passwordInput.isVisible().catch(() => false))
-    ) {
-      console.error('❌ Login form not found');
+    if (!loginRes.ok()) {
+      console.error(`❌ API login failed: ${loginRes.status()}`);
       return false;
     }
 
-    // Fill and submit
-    await emailInput.fill(TEST_USER.email);
-    await passwordInput.fill(TEST_USER.password);
-    await loginBtn.click();
+    const loginData = await loginRes.json();
+    const setCookieHeader = loginRes.headers()['set-cookie'];
 
-    // Wait for redirect to lobby
-    await page.waitForURL(/\/(lobby|new-game)/);
-    await page.waitForLoadState('networkidle');
+    // Extract the auth cookie from the response and add it to the page context
+    if (setCookieHeader) {
+      // Parse the cookie string to extract just the tt_token value
+      const cookieMatch = setCookieHeader.match(/tt_token=([^;]+)/);
+      if (cookieMatch) {
+        // Add cookie to page context for all subsequent requests
+        await page.context().addCookies([
+          {
+            name: 'tt_token',
+            value: cookieMatch[1],
+            domain: new URL(baseURL).hostname,
+            path: '/',
+            httpOnly: true,
+            secure: true,
+            sameSite: 'Lax',
+          },
+        ]);
+      }
+    }
 
-    console.log('✅ Test user logged in successfully');
+    console.log(`✅ Test user logged in via API: ${loginData.user.email}`);
     return true;
-  } catch (err) {
-    console.error('❌ Error logging in test user:', err);
+  } catch (err: any) {
+    console.error('❌ Error logging in test user:', err.message);
     return false;
   }
 }
