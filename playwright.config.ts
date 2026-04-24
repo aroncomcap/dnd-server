@@ -24,10 +24,6 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
-    command: 'npm start',
-    url: 'http://127.0.0.1:3000',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120000,
-  },
+  // webServer is optional - tests run against baseURL (production server)
+  // To test locally, set webServer config and baseURL to http://localhost:3000
 });
