@@ -1628,6 +1628,55 @@ app.post('/api/games', requireAuth, async (req, res) => {
   }
 });
 
+// Admin cleanup: Delete all games and characters
+app.post('/api/admin/cleanup', requireAdmin, async (req, res) => {
+  try {
+    const { confirm } = req.body;
+    if (confirm !== 'DELETE_ALL') {
+      return res.status(400).json({ error: 'Confirmation required. Set confirm: "DELETE_ALL" in request body.' });
+    }
+
+    console.log(`[ADMIN] Cleanup requested by ${req.user?.email || 'unknown'}`);
+
+    // Get counts before deletion
+    const gamesCount = (await db.pool.query('SELECT COUNT(*) as count FROM games')).rows[0].count;
+    const charsCount = (await db.pool.query('SELECT COUNT(*) as count FROM characters')).rows[0].count;
+
+    // Delete dependent data
+    await db.pool.query('DELETE FROM game_state');
+    await db.pool.query('DELETE FROM channel_links');
+    await db.pool.query('DELETE FROM rules_corrections');
+    await db.pool.query('DELETE FROM monster_templates');
+    await db.pool.query('DELETE FROM bug_reports');
+
+    // Delete characters and games
+    await db.pool.query('DELETE FROM characters');
+    const gamesResult = await db.pool.query('DELETE FROM games');
+
+    // Verify
+    const finalGames = (await db.pool.query('SELECT COUNT(*) as count FROM games')).rows[0].count;
+    const finalChars = (await db.pool.query('SELECT COUNT(*) as count FROM characters')).rows[0].count;
+
+    console.log(`[ADMIN] Cleanup complete: deleted ${gamesResult.rowCount} games, ${charsCount} characters`);
+
+    res.json({
+      success: true,
+      deleted: {
+        games: gamesCount,
+        characters: charsCount,
+      },
+      remaining: {
+        games: finalGames,
+        characters: finalChars,
+      },
+      message: `Deleted ${gamesCount} games and ${charsCount} characters. Database cleaned.`,
+    });
+  } catch (err) {
+    console.error('[ADMIN] Cleanup error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/games/:id/upload-pdf', requireAuth, upload.array('pdfs', 10), async (req, res) => {
   try {
     const game = await db.getGame(req.params.id);
