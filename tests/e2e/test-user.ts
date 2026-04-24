@@ -64,12 +64,31 @@ export async function setupTestUser(
 
 /**
  * Login test user in browser and get auth token
+ * Registers user if needed, then logs in
  */
 export async function loginTestUserInBrowser(page: any, baseURL: string): Promise<boolean> {
   try {
     console.log(`🔐 Logging in test user: ${TEST_USER.email}`);
 
-    // First, use API to login and get the auth cookie
+    // Step 1: Try to register (will fail if user exists, which is ok)
+    console.log(`📝 Attempting to register test user...`);
+    const registerRes = await page.request.post(`${baseURL}/auth/register`, {
+      data: {
+        email: TEST_USER.email,
+        password: TEST_USER.password,
+        displayName: TEST_USER.displayName,
+      },
+    });
+
+    if (registerRes.ok()) {
+      console.log(`✅ Test user registered`);
+    } else if (registerRes.status() === 409) {
+      console.log(`ℹ️  Test user already exists`);
+    } else {
+      console.log(`⚠️  Register returned ${registerRes.status()}, attempting login anyway...`);
+    }
+
+    // Step 2: Login with credentials
     const loginRes = await page.request.post(`${baseURL}/auth/login`, {
       data: {
         email: TEST_USER.email,
@@ -78,37 +97,38 @@ export async function loginTestUserInBrowser(page: any, baseURL: string): Promis
     });
 
     if (!loginRes.ok()) {
-      console.error(`❌ API login failed: ${loginRes.status()}`);
+      const errorData = await loginRes.json().catch(() => ({}));
+      console.error(`❌ API login failed ${loginRes.status()}: ${(errorData as any).error || 'Unknown error'}`);
       return false;
     }
 
     const loginData = await loginRes.json();
     const setCookieHeader = loginRes.headers()['set-cookie'];
 
-    // Extract the auth cookie from the response and add it to the page context
+    // Step 3: Extract and set auth cookie
     if (setCookieHeader) {
-      // Parse the cookie string to extract just the tt_token value
       const cookieMatch = setCookieHeader.match(/tt_token=([^;]+)/);
       if (cookieMatch) {
-        // Add cookie to page context for all subsequent requests
+        const urlObj = new URL(baseURL!);
         await page.context().addCookies([
           {
             name: 'tt_token',
             value: cookieMatch[1],
-            domain: new URL(baseURL).hostname,
+            domain: urlObj.hostname,
             path: '/',
             httpOnly: true,
             secure: true,
             sameSite: 'Lax',
           },
         ]);
+        console.log(`✅ Auth cookie set`);
       }
     }
 
-    console.log(`✅ Test user logged in via API: ${loginData.user.email}`);
+    console.log(`✅ Test user logged in successfully`);
     return true;
   } catch (err: any) {
-    console.error('❌ Error logging in test user:', err.message);
+    console.error('❌ Error in loginTestUserInBrowser:', err.message);
     return false;
   }
 }
