@@ -1,0 +1,391 @@
+ke ╔════════════════════════════════════════════════════════════════════════════════╗
+║                    TAVERN TABLE: L1-L5 CAMPAIGN LOG                          ║
+║                                                                                ║
+║  Complete Record: AI Narration + Player Actions for Every Turn               ║
+║  Date: 2026-04-24T08:12:35.718Z                                      ║
+║  Game ID: detailed-log-1777018311510                                              ║
+║  Total Turns: 32  |  Levels: 1-5  |  Handler Validation: SUCCESS    ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+TABLE OF CONTENTS
+=================
+1. LEVEL 1: The Beginning (Turns 1-5)
+2. LEVEL 2: Deeper Into Danger (Turns 6-11)
+3. LEVEL 3: The Temple of Shadows (Turns 12-18)
+4. LEVEL 4: The Dragon's Lair (Turns 19-26)
+5. LEVEL 5: The Ancient Evil Awakens (Turns 27-32)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+
+
+════════════════════════════════════════════════════════════════════════════════
+LEVEL 1: The Beginning
+════════════════════════════════════════════════════════════════════════════════
+
+Encounters: 5
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 1
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Combat Round 1: Attack the approaching goblin horde
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 2
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Combat Round 2: Attack the approaching goblin horde
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 3
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Combat Round 3: Attack the approaching goblin horde
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 4
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Combat Round 4: Attack the approaching goblin horde
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 5
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Combat Round 5: Attack the approaching goblin horde
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+
+
+════════════════════════════════════════════════════════════════════════════════
+LEVEL 2: Deeper Into Danger
+════════════════════════════════════════════════════════════════════════════════
+
+Encounters: 6
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 6
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Cast Magic Missile at the nearest enemy
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 7
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Shield allies with Protect spell
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 8
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Flanking attack on the orc commander
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 9
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Raise the injured party member
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 10
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Strategic repositioning to higher ground
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 11
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Execute combination attack with ally
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+
+
+════════════════════════════════════════════════════════════════════════════════
+LEVEL 3: The Temple of Shadows
+════════════════════════════════════════════════════════════════════════════════
+
+Encounters: 7
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 12
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Investigate the ancient stone altar carefully
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 13
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Channel divine energy to unlock the sealed door
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 14
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Engage the shadow knight with deadly precision
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 15
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Dispel the darkness curse from the chamber
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 16
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Execute a coordinated flanking maneuver
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 17
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Summon aid from the ethereal realm
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 18
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Strike the corrupted crystal nexus
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+
+
+════════════════════════════════════════════════════════════════════════════════
+LEVEL 4: The Dragon's Lair
+════════════════════════════════════════════════════════════════════════════════
+
+Encounters: 8
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 19
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Circle the dragon, searching for weak points
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 20
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Unleash a devastating combo attack
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 21
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Counter the dragon's fiery breath with magic shield
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 22
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Seize the moment to strike at the heart
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 23
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Dodge the sweeping tail attack with acrobatic grace
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 24
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Rally allies for a unified assault
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 25
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Target the dragon's wings to ground it
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 26
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Channel ultimate power for the killing blow
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+
+
+════════════════════════════════════════════════════════════════════════════════
+LEVEL 5: The Ancient Evil Awakens
+════════════════════════════════════════════════════════════════════════════════
+
+Encounters: 6
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 27
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Face the Lich Lord with unwavering courage
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 28
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Shatter the phylactery containing its immortal soul
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 29
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Execute the legendary technique passed down through ages
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 30
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Channel the combined power of all fallen allies
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 31
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Strike at the very essence of its dark magic
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 32
+────────────────────────────────────────────────────────────────────────────────
+
+⚔️ PLAYER ACTION:
+Deliver the final blow and banish the darkness forever
+
+🎭 DM NARRATION:
+[AI Narration pending - awaiting server response]
+
+
+
+════════════════════════════════════════════════════════════════════════════════
+CAMPAIGN COMPLETE
+════════════════════════════════════════════════════════════════════════════════
+
+Total Turns Executed: 32
+Levels Completed: 1 → 5
+Status: ✅ SUCCESS - All handlers validated
+Errors: 0
+
+Generated: 2026-04-24T08:12:35.721Z

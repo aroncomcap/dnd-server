@@ -1,0 +1,106 @@
+═══════════════════════════════════════════════════════════════════════════════
+  NARRATION CAPTURE INVESTIGATION - SUMMARY
+  2026-04-24
+═══════════════════════════════════════════════════════════════════════════════
+
+OBJECTIVE
+─────────
+Capture complete AI-generated DM narration + player actions from a full 32-turn
+campaign (L1-L5 progression) to create a comprehensive gameplay document.
+
+PROBLEM IDENTIFIED
+──────────────────
+Earlier test (full-narrative-capture.js) completed all 32 turns but captured 0
+narrations. Only player actions were recorded, not DM responses.
+
+ROOT CAUSE ANALYSIS
+───────────────────
+✅ Issue Identified: Games must exist in PostgreSQL database BEFORE Socket.IO
+   clients can join them
+
+✅ Verified in Code: join_game handler (server.js:2628-2632) explicitly checks:
+   - const game = await db.getGame(gameId)
+   - if (!game) { emit error; return; }
+
+✅ Impact Chain:
+   1. Test creates game with dynamic ID (e.g., test-123456)
+   2. Socket tries to join_game
+   3. Database lookup fails → error emitted → socket.gameId NOT set
+   4. player_action handler checks "if (!gameId) return" → returns early
+   5. No Claude API call → No narration generated → No events emitted
+   6. Test completes without error (no event listener for error_msg)
+
+ROOT CAUSE CLASSIFICATION
+─────────────────────────
+❌ NOT A BUG - This is working as designed
+✅ Infrastructure Requirement - Games need database persistence
+✅ Test Limitation - Test scripts can't create games without DATABASE_URL
+
+TESTING VERIFICATION
+────────────────────
+✅ npm test: 745 tests PASS
+   - Action parsing: working
+   - Socket events: working
+   - Narration pipeline: working
+   - Combat engine: working
+
+✅ Server health: OK
+   - Status: theystillsing.com/health returns OK
+   - Current games in memory: 0 (expected for fresh test)
+   - Uptime: ~380 minutes
+
+SOLUTION
+────────
+Create the game in PostgreSQL FIRST, then test narration capture:
+
+Option 1 - Via Web UI (Recommended)
+  1. Visit https://theystillsing.com
+  2. Log in (email/password, Google, or Discord)
+  3. Click "New Game"
+  4. Note the Game ID
+  5. Pass to test script
+
+Option 2 - Via Railway CLI (Automation)
+  $ railway shell
+  $ node -e "require('./db').createGame('test-id', 'Test Game', 'dnd5e')"
+
+Option 3 - Via HTTP API (With Auth)
+  $ curl -X POST https://theystillsing.com/api/games \
+    -H "Authorization: Bearer $TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"name":"Test","system":"dnd5e"}'
+
+HOW NARRATION IS SENT
+─────────────────────
+Current Mode (Legacy - SPLIT_PIPELINE not set):
+  Event: dm_message
+  Contains: { text: full_narration, options: [...], world: {...} }
+  Complete text in data.text
+
+Split Pipeline Mode (if SPLIT_PIPELINE=true):
+  Events: dm_stream_start, dm_stream_chunk (repeated), dm_stream_end
+  Reconstruct from chunks
+
+NEXT STEPS
+──────────
+1. Create game via web UI or API
+2. Use game ID with test script
+3. Script will capture all narration events
+4. Generate complete narrative log with timestamps
+
+FILES CREATED/UPDATED
+─────────────────────
+✅ NARRATION-CAPTURE-ANALYSIS.md - Detailed technical analysis
+✅ CLAUDE.md - Updated with 2026-04-24 findings
+✅ incident_narration_capture_testing.md - Incident memory for future reference
+✅ MEMORY.md - Updated index with new incident
+
+RECOMMENDATIONS
+───────────────
+For future automated testing without manual game creation, consider:
+  1. Adding test-mode flag to server (auto-create games if test_mode=true)
+  2. Creating a test-game socket handler that doesn't require DB lookup
+  3. Using Railway CLI for integration tests that have DATABASE_URL access
+  4. Pre-seeding test database with example games
+
+═══════════════════════════════════════════════════════════════════════════════

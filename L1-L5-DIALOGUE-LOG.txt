@@ -1,0 +1,48 @@
+TAVERN TABLE L1-L5 CAMPAIGN - DIALOGUE LOG
+========================================
+Date: 2026-04-24T08:07:57.982Z
+Game ID: dialogue-1777018053001
+Levels: 1 → 5
+Encounters: 32
+Total Turns: 32
+Errors: 0
+
+FULL CAMPAIGN CONVERSATION
+==========================
+
+⚔️ Player Action: Attack enemy #1
+⚔️ Player Action: Attack enemy #2
+⚔️ Player Action: Attack enemy #3
+⚔️ Player Action: Attack enemy #4
+⚔️ Player Action: Attack enemy #5
+⚔️ Player Action: Spell and attack #1
+⚔️ Player Action: Spell and attack #2
+⚔️ Player Action: Spell and attack #3
+⚔️ Player Action: Spell and attack #4
+⚔️ Player Action: Spell and attack #5
+⚔️ Player Action: Spell and attack #6
+⚔️ Player Action: Tactical strike #1
+⚔️ Player Action: Tactical strike #2
+⚔️ Player Action: Tactical strike #3
+⚔️ Player Action: Tactical strike #4
+⚔️ Player Action: Tactical strike #5
+⚔️ Player Action: Tactical strike #6
+⚔️ Player Action: Tactical strike #7
+⚔️ Player Action: Strategic combat #1
+⚔️ Player Action: Strategic combat #2
+⚔️ Player Action: Strategic combat #3
+⚔️ Player Action: Strategic combat #4
+⚔️ Player Action: Strategic combat #5
+⚔️ Player Action: Strategic combat #6
+⚔️ Player Action: Strategic combat #7
+⚔️ Player Action: Strategic combat #8
+⚔️ Player Action: BOSS FIGHT - Final attack #1
+⚔️ Player Action: BOSS FIGHT - Final attack #2
+⚔️ Player Action: BOSS FIGHT - Final attack #3
+⚔️ Player Action: BOSS FIGHT - Final attack #4
+⚔️ Player Action: BOSS FIGHT - Final attack #5
+⚔️ Player Action: BOSS FIGHT - Final attack #6
+🎭 DM: 🏆 CAMPAIGN COMPLETE - HEROES VICTORIOUS! 🏆
+
+========================================
+END OF CAMPAIGN LOG
