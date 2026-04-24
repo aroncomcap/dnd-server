@@ -536,7 +536,7 @@ async function initiateCombat(gameId, gameConfig, enemies) {
         db.updateGameImage(gameId, url).catch(e => console.error('[monster-entry-persist]', e));
         emitSceneImage(gameId, { url, label: gs.imageLabel, type: 'monster_entry' });
       }
-    });
+    }).catch(err => console.error('[scene-gen-monster]', err.message));
   }
 
   const pcCombatants = [];
@@ -1588,7 +1588,7 @@ async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false,
       } else {
         io.to(gameId).emit('scene_gen_failed');
       }
-    });
+    }).catch(err => console.error('[scene-gen-killshot]', err.message));
   }
 }
 
@@ -2759,7 +2759,7 @@ io.on('connection', (socket) => {
         } else {
           io.to(gameId).emit('token_failed', { name: data.name });
         }
-      });
+      }).catch(err => console.error('[token-gen]', err.message));
     }
   });
 
@@ -2972,7 +2972,7 @@ io.on('connection', (socket) => {
           } else {
             io.to(gameId).emit('scene_gen_failed');
           }
-        });
+        }).catch(err => console.error('[scene-gen]', err.message));
       }
       const first = getCurrentPlayer(gameId);
       if (first) {
@@ -3103,7 +3103,7 @@ io.on('connection', (socket) => {
     const gameId = socket.gameId;
     if (!gameId) return;
     try {
-      const result = await gameEngine.catchUp(gameId, data.playerName);
+      const result = await discordGameEngine.catchUp(gameId, data.playerName);
       socket.emit('catch_up_result', result);
     } catch (err) {
       socket.emit('catch_up_result', { summary: 'Error generating summary.' });
@@ -3113,31 +3113,31 @@ io.on('connection', (socket) => {
   socket.on('skip_turn', safeSocketHandler(async () => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    await gameEngine.skipTurn(gameId);
+    await discordGameEngine.skipTurn(gameId);
   }));
 
   socket.on('set_pillars', safeSocketHandler(async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    await gameEngine.setPillars(gameId, data.exploration || 33, data.combat || 33, data.social || 34);
+    await discordGameEngine.setPillars(gameId, data.exploration || 33, data.combat || 33, data.social || 34);
   }));
 
   socket.on('set_verbosity', safeSocketHandler(async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    await gameEngine.setVerbosity(gameId, data.level);
+    await discordGameEngine.setVerbosity(gameId, data.level);
   }));
 
   socket.on('set_ferocity', safeSocketHandler(async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    await gameEngine.setFerocity(gameId, data.level);
+    await discordGameEngine.setFerocity(gameId, data.level);
   }));
 
   socket.on('set_dm_persona', safeSocketHandler(async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    gameEngine.setDmPersona(gameId, data.persona);
+    discordGameEngine.setDmPersona(gameId, data.persona);
   }));
 
   socket.on('set_image_style', safeSocketHandler(async (style) => {
@@ -3153,7 +3153,7 @@ io.on('connection', (socket) => {
   socket.on('set_timer', safeSocketHandler(async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    gameEngine.setTimer(gameId, data.seconds);
+    discordGameEngine.setTimer(gameId, data.seconds);
   }));
 
   socket.on('set_billing_mode', async (data) => {
@@ -3171,19 +3171,19 @@ io.on('connection', (socket) => {
   socket.on('delete_character', async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    await gameEngine.deleteCharacter(gameId, data.name);
+    await discordGameEngine.deleteCharacter(gameId, data.name);
   });
 
   socket.on('deactivate_character', async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    await gameEngine.deactivateCharacter(gameId, data.name);
+    await discordGameEngine.deactivateCharacter(gameId, data.name);
   });
 
   socket.on('activate_character', async (data) => {
     const gameId = socket.gameId;
     if (!gameId) return;
-    await gameEngine.activateCharacter(gameId, data.name);
+    await discordGameEngine.activateCharacter(gameId, data.name);
   });
 
   socket.on('reveal_location', async (data) => {
@@ -3357,7 +3357,7 @@ const discordGameEngine = {
           await db.upsertCharacter(gameId, name, charData);
           emitCharacterToken(gameId, { name, token: tokenUrl });
         }
-      });
+      }).catch(err => console.error('[token-gen-char]', err.message));
     }
   },
 
@@ -3385,7 +3385,7 @@ const discordGameEngine = {
         } else {
           io.to(gameId).emit('scene_gen_failed');
         }
-      });
+      }).catch(err => console.error('[scene-gen]', err.message));
     }
     const first = getCurrentPlayer(gameId);
     if (first) {
@@ -3728,7 +3728,7 @@ Generate the characters now.`;
           await db.upsertCharacter(gameId, name, charData);
           emitCharacterToken(gameId, { name, token: tokenUrl });
         }
-      });
+      }).catch(err => console.error('[token-gen-char]', err.message));
 
       count++;
     }
@@ -3745,7 +3745,7 @@ Generate the characters now.`;
   },
 };
 
-discord.setGameEngine(gameEngine);
+discord.setGameEngine(discordGameEngine);
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3020;

@@ -753,7 +753,7 @@ else if (sub === 'map') {
     }
     await interaction.deferReply();
     try {
-      const result = await gameEngine.generateParty(gameId);
+      const result = await gameEngine.generateParty(gameId, '');
       await interaction.editReply(`🎲 Generated ${result.count} characters! Use \`/tt party\` to see them.`);
     } catch (err) {
       await interaction.editReply(`❌ Failed: ${err.message}`);
