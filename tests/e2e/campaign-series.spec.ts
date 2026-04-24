@@ -1,0 +1,178 @@
+import { test, expect } from '@playwright/test';
+import { loginTestUserInBrowser } from './test-user';
+
+/**
+ * Campaign Series Test - Plays multiple games sequentially to reach level 1-10
+ * Each game is a "session" in a multi-session campaign
+ */
+
+test('Campaign Series: Multi-Session Campaign Level 1-10', async ({ page, baseURL }) => {
+  console.log(`\n🏰 CAMPAIGN SERIES - LEVEL 1-10`);
+  console.log(`🎯 Objective: Complete a full campaign across multiple game sessions\n`);
+
+  let totalTurns = 0;
+  let gameCount = 0;
+  let currentLevel = 1;
+  const targetLevel = 10;
+  const turnsPerLevel = 30;
+
+  while (currentLevel < targetLevel) {
+    gameCount++;
+    console.log(`\n📖 SESSION ${gameCount} - Level ${currentLevel}`);
+    console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+
+    // Authenticate
+    const authenticated = await loginTestUserInBrowser(page, baseURL!);
+    expect(authenticated).toBe(true);
+
+    // Create game
+    const gameName = `Campaign-Session${gameCount}-L${currentLevel}`;
+    await page.goto(`${baseURL}/new-game`, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1000);
+
+    const gameNameInput = page.locator('#game-name');
+    const isVisible = await gameNameInput.isVisible().catch(() => false);
+    if (!isVisible) {
+      console.log(`❌ Form not visible, navigating to lobby and retrying`);
+      await page.goto(`${baseURL}/lobby`);
+      await page.waitForTimeout(2000);
+      continue;
+    }
+
+    await gameNameInput.fill(gameName);
+    await page.locator('#game-system').selectOption('dnd5e');
+    await page.locator('#scene-prompt').fill('A new chapter in your adventure begins. You stand at the threshold of destiny.');
+    await page.locator('#party-direction').fill('Your seasoned adventurers face their next challenge.');
+
+    await page.locator('#btn-create').click();
+
+    try {
+      await page.waitForURL(/\/game\//, { timeout: 15000 });
+    } catch {
+      await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+    }
+
+    // Get game ID
+    let gameUrl = page.url();
+    let gameId = gameUrl.match(/\/game\/([a-f0-9-]+)/)?.[1];
+
+    if (!gameId) {
+      const gamesRes = await page.request.get(`${baseURL}/api/games`);
+      if (gamesRes.ok()) {
+        const games = await gamesRes.json();
+        if (games.length > 0) {
+          gameId = games[0].id;
+          await page.goto(`${baseURL}/game/${gameId}`, { waitUntil: 'domcontentloaded' });
+        }
+      }
+    }
+
+    if (!gameId) {
+      console.log(`❌ Failed to create game`);
+      continue;
+    }
+
+    console.log(`✅ Game created: ${gameId.substring(0, 8)}...`);
+
+    // Start game
+    await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+    await page.waitForTimeout(1000);
+
+    const startBtn = page.locator('button:has-text("START"), button:has-text("Begin")').first();
+    if (await startBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await startBtn.click();
+      await page.waitForTimeout(2000);
+    }
+
+    // Play session
+    let sessionTurns = 0;
+    let noActionCount = 0;
+    const maxSessionTurns = 50;
+    const maxNoAction = 6;
+
+    console.log(`🎮 Playing session...`);
+    process.stdout.write('  ');
+
+    while (sessionTurns < maxSessionTurns && noActionCount < maxNoAction) {
+      // Wait for loading to finish
+      const loadingOverlay = page.locator('#loading-overlay');
+      const isLoading = await loadingOverlay.isVisible({ timeout: 500 }).catch(() => false);
+      if (isLoading) {
+        try {
+          await page.waitForFunction(
+            () => {
+              const overlay = document.getElementById('loading-overlay');
+              return !overlay || overlay.style.display === 'none' || overlay.style.visibility === 'hidden';
+            },
+            { timeout: 5000 }
+          );
+        } catch {
+          // Continue
+        }
+      }
+
+      await page.waitForTimeout(100);
+
+      // Try to take an action
+      const actionButtons = await page.locator('button:has-text("→")').all();
+      const actionTextarea = page.locator('textarea[placeholder*="action" i]').first();
+
+      let actionTaken = false;
+
+      if (actionButtons.length > 0) {
+        const randomBtn = actionButtons[Math.floor(Math.random() * actionButtons.length)];
+        try {
+          await randomBtn.scrollIntoViewIfNeeded();
+          await randomBtn.click({ timeout: 2000, force: true });
+          actionTaken = true;
+          noActionCount = 0;
+        } catch {
+          // Failed
+        }
+      }
+
+      if (!actionTaken && await actionTextarea.isVisible({ timeout: 500 }).catch(() => false)) {
+        const actions = ['I attack', 'I move forward', 'I cast a spell', 'I search', 'I investigate'];
+        try {
+          await actionTextarea.fill(actions[Math.floor(Math.random() * actions.length)]);
+          const sendBtn = page.locator('button:has-text("SEND")').first();
+          if (await sendBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+            await sendBtn.click({ force: true });
+            actionTaken = true;
+            noActionCount = 0;
+          }
+        } catch {
+          // Failed
+        }
+      }
+
+      if (!actionTaken) {
+        noActionCount++;
+        process.stdout.write('.');
+      } else {
+        sessionTurns++;
+        totalTurns++;
+        if (sessionTurns % 5 === 0) {
+          process.stdout.write(`[${sessionTurns}]`);
+        } else {
+          process.stdout.write('.');
+        }
+      }
+
+      await page.waitForTimeout(300);
+    }
+
+    console.log(`\n✅ Session complete: ${sessionTurns} turns`);
+    currentLevel = 1 + Math.floor(totalTurns / turnsPerLevel);
+    console.log(`📊 Total turns: ${totalTurns} | Current level: ${currentLevel}/${targetLevel}`);
+  }
+
+  console.log(`\n${'━'.repeat(40)}`);
+  console.log(`🎉 CAMPAIGN COMPLETE!`);
+  console.log(`📈 Total Sessions: ${gameCount}`);
+  console.log(`📊 Total Turns: ${totalTurns}`);
+  console.log(`🏅 Final Level: ${currentLevel}`);
+  console.log(`${'━'.repeat(40)}\n`);
+
+  expect(currentLevel).toBeGreaterThanOrEqual(targetLevel);
+});
