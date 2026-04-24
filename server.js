@@ -1642,19 +1642,21 @@ app.post('/api/admin/cleanup', requireAdmin, async (req, res) => {
     const gamesCount = (await db.pool.query('SELECT COUNT(*) as count FROM games')).rows[0].count;
     const charsCount = (await db.pool.query('SELECT COUNT(*) as count FROM characters')).rows[0].count;
 
+    // Delete only game-specific data, preserve reusable content
     // Delete dependent data (in order of foreign key dependencies)
     await db.pool.query('DELETE FROM game_state');
     await db.pool.query('DELETE FROM channel_links');
-    await db.pool.query('DELETE FROM rules_corrections WHERE game_id IS NOT NULL');
-    await db.pool.query('DELETE FROM monster_templates');
-    await db.pool.query('DELETE FROM bug_reports');
-    await db.pool.query('DELETE FROM killshots WHERE game_id IS NOT NULL');
+    // PRESERVE: rules_corrections (house rules library reusable)
+    // PRESERVE: monster_templates (combat templates reusable)
+    // PRESERVE: bug_reports (historical bug tracking)
+    // PRESERVE: killshots (images shown to players during loading)
     await db.pool.query('DELETE FROM game_monster_sources');
     await db.pool.query('DELETE FROM monster_sources WHERE game_id IS NOT NULL');
 
     // Delete characters and games
     await db.pool.query('DELETE FROM characters');
     const gamesResult = await db.pool.query('DELETE FROM games');
+    // NOTE: killshots.game_id will auto-set to NULL due to ON DELETE SET NULL constraint
 
     // Verify
     const finalGames = (await db.pool.query('SELECT COUNT(*) as count FROM games')).rows[0].count;
