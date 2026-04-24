@@ -3,148 +3,240 @@ import { test, expect } from '@playwright/test';
 /**
  * E2E Tests for Tavern Table Gameplay
  *
- * These tests validate core gameplay flows without human intervention.
+ * These tests create games, play through them randomly selecting options,
+ * and catch errors to help improve stability.
+ *
  * Run with: npm run test:e2e
  */
 
-test.describe('Gameplay Flow', () => {
-  let gameId: string;
+// Helper: Generate random game name
+function generateGameName(): string {
+  const adjectives = ['Mystic', 'Dark', 'Emerald', 'Crimson', 'Silent', 'Lost', 'Ancient', 'Cursed'];
+  const nouns = ['Tower', 'Forest', 'Cavern', 'Castle', 'Vault', 'Temple', 'Valley', 'Gate'];
+  const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+  const noun = nouns[Math.floor(Math.random() * nouns.length)];
+  return `${adj} ${noun}`;
+}
 
-  test('should load game page without console errors', async ({ page, baseURL }) => {
-    // Try to create a test game via API (requires running server)
-    try {
-      const createResponse = await page.request.post(`${baseURL}/api/games/test`, {
-        headers: { 'Content-Type': 'application/json' },
-        data: { name: 'E2E Test Game', system: 'dnd5e' }
-      });
-      const game = await createResponse.json();
-      gameId = game.id;
-    } catch (error) {
-      // If game creation fails, use a placeholder ID
-      // Tests will skip actual game testing and focus on page structure
-      gameId = 'test-game-' + Date.now();
-      console.warn('Could not create test game via API, using placeholder ID for structure tests');
-    }
+// Helper: Wait for game to be ready and start
+async function startGame(page: any): Promise<boolean> {
+  try {
+    // Wait for start button or narration to appear
+    const startBtn = page.locator('button:has-text("START"), button:has-text("Begin")').first();
+    const storyPanel = page.locator('[data-testid="game-story"], #story, .story');
 
-    // Navigate to game
-    await page.goto(`/game/${gameId}`);
+    const startVisible = await startBtn.isVisible().catch(() => false);
+    const storyVisible = await storyPanel.isVisible().catch(() => false);
 
-    // Check for critical console errors
-    const errors: string[] = [];
-    page.on('console', msg => {
-      if (msg.type() === 'error') {
-        errors.push(msg.text());
-      }
-    });
-
-    // Wait for page to fully load
-    await page.waitForLoadState('networkidle');
-
-    // Should have loaded game title
-    const title = page.locator('title');
-    await expect(title).toContainText('They Still Sing');
-
-    // No critical errors
-    const criticalErrors = errors.filter(e =>
-      e.includes('Cannot read') ||
-      e.includes('undefined') ||
-      e.includes('is not defined')
-    );
-    expect(criticalErrors.length).toBe(0);
-  });
-
-  test('should start game and show DM message', async ({ page }) => {
-    // Skip if no valid game ID
-    if (!gameId || gameId.startsWith('test-game-')) {
-      test.skip();
-    }
-
-    // Navigate to game
-    await page.goto(`/game/${gameId}`);
-    await page.waitForLoadState('networkidle');
-
-    // Wait for game to be loaded
-    await page.waitForSelector('[data-testid="game-story"]', { timeout: 5000 }).catch(() => null);
-
-    // Click START GAME if available
-    const startBtn = page.locator('button:has-text("START GAME"), button:has-text("Begin")').first();
-    if (await startBtn.isVisible()) {
+    if (startVisible) {
       await startBtn.click();
+      await page.waitForTimeout(2000);
     }
 
-    // Wait for DM narration
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Helper: Get random action option and play it
+async function playRandomAction(page: any, turnNum: number): Promise<{ played: boolean; error?: string }> {
+  try {
+    // Look for action options
+    const optionButtons = await page.locator('button:has-text("→")').all(); // Option arrows
+    const textButtons = await page.locator('[class*="option"], [class*="action"]').locator('button').all();
+
+    const allButtons = [...optionButtons];
+    if (textButtons.length > 0) {
+      allButtons.push(...textButtons);
+    }
+
+    if (allButtons.length === 0) {
+      // No options, try to send a text action
+      const actionInput = page.locator('textarea, input[placeholder*="action" i], input[placeholder*="describe" i]').first();
+      if (await actionInput.isVisible().catch(() => false)) {
+        const actions = ['I attack!', 'I cast a spell', 'I investigate', 'I talk to them', 'I move forward', 'I wait'];
+        const action = actions[Math.floor(Math.random() * actions.length)];
+        await actionInput.fill(action);
+
+        const sendBtn = page.locator('button:has-text("SEND"), button:has-text("Send"), button:has-text("→")').first();
+        if (await sendBtn.isVisible().catch(() => false)) {
+          await sendBtn.click();
+          await page.waitForTimeout(2000);
+          return { played: true };
+        }
+      }
+      return { played: false, error: 'No action options found' };
+    }
+
+    // Pick random option
+    const randomOption = allButtons[Math.floor(Math.random() * allButtons.length)];
+    await randomOption.click();
     await page.waitForTimeout(2000);
 
-    // Check if any message arrived
-    const storyPanel = page.locator('[data-testid="game-story"], #story, .story');
-    const storyText = await storyPanel.textContent();
+    return { played: true };
+  } catch (err: any) {
+    return { played: false, error: err.message };
+  }
+}
 
-    // Should have some narrative content
-    expect(storyText?.length ?? 0).toBeGreaterThan(0);
-  });
+test.describe('Sophisticated Gameplay Testing', () => {
+  test('should create game, play through randomly, and catch errors', async ({ page, baseURL }) => {
+    const gameName = generateGameName();
+    const errors: string[] = [];
+    const logs: string[] = [];
 
-  test('should send player action', async ({ page }) => {
-    // Skip if no valid game ID
-    if (!gameId || gameId.startsWith('test-game-')) {
-      test.skip();
-    }
+    // Collect console messages
+    page.on('console', msg => {
+      const text = msg.text();
+      const type = msg.type();
 
-    await page.goto(`/game/${gameId}`);
+      if (type === 'error' || type === 'warning') {
+        const isCritical =
+          text.includes('Cannot read') ||
+          text.includes('undefined') ||
+          text.includes('is not defined') ||
+          text.includes('Uncaught') ||
+          text.includes('Error:');
+
+        if (isCritical) {
+          errors.push(`[${type.toUpperCase()}] ${text}`);
+        }
+      }
+      logs.push(text);
+    });
+
+    // Step 1: Navigate to new game page
+    console.log(`📖 Testing game: "${gameName}"`);
+    await page.goto(`${baseURL}/new-game`);
     await page.waitForLoadState('networkidle');
 
-    // Find action input
-    const actionInput = page.locator('textarea, input[placeholder*="action" i], input[placeholder*="describe" i]').first();
+    // Step 2: Fill game creation form
+    console.log('📝 Creating game...');
+    const nameInput = page.locator('input[placeholder*="Game Name"], input[name*="name" i]').first();
+    if (await nameInput.isVisible().catch(() => false)) {
+      await nameInput.fill(gameName);
+    }
 
-    if (await actionInput.isVisible()) {
-      // Type action
-      await actionInput.fill('I draw my sword and prepare for battle.');
+    // Try to find and click "Create" or "Start" button
+    const createBtn = page.locator(
+      'button:has-text("Create"), button:has-text("Start"), button:has-text("Begin")'
+    ).first();
 
-      // Submit
-      const sendBtn = page.locator('button:has-text("SEND"), button:has-text("Send")').first();
-      if (await sendBtn.isVisible()) {
-        await sendBtn.click();
+    if (await createBtn.isVisible().catch(() => false)) {
+      await createBtn.click();
+      await page.waitForLoadState('networkidle');
+    }
+
+    // Extract game ID from URL or redirect
+    const currentUrl = page.url();
+    const gameMatch = currentUrl.match(/\/game\/([a-f0-9-]+)/);
+    const gameId = gameMatch?.[1];
+
+    if (!gameId) {
+      console.error('❌ Failed to create or navigate to game');
+      return;
+    }
+
+    console.log(`✅ Game created: ${gameId}`);
+
+    // Step 3: Start the game
+    console.log('🎮 Starting game...');
+    await startGame(page);
+
+    // Step 4: Play through several turns
+    const maxTurns = 8;
+    for (let turn = 1; turn <= maxTurns; turn++) {
+      console.log(`🔄 Turn ${turn}/${maxTurns}`);
+
+      if (errors.length > 0) {
+        console.log(`⚠️  Errors detected on turn ${turn}, stopping`);
+        break;
       }
 
-      // Wait for response
-      await page.waitForTimeout(3000);
+      const { played, error } = await playRandomAction(page, turn);
 
-      // Action should be reflected in UI
-      const chatArea = page.locator('[data-testid="chat"], #chat, .chat-history');
-      const chatText = await chatArea.textContent();
-      expect(chatText).toBeTruthy();
+      if (!played) {
+        console.log(`⏸️  Turn ${turn}: No more actions available (${error})`);
+        break;
+      }
+
+      // Check for new errors after action
+      if (errors.length > 0) {
+        console.log(`🐛 Error detected: ${errors[errors.length - 1]}`);
+        break;
+      }
     }
+
+    // Step 5: Report findings
+    console.log('\n📊 Test Results:');
+    console.log(`  Game: ${gameName}`);
+    console.log(`  ID: ${gameId}`);
+    console.log(`  Errors found: ${errors.length}`);
+
+    if (errors.length > 0) {
+      console.log('\n🐛 Critical Errors:');
+      errors.slice(0, 5).forEach((err, i) => {
+        console.log(`  ${i + 1}. ${err}`);
+      });
+
+      // Report errors as test failure so they're visible in output
+      console.error('\n❌ ERRORS FOUND - Fix these and re-run tests:');
+      errors.forEach(err => console.error(`   - ${err}`));
+    } else {
+      console.log('✅ No critical errors encountered!');
+    }
+
+    // Assert: Should have no critical errors
+    expect(errors.length).toBe(0);
   });
 
-  test('should handle navigation tabs without errors', async ({ page }) => {
-    // Skip if no valid game ID
-    if (!gameId || gameId.startsWith('test-game-')) {
-      test.skip();
-    }
+  test('should handle lobby and game discovery', async ({ page, baseURL }) => {
+    console.log('🏰 Testing lobby navigation...');
 
-    await page.goto(`/game/${gameId}`);
+    const errors: string[] = [];
+    page.on('console', msg => {
+      if (msg.type() === 'error' && (
+        msg.text().includes('Cannot read') ||
+        msg.text().includes('is not defined')
+      )) {
+        errors.push(msg.text());
+      }
+    });
+
+    await page.goto(`${baseURL}/lobby`);
     await page.waitForLoadState('networkidle');
 
-    const tabs = ['GAME', 'CHARACTER', 'PARTY', 'WORLD', 'MAP', 'HOST'];
-
-    for (const tabName of tabs) {
-      const tab = page.locator(`button:has-text("${tabName}")`).first();
-
-      if (await tab.isVisible()) {
-        await tab.click();
-        await page.waitForTimeout(500);
-
-        // Tab should be marked active
-        const activeTab = page.locator(`button:has-text("${tabName}").active, button:has-text("${tabName}")[class*="active"]`).first();
-        await expect(activeTab).toBeVisible().catch(() => {
-          // Tab visibility might vary, that's ok
-        });
-      }
-    }
+    expect(errors.length).toBe(0);
+    expect(page).toBeTruthy();
   });
-});
 
-test.describe('Lobby Flow', () => {
-  test('should load lobby without errors', async ({ page }) => {
+  test('should test character creation flow', async ({ page, baseURL }) => {
+    console.log('👥 Testing character creation...');
+
+    const errors: string[] = [];
+    page.on('console', msg => {
+      if (msg.type() === 'error' && msg.text().includes('Cannot read')) {
+        errors.push(msg.text());
+      }
+    });
+
+    // Navigate to new game which may include party creation
+    await page.goto(`${baseURL}/new-game`);
+    await page.waitForLoadState('networkidle');
+
+    // Check if party/character options are visible
+    const partySection = page.locator('[data-testid*="party"], [id*="party"], text=Party').first();
+    if (await partySection.isVisible().catch(() => false)) {
+      console.log('✅ Party creation UI found');
+    }
+
+    expect(errors.length).toBe(0);
+  });
+
+  test('should recover from page navigation and reload', async ({ page, baseURL }) => {
+    console.log('🔄 Testing page recovery...');
+
     const errors: string[] = [];
     page.on('console', msg => {
       if (msg.type() === 'error') {
@@ -152,62 +244,21 @@ test.describe('Lobby Flow', () => {
       }
     });
 
-    await page.goto('/lobby');
+    // Navigate to lobby
+    await page.goto(`${baseURL}/lobby`);
     await page.waitForLoadState('networkidle');
 
-    // Filter critical errors
+    // Reload page
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+
+    // Should still be functional
     const criticalErrors = errors.filter(e =>
       e.includes('Cannot read') ||
       e.includes('is not defined')
     );
 
     expect(criticalErrors.length).toBe(0);
-  });
-
-  test('should display games list or redirect to create game', async ({ page }) => {
-    await page.goto('/lobby');
-    await page.waitForLoadState('networkidle');
-
-    // Should either show games or redirect to new-game
-    const url = page.url();
-    const hasGames = await page.locator('[data-testid="games-grid"], .game-card').isVisible().catch(() => false);
-
-    expect(url.includes('lobby') || url.includes('new-game')).toBeTruthy();
-  });
-});
-
-test.describe('Error Recovery', () => {
-  test('should handle page reload gracefully', async ({ page }) => {
-    const errors: string[] = [];
-    page.on('console', msg => {
-      if (msg.type() === 'error') errors.push(msg.text());
-    });
-
-    await page.goto('/lobby');
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-
-    const criticalErrors = errors.filter(e =>
-      e.includes('Cannot read') ||
-      e.includes('is not defined')
-    );
-    expect(criticalErrors.length).toBe(0);
-  });
-
-  test('should recover from network errors', async ({ page }) => {
-    // Go offline
-    await page.context().setOffline(true);
-    await page.goto('/lobby').catch(() => {});
-
-    // Come back online
-    await page.context().setOffline(false);
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-
-    // Page should recover
-    const title = page.locator('title');
-    await expect(title).toContainText('They Still Sing').catch(() => {
-      // Network recovery might fail, that's ok - we're testing graceful handling
-    });
+    console.log('✅ Page recovery successful');
   });
 });

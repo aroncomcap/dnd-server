@@ -238,20 +238,27 @@
     position: absolute;
     top: 8px;
     right: 8px;
-    background: rgba(0,0,0,0.5);
+    background: linear-gradient(135deg, #ff6b6b, #ff8787);
     color: #fff;
-    border: none;
+    border: 2px solid rgba(255,255,255,0.8);
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    font-size: 1rem;
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+    font-weight: bold;
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 2px 8px rgba(255,100,100,0.4);
   }
-  .game-card-delete:hover { background: rgba(139,32,32,0.8); color: #ffcccc; }
+  .game-card-delete:hover {
+    background: linear-gradient(135deg, #ff5252, #ff6b6b);
+    box-shadow: 0 4px 12px rgba(255,100,100,0.6);
+    transform: scale(1.1);
+  }
+  .game-card-delete:active { transform: scale(0.95); }
 
   .empty-state {
     text-align: center;
