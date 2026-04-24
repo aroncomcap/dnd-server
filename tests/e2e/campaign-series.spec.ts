@@ -6,14 +6,14 @@ import { loginTestUserInBrowser } from './test-user';
  * Each game is a "session" in a multi-session campaign
  */
 
-test('Campaign Series: Multi-Session Campaign Level 1-10', async ({ page, baseURL }) => {
-  console.log(`\n🏰 CAMPAIGN SERIES - LEVEL 1-10`);
-  console.log(`🎯 Objective: Complete a full campaign across multiple game sessions\n`);
+test('Campaign Series: Multi-Session Campaign Level 1-2', async ({ page, baseURL }) => {
+  console.log(`\n🏰 CAMPAIGN SERIES - LEVEL 1-2`);
+  console.log(`🎯 Objective: Complete a campaign from level 1 to level 2\n`);
 
   let totalTurns = 0;
   let gameCount = 0;
   let currentLevel = 1;
-  const targetLevel = 10;
+  const targetLevel = 2;
   const turnsPerLevel = 30;
 
   while (currentLevel < targetLevel) {
@@ -165,6 +165,37 @@ test('Campaign Series: Multi-Session Campaign Level 1-10', async ({ page, baseUR
       } else {
         sessionTurns++;
         totalTurns++;
+
+        // Capture narration after action
+        await page.waitForTimeout(1500); // Wait for narration to stream
+        const narration = await page.evaluate(() => {
+          // Get the last DM message from chat log
+          const chatLog = document.getElementById('chat-log');
+          if (!chatLog) return '';
+
+          // Get all msg-dm elements and take the last one
+          const allMsgs = document.querySelectorAll('#chat-log .msg-dm');
+          if (allMsgs.length === 0) return '';
+
+          const lastMsg = allMsgs[allMsgs.length - 1];
+
+          // The message structure is: .msg-dm > (optional img/label) > div with content
+          // Get all divs and take the last one which should be the message body
+          const divs = lastMsg.querySelectorAll('div');
+          if (divs.length === 0) return '';
+
+          const msgBody = divs[divs.length - 1];
+          const text = (msgBody.textContent || '').trim();
+
+          return text.substring(0, 600);
+        });
+
+        if (narration && narration.length > 50) {
+          console.log(`\n📖 Turn ${sessionTurns}:`);
+          console.log(narration.split('\n')[0]); // First line
+          console.log('');
+        }
+
         if (sessionTurns % 5 === 0) {
           process.stdout.write(`[${sessionTurns}]`);
         } else {

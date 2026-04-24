@@ -2832,7 +2832,7 @@ socket.on('dm_stream_start', (data) => {
 
 socket.on('dm_stream_chunk', (data) => {
   const body = document.getElementById('dm-stream-body');
-  if (!body) return;
+  if (!body || !data.text) return;
   body.textContent += data.text;
   chatLog.scrollTop = chatLog.scrollHeight;
 });
