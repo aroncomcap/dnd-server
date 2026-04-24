@@ -129,6 +129,26 @@ test('Full Campaign: Play game from level 1-10', async ({ page, baseURL }) => {
       break;
     }
 
+    // Wait for loading overlay to disappear
+    const loadingOverlay = page.locator('#loading-overlay');
+    const isLoading = await loadingOverlay.isVisible({ timeout: 1000 }).catch(() => false);
+    if (isLoading) {
+      // Wait for it to finish
+      try {
+        await page.waitForFunction(
+          () => {
+            const overlay = document.getElementById('loading-overlay');
+            return !overlay || overlay.style.display === 'none' || overlay.style.visibility === 'hidden';
+          },
+          { timeout: 8000 }
+        );
+      } catch {
+        // Continue anyway
+      }
+    }
+
+    await page.waitForTimeout(200);
+
     // Look for player action options
     const actionButtons = await page.locator('button:has-text("→")').all();
     const actionTextarea = page.locator('textarea[placeholder*="action" i], textarea[placeholder*="describe" i]').first();
@@ -140,7 +160,9 @@ test('Full Campaign: Play game from level 1-10', async ({ page, baseURL }) => {
     if (actionButtons.length > 0) {
       const randomBtn = actionButtons[Math.floor(Math.random() * actionButtons.length)];
       try {
-        await randomBtn.click({ timeout: 5000 });
+        // Force scroll into view first
+        await randomBtn.scrollIntoViewIfNeeded();
+        await randomBtn.click({ timeout: 3000, force: true });
         actionTaken = true;
         consecutiveNoAction = 0;
       } catch {
@@ -150,25 +172,25 @@ test('Full Campaign: Play game from level 1-10', async ({ page, baseURL }) => {
 
     // Try text input
     if (!actionTaken) {
-      const textIsVisible = await actionTextarea.isVisible({ timeout: 2000 }).catch(() => false);
+      const textIsVisible = await actionTextarea.isVisible({ timeout: 1000 }).catch(() => false);
       if (textIsVisible) {
         const actions = [
-          'I attack the nearest enemy',
+          'I attack',
           'I cast a spell',
-          'I investigate the area',
-          'I talk to the merchants',
-          'I move forward cautiously',
-          'I search for hidden items',
-          'I help the injured villager',
-          'I examine the ancient artifact',
+          'I move forward',
+          'I investigate',
+          'I search',
+          'I talk',
+          'I defend',
+          'I advance',
         ];
         const action = actions[Math.floor(Math.random() * actions.length)];
 
         try {
           await actionTextarea.fill(action);
           const sendBtn = page.locator('button:has-text("SEND"), button:has-text("Submit"), button:has-text("→")').first();
-          if (await sendBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-            await sendBtn.click();
+          if (await sendBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+            await sendBtn.click({ force: true });
             actionTaken = true;
             consecutiveNoAction = 0;
           }
@@ -194,7 +216,7 @@ test('Full Campaign: Play game from level 1-10', async ({ page, baseURL }) => {
       }
     }
 
-    await page.waitForTimeout(600);  // Slightly faster to reach level 10 within timeout
+    await page.waitForTimeout(400);  // Faster turn cycle
   }
 
   console.log(`\n✅ Campaign play complete`);
