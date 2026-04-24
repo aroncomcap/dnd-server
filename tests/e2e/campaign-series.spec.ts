@@ -95,54 +95,67 @@ test('Campaign Series: Multi-Session Campaign Level 1-10', async ({ page, baseUR
 
     while (sessionTurns < maxSessionTurns && noActionCount < maxNoAction) {
       // Wait for loading to finish
-      const loadingOverlay = page.locator('#loading-overlay');
-      const isLoading = await loadingOverlay.isVisible({ timeout: 500 }).catch(() => false);
-      if (isLoading) {
-        try {
-          await page.waitForFunction(
-            () => {
-              const overlay = document.getElementById('loading-overlay');
-              return !overlay || overlay.style.display === 'none' || overlay.style.visibility === 'hidden';
-            },
-            { timeout: 5000 }
-          );
-        } catch {
-          // Continue
-        }
+      try {
+        await page.waitForFunction(
+          () => {
+            const overlay = document.getElementById('loading-overlay');
+            if (!overlay) return true;
+            const style = window.getComputedStyle(overlay);
+            return style.display === 'none' || style.visibility === 'hidden';
+          },
+          { timeout: 3000 }
+        );
+      } catch {
+        // Continue anyway
       }
 
-      await page.waitForTimeout(100);
+      await page.waitForTimeout(200);
 
       // Try to take an action
-      const actionButtons = await page.locator('button:has-text("→")').all();
-      const actionTextarea = page.locator('textarea[placeholder*="action" i]').first();
-
       let actionTaken = false;
 
-      if (actionButtons.length > 0) {
-        const randomBtn = actionButtons[Math.floor(Math.random() * actionButtons.length)];
+      // Look for option buttons
+      const optionButtons = await page.locator('button[class*="option"], button:has-text("→")').all();
+
+      if (optionButtons.length > 0) {
+        const randomBtn = optionButtons[Math.floor(Math.random() * optionButtons.length)];
         try {
-          await randomBtn.scrollIntoViewIfNeeded();
           await randomBtn.click({ timeout: 2000, force: true });
           actionTaken = true;
           noActionCount = 0;
         } catch {
-          // Failed
+          // Try force without timeout
+          try {
+            await randomBtn.click({ force: true });
+            actionTaken = true;
+            noActionCount = 0;
+          } catch {
+            // Failed
+          }
         }
       }
 
-      if (!actionTaken && await actionTextarea.isVisible({ timeout: 500 }).catch(() => false)) {
-        const actions = ['I attack', 'I move forward', 'I cast a spell', 'I search', 'I investigate'];
-        try {
-          await actionTextarea.fill(actions[Math.floor(Math.random() * actions.length)]);
-          const sendBtn = page.locator('button:has-text("SEND")').first();
-          if (await sendBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-            await sendBtn.click({ force: true });
-            actionTaken = true;
-            noActionCount = 0;
+      // Try textarea input
+      if (!actionTaken) {
+        const inputs = await page.locator('textarea, input[placeholder*="action" i]').all();
+        for (const input of inputs) {
+          const isVisible = await input.isVisible().catch(() => false);
+          if (isVisible) {
+            const actions = ['I attack', 'Move', 'Cast spell', 'Search', 'Go forward'];
+            try {
+              await input.fill(actions[Math.floor(Math.random() * actions.length)]);
+              const sendBtn = page.locator('button:has-text("SEND"), button:has-text("Submit")').first();
+              const isSendVisible = await sendBtn.isVisible({ timeout: 500 }).catch(() => false);
+              if (isSendVisible) {
+                await sendBtn.click({ force: true });
+                actionTaken = true;
+                noActionCount = 0;
+              }
+            } catch {
+              // Failed
+            }
+            break;
           }
-        } catch {
-          // Failed
         }
       }
 
@@ -159,7 +172,7 @@ test('Campaign Series: Multi-Session Campaign Level 1-10', async ({ page, baseUR
         }
       }
 
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(250);
     }
 
     console.log(`\n✅ Session complete: ${sessionTurns} turns`);

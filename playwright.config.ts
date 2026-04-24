@@ -7,7 +7,7 @@ export default defineConfig({
   retries: 0,
   workers: 1,  // Single worker for stability
   reporter: 'html',
-  timeout: 180000,  // 3 minutes per test
+  timeout: 600000,  // 10 minutes per test (for long campaigns)
   expect: { timeout: 10000 },
   use: {
     baseURL: 'https://theystillsing.com',
