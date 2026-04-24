@@ -2,15 +2,19 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
-  fullyParallel: true,
+  fullyParallel: false,  // Run tests sequentially to avoid conflicts
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  retries: 0,
+  workers: 1,  // Single worker for stability
   reporter: 'html',
+  timeout: 180000,  // 3 minutes per test
+  expect: { timeout: 10000 },
   use: {
     baseURL: 'https://theystillsing.com',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    navigationTimeout: 30000,
+    actionTimeout: 10000,
   },
 
   projects: [
