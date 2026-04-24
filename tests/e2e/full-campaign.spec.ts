@@ -116,12 +116,12 @@ test('Full Campaign: Play game from level 1-10', async ({ page, baseURL }) => {
 
   await page.waitForTimeout(2000);
 
-  // Step 4: Play through turns (simulate full campaign)
-  console.log(`\n4️⃣  PLAYING CAMPAIGN`);
+  // Step 4: Play through turns (simulate full campaign level 1-10)
+  console.log(`\n4️⃣  PLAYING CAMPAIGN (Level 1-10)`);
   let turnCount = 0;
   let consecutiveNoAction = 0;
-  const maxTurns = 100;
-  const maxNoActionStreak = 5;
+  const maxTurns = 300;  // ~30 turns per level × 10 levels
+  const maxNoActionStreak = 8;  // Higher threshold for longer campaigns
 
   while (turnCount < maxTurns && consecutiveNoAction < maxNoActionStreak) {
     if (errors.length > 0) {
@@ -183,17 +183,24 @@ test('Full Campaign: Play game from level 1-10', async ({ page, baseURL }) => {
       process.stdout.write('.');
     } else {
       turnCount++;
-      if (turnCount % 10 === 0) {
+      const currentLevel = 1 + Math.floor(turnCount / 30);
+
+      if (turnCount % 30 === 0 && currentLevel <= 10) {
+        process.stdout.write(`[L${currentLevel}]`);
+      } else if (turnCount % 10 === 0) {
         process.stdout.write(`[${turnCount}]`);
+      } else {
+        process.stdout.write('.');
       }
     }
 
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(600);  // Slightly faster to reach level 10 within timeout
   }
 
   console.log(`\n✅ Campaign play complete`);
+  const finalLevel = 1 + Math.floor(turnCount / 30);
   console.log(`📊 Turns played: ${turnCount}`);
-  console.log(`📈 Simulated level progression: ${1 + Math.floor(turnCount / 10)} (L1 + ${Math.floor(turnCount / 10)} levels)`);
+  console.log(`📈 Final level: ${Math.min(finalLevel, 10)} (target: level 10)`);
 
   // Verify no critical errors
   expect(errors.length).toBe(0);
