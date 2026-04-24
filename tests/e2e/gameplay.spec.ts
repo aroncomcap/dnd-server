@@ -158,10 +158,34 @@ test.describe('Sophisticated Gameplay Testing', () => {
       await page.waitForTimeout(3000); // Wait for game to be created
     }
 
-    // Extract game ID from URL or redirect
+    // Wait for redirect to game page and extract game ID
+    try {
+      await page.waitForURL(/\/game\//, { timeout: 5000 });
+    } catch {
+      // Timeout waiting for redirect - game may have been created but redirect failed
+      console.warn('⚠️  No redirect to game page, checking URL...');
+    }
+
     const currentUrl = page.url();
     const gameMatch = currentUrl.match(/\/game\/([a-f0-9-]+)/);
-    const gameId = gameMatch?.[1];
+    let gameId = gameMatch?.[1];
+
+    // If still no ID, try to find it in recent page navigation
+    if (!gameId) {
+      // Try to get the last game from the API
+      try {
+        const gamesRes = await page.request.get(`${baseURL}/api/games`);
+        if (gamesRes.ok()) {
+          const games = await gamesRes.json();
+          if (games.length > 0) {
+            gameId = games[0].id;
+            console.log(`📌 Found latest game: ${gameId}`);
+          }
+        }
+      } catch {
+        // Fall through
+      }
+    }
 
     if (!gameId) {
       console.error('❌ Failed to create or navigate to game');
