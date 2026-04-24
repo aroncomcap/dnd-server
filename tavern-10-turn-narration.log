@@ -1,0 +1,64 @@
+╔════════════════════════════════════════════╗
+║  FIXED NARRATION CAPTURE                   ║
+║  Auth → Create Game → Join → Capture       ║
+╚════════════════════════════════════════════╝
+
+
+🔐 Authenticating as test-bot-1@theystillsing.test...
+✅ Authenticated
+
+📝 Creating game via API...
+✅ Game created: 2babc06e-24ae-4d0f-82ee-d39ab6efb938
+
+✅ Connected to Socket.IO
+
+📤 Joining game: 2babc06e-24ae-4d0f-82ee-d39ab6efb938
+🎮 Starting game...
+
+═══════════════════════════════════════
+CAPTURING 10 TURNS OF NARRATION
+═══════════════════════════════════════
+Testing diverse player actions...
+
+
+━━ TURN 1 ━━
+⚔️  I draw my sword and attack!
+🔄 Waiting for narration...
+🎭 ..............✅
+
+━━ TURN 2 ━━
+⚔️  I dodge to the side and counterattack.
+🔄 Waiting for narration...
+🎭 .............✅
+
+━━ TURN 3 ━━
+⚔️  I brace myself for their attack.
+🔄 Waiting for narration...
+🎭 ........✅
+
+━━ TURN 4 ━━
+⚔️  I examine the surroundings carefully.
+🔄 Waiting for narration...
+🎭 ................✅
+
+━━ TURN 5 ━━
+⚔️  I search for hidden doors or passages.
+🔄 Waiting for narration...
+⚠️  No narration received
+
+━━ TURN 6 ━━
+⚔️  I approach cautiously and investigate.
+🔄 Waiting for narration...
+🎭 ✅
+⚠️  No narration received
+
+━━ TURN 7 ━━
+⚔️  I try to negotiate or reason with them.
+🔄 Waiting for narration...
+🎭 ✅
+⚠️  No narration received
+
+━━ TURN 8 ━━
+⚔️  I ask who they are and what they want.
+🔄 Waiting for narration...
+🎭 ✅

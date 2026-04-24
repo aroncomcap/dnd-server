@@ -1,0 +1,68 @@
+╔════════════════════════════════════════════╗
+║  FIXED NARRATION CAPTURE                   ║
+║  Auth → Create Game → Join → Capture       ║
+╚════════════════════════════════════════════╝
+
+
+🔐 Authenticating as test-bot-1@theystillsing.test...
+✅ Authenticated
+
+📝 Creating game via API...
+✅ Game created: a1cd9fc4-034b-43f1-9bac-5fa0b62602dd
+
+✅ Connected to Socket.IO
+
+📤 Joining game: a1cd9fc4-034b-43f1-9bac-5fa0b62602dd
+🎮 Starting game...
+
+═══════════════════════════════════════
+CAPTURING 10 TURNS OF NARRATION
+═══════════════════════════════════════
+
+
+━━ TURN 1 ━━
+⚔️  I continue forward.
+🔄 Waiting for narration...
+🎭 .....................✅
+
+━━ TURN 2 ━━
+⚔️  I stand my ground and face the challenge.
+🔄 Waiting for narration...
+🎭 .......✅
+
+━━ TURN 3 ━━
+⚔️  I stand my ground and face the challenge.
+🔄 Waiting for narration...
+🎭 .................✅
+
+━━ TURN 4 ━━
+⚔️  Examine the scattered the kind of cold that has never known sunlight. The room bones and gear for clues about what happened to the previous adventurer. opens before you like a held breath: vaulted ceiling lost in shadow, mossy columns standing sentinel in two crooked rows, and at
+🔄 Waiting for narration...
+🎭 .........✅
+
+━━ TURN 5 ━━
+⚔️  Draw your weapon and advance toward the movement behind the column, ready for a fight.
+🔄 Waiting for narration...
+🎭 .....................✅
+
+━━ TURN 6 ━━
+⚔️  Approach the barkeep andweary but alive, and the barkeep — a broad woman with silver- ask about work, rumors, or lodging for the night.
+🔄 Waiting for narration...
+⚠️  No narration received
+
+━━ TURN 7 ━━
+⚔️  I continue forward.
+🔄 Waiting for narration...
+🎭 ✅
+⚠️  No narration received
+
+━━ TURN 8 ━━
+⚔️  I continue forward.
+🔄 Waiting for narration...
+🎭 ✅
+⚠️  No narration received
+
+━━ TURN 9 ━━
+⚔️  I examine the artifacts on the walls.
+🔄 Waiting for narration...
+🎭 ✅

@@ -1,0 +1,381 @@
+
+Running 6 tests using 1 worker
+
+[1A[2K[1/6] [chromium] › tests/e2e/campaign-series.spec.ts:9:5 › Campaign Series: Multi-Session Campaign Level 1-2
+[1A[2K[chromium] › tests/e2e/campaign-series.spec.ts:9:5 › Campaign Series: Multi-Session Campaign Level 1-2
+
+🏰 CAMPAIGN SERIES - LEVEL 1-2
+
+[1A[2K🎯 Objective: Complete a campaign from level 1 to level 2
+
+
+[1A[2K
+📖 SESSION 1 - Level 1
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-1@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: 593e1a5b...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[5]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[10]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[15]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[20]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[25]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 25 turns
+
+[1A[2K📊 Total turns: 25 | Current level: 1/2
+
+[1A[2K
+📖 SESSION 2 - Level 1
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-2@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: 17f63b73...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[5]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[10]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[15]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[20]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[25]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 28 turns
+
+[1A[2K📊 Total turns: 53 | Current level: 2/2
+
+[1A[2K
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🎉 CAMPAIGN COMPLETE!
+
+[1A[2K📈 Total Sessions: 2
+
+[1A[2K📊 Total Turns: 53
+
+[1A[2K🏅 Final Level: 2
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+[1A[2K[2/6] [chromium] › tests/e2e/full-campaign.spec.ts:9:5 › Full Campaign: Play game from level 1-10
+[1A[2K[chromium] › tests/e2e/full-campaign.spec.ts:9:5 › Full Campaign: Play game from level 1-10
+
+🎮 STARTING FULL CAMPAIGN TEST
+
+[1A[2K📅 Game: Campaign-L1-L10-1777032851249
+
+[1A[2K
+1️⃣  AUTHENTICATION
+
+[1A[2K🔐 Logging in test user: test-bot-3@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Authenticated
+
+[1A[2K
+2️⃣  CREATING GAME
+
+[1A[2K✏️  Game form filled
+
+[1A[2K🎬 Submitting form...
+
+[1A[2K✅ Redirected to game page
+
+[1A[2K✅ Game created: f614f602-ee2a-4526-99fa-11ca52b81e18
+
+[1A[2K
+3️⃣  STARTING GAME
+
+[1A[2Kℹ️  No start button found (game may have auto-started)
+
+[1A[2K
+4️⃣  PLAYING CAMPAIGN (Level 1-10)
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[10]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Campaign play complete
+
+[1A[2K📊 Turns played: 19
+
+[1A[2K📈 Final level: 1 (target: level 10)
+
+[1A[2K
+🎉 TEST PASSED - Full campaign completed successfully!
+
+[1A[2K[3/6] [chromium] › tests/e2e/gameplay.spec.ts:87:7 › Sophisticated Gameplay Testing › should create game, play through randomly, and catch errors
+[1A[2K[chromium] › tests/e2e/gameplay.spec.ts:87:7 › Sophisticated Gameplay Testing › should create game, play through randomly, and catch errors
+🔐 Authenticating...
+
+[1A[2K🔐 Logging in test user: test-bot-1@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K📖 Testing game: "Silent Gate"
+
+[1A[2K📝 Creating game...
+
+[1A[2K✅ Game created: 0d685059-4a2c-45bb-bf8c-d750efb2c39d
+
+[1A[2K🎮 Starting game...
+
+[1A[2K🔄 Turn 1/8
+
+[1A[2K⏸️  Turn 1: No more actions available (locator.click: Timeout 10000ms exceeded.
+Call log:
+[2m  - waiting for locator('[class*="option"], [class*="action"]').locator('button').nth(4)[22m
+[2m    - locator resolved to <button class="token-btn" id="btn-upload-token">📷 Upload Image</button>[22m
+[2m  - attempting click action[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying click action[22m
+[2m    - waiting 20ms[22m
+[2m    2 × waiting for element to be visible, enabled and stable[22m
+[2m      - element is not visible[22m
+[2m    - retrying click action[22m
+[2m      - waiting 100ms[22m
+[2m    19 × waiting for element to be visible, enabled and stable[22m
+[2m       - element is not visible[22m
+[2m     - retrying click action[22m
+[2m       - waiting 500ms[22m
+)
+
+[1A[2K
+📊 Test Results:
+
+[1A[2K  Game: Silent Gate
+
+[1A[2K  ID: 0d685059-4a2c-45bb-bf8c-d750efb2c39d
+
+[1A[2K  Errors found: 0
+
+[1A[2K✅ No critical errors encountered!
+
+[1A[2K[4/6] [chromium] › tests/e2e/gameplay.spec.ts:248:7 › Sophisticated Gameplay Testing › should handle lobby and game discovery
+[1A[2K[chromium] › tests/e2e/gameplay.spec.ts:248:7 › Sophisticated Gameplay Testing › should handle lobby and game discovery
+🏰 Testing lobby navigation...
+
+[1A[2K[5/6] [chromium] › tests/e2e/gameplay.spec.ts:268:7 › Sophisticated Gameplay Testing › should test character creation flow
+[1A[2K[chromium] › tests/e2e/gameplay.spec.ts:268:7 › Sophisticated Gameplay Testing › should test character creation flow
+👥 Testing character creation...
+
+[1A[2K[6/6] [chromium] › tests/e2e/gameplay.spec.ts:291:7 › Sophisticated Gameplay Testing › should recover from page navigation and reload
+[1A[2K[chromium] › tests/e2e/gameplay.spec.ts:291:7 › Sophisticated Gameplay Testing › should recover from page navigation and reload
+🔄 Testing page recovery...
+
+[1A[2K✅ Page recovery successful
+
+[1A[2K  6 passed (2.8m)

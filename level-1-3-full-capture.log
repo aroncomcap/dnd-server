@@ -1,0 +1,519 @@
+
+Running 1 test using 1 worker
+
+[1A[2K[1/1] [chromium] › tests/e2e/campaign-series.spec.ts:9:5 › Campaign Series: Multi-Session Campaign Level 1-3
+[1A[2K[chromium] › tests/e2e/campaign-series.spec.ts:9:5 › Campaign Series: Multi-Session Campaign Level 1-3
+
+🏰 CAMPAIGN SERIES - LEVEL 1-3
+
+[1A[2K🎯 Objective: Complete a campaign from level 1 to level 3
+
+
+[1A[2K📊 Capturing all narration, combat, and game events
+
+
+[1A[2K
+📖 SESSION 1 - Level 1
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-1@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: d46495e9...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+📖 Narration - Turn 4:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K.
+
+[1A[2K[5]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 8 turns
+
+[1A[2K📊 Total turns: 8 | Current level: 1/3
+
+[1A[2K
+📖 SESSION 2 - Level 1
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-2@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: 6573e22e...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+📖 Narration - Turn 4:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K.
+
+[1A[2K
+📖 Narration - Turn 5:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K[5]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 9 turns
+
+[1A[2K📊 Total turns: 17 | Current level: 1/3
+
+[1A[2K
+📖 SESSION 3 - Level 1
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-3@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: 7816e5af...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+📖 Narration - Turn 3:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K.
+
+[1A[2K
+📖 Narration - Turn 4:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K.
+
+[1A[2K[5]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 8 turns
+
+[1A[2K📊 Total turns: 25 | Current level: 1/3
+
+[1A[2K
+📖 SESSION 4 - Level 1
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-1@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: 82a26376...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+📖 Narration - Turn 4:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K.
+
+[1A[2K
+📖 Narration - Turn 5:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K[5]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 8 turns
+
+[1A[2K📊 Total turns: 33 | Current level: 2/3
+
+[1A[2K
+📖 SESSION 5 - Level 2
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-2@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: 3e86aab8...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+📖 Narration - Turn 4:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K.
+
+[1A[2K
+📖 Narration - Turn 5:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K[5]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 9 turns
+
+[1A[2K📊 Total turns: 42 | Current level: 2/3
+
+[1A[2K
+📖 SESSION 6 - Level 2
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-3@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2K⚠️  Register rate limited, will use stored session
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: f85cf5f8...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+📖 Narration - Turn 4:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K.
+
+[1A[2K
+📖 Narration - Turn 5:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K[5]
+
+[1A[2K
+📖 Narration - Turn 6:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[10]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 10 turns
+
+[1A[2K📊 Total turns: 52 | Current level: 2/3
+
+[1A[2K
+📖 SESSION 7 - Level 2
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-1@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2K⚠️  Register rate limited, will use stored session
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: c63c22ac...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[5]
+
+[1A[2K
+📖 Narration - Turn 6:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K.
+
+[1A[2K
+📖 Narration - Turn 7:
+
+[1A[2Kundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefinedundefined
+
+[1A[2K
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[10]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 10 turns
+
+[1A[2K📊 Total turns: 62 | Current level: 3/3
+
+[1A[2K
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🎉 CAMPAIGN COMPLETE!
+
+[1A[2K📈 Total Sessions: 7
+
+[1A[2K📊 Total Turns: 62
+
+[1A[2K🏅 Final Level: 3
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+[1A[2K  Slow test file: [chromium] › tests/e2e/campaign-series.spec.ts (5.4m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  1 passed (5.4m)

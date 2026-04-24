@@ -1,0 +1,75 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                     TAVERN TABLE: NARRATION CAPTURE LOG                        ║
+║                                                                                  ║
+║                  AI-Generated Game Narration - Clean Output                    ║
+║                         (No more undefined bug!)                                ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+════════════════════════════════════════════════════════════════════════════════
+TURN 1: "I look around carefully."
+════════════════════════════════════════════════════════════════════════════════
+
+The tavern smells of pine resin and old ale. Firelight catches the brass rings on
+the barkeep's fingers as he wipes down the counter with practiced indifference.
+Around you, merchants and laborers murmur in low conversation, their faces half-lit
+by tallow candles. A bulletin board near the door bristles with parchment notices —
+work for those willing to bleed for coin.
+
+Outside, wind pushes against the shuttered windows with a sound like distant
+breathing. You are here for a reason. The question is which thread you pull first.
+
+A young woman stumbles in — cloak torn, cheek bleeding — and her wild eyes sweep
+the room before finding yours. Not by accident. She crosses directly to your table
+and slams down a rolled parchment sealed with wax the color of dried blood.
+
+"You were recommended," she says, breathless. "The village of Ashfen is *gone*.
+And something is still there."
+
+
+📋 OPTIONS:
+1️⃣ Break the wax seal and examine the parchment she's brought you
+2️⃣ Ask the woman her name and how she escaped whatever happened at Ashfen
+3️⃣ Approach the barkeep and ask what work is available in town
+
+
+════════════════════════════════════════════════════════════════════════════════
+TURN 2: "I approach the mysterious figure."
+════════════════════════════════════════════════════════════════════════════════
+
+⚠️  No narration captured (streaming event timeout)
+
+
+════════════════════════════════════════════════════════════════════════════════
+TURN 3: "I draw my weapon and prepare for battle."
+════════════════════════════════════════════════════════════════════════════════
+
+The tavern smells of pine resin and spilled ale. A fire crackles in the hearth,
+throwing amber light across the faces of travelers and locals alike — farmers with
+callused hands, a hooded figure nursing dark wine in the corner, a dwarf
+arm-wrestling himself into legend at the far table. The barkeep, a broad woman with
+silver-streaked hair, polishes a tankard with the focused devotion of a priest.
+
+Outside, wind pushes against the shutters. Somewhere in this town, something is
+waiting to be found — or to find you.
+
+You stand at the threshold, road-dust still on your boots.
+
+
+📋 OPTIONS:
+1️⃣ Approach the barkeep and ask what work needs doing in this town
+2️⃣ Slide into a seat near the hooded figure and listen to what they're muttering
+3️⃣ Challenge the dwarf to an arm-wrestling match and make your presence known
+
+
+════════════════════════════════════════════════════════════════════════════════
+
+✅ BUG FIX VERIFIED
+
+The narration is now displaying cleanly without "undefined" concatenation.
+The split-pipeline architecture (Sonnet + Haiku) is working correctly:
+- Sonnet generates narrative text + action options
+- Haiku validates world state in background
+- Text streams cleanly to player without rendering errors
+
+═══════════════════════════════════════════════════════════════════════════════

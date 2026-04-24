@@ -1,0 +1,410 @@
+
+Running 12 tests using 1 worker
+
+[1A[2K[1/12] [chromium] › tests/e2e/campaign-series.spec.ts:9:5 › Campaign Series: Multi-Session Campaign Level 1-10
+[1A[2K[chromium] › tests/e2e/campaign-series.spec.ts:9:5 › Campaign Series: Multi-Session Campaign Level 1-10
+
+🏰 CAMPAIGN SERIES - LEVEL 1-10
+
+[1A[2K🎯 Objective: Complete a full campaign across multiple game sessions
+
+
+[1A[2K
+📖 SESSION 1 - Level 1
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-1@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: a321f426...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[5]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[10]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[15]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[20]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 24 turns
+
+[1A[2K📊 Total turns: 24 | Current level: 1/10
+
+[1A[2K
+📖 SESSION 2 - Level 1
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-2@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: 38276e3c...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[5]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[10]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[15]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[20]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[25]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[30]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 30 turns
+
+[1A[2K📊 Total turns: 54 | Current level: 2/10
+
+[1A[2K
+📖 SESSION 3 - Level 2
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-3@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: cacf4404...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[5]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[10]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[15]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[20]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[25]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 25 turns
+
+[1A[2K📊 Total turns: 79 | Current level: 3/10
+
+[1A[2K
+📖 SESSION 4 - Level 3
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-1@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: 9ed389e3...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[5]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[10]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[15]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[20]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[25]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K[30]
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K.
+
+[1A[2K
+✅ Session complete: 32 turns
+
+[1A[2K📊 Total turns: 111 | Current level: 4/10
+
+[1A[2K
+📖 SESSION 5 - Level 4
+
+[1A[2K━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[1A[2K🔐 Logging in test user: test-bot-2@theystillsing.test
+
+[1A[2K📝 Attempting to register test user...
+
+[1A[2Kℹ️  Test user already exists
+
+[1A[2K✅ Auth cookie set
+
+[1A[2K✅ Test user logged in successfully
+
+[1A[2K✅ Game created: 765a20ff...
+
+[1A[2K🎮 Playing session...
+
+[1A[2K  
+
+[1A[2K.
+
+[1A[2K.
+

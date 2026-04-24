@@ -1,0 +1,170 @@
+╔════════════════════════════════════════════╗
+║  FIXED NARRATION CAPTURE                   ║
+║  Auth → Create Game → Join → Capture       ║
+╚════════════════════════════════════════════╝
+
+
+🔐 Authenticating as test-bot-1@theystillsing.test...
+✅ Authenticated
+
+📝 Creating game via API...
+✅ Game created: 2bce2dbb-829e-46a2-9cfa-3001df93e570
+
+✅ Connected to Socket.IO
+
+📤 Joining game: 2bce2dbb-829e-46a2-9cfa-3001df93e570
+🎮 Starting game...
+
+═══════════════════════════════════════
+CAPTURING 10 TURNS OF NARRATION
+═══════════════════════════════════════
+
+
+━━ TURN 1 ━━
+⚔️  I look around carefully.
+🔄 Waiting for narration...
+🎭 ...................✅
+
+━━ TURN 2 ━━
+⚔️  I approach the mysterious figure.
+🔄 Waiting for narration...
+🎭 ...✅
+
+━━ TURN 3 ━━
+⚔️  I draw my weapon and prepare for battle.
+🔄 Waiting for narration...
+🎭 .......................✅
+
+━━ TURN 4 ━━
+⚔️  I cast a spell to protect myself.
+🔄 Waiting for narration...
+🎭 ..✅
+
+━━ TURN 5 ━━
+⚔️  I move toward the hooded figure.
+🔄 Waiting for narration...
+🎭 ......................✅
+
+━━ TURN 6 ━━
+⚔️  I examine the ancient artifacts on the walls.
+🔄 Waiting for narration...
+🎭 ..✅
+
+━━ TURN 7 ━━
+⚔️  I listen for any sounds of danger.
+🔄 Waiting for narration...
+🎭 ...........................✅
+
+━━ TURN 8 ━━
+⚔️  I prepare to fight whatever comes next.
+🔄 Waiting for narration...
+🎭 .............✅
+
+━━ TURN 9 ━━
+⚔️  I search for a way to escape.
+🔄 Waiting for narration...
+🎭 .............✅
+
+━━ TURN 10 ━━
+⚔️  I stand my ground and face the challenge.
+🔄 Waiting for narration...
+🎭 .............✅
+
+═══════════════════════════════════════
+✅ TEST COMPLETE
+═══════════════════════════════════════
+
+📊 CAPTURED NARRATION:
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TURN 1: I look around carefully.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ hillside like a man gripping a ledge — desperate, stubborn, alive. Through frost-rimmed windows, torchlight paints the snow orange. You sit alone at a corner table when the door bursts open.The A young shepherd stumbles in, wool cloak soaked through, eyes wild with something torchlight gutters as you descend the last worn step between terror and grief. He scans the room, into the chamber below. Stone walls slick with moisture catch the flame's reflection finds your face, and crosses to you with the direct, throwing dancing shadows across carvings too old to name. The air smells of iron and ancient dust — the particular silence of a place that has held its breath for centuries.ness of someone who has already run out of other options.
+
+"Please," he breathes. Before you, three paths diverge: a low archway trailing cold air, a heavy oak door banded with tarnished iron, and a collapsed section of wall revealing a rough-hewn tunnel clawed through the earth by something large.
+
+1️⃣ Duck through the low archway toward the cold, whispering draft
+2️⃣ Try the iron-banded oak door — press your ear against it first
+3️⃣ Investigate the clawed tunnel in the collapsed wall
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TURN 2: I approach the mysterious figure.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ where and how long ago.
+3️⃣ Study the boy carefully before responding, reading his clothes and wounds for clues about what really happened.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TURN 3: I draw my weapon and prepare for battle.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The torchlight gutters as you push open the iron-Thebanded door, and the dungeon exhales — cold stone tavern door groans open and you step inside breath, the faint reek of old ash, and, shaking road dust from your cloak. Firelight spills amber across warped floorboards. The smell something else beneath it. Something alive. The corridor stretches before you, flag of woodsmoke, tallow candles, and something savory simmstones worn smooth by centuries of passage, walls slick with moisture that catches your light like scattered stars.ering in the kitchen wraps around you like a warm hand. A half-dozen patrons nurse their Somewhere ahead, water drips in patient, rhythmic percussion. drinks — a hooded merchant, two farmers arguing over a map A carved archway looms twenty feet down the passage, its keystone, a cloaked figure sitting alone in the corner. The barkeep, a broad woman with silver- etched with a serpent devouring its own tail. Two branching paths flank itstreaked braids, looks up from polishing a tankard and gives you a slow, measuring n, cloaked in shadow.
+
+1️⃣ Approach the carvedod. The fire crackles. The night is young.
+
+1️⃣ archway and examine the serpent etching closely
+2️⃣ Take the left branching path, hand Approach the barkeep and ask what news she's heard lately
+2️⃣ Settle on your weapon
+3️⃣ Listen carefully at the right branching path before committing
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TURN 4: I cast a spell to protect myself.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ directly toward the cloaked figure sitting alone — something about them pulls your eye
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TURN 5: I move toward the hooded figure.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The torch gutters as you descend the last worn step into the chamber below. Dust motes drift like slow snow throughThe the amber light, settling on carved stone walls etched with the faces of forgotten kings torchlight gutters as you descend the last worn step. The air carries the cold sweetness of old earth and something faintly metallic — iron, or into the chamber below. Stone breathes cold air against old blood, it is difficult to say which your face — old air, undisturbed for decades. The room opens before you like. Three passages open before you like dark mouths, each exha a held secret finally exhaled. Carved pillars lineling its own particular silence. Behind you, the staircase groans once, then goes still. You are here. Whatever the walls, their surfaces crawling with faded glyphs that seem to shift when you don't look directly at them. At the chamber's far end, a heavy iron door stands sealed, its lock *here* means.
+
+1️⃣ Take the left passage, where shaped like an open mouth frozen mid-scream. Somewhere behind a faint warmth seems to breathe from the dark.
+2️⃣ the walls, water drips in a slow, patient Examine the carved faces on the walls more closely before moving.
+3️⃣ Call out into the chamber, letting your voice test the depth of the silence.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TURN 6: I examine the ancient artifacts on the walls.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+mouth lock more closely
+2️⃣ Study the shifting glyphs carved into the nearest pillar
+3️⃣ Call out into the darkness, listening carefully for any response
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TURN 7: I listen for any sounds of danger.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ world comes into focus like a dream remembered at noon — half-familiar, half-strange. YouThe stand at the edge of a crossroads where three dirt paths converge beneath an ancient oak. Its tavern door groans open on iron hinges, spilling amber bark is black with old rain, its roots cr lamplight across the cobblestones behind you. Inside, the air smells of tallow candles,acking the stone marker at its base. The carved pine resin, and something roasting slow over a hearth you can't yet letters read: *Ashenveil —  see. A handful of locals nurse their drinks at rough-2 miles.* Smoke rises thinhewn tables — a weathered farmer, two river-traders and gray on the horizon, whether from hearthfires or something worse you arguing over a map, a cloaked figure in the corner nursing something cannot yet say. The air smells of wet earth and iron. Behind you, nothing dark in a clay cup. The barkeep, a broad. Before you, everything.
+
+What do you do?
+
+1️⃣ Follow the road toward woman with silver-streaked braids, looks up and meets your eyes with the practiced patience Ashenveil, moving cautiously and watching for signs of trouble along the way. of someone who has seen everything walk through that door.
+
+1️⃣
+2️⃣ Examine the stone marker and the old oak more closely — something about them Approach the barkeep and ask what work might be had in feels deliberately placed.
+3️⃣ Leave the road entirely and cut through the tre this town.
+2️⃣ Move toward the cloaked figure in the corner —eline, approaching Ashenveil from an unseen angle. something about them pulls at your instincts.
+3️⃣ Scan the room carefully
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TURN 8: I prepare to fight whatever comes next.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The torchlight gutters as you descend the last worn step into the chamber below. Stone walls breathe cold air, damp with centuries of silence. Ahead, the room opens wide — vaulted ceilings lost in shadow, a mosaic floor depicting a great serpent swallowing its own tail. Three iron braziers stand unlit, their cold cups waiting. At the chamber's far end, a sealed door bears a circular lock mechanism etched with elemental symbols: flame, water, stone, wind. The air smells of old iron and something older still — like earth turned after long rain.
+
+1️⃣ Examine the mosaic floor more closely for hidden markings or pressure plates
+2️⃣ Attempt to light the three iron braziers
+3️⃣ Study the elemental lock mechanism on the sealed door
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TURN 9: I search for a way to escape.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The world resolves around you like ink bleeding into parchment — stone walls slick with torchlight, the smell of damp earth and old iron threading through the air. You stand at the threshold of a vaulted chamber, its ceiling lost in shadow above. Three passages branch before you: one exhales cold air carrying the faint scent of water, another glows with a distant amber warmth, and the third sits in perfect, unnatural silence. Somewhere behind you, the entrance has sealed itself — a grinding of stone, final as a coffin lid. There is only forward now.
+
+1️⃣ Follow the cold passage toward the sound of water
+2️⃣ Move toward the amber glow and its promise of warmth
+3️⃣ Step carefully into the silent passage and listen hard
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TURN 10: I stand my ground and face the challenge.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+The tavern door groans open and you step inside, shaking road dust from your shoulders. Warm firelight spills across the common room — a dozen patrons nursing ales, a bard sawing halfheartedly at a lute in the corner, and the thick smell of roasted meat hanging in the air like a promise. The barkeep, a broad woman with silver-streaked hair and a no-nonsense jaw, eyes you from behind the counter. On the board beside her, three parchment notices flutter in the draft from the door. Something about this place hums with quiet potential.
+
+1️⃣ Approach the barkeep and ask about the notices on the board
+2️⃣ Find a quiet corner table and observe the room before making any moves
+3️⃣ Head toward the bard and see what gossip flows freely with the music
+
