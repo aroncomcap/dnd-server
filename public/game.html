@@ -1907,22 +1907,30 @@ fetch('/api/deploy-time').then(r => r.json()).then(d => {
 }).catch(() => {});
 
 // ── Navigation ────────────────────────────────────────────────
-document.querySelectorAll('nav button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('screen-' + btn.dataset.screen).classList.add('active');
+(function() {
+  const navButtons = document.querySelectorAll('nav button');
+  if (!navButtons.length) return;
+  navButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      const screenEl = document.getElementById('screen-' + btn.dataset.screen);
+      if (screenEl) screenEl.classList.add('active');
+    });
   });
 });
 
 // ── Player name persistence ───────────────────────────────────
-const playerNameInput = document.getElementById('player-name-input');
-playerNameInput.value = playerName;
-playerNameInput.addEventListener('input', () => {
-  playerName = playerNameInput.value.trim();
-  localStorage.setItem('playerName_' + gameId, playerName);
-});
+(function() {
+  const playerNameInput = document.getElementById('player-name-input');
+  if (!playerNameInput) return;
+  playerNameInput.value = playerName;
+  playerNameInput.addEventListener('input', () => {
+    playerName = playerNameInput.value.trim();
+    localStorage.setItem('playerName_' + gameId, playerName);
+  });
+})();
 
 // ── Chat ──────────────────────────────────────────────────────
 const chatLog = document.getElementById('chat-log');
@@ -2032,7 +2040,7 @@ function showOptions(options) {
 
 // ── Scene Image ───────────────────────────────────────────────
 const scenePanel = document.getElementById('scene-panel');
-const sceneImg = document.getElementById('scene-img');
+let sceneImg = document.getElementById('scene-img');
 
 let sceneAutoCollapseTimer = null;
 
@@ -2087,6 +2095,7 @@ function collapseScene() {
 }
 
 function expandScene() {
+  if (!sceneImg) return;
   scenePanel.classList.remove('collapsed');
   scenePanel.innerHTML = `
     <img id="scene-img" src="${sceneImg.src}" alt="Scene" style="width: 100%; height: auto; max-height: 500px; object-fit: cover; display: block; transition: opacity 0.8s ease; opacity: 1;"/>
@@ -2413,6 +2422,7 @@ function showReactionPrompt(data) {
 (function() {
   const overlay = document.getElementById('turn-order-overlay');
   const handle = document.getElementById('turn-order-handle');
+  if (!handle || !overlay) return; // Exit if required elements don't exist
   let dragging = false, startX, startY, startLeft, startTop;
 
   handle.addEventListener('mousedown', startDrag);
