@@ -26,6 +26,7 @@ const promptBuilder = require('./prompt-builder');
 const imageEngine = require('./image-engine');
 const gameEngine = require('./game-engine');
 const USE_SPLIT_PIPELINE = process.env.SPLIT_PIPELINE === 'true';
+const TEST_MODE = process.env.TEST_MODE === 'true';
 
 // ── Art Styles ───────────────────────────────────────────────────────────────
 const { ART_STYLES } = promptBuilder;
@@ -2625,10 +2626,17 @@ io.on('connection', (socket) => {
 
   // Join a game room
   socket.on('join_game', async (gameId) => {
-    const game = await db.getGame(gameId);
+    let game = await db.getGame(gameId);
     if (!game) {
-      socket.emit('error_msg', { text: 'Game not found.' });
-      return;
+      if (TEST_MODE) {
+        // Auto-create games in test mode
+        console.log(`[TEST_MODE] Auto-creating game: ${gameId}`);
+        await db.createGame(gameId, `Test Game ${gameId.substring(0, 8)}`, 'dnd5e');
+        game = await db.getGame(gameId);
+      } else {
+        socket.emit('error_msg', { text: 'Game not found.' });
+        return;
+      }
     }
 
     socket.join(gameId);
