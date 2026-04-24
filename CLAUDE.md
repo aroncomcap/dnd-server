@@ -1,7 +1,14 @@
 # They Still Sing — CLAUDE.md
-<!-- Last updated: 2026-04-22 -->
+<!-- Last updated: 2026-04-24 -->
 
 ## Recent Fixes
+
+### 2026-04-24: Narration Capture Testing Issue
+- **Issue:** Test scripts (`full-narrative-capture.js`) completed all 32 turns but captured 0 narrations
+- **Root Cause:** Games must exist in PostgreSQL before Socket.IO clients can join. `join_game` handler rejects non-existent games (server.js:2628-2632)
+- **Status:** IDENTIFIED - Not a bug, infrastructure limitation. Games require database creation.
+- **Solution:** Create test games via web UI, Railway CLI, or HTTP API before running capture tests
+- **Documentation:** See `NARRATION-CAPTURE-ANALYSIS.md` for detailed explanation and solutions
 
 ### 2026-04-22: Server Crash on Boot (MAX_CALLS_PER_HOUR)
 - **Issue:** ReferenceError: MAX_CALLS_PER_HOUR is not defined at boot
