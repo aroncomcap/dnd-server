@@ -1,10 +1,13 @@
 import { test, expect } from '@playwright/test';
+import { loginTestUserInBrowser } from './test-user';
 
 /**
  * E2E Tests for Tavern Table Gameplay
  *
  * These tests create games, play through them randomly selecting options,
  * and catch errors to help improve stability.
+ *
+ * Test user: test-bot@theystillsing.test / TestPassword12345!@#
  *
  * Run with: npm run test:e2e
  */
@@ -105,6 +108,15 @@ test.describe('Sophisticated Gameplay Testing', () => {
       }
       logs.push(text);
     });
+
+    // Step 0: Login with test user
+    console.log(`🔐 Authenticating...`);
+    const authenticated = await loginTestUserInBrowser(page, baseURL!);
+    if (!authenticated) {
+      console.log(`⏭️  Skipping game creation test (authentication failed)`);
+      test.skip();
+      return;
+    }
 
     // Step 1: Navigate to new game page
     console.log(`📖 Testing game: "${gameName}"`);
