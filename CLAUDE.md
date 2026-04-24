@@ -3,6 +3,14 @@
 
 ## Recent Fixes
 
+### 2026-04-24: TEST_MODE for Automated Game Creation
+- **Implementation:** Added TEST_MODE environment variable
+- **Behavior:** When `TEST_MODE=true`, join_game auto-creates games in PostgreSQL if they don't exist
+- **Usage:** `TEST_MODE=true npm start` or `./run-narration-test.sh`
+- **Result:** Automated tests can now create and test games without manual setup
+- **Files:** server.js (line 29, 2627-2636), test-with-narration.js, run-narration-test.sh
+- **Status:** READY - Test with full narration capture now working
+
 ### 2026-04-24: Narration Capture Testing Issue
 - **Issue:** Test scripts (`full-narrative-capture.js`) completed all 32 turns but captured 0 narrations
 - **Root Cause:** Games must exist in PostgreSQL before Socket.IO clients can join. `join_game` handler rejects non-existent games (server.js:2628-2632)
