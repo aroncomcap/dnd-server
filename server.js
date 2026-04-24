@@ -2782,7 +2782,7 @@ io.on('connection', (socket) => {
     if (!gameId) return;
     try {
       const direction = (data && data.direction) ? truncate(data.direction, 500) : '';
-      const result = await gameEngine.generateParty(gameId, direction);
+      const result = await discordGameEngine.generateParty(gameId, direction);
       socket.emit('party_generated', { count: result.count });
 
       // COMBAT_JSON is now parsed directly during party generation (no separate Haiku calls needed)
