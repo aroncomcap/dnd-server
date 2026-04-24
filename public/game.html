@@ -1887,6 +1887,7 @@ ensureSession();
 let playerName = localStorage.getItem('playerName_' + gameId) || '';
 let currentPlayer = null;
 let gameConfig = null;
+let gameState = null;  // Global state from game_joined event
 let currentTurnOrder = [];
 let currentCharacters = {};
 const tokenCache = {};
@@ -2541,16 +2542,17 @@ function shufflePrompts(system) {
   document.getElementById('host-prompt').value = randomFrom(RANDOM_PROMPTS[s] || RANDOM_PROMPTS.custom);
   document.getElementById('pregen-direction').value = randomFrom(RANDOM_PARTIES[s] || RANDOM_PARTIES.custom);
 }
-document.getElementById('btn-shuffle-prompt').addEventListener('click', () => {
+document.getElementById('btn-shuffle-prompt')?.addEventListener('click', () => {
   const s = gameConfig?.system || 'dnd5e';
   document.getElementById('host-prompt').value = randomFrom(RANDOM_PROMPTS[s] || RANDOM_PROMPTS.custom);
 });
-document.getElementById('btn-shuffle-party').addEventListener('click', () => {
+document.getElementById('btn-shuffle-party')?.addEventListener('click', () => {
   const s = gameConfig?.system || 'dnd5e';
   document.getElementById('pregen-direction').value = randomFrom(RANDOM_PARTIES[s] || RANDOM_PARTIES.custom);
 });
 
 socket.on('game_joined', (state) => {
+  gameState = state;  // Save global state reference
   gameConfig = state.game;
   // Hide session setup if adventure already started
   const preStart = document.getElementById('setup-pre-start');
@@ -3021,10 +3023,10 @@ socket.on('timer_updated', (data) => {
 });
 
 // ── Character import ──────────────────────────────────────────
-document.getElementById('btn-import-char').addEventListener('click', () => {
+document.getElementById('btn-import-char')?.addEventListener('click', () => {
   document.getElementById('import-char-input').click();
 });
-document.getElementById('import-char-input').addEventListener('change', (e) => {
+document.getElementById('import-char-input')?.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
@@ -3149,7 +3151,7 @@ function updatePartyCard(name, c) {
 }
 
 // ── Register character ────────────────────────────────────────
-document.getElementById('btn-register').addEventListener('click', () => {
+document.getElementById('btn-register')?.addEventListener('click', () => {
   const name = document.getElementById('c-name').value.trim();
   if (!name) { alert('Please enter a character name.'); return; }
 
@@ -4164,9 +4166,10 @@ async function copyRulesFromGame() {
 }
 
 async function loadRules() {
+  if (!gameState) return;  // Exit if game state not ready
   const res = await fetch(`/api/games/${gameId}/rules`);
   const rules = await res.json();
-  state.rulesCorrections = rules;
+  gameState.rulesCorrections = rules;
   renderRulesList();
 }
 
