@@ -1628,6 +1628,45 @@ app.post('/api/games', requireAuth, async (req, res) => {
   }
 });
 
+// Delete individual game
+app.delete('/api/games/:id', requireAuth, async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    const game = await db.getGame(gameId);
+
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    // Check ownership: user must be the host or admin
+    if (game.host_user_id !== req.user.id && !req.user.is_admin) {
+      return res.status(403).json({ error: 'Only the host can delete this game' });
+    }
+
+    console.log(`[DELETE] Game ${gameId} deletion requested by ${req.user.email}`);
+
+    // Delete in order of foreign key dependencies
+    await db.pool.query('DELETE FROM game_state WHERE game_id = $1', [gameId]);
+    await db.pool.query('DELETE FROM channel_links WHERE game_id = $1', [gameId]);
+    await db.pool.query('DELETE FROM game_monster_sources WHERE game_id = $1', [gameId]);
+    await db.pool.query('DELETE FROM monster_sources WHERE game_id = $1', [gameId]);
+    await db.pool.query('DELETE FROM characters WHERE game_id = $1', [gameId]);
+    await db.pool.query('UPDATE killshots SET game_id = NULL WHERE game_id = $1', [gameId]);
+    const deleteResult = await db.pool.query('DELETE FROM games WHERE id = $1', [gameId]);
+
+    console.log(`[DELETE] Game ${gameId} deleted successfully`);
+
+    res.json({
+      success: true,
+      message: `Game "${game.name}" deleted`,
+      deleted: deleteResult.rowCount,
+    });
+  } catch (err) {
+    console.error('[DELETE] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Admin cleanup: Delete all games and characters
 app.post('/api/admin/cleanup', requireAdmin, async (req, res) => {
   try {
