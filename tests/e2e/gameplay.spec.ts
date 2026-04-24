@@ -113,19 +113,37 @@ test.describe('Sophisticated Gameplay Testing', () => {
 
     // Step 2: Fill game creation form
     console.log('📝 Creating game...');
-    const nameInput = page.locator('input[placeholder*="Game Name"], input[name*="name" i]').first();
+
+    // Use specific element IDs from new-game.html
+    const nameInput = page.locator('#game-name');
     if (await nameInput.isVisible().catch(() => false)) {
       await nameInput.fill(gameName);
     }
 
-    // Try to find and click "Create" or "Start" button
-    const createBtn = page.locator(
-      'button:has-text("Create"), button:has-text("Start"), button:has-text("Begin")'
-    ).first();
+    const systemSelect = page.locator('#game-system');
+    if (await systemSelect.isVisible().catch(() => false)) {
+      await systemSelect.selectOption('dnd5e');
+    }
+
+    const sceneInput = page.locator('#scene-prompt');
+    if (await sceneInput.isVisible().catch(() => false)) {
+      const scene = 'A mysterious tavern appears. Strange symbols glow on the walls.';
+      await sceneInput.fill(scene);
+    }
+
+    const partyInput = page.locator('#party-direction');
+    if (await partyInput.isVisible().catch(() => false)) {
+      const party = '4 characters, level 1-2, balanced adventuring party';
+      await partyInput.fill(party);
+    }
+
+    // Click the "Start Story" button
+    const createBtn = page.locator('#btn-create');
 
     if (await createBtn.isVisible().catch(() => false)) {
       await createBtn.click();
       await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(3000); // Wait for game to be created
     }
 
     // Extract game ID from URL or redirect
