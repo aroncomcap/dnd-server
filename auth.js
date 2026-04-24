@@ -85,7 +85,7 @@ function generateToken(user) {
 function setTokenCookie(res, token) {
   res.cookie('tt_token', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: true,  // Always secure on HTTPS (Railway enforces HTTPS)
     sameSite: 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
