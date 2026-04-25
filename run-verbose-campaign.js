@@ -108,11 +108,22 @@ async function runVerboseCampaign(gameId) {
 
     socket.on('dm_stream_chunk', (data) => {
       if (currentTurn && currentTurn.isStreaming) {
-        if (data && data.text) {
-          currentTurn.narrationBuffer += data.text;
+        // Try multiple possible field names for the text
+        let text = null;
+        if (data) {
+          text = data.text || data.content || data.chunk || data.data;
+        }
+
+        if (text) {
+          currentTurn.narrationBuffer += text;
           process.stdout.write('.');
-        } else if (!data || !data.text) {
-          // Diagnostic: log what we actually received
+        } else {
+          // Log only once per turn what we got
+          if (!currentTurn.diagnosticLogged) {
+            currentTurn.diagnosticLogged = true;
+            log(`\n[DEBUG TURN ${currentTurn.num}] dm_stream_chunk data keys: ${data ? Object.keys(data).join(', ') : 'null'}`);
+            if (data) log(`[DEBUG TURN ${currentTurn.num}] data: ${JSON.stringify(data).substring(0, 200)}`);
+          }
           process.stdout.write('?');
         }
       }
