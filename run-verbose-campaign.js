@@ -90,8 +90,6 @@ async function runVerboseCampaign(gameId) {
     let turns = [];
     let currentTurn = null;
     let sessionTurns = 0;
-    let narrationsPrinted = 0;
-    let turnsInProgress = 0;
 
     const socket = io(BASE_URL, {
       transports: ['websocket'],
@@ -136,7 +134,6 @@ async function runVerboseCampaign(gameId) {
             combatMatches.forEach(m => log(`   • ${m}`));
           }
           log(`${'─'.repeat(80)}\n`);
-          narrationsPrinted++;
         }
       }
     });
@@ -185,7 +182,6 @@ async function runVerboseCampaign(gameId) {
         turns.push(currentTurn);
         sessionTurns++;
         totalTurns++;
-        turnsInProgress++;
 
         log(`\n━━ TURN ${currentTurn.num} ━━`);
         log(`⚔️  ${currentTurn.action}`);
@@ -195,14 +191,13 @@ async function runVerboseCampaign(gameId) {
 
         // Wait for narration with timeout
         const startWait = Date.now();
-        while (!currentTurn.narration && Date.now() - startWait < 25000) {
+        while (!currentTurn.narration && Date.now() - startWait < 20000) {
           await wait(200);
         }
 
         if (!currentTurn.narration) {
           log(`⚠️  No narration received`);
         }
-        turnsInProgress--;
       }
 
       log(`\n${'═'.repeat(80)}`);
@@ -210,17 +205,12 @@ async function runVerboseCampaign(gameId) {
       log(`📊 TOTAL: ${totalTurns} turns across ${gameCount} sessions`);
       log(`${'═'.repeat(80)}\n`);
 
-      // Wait for all pending narration streams to complete
-      const completeWaitStart = Date.now();
-      while (turnsInProgress > 0 && narrationsPrinted < sessionTurns && Date.now() - completeWaitStart < 10000) {
-        await wait(200);
-      }
-
-      // Final buffer for output flushing
-      await wait(3000);
+      // Wait for pending narration streams and output to complete
+      // Each turn can take up to 20s to wait for narration, plus time to stream and print
+      await wait(5000);
       socket.disconnect();
-      // Extra buffer after disconnect
-      await wait(1500);
+      // Extra buffer to ensure all console output is flushed
+      await wait(2000);
       resolve();
     });
 
