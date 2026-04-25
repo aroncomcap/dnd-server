@@ -97,52 +97,52 @@ async function runVerboseCampaign(gameId) {
       reconnectionDelay: 100,
     });
 
+    // Set up narration listeners FIRST before connecting
+    socket.on('dm_stream_start', () => {
+      if (currentTurn) {
+        currentTurn.narrationBuffer = '';
+        currentTurn.isStreaming = true;
+        process.stdout.write('🎭 ');
+      }
+    });
+
+    socket.on('dm_stream_chunk', (data) => {
+      if (currentTurn && currentTurn.isStreaming && data && data.text) {
+        currentTurn.narrationBuffer += data.text;
+        process.stdout.write('.');
+      }
+    });
+
+    socket.on('dm_stream_end', (data) => {
+      if (currentTurn && currentTurn.isStreaming) {
+        currentTurn.isStreaming = false;
+        currentTurn.narration = currentTurn.narrationBuffer;
+        process.stdout.write('✅\n');
+
+        // PRINT FULL NARRATION
+        if (currentTurn.narration && currentTurn.narration.length > 0) {
+          log(`\n${'─'.repeat(80)}`);
+          log(`TURN ${currentTurn.num}\n`);
+          log(currentTurn.narration);
+
+          // Extract combat indicators
+          const combatMatches = currentTurn.narration.match(
+            /(\d+d\d+[+\-\d]*|HIT|MISS|CRITICAL|DAMAGE|attack|spell|initiative)/gi
+          );
+          if (combatMatches) {
+            log(`\n🎲 DICE & COMBAT:`);
+            combatMatches.forEach(m => log(`   • ${m}`));
+          }
+          log(`${'─'.repeat(80)}\n`);
+        }
+      }
+    });
+
     socket.on('connect', async () => {
       gameCount++;
       log(`\n${'═'.repeat(80)}`);
       log(`SESSION ${gameCount} - GAME ${gameId.substring(0, 8)}...`);
       log(`${'═'.repeat(80)}\n`);
-
-      // Setup narration listeners
-      socket.on('dm_stream_start', () => {
-        if (currentTurn) {
-          currentTurn.narrationBuffer = '';
-          currentTurn.isStreaming = true;
-          process.stdout.write('🎭 ');
-        }
-      });
-
-      socket.on('dm_stream_chunk', (data) => {
-        if (currentTurn && currentTurn.isStreaming && data.text) {
-          currentTurn.narrationBuffer += data.text;
-          process.stdout.write('.');
-        }
-      });
-
-      socket.on('dm_stream_end', (data) => {
-        if (currentTurn && currentTurn.isStreaming) {
-          currentTurn.isStreaming = false;
-          currentTurn.narration = currentTurn.narrationBuffer;
-          process.stdout.write('✅\n');
-
-          // PRINT FULL NARRATION
-          if (currentTurn.narration && currentTurn.narration.length > 0) {
-            log(`\n${'─'.repeat(80)}`);
-            log(`TURN ${currentTurn.num}\n`);
-            log(currentTurn.narration);
-
-            // Extract combat indicators
-            const combatMatches = currentTurn.narration.match(
-              /(\d+d\d+[+\-\d]*|HIT|MISS|CRITICAL|DAMAGE|attack|spell|initiative)/gi
-            );
-            if (combatMatches) {
-              log(`\n🎲 DICE & COMBAT:`);
-              combatMatches.forEach(m => log(`   • ${m}`));
-            }
-            log(`${'─'.repeat(80)}\n`);
-          }
-        }
-      });
 
       // Join and start
       socket.emit('join_game', gameId);
