@@ -107,9 +107,14 @@ async function runVerboseCampaign(gameId) {
     });
 
     socket.on('dm_stream_chunk', (data) => {
-      if (currentTurn && currentTurn.isStreaming && data && data.text) {
-        currentTurn.narrationBuffer += data.text;
-        process.stdout.write('.');
+      if (currentTurn && currentTurn.isStreaming) {
+        if (data && data.text) {
+          currentTurn.narrationBuffer += data.text;
+          process.stdout.write('.');
+        } else if (!data || !data.text) {
+          // Diagnostic: log what we actually received
+          process.stdout.write('?');
+        }
       }
     });
 
@@ -117,6 +122,12 @@ async function runVerboseCampaign(gameId) {
       if (currentTurn && currentTurn.isStreaming) {
         currentTurn.isStreaming = false;
         currentTurn.narration = currentTurn.narrationBuffer;
+
+        // If narration is empty, try fallback from data object
+        if (!currentTurn.narration && data && data.text) {
+          currentTurn.narration = data.text;
+        }
+
         process.stdout.write('✅\n');
 
         // PRINT FULL NARRATION
