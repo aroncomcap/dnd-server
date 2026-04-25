@@ -206,10 +206,11 @@ async function runVerboseCampaign(gameId) {
       log(`${'═'.repeat(80)}\n`);
 
       // Wait for pending narration streams and output to complete
-      await wait(3000);
+      // Each turn can take up to 20s to wait for narration, plus time to stream and print
+      await wait(5000);
       socket.disconnect();
       // Extra buffer to ensure all console output is flushed
-      await wait(1000);
+      await wait(2000);
       resolve();
     });
 
@@ -244,12 +245,12 @@ async function main() {
 
     // WAIT for session to complete before starting next
     await runVerboseCampaign(gameId);
-    // Add delay between sessions to ensure output completes
-    await wait(2000);
+    // Add significant delay between sessions to ensure all output completes
+    await wait(5000);
   }
 
   // Final wait to ensure all output is flushed
-  await wait(1000);
+  await wait(3000);
 
   console.log(`\n╔════════════════════════════════════════════════════════════════╗`);
   console.log(`║                    CAMPAIGN COMPLETE                           ║`);
