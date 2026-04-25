@@ -205,8 +205,11 @@ async function runVerboseCampaign(gameId) {
       log(`📊 TOTAL: ${totalTurns} turns across ${gameCount} sessions`);
       log(`${'═'.repeat(80)}\n`);
 
-      await wait(1000);
+      // Wait for pending narration streams and output to complete
+      await wait(3000);
       socket.disconnect();
+      // Extra buffer to ensure all console output is flushed
+      await wait(1000);
       resolve();
     });
 
