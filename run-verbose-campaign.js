@@ -90,6 +90,7 @@ async function runVerboseCampaign(gameId) {
     let turns = [];
     let currentTurn = null;
     let sessionTurns = 0;
+    let streamingInProgress = false;  // ✅ FIX: Track if streaming is active
 
     const socket = io(BASE_URL, {
       transports: ['websocket'],
@@ -100,6 +101,7 @@ async function runVerboseCampaign(gameId) {
     // Set up narration listeners FIRST before connecting
     socket.on('dm_stream_start', () => {
       if (currentTurn) {
+        streamingInProgress = true;  // ✅ FIX: Mark streaming as active
         currentTurn.narrationBuffer = '';
         currentTurn.isStreaming = true;
         process.stdout.write('🎭 ');
@@ -132,6 +134,7 @@ async function runVerboseCampaign(gameId) {
     socket.on('dm_stream_end', (data) => {
       if (currentTurn && currentTurn.isStreaming) {
         currentTurn.isStreaming = false;
+        streamingInProgress = false;  // ✅ FIX: Mark streaming as complete
         currentTurn.narration = currentTurn.narrationBuffer;
 
         // If narration is empty, try fallback from data object
@@ -141,7 +144,7 @@ async function runVerboseCampaign(gameId) {
 
         process.stdout.write('✅\n');
 
-        // PRINT FULL NARRATION
+        // ✅ FIX: Print narration synchronously to avoid interleaving
         if (currentTurn.narration && currentTurn.narration.length > 0) {
           log(`\n${'─'.repeat(80)}`);
           log(`TURN ${currentTurn.num}\n`);
@@ -157,6 +160,7 @@ async function runVerboseCampaign(gameId) {
           }
           log(`${'─'.repeat(80)}\n`);
         }
+        currentTurn.narrationPrinted = true;  // ✅ FIX: Track that output is done
       }
     });
 
@@ -227,11 +231,17 @@ async function runVerboseCampaign(gameId) {
       log(`📊 TOTAL: ${totalTurns} turns across ${gameCount} sessions`);
       log(`${'═'.repeat(80)}\n`);
 
-      // Wait for pending narration streams and output to complete
-      // Each turn can take up to 20s to wait for narration, plus time to stream and print
-      await wait(5000);
+      // ✅ FIX: Wait for any pending streaming to complete
+      // Even after turn loop ends, some streams might still be in flight
+      const streamWaitStart = Date.now();
+      while (streamingInProgress && Date.now() - streamWaitStart < 10000) {
+        await wait(500);
+      }
+
+      // Extra buffer for output flushing
+      await wait(3000);
       socket.disconnect();
-      // Extra buffer to ensure all console output is flushed
+      // Final buffer after disconnect to ensure all console output is flushed
       await wait(2000);
       resolve();
     });

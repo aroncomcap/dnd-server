@@ -102,11 +102,12 @@ describe('Integration: Game Lifecycle — Creation, State Persistence, Reload', 
     );
 
     assert.equal(result.rows.length, 1, 'state row should exist');
-    const loaded = result.rows[0].value;
-    assert.equal(loaded.ferocity, 3);
-    assert.equal(loaded.verbosity, 'brief');
-    assert.equal(loaded.pillars.combat, 33);
-    assert.equal(loaded.dmPersona, 'epic');
+    // ✅ FIX: Parse JSON string before accessing properties
+    const loaded = JSON.parse(result.rows[0].value);
+    assert.equal(loaded.ferocity, 3, 'ferocity should be 3');
+    assert.equal(loaded.verbosity, 'brief', 'verbosity should be brief');
+    assert.equal(loaded.pillars.combat, 33, 'combat pillar should be 33');
+    assert.equal(loaded.dmPersona, 'epic', 'dmPersona should be epic');
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -205,7 +206,8 @@ describe('Integration: Game Lifecycle — Creation, State Persistence, Reload', 
       [gameId, 'settings']
     );
 
-    const loaded = result.rows[0].value;
+    // ✅ FIX: Parse JSON string before accessing properties
+    const loaded = JSON.parse(result.rows[0].value);
     assert.equal(loaded.ferocity, 5, 'ferocity should be updated to 5');
     assert.equal(loaded.verbosity, 'verbose', 'verbosity should be updated to verbose');
     assert.equal(loaded.pillars.combat, 50, 'combat pillar should be 50');
@@ -417,12 +419,13 @@ describe('Integration: Game Lifecycle — Creation, State Persistence, Reload', 
       [gameId, 'settings']
     );
 
-    const reloaded = result.rows[0].value;
+    // ✅ FIX: Parse JSON string before accessing properties
+    const reloaded = JSON.parse(result.rows[0].value);
 
     // Verify deep structure is intact
     assert.deepEqual(reloaded, complexState, 'complex state should survive round-trip');
-    assert.equal(reloaded.chatHistory.length, 2);
-    assert.equal(reloaded.world.locations[0].name, 'Tavern');
+    assert.equal(reloaded.chatHistory.length, 2, 'chatHistory should have 2 entries');
+    assert.equal(reloaded.world.locations[0].name, 'Tavern', 'first location should be Tavern');
     assert.equal(reloaded.world.npcs.Bartender.disposition, 'friendly');
     assert.equal(reloaded.map.edges[0].from, 1);
   });

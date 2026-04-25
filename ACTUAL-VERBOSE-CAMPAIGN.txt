@@ -1,0 +1,557 @@
+
+╔════════════════════════════════════════════════════════════════╗
+║              TAVERN TABLE - VERBOSE CAMPAIGN                    ║
+║    Full Narration, Dice Rolls, and Combat Capture              ║
+╚════════════════════════════════════════════════════════════════╝
+
+🔐 Authenticating...
+
+✅ Authenticated
+
+
+════════════════════════════════════════════════════════════════════════════════
+SESSION 1 - GAME e6cc8b38...
+════════════════════════════════════════════════════════════════════════════════
+
+🎮 Starting game...
+
+
+━━ TURN 1 ━━
+⚔️  I look around carefully.
+🔄 Waiting for narration...
+🎭 ✅
+⚠️  No narration received
+
+━━ TURN 2 ━━
+⚔️  I examine everything.
+🔄 Waiting for narration...
+🎭 ........✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 2
+
+The creature's form *writhes* — a mass of writhing shadow and bioluminescent flesh that defies description. It lashes out at itself with terrible purpose, its own manifested energy tearing through its translucent hide. Luminous ichor spatters the stone floor, hissing where it lands. The wound closes almost instantly, but the pain is real. The thing screams — a sound like tearing metal mixed with a whale's cry — and wheels toward the passage entrance where you stand frozen.
+
+Its many eyes lock onto you all at once.
+
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 3 ━━
+⚔️  I move forward.
+🔄 Waiting for narration...
+🎭 ........✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 3
+
+The creature's own manifested limb tears through its luminescent body with sickening precision—a wound that bleeds radiant ichor across the stone. It writhes, regenerating even as it self-destructs, locked in some terrible cycle of agony and hunger. The wound seals, but the creature's movements grow *erratic*, desperate. It turns fully toward you now, those many eyes blazing with predatory focus.
+
+**The creature lunges—claws extended, maw opening wider than any jaw should.**
+
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 4 ━━
+⚔️  I attack.
+🔄 Waiting for narration...
+🎭 .........✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 4
+
+**🎲 Manifestation Strike (d20+3) — rolls 14. MISS! The creature's own limb lashes wildly, tearing through empty air where you stood a heartbeat before.**
+
+You sidestep the writhing appendage—it scorches the stone where your feet were, leaving a smoking trench. The creature shrieks, its self-inflicted wound reopening as it overextends. Ichor pools at its feet. For a moment, it seems confused by its own miss, those many eyes swiveling to track you.
+
+
+🎲 DICE & COMBAT:
+   • MISS
+   • miss
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 5 ━━
+⚔️  I cast a spell.
+🔄 Waiting for narration...
+🎭 .........✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 5
+
+**🎲 Manifestation Strike (d20+3) — rolls 19. HIT! 19 psychic damage. Unknown Creature (88/110 HP).**
+
+The creature's own limb *impales* it—a sickening wet sound echoes through the chamber as bioluminescent flesh tears from within. The wound doesn't close this time. It thrashes, screaming, its many eyes rolling back in agony. For a moment it seems paralyzed by its own self-inflicted trauma, ichor pooling faster now. The creature staggers, weakening visibly, but its hunger remains—it turns toward you with renewed, *desperate* ferocity.
+
+It lunges again, faster this time, claws raking the air where your face should be.
+
+
+🎲 DICE & COMBAT:
+   • HIT
+   • damage
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 6 ━━
+⚔️  I listen.
+🔄 Waiting for narration...
+🎭 .......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 6
+
+**🎲 Manifestation Strike (d20+3) — rolls 21. HIT! 7 psychic damage. Unknown Creature (85/110 HP).**
+
+The creature's own limb pierces deeper—a spray of luminescent blood arcs across the chamber wall. It *screams*, a sound that vibrates through your bones. The wound this time doesn't seal. The creature staggers, its movements becoming sluggish, desperate. Those many eyes swivel toward you with raw, primal hunger—wounded prey that knows it's dying and will take you with it.
+
+It hurls itself forward in a final, savage charge.
+
+
+🎲 DICE & COMBAT:
+   • HIT
+   • damage
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 7 ━━
+⚔️  I search.
+🔄 Waiting for narration...
+🎭 .......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 7
+
+**🎲 Manifestation Strike (d20+3) — rolls 21. HIT! 8 psychic damage. Unknown Creature (81/110 HP).**
+
+The creature's own appendage *erupts* through its translucent hide once more—a geyser of bioluminescent ichor sprays across the chamber. It collapses to one knee, its many eyes dimming, the frenzied hunger giving way to something almost like *confusion*. The wound won't close this time. It's dying, and it knows it.
+
+With its last strength, the creature lunges at you—a final, desperate strike.
+
+
+🎲 DICE & COMBAT:
+   • HIT
+   • damage
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 8 ━━
+⚔️  I prepare.
+🔄 Waiting for narration...
+🎭 .......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 8
+
+**🎲 Manifestation Strike (d20+3) — rolls 17. HIT! 16 psychic damage. Unknown Creature (73/110 HP).**
+
+The creature's own limb *erupts* through its body with terrible finality—a wound that opens like a mouth, spilling luminescent blood across the stone in rivers. It staggers, its many eyes rolling, the frenzied hunger collapsing into something primal and broken. The wound *won't close*. It's dying, visibly dying, each breath more labored than the last.
+
+With its final strength, the creature hurls itself toward you in one last, savage lunge—claws extended, maw open wide.
+
+
+🎲 DICE & COMBAT:
+   • HIT
+   • damage
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 9 ━━
+⚔️  I investigate.
+🔄 Waiting for narration...
+🎭 ......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 9
+
+**🎲 Manifestation Strike (d20+3) — rolls 19. HIT! 8 psychic damage. Unknown Creature (69/110 HP).**
+
+The creature's own limb *tears through* its translucent hide once more—another geyser of bioluminescent ichor sprays across the chamber floor, hissing where it lands. The wound gapes open, refusing to seal. The creature *staggers*, its many eyes dimming, its movements becoming sluggish and desperate. It's dying by inches, shredded from within by its own manifested fury.
+
+It lunges at you one final time, claws raking the air with fading strength.
+
+
+🎲 DICE & COMBAT:
+   • HIT
+   • damage
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 10 ━━
+⚔️  I approach.
+🔄 Waiting for narration...
+🎭 .......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 10
+
+**🎲 Manifestation Strike (d20+3) — rolls 14. MISS! The creature's limb lashes wildly, tearing through empty air.**
+
+The creature's own appendage *whips* past itself, missing by inches—a wild, uncontrolled strike born of agony and desperation. The limb crashes into the stone wall instead, cracking the ancient rock. The creature staggers, confused, its many eyes rolling unfocused. Its body is a map of self-inflicted wounds now, luminescent blood pooling beneath it.
+
+It turns toward you again, weakened but still hungry.
+
+
+🎲 DICE & COMBAT:
+   • MISS
+   • miss
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 11 ━━
+⚔️  I draw my weapon.
+🔄 Waiting for narration...
+🎭 .......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 11
+
+**🎲 Manifestation Strike (d20+3) — rolls 10. MISS! The creature's own limb flails uselessly, striking only stone.**
+
+The appendage crashes against the chamber wall with a sickening *crack*, shattering ancient rock. The creature writhes in confusion, its many eyes unfocused and dimming. Luminescent blood pools beneath it—wounds that refuse to close, self-inflicted and deepening with each failed strike. It's weakening visibly now, each movement slower, more labored than the last.
+
+The creature turns toward you one final time, hunger and desperation warring in those dying eyes.
+
+
+🎲 DICE & COMBAT:
+   • MISS
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 12 ━━
+⚔️  I investigate further.
+🔄 Waiting for narration...
+🎭 ........✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 12
+
+**🎲 Manifestation Strike (d20+3) — rolls 6. MISS! The creature's limb collapses mid-strike, too weak to sustain the blow.**
+
+The appendage drops like a broken thing, crashing uselessly against the stone. The creature *screams*—a sound of pure anguish and frustration. Its body is a tapestry of gaping wounds now, luminescent blood flowing freely, pooling in dark rivulets across the chamber floor. It staggers, barely able to stand, those many eyes rolling back in agony.
+
+For a moment, it simply *hangs there*—dying, broken, unable to even hurt itself anymore.
+
+
+🎲 DICE & COMBAT:
+   • MISS
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 13 ━━
+⚔️  I take the object.
+🔄 Waiting for narration...
+🎭 .......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 13
+
+**🎲 Manifestation Strike (d20+3) — rolls 17. HIT! 15 psychic damage. Unknown Creature (62/110 HP).**
+
+The creature's own limb *impales* it with terrible force—a lance of bioluminescent flesh tearing through its translucent body. It *screams*, a sound that echoes through the chamber like something dying. The wound gapes open, refusing to seal. Luminescent blood cascades across the stone in rivers. The creature staggers, its many eyes rolling back, its movements becoming sluggish, desperate, *broken*.
+
+It's dying. Visibly, inevitably dying.
+
+
+🎲 DICE & COMBAT:
+   • HIT
+   • damage
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 14 ━━
+⚔️  I try to escape.
+🔄 Waiting for narration...
+🎭 ......
+════════════════════════════════════════════════════════════════════════════════
+SESSION 2 - GAME 039c4f45...
+════════════════════════════════════════════════════════════════════════════════
+
+🎮 Starting game...
+
+
+━━ TURN 1 ━━
+⚔️  I look around carefully.
+🔄 Waiting for narration...
+🎭 ✅
+⚠️  No narration received
+
+━━ TURN 15 ━━
+⚔️  I stand firm.
+🔄 Waiting for narration...
+⚠️  No narration received
+
+━━ TURN 2 ━━
+⚔️  I examine everything.
+🔄 Waiting for narration...
+🎭 ......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 2
+
+The creature lunges from between the pillars—a skeletal thing wrapped in tattered mail, its longsword raised high. The blade whistles past your ear, clanging against stone behind you. Dust and sparks scatter across the chamber floor as the undead warrior hisses, withdrawing for another strike.
+
+Its hollow eyes lock onto you. It raises its blade again, advancing with jerking, purposeful steps.
+
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 3 ━━
+⚔️  I move forward.
+🔄 Waiting for narration...
+🎭 ........✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 3
+
+**🎲 Skeletal Warrior Longsword — rolls 4. MISS! Blade screams past your shoulder, striking only stone.**
+
+The undead thing snarls, its corroded armor clattering as it overextends. You feel the wind of the blade—close enough to taste rust and grave-dust. It staggers, recovering its stance, bones creaking with unnatural purpose.
+
+The creature hisses and circles, raising its weapon once more. Its turn ends.
+
+
+🎲 DICE & COMBAT:
+   • MISS
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 4 ━━
+⚔️  I attack.
+🔄 Waiting for narration...
+🎭 .....⚠️  No narration received
+
+════════════════════════════════════════════════════════════════════════════════
+✅ SESSION COMPLETE: 15 turns
+📊 TOTAL: 19 turns across 2 sessions
+════════════════════════════════════════════════════════════════════════════════
+
+..✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 4
+
+**🎲 Skeletal Warrior Longsword — rolls 21. HIT! 6 slashing damage. You stagger back, blood hot across your ribs (HP 16/22).**
+
+The blade finds the gap between your armor and your side. Fire lances through you as the creature presses forward, its jaw clicking with something like hunger. You're breathing hard now, tasting copper.
+
+It raises its sword for another assault, bones grinding with inexorable patience.
+
+
+🎲 DICE & COMBAT:
+   • HIT
+   • damage
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 5 ━━
+⚔️  I cast a spell.
+🔄 Waiting for narration...
+🎭 .....✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 5
+
+Your counterattack whistles through the air—the creature's brittle bones barely dodge aside as your blade shrieks past its skull. For a moment, you have the upper hand. The skeletal warrior hisses and regroups, its movements growing more erratic, more desperate.
+
+It lunges again with savage intensity, longsword raised high in both bony fists.
+
+
+🎲 DICE & COMBAT:
+   • attack
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 6 ━━
+⚔️  I listen.
+🔄 Waiting for narration...
+🎭 .......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 6
+
+**🎲 Skeletal Warrior Longsword — rolls 5. MISS! The blade clangs uselessly against the stone pillar beside you.**
+
+Frustration seems to seize the creature—its movements grow wild, uncoordinated. Bone scrapes against bone as it wrenches the sword free from the pillar, hissing like wind through a crypt. You see your opening now, clear as daylight.
+
+It staggers backward, regrouping for another strike.
+
+
+🎲 DICE & COMBAT:
+   • MISS
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 7 ━━
+⚔️  I search.
+🔄 Waiting for narration...
+🎭 ......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 7
+
+**🎲 Skeletal Warrior Longsword — rolls 18. HIT! 2 slashing damage. Your shoulder erupts in pain as the blade rakes across muscle and bone (HP 14/22).**
+
+You cry out, stumbling sideways. The creature presses relentlessly, its hollow laugh echoing off the chamber walls. Blood streams down your arm now—you're hurting badly, and this thing shows no sign of slowing.
+
+It raises its blade once more, advancing with inexorable hunger.
+
+
+🎲 DICE & COMBAT:
+   • HIT
+   • damage
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 8 ━━
+⚔️  I prepare.
+🔄 Waiting for narration...
+🎭 ......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 8
+
+**🎲 Skeletal Warrior Longsword — rolls 15. HIT! 6 slashing damage. Your leg buckles as the blade tears through flesh and sinew (HP 8/22).**
+
+You drop to one knee, gasping. Blood pools beneath you. The skeletal warrior towers above, its corroded sword dripping crimson, its hollow eyes burning with that sickly amber light. You're barely standing—one more solid hit and you're finished.
+
+It raises its blade for the killing stroke.
+
+
+🎲 DICE & COMBAT:
+   • HIT
+   • damage
+   • hit
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 9 ━━
+⚔️  I investigate.
+🔄 Waiting for narration...
+🎭 .......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 9
+
+**🎲 Skeletal Warrior Longsword — rolls 11. MISS! The blade whistles past your head as you twist desperately aside.**
+
+Your movement saves you—the sword screams through empty air, the creature's momentum carrying it past. For a heartbeat, its back is exposed. You're bloodied, gasping, on the edge of collapse—but you're still alive.
+
+The skeletal warrior snarls and wheels around, raising its blade for another assault.
+
+
+🎲 DICE & COMBAT:
+   • MISS
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 10 ━━
+⚔️  I approach.
+🔄 Waiting for narration...
+🎭 ......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 10
+
+**🎲 Unknown Creature Longsword — rolls 8. MISS! The blade clangs harmlessly off stone as you roll clear.**
+
+You surge to your feet, adrenaline screaming through your veins despite the agony. The skeletal warrior hisses in frustration, its movements growing sluggish now—you've wounded it badly. It staggers, raising its corroded blade one final time with diminishing strength.
+
+It's weakening. You can feel it.
+
+
+🎲 DICE & COMBAT:
+   • MISS
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 11 ━━
+⚔️  I draw my weapon.
+🔄 Waiting for narration...
+🎭 ......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 11
+
+**🎲 Unknown Creature Longsword — rolls 11. MISS! Blade scrapes uselessly across your armor.**
+
+The skeletal warrior's movements are becoming erratic, desperate. Its corroded sword trembles in bony hands as it circles you one final time, hissing through a jaw that barely holds together. You can see the cracks spreading through its spine—this creature is dying.
+
+It raises its blade weakly, preparing one last strike.
+
+
+🎲 DICE & COMBAT:
+   • MISS
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 12 ━━
+⚔️  I investigate further.
+🔄 Waiting for narration...
+🎭 .......✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 12
+
+**🎲 Unknown Creature Longsword — rolls 11. MISS! The blade clatters weakly against stone, the creature's arm dropping.**
+
+The skeletal warrior staggers backward, its corrupted frame barely holding together. Cracks spider-web across its ribs. It raises its sword one final time—a last, desperate gesture—but the blow never comes. Instead, it collapses to one knee, bones grinding like rust.
+
+The amber light in its eyes flickers. Dies.
+
+The creature crumbles into dust and silence. The chamber falls still.
+
+
+🎲 DICE & COMBAT:
+   • MISS
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 13 ━━
+⚔️  I take the object.
+🔄 Waiting for narration...
+🎭 .........✅
+
+────────────────────────────────────────────────────────────────────────────────
+TURN 13
+
+I appreciate the combat update, but I need clarity: **who is the player character in this scene?** 
+
+The combat log shows "Unknown creature attacks Unknown creature"—this suggests there's a mismatch in character tracking. Before I narrate the next round, I need to know:
+
+1. **What is your character's name and class?**
+2. **Are you the skeletal warrior, or a different combatant?**
+3. **Who/what is attacking whom?**
+
+Once you register your character, I'll resume combat with proper narration and tracking. Right now the system can't distinguish player from enemy.
+
+**Please provide your character details so we can continue.**
+
+🎲 DICE & COMBAT:
+   • attack
+   • attack
+────────────────────────────────────────────────────────────────────────────────
+
+
+━━ TURN 14 ━━
+⚔️  I try to escape.
+🔄 Waiting for narration...
+⚠️  No narration received
+
+━━ TURN 15 ━━
+⚔️  I stand firm.
+🔄 Waiting for narration...
+⚠️  No narration received
+
+════════════════════════════════════════════════════════════════════════════════
+✅ SESSION COMPLETE: 15 turns
+📊 TOTAL: 30 turns across 2 sessions
+════════════════════════════════════════════════════════════════════════════════
+
+❌ Failed to create game
+❌ Failed to create game
+
+╔════════════════════════════════════════════════════════════════╗
+║                    CAMPAIGN COMPLETE                           ║
+║              Total: 30 turns across 2 sessions                  ║
+╚════════════════════════════════════════════════════════════════╝
+

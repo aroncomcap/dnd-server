@@ -211,8 +211,35 @@ test('Campaign Series: Multi-Session Campaign Level 1-3', async ({ page, baseURL
     }
 
     console.log(`\n✅ Session complete: ${sessionTurns} turns`);
-    currentLevel = 1 + Math.floor(totalTurns / turnsPerLevel);
-    console.log(`📊 Total turns: ${totalTurns} | Current level: ${currentLevel}/${targetLevel}`);
+
+    // ✅ FIX: Read actual player level from game state instead of calculating it
+    const actualLevel = await page.evaluate(() => {
+      const levelElement = document.querySelector('[data-player-level], .level, .player-level');
+      if (levelElement) {
+        const levelText = levelElement.textContent || '';
+        const match = levelText.match(/\d+/);
+        return match ? parseInt(match[0]) : null;
+      }
+
+      // Fallback: check for level in character data
+      const charElements = document.querySelectorAll('[data-character-level]');
+      if (charElements.length > 0) {
+        const levelAttr = charElements[0].getAttribute('data-character-level');
+        return levelAttr ? parseInt(levelAttr) : null;
+      }
+
+      return null;
+    });
+
+    if (actualLevel !== null) {
+      currentLevel = actualLevel;
+      console.log(`📊 Total turns: ${totalTurns} | Actual level: ${currentLevel}/${targetLevel} (read from game)`);
+    } else {
+      // Fallback to calculated level if DOM level not found
+      console.log(`⚠️  Could not read level from DOM, using calculated estimate`);
+      currentLevel = 1 + Math.floor(totalTurns / turnsPerLevel);
+      console.log(`📊 Total turns: ${totalTurns} | Estimated level: ${currentLevel}/${targetLevel}`);
+    }
   }
 
   console.log(`\n${'━'.repeat(40)}`);
