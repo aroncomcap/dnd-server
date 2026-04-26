@@ -1134,9 +1134,11 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   const finalSystemPrompt = systemPrompt + combatPromptInjection;
 
   // Rebuild messages with combatContext appended to user message
+  // Add explicit directive to respond to player action
+  const userMessageWithDirective = `[CRITICAL: The player's action is your PRIMARY focus. Respond DIRECTLY to what they chose. Show the consequences of their specific action.]\n\n${prefix}${userMessage}${combatContext}`;
   const messagesWithCombat = [
     ...gd.chatHistory,
-    { role: 'user', content: prefix + userMessage + combatContext },
+    { role: 'user', content: userMessageWithDirective },
   ];
 
   // Streaming state machine
