@@ -7,6 +7,7 @@
 
 const ioModule = require(__dirname + '/node_modules/socket.io/client-dist/socket.io.js');
 const io = ioModule.io || ioModule;
+const fetch = require('node-fetch') || require('node:fetch');
 
 const BASE_URL = process.env.BASE_URL || 'https://theystillsing.com';
 const GAME_ID = `l1-l5-test-${Date.now()}`;
@@ -20,6 +21,13 @@ let gameState = {
   encounters: 0,
   combats: 0,
 };
+
+const TEST_USER = {
+  email: 'test-bot-1@theystillsing.test',
+  password: 'TestPassword12345!@#',
+};
+
+let authToken = null;
 
 function log(msg, level = 'INFO') {
   const timestamp = new Date().toISOString().slice(11, 19);
@@ -45,31 +53,115 @@ function wait(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+async function authenticate() {
+  try {
+    const response = await fetch(`${BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: TEST_USER.email,
+        password: TEST_USER.password,
+      }),
+      credentials: 'include',
+    });
+
+    if (!response.ok && response.status !== 409) {
+      log(`Login failed: ${response.status}`, 'FAIL');
+      return false;
+    }
+
+    const setCookie = response.headers.get('set-cookie');
+    if (setCookie && setCookie.includes('tt_token=')) {
+      const match = setCookie.match(/tt_token=([^;]+)/);
+      authToken = match ? match[1] : null;
+    }
+
+    log(`Authenticated successfully`, 'PASS');
+    return !!authToken;
+  } catch (err) {
+    log(`Auth error: ${err.message}`, 'FAIL');
+    return false;
+  }
+}
+
+async function createGame() {
+  try {
+    const response = await fetch(`${BASE_URL}/api/games`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': `tt_token=${authToken}`,
+      },
+      body: JSON.stringify({
+        name: `L1-L5-Test-${Date.now()}`,
+        system: 'dnd5e',
+      }),
+    });
+
+    if (!response.ok) {
+      log(`Game creation failed: ${response.status}`, 'FAIL');
+      return null;
+    }
+
+    const game = await response.json();
+    return game.id;
+  } catch (err) {
+    log(`Game creation error: ${err.message}`, 'FAIL');
+    return null;
+  }
+}
+
 async function runCampaign() {
-  return new Promise((resolve) => {
-    socket = io(BASE_URL, { 
-      transports: ['websocket'], 
+  return new Promise(async (resolve) => {
+    // Authenticate first
+    if (!await authenticate()) {
+      log(`Could not authenticate`, 'FAIL');
+      resolve();
+      return;
+    }
+
+    // Create a game via HTTP API
+    let gameId = await createGame();
+    if (!gameId) {
+      log(`Could not create game`, 'FAIL');
+      resolve();
+      return;
+    }
+
+    log(`Game created: ${gameId}`, 'PASS');
+
+    socket = io(BASE_URL, {
+      transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 100,
     });
-    
+
     socket.on('connect', async () => {
       log(`Connected to ${BASE_URL}`, 'PASS');
-      log(`Game ID: ${GAME_ID}`, 'INFO');
+      log(`Game ID: ${gameId}`, 'INFO');
       log(`Starting L1-L5 progression test with 2 characters`, 'INFO');
-      
-      // Join game
-      socket.emit('join_game', GAME_ID);
+
+      // Join the created game
+      socket.emit('join_game', gameId);
       await wait(500);
       
       // Generate a balanced 2-person party for testing
       log(`\n🎲 PHASE 1: PARTY GENERATION (Level 1)`, 'INFO');
-      socket.emit('generate_party', { 
-        direction: 'Small elite party - 2 characters for solo play. Fighter and Cleric. Level 1.' 
+      socket.emit('generate_party', {
+        direction: 'Small elite party - 2 characters for solo play. Fighter and Cleric. Level 1.'
       });
-      
+
       let partyReady = false;
+      let partyTimeout = setTimeout(() => {
+        if (!partyReady) {
+          log(`Party generation timeout (60s elapsed)`, 'FAIL');
+          socket.disconnect();
+          resolve();
+        }
+      }, 60000);
+
       socket.once('party_generated', async (data) => {
+        clearTimeout(partyTimeout);
         log(`Party generated: ${data.count} characters`, 'PASS');
         partyReady = true;
         
