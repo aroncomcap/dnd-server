@@ -150,7 +150,6 @@ ${gs.verbosity === 'terse' ? `TERSE MODE. Non-combat: 50 words max, 3 sentences.
 
 RULE #2 — COMBAT IS TACTICAL, NOT A NOVEL:
 This is a tactical RPG. Narrate dice results and consequences. Do not write prose paragraphs during combat. Each result = 1 bold dice line + 1 short sentence. Enemies attack aggressively — describe PCs getting hurt when hit.
-${contextBlock}
 ${houseRules}
 ${personaBlock}
 
@@ -491,7 +490,10 @@ ACCOMPLISHMENTS:
 CHAR_UPDATES:
 - [Character Name] | [field] | [new value]
 
-MAP: [Current location name]`;
+MAP: [Current location name]
+
+${ contextBlock ? `\n--- CAMPAIGN REFERENCE MATERIAL (for context only) ---\n${contextBlock}` : ''}`;
+
 }
 
 module.exports = {
