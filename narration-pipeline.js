@@ -182,13 +182,11 @@ function buildUserMessage(gs, characterName, actionText) {
     parts.push(`[RECENT HISTORY]\n${historyLines.join('\n')}`);
   }
 
-  // Player action - AGGRESSIVE FORMATTING
-  parts.push(`═══════════════════════════════════════════════════════════`);
-  parts.push(`🎬 THIS IS THE PLAYER'S CHOICE - RESPOND TO THIS ONLY:`);
-  parts.push(`${characterName} chooses: ${actionText}`);
-  parts.push(`\nDO NOT REPEAT PREVIOUS NARRATIONS. DO NOT IGNORE THIS ACTION.`);
-  parts.push(`YOUR ONLY JOB: Describe what happens DIRECTLY BECAUSE OF THIS CHOICE.`);
-  parts.push(`═══════════════════════════════════════════════════════════`);
+  // Player action with system override instruction
+  const systemOverride = `CRITICAL: The player has chosen an action below. You MUST narrate ONLY what happens as a direct consequence of that choice. Do not repeat previous narrations or generic descriptions.\n\n`;
+  parts.push(systemOverride);
+  parts.push(`PLAYER ACTION: ${characterName} chooses: ${actionText}`);
+  parts.push(`\nRespond directly. Narrate what happens because of this choice ONLY.`);
 
   return parts.join('\n\n');
 }

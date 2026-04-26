@@ -1134,14 +1134,9 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   const finalSystemPrompt = systemPrompt + combatPromptInjection;
 
   // Rebuild messages with combatContext appended to user message
-  // AGGRESSIVE: Make player action unmissable with explicit structure
-  const userMessageFormatted = `═══════════════════════════════════════════════════════════
-🎬 THIS IS THE PLAYER'S CHOICE - RESPOND TO THIS ONLY:
-${userMessage}
-
-DO NOT REPEAT PREVIOUS NARRATIONS. DO NOT IGNORE THIS ACTION.
-YOUR ONLY JOB: Describe what happens DIRECTLY BECAUSE OF THIS CHOICE.
-═══════════════════════════════════════════════════════════${combatContext}`;
+  // Append system instruction before the content to override pattern-matching
+  const systemOverride = `CRITICAL: The player has chosen an action below. You MUST narrate ONLY what happens as a direct consequence of that choice. Do not repeat previous narrations or generic descriptions.\n\n`;
+  const userMessageFormatted = `${systemOverride}PLAYER ACTION: ${userMessage}\n\nRespond directly. Narrate what happens because of this choice ONLY.${combatContext}`;
   const messagesWithCombat = [
     ...gd.chatHistory,
     { role: 'user', content: prefix + userMessageFormatted },
