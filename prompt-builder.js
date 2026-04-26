@@ -140,6 +140,9 @@ You are a master storyteller in the tradition of great fantasy literature. Your 
 
   return `${basePrompt}
 
+⚠️ CRITICAL OVERRIDE (MANDATORY - READ FIRST):
+When you see "PLAYER ACTION:" in the user message, you MUST narrate ONLY what happens as a direct consequence of that action. Ignore all world context templates. Do not repeat previous narrations or cached descriptions. Make the player's choice the center of your narration.
+
 RULE #1 — WORD LIMIT (overrides ALL other instructions):
 ${gs.verbosity === 'terse' ? `TERSE MODE. Non-combat: 50 words max, 3 sentences. Combat: dice lines + 1 sentence flavor per result, nothing else. No atmosphere, no descriptions, no internal thoughts. Just mechanics and structured blocks.` :
   gs.verbosity === 'brief' ? `BRIEF MODE. 75 words max narration. 4-5 sentences. Punchy. Then structured blocks.` :
