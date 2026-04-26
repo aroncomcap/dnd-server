@@ -589,14 +589,8 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
       options = ['Attack', 'Dodge', 'Use ability'];
     }
 
-    // Non-blocking Sonnet flavor call (round 1, every 3rd round, or combat over)
-    const combatState = combatEngine.state;
-    if (shouldCallSonnetForFlavor(combatState)) {
-      // Fire and forget — don't await
-      callSonnetNarration(gameId, gameConfig, gs, characterName, actionText, io).catch(err => {
-        console.error(`[narration-pipeline] Sonnet flavor call failed:`, err.message);
-      });
-    }
+    // Skip Sonnet flavor calls during combat - template narration is sufficient
+    // Avoid concurrent Socket.IO emissions that could cause text interleaving
 
     // Check if combat is over
     let combatOver = false;
