@@ -182,8 +182,7 @@ function buildUserMessage(gs, characterName, actionText) {
     parts.push(`[RECENT HISTORY]\n${historyLines.join('\n')}`);
   }
 
-  // Player action with explicit emphasis
-  parts.push(`[CRITICAL: The player's next action is your PRIMARY input. Respond DIRECTLY to what they choose. Acknowledge their action explicitly in the narration.]`);
+  // Player action
   parts.push(`${characterName}: ${actionText}`);
 
   return parts.join('\n\n');
