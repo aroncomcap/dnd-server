@@ -1134,9 +1134,11 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   const finalSystemPrompt = systemPrompt + combatPromptInjection;
 
   // Rebuild messages with combatContext appended to user message
+  // FORMAT ACTION AS PRIMARY INSTRUCTION - Force Claude to address it first
+  const userMessageFormatted = `PLAYER ACTION: ${userMessage}\n\nRespond directly to what the player chose. Begin your narration by acknowledging their action.${combatContext}`;
   const messagesWithCombat = [
     ...gd.chatHistory,
-    { role: 'user', content: prefix + userMessage + combatContext },
+    { role: 'user', content: prefix + userMessageFormatted },
   ];
 
   // Streaming state machine

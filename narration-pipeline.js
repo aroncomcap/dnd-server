@@ -182,8 +182,9 @@ function buildUserMessage(gs, characterName, actionText) {
     parts.push(`[RECENT HISTORY]\n${historyLines.join('\n')}`);
   }
 
-  // Player action
-  parts.push(`${characterName}: ${actionText}`);
+  // Player action - formatted as PRIMARY INSTRUCTION
+  parts.push(`PLAYER ACTION (respond directly to this): ${characterName} chooses: ${actionText}`);
+  parts.push(`\nNarrate what happens as a direct consequence of this choice.`);
 
   return parts.join('\n\n');
 }
