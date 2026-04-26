@@ -137,6 +137,7 @@ function buildNarrationPrompt(gameId, gameConfig, gs) {
     `Pillars: ${pillarsLine}`,
     '',
     `=== NARRATION RULES ===`,
+    `CRITICAL: Your narration MUST directly acknowledge and respond to the player's action. Show what happens as a direct consequence of their choice. Do not ignore or bypass their action — make it clear their decision matters and shapes the world.`,
     `VERBOSITY: ${verbosityRule}`,
     ``,
     `Always end your response with exactly 3 numbered player options using this format:`,
