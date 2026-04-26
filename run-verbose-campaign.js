@@ -150,14 +150,34 @@ async function runVerboseCampaign(gameId) {
           log(`TURN ${currentTurn.num}\n`);
           log(currentTurn.narration);
 
+          // Extract dice rolls and display prominently
+          const diceMatches = currentTurn.narration.match(/\d+d\d+(?:[+\-]\d+)?/gi);
+          if (diceMatches && diceMatches.length > 0) {
+            log(`\n🎲 ROLLS:`);
+            const uniqueRolls = [...new Set(diceMatches)];
+            uniqueRolls.forEach(roll => log(`   • ${roll}`));
+          }
+
           // Extract combat indicators
           const combatMatches = currentTurn.narration.match(
-            /(\d+d\d+[+\-\d]*|HIT|MISS|CRITICAL|DAMAGE|attack|spell|initiative)/gi
+            /(HIT|MISS|CRITICAL|DAMAGE|attack|spell|initiative|initiative check)/gi
           );
-          if (combatMatches) {
-            log(`\n🎲 DICE & COMBAT:`);
-            combatMatches.forEach(m => log(`   • ${m}`));
+          if (combatMatches && combatMatches.length > 0) {
+            log(`\n⚔️  COMBAT:`);
+            const uniqueCombat = [...new Set(combatMatches)];
+            uniqueCombat.forEach(m => log(`   • ${m}`));
           }
+
+          // Parse options from narration
+          const optionMatches = currentTurn.narration.match(/([1-3])️⃣\s+([^\n]+)/g);
+          if (optionMatches && optionMatches.length > 0) {
+            currentTurn.options = [];
+            optionMatches.forEach((match, idx) => {
+              const text = match.replace(/[1-3]️⃣\s+/, '').trim();
+              currentTurn.options.push({ num: idx + 1, text });
+            });
+          }
+
           log(`${'─'.repeat(80)}\n`);
         }
         currentTurn.narrationPrinted = true;  // ✅ FIX: Track that output is done
@@ -178,39 +198,52 @@ async function runVerboseCampaign(gameId) {
       socket.emit('dm_start', {});
       await wait(2000);
 
-      // Play 15 turns per session
-      const actions = [
-        'I look around carefully.',
-        'I examine everything.',
-        'I move forward.',
-        'I attack.',
-        'I cast a spell.',
-        'I listen.',
-        'I search.',
-        'I prepare.',
-        'I investigate.',
-        'I approach.',
-        'I draw my weapon.',
-        'I investigate further.',
-        'I take the object.',
-        'I try to escape.',
-        'I stand firm.',
-      ];
-
-      for (let i = 0; i < 15; i++) {
+      // Play turns, selecting options dynamically from narration
+      let prevTurn = null;
+      for (let i = 0; i < 20; i++) {
         currentTurn = {
           num: i + 1,
-          action: actions[i],
+          action: null,
           narration: null,
           narrationBuffer: '',
           isStreaming: false,
+          options: [],
         };
         turns.push(currentTurn);
         sessionTurns++;
         totalTurns++;
 
         log(`\n━━ TURN ${currentTurn.num} ━━`);
-        log(`⚔️  ${currentTurn.action}`);
+
+        // Select action: first turn starts game, then select from options
+        if (i === 0) {
+          currentTurn.action = "Let's begin.";
+        } else if (prevTurn && prevTurn.options && prevTurn.options.length > 0) {
+          // Intelligently select an option
+          let selectedOption = null;
+
+          // Check if narration contains combat keywords
+          const hasCombat = /\b(combat|attack|spell|damage|hit|roll|initiative|weapon)\b/i.test(prevTurn.narration);
+
+          if (hasCombat) {
+            // Prefer attack/spell options in combat
+            selectedOption = prevTurn.options.find(opt =>
+              /\b(attack|spell|strike|weapon|magical|cast|fire)\b/i.test(opt.text)
+            );
+          }
+
+          // If no combat option found or not combat, pick randomly
+          if (!selectedOption) {
+            selectedOption = prevTurn.options[Math.floor(Math.random() * prevTurn.options.length)];
+          }
+
+          currentTurn.action = selectedOption.text;
+        } else {
+          // Fallback if no options parsed
+          currentTurn.action = "Continue the adventure.";
+        }
+
+        log(`📋 ${currentTurn.action}`);
         log(`🔄 Waiting for narration...`);
 
         socket.emit('player_action', { text: currentTurn.action });
@@ -224,6 +257,8 @@ async function runVerboseCampaign(gameId) {
         if (!currentTurn.narration) {
           log(`⚠️  No narration received`);
         }
+
+        prevTurn = currentTurn;
       }
 
       log(`\n${'═'.repeat(80)}`);

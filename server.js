@@ -211,6 +211,7 @@ const IMAGE_COOLDOWN = 2;
 
 // ── Per-game in-memory state ─────────────────────────────────────────────────
 const games = {}; // gameId -> { data, turnTimer, turnCount, imageUrl }
+const gameStreamingLocks = {}; // gameId -> Promise that resolves when current stream completes
 
 function getGameState(gameId) {
   if (!games[gameId]) {
@@ -242,6 +243,34 @@ function getGameState(gameId) {
     };
   }
   return games[gameId];
+}
+
+// ── Streaming queue helper (ensures one stream per game at a time) ──────────────
+async function withStreamingLock(gameId, streamFn) {
+  // Wait for any previous stream to complete
+  if (gameStreamingLocks[gameId]) {
+    try {
+      await gameStreamingLocks[gameId];
+    } catch (err) {
+      // Ignore previous stream errors
+    }
+  }
+
+  // Create a new lock promise for this stream
+  let resolveLock;
+  const lockPromise = new Promise((resolve) => {
+    resolveLock = resolve;
+  });
+  gameStreamingLocks[gameId] = lockPromise;
+
+  try {
+    const result = await streamFn();
+    resolveLock();
+    return result;
+  } catch (err) {
+    resolveLock();
+    throw err;
+  }
 }
 
 // ── Broadcast helpers (Socket.io + Discord) ──────────────────────────────────
@@ -1492,7 +1521,10 @@ function startTurnTimer(gameId, gameConfig, playerName) {
     emitSystem(gameId, { text: `⏰ ${playerName} ran out of time. Claude is acting for them...` });
 
     try {
-      const { narration, options, scene, world, isKillshot, mapMoved } = await callClaude(gameId, gameConfig, autoPrompt, playerName);
+      // ✅ FIX: Serialize narration streaming per game
+      const { narration, options, scene, world, isKillshot, mapMoved } = await withStreamingLock(gameId, () =>
+        callClaude(gameId, gameConfig, autoPrompt, playerName)
+      );
       const gs2 = getGameState(gameId);
       const nextIdx = (gs2.data.currentTurnIndex + 1) % (gs2.data.turnOrder.length || 1);
       const nextPlayer = gs2.data.turnOrder[nextIdx] || null;
@@ -2335,7 +2367,10 @@ app.post('/api/test/combat', requireAuth, async (req, res) => {
     const turnStart = Date.now();
 
     try {
-      const result = await callClaude(gameId, gameConfig, userMessage);
+      // ✅ FIX: Serialize narration streaming per game
+      const result = await withStreamingLock(gameId, () =>
+        callClaude(gameId, gameConfig, userMessage)
+      );
       const turnElapsed = Date.now() - turnStart;
 
       // Word count from narration
@@ -2975,7 +3010,10 @@ io.on('connection', (socket) => {
 
     try {
       const gameConfig = await db.getGame(gameId);
-      const { narration, options, scene, world, isKillshot, mapMoved } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
+      // ✅ FIX: Serialize narration streaming per game to prevent concurrent chunk interleaving
+      const { narration, options, scene, world, isKillshot, mapMoved } = await withStreamingLock(gameId, () =>
+        callClaude(gameId, gameConfig, `${playerName}: ${action}`)
+      );
       const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
       const nextPlayer = gs.data.turnOrder[nextIdx] || null;
       emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
@@ -3057,7 +3095,10 @@ io.on('connection', (socket) => {
     try {
       const gameConfig = await db.getGame(gameId);
       const gs = getGameState(gameId);
-      const { narration, options, scene, world } = await callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.');
+      // ✅ FIX: Serialize narration streaming per game
+      const { narration, options, scene, world } = await withStreamingLock(gameId, () =>
+        callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.')
+      );
       const firstPlayer = getCurrentPlayer(gameId);
       emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world });
       // Always generate image for the opening scene
@@ -3418,7 +3459,10 @@ const discordGameEngine = {
     clearTimeout(gs.turnTimer);
 
     const gameConfig = await db.getGame(gameId);
-    const { narration, options, scene, world, isKillshot, mapMoved } = await callClaude(gameId, gameConfig, `${playerName}: ${action}`);
+    // ✅ FIX: Serialize narration streaming per game
+    const { narration, options, scene, world, isKillshot, mapMoved } = await withStreamingLock(gameId, () =>
+      callClaude(gameId, gameConfig, `${playerName}: ${action}`)
+    );
     const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
     const nextPlayer = gs.data.turnOrder[nextIdx] || null;
     emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
@@ -3471,7 +3515,10 @@ const discordGameEngine = {
     const gs = getGameState(gameId);
     gs.paused = false;
     gs.idleTurns = 0;
-    const { narration, options, scene, world } = await callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.');
+    // ✅ FIX: Serialize narration streaming per game
+    const { narration, options, scene, world } = await withStreamingLock(gameId, () =>
+      callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.')
+    );
     const firstPlayer = getCurrentPlayer(gameId);
     emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world });
     if (scene) {
