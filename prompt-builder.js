@@ -230,6 +230,7 @@ SKILL TEST PACING:
 - If characters are wandering or stalling, gently push the action forward: an NPC interrupts, a sound is heard, a danger emerges, a clue appears.
 
 RULES:
+- **CRITICAL: Your narration MUST directly acknowledge and respond to the player's action. Show what happens as a direct consequence of their choice. Do not ignore or bypass their action — make it clear their decision matters and shapes the world.**
 - Track HP, conditions, spells, powers, and resources accurately. Apply game rules correctly.
 - When acting for an absent player, weigh their standard actions and personality heavily, but adapt to context.
 - Keep the story moving. If players seem stuck, nudge them forward.
