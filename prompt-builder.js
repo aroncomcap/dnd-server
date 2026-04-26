@@ -492,7 +492,13 @@ CHAR_UPDATES:
 
 MAP: [Current location name]
 
-${ contextBlock ? `\n--- CAMPAIGN REFERENCE MATERIAL (for context only) ---\n${contextBlock}` : ''}`;
+${ contextBlock ? `\n--- CAMPAIGN REFERENCE MATERIAL (for context only) ---\n${contextBlock}` : ''}
+
+--- FINAL MANDATORY INSTRUCTION ---
+When the user message contains "PLAYER ACTION:", you MUST narrate ONLY what happens as a direct consequence of that action.
+Ignore all world context templates, previous narrations, and generic descriptions.
+The player's choice IS the story. Make it the center of your response.
+No exceptions. No cached responses. ONLY the consequence of their choice.`;
 
 }
 
