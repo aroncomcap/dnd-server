@@ -182,9 +182,13 @@ function buildUserMessage(gs, characterName, actionText) {
     parts.push(`[RECENT HISTORY]\n${historyLines.join('\n')}`);
   }
 
-  // Player action - formatted as PRIMARY INSTRUCTION
-  parts.push(`PLAYER ACTION (respond directly to this): ${characterName} chooses: ${actionText}`);
-  parts.push(`\nNarrate what happens as a direct consequence of this choice.`);
+  // Player action - AGGRESSIVE FORMATTING
+  parts.push(`═══════════════════════════════════════════════════════════`);
+  parts.push(`🎬 THIS IS THE PLAYER'S CHOICE - RESPOND TO THIS ONLY:`);
+  parts.push(`${characterName} chooses: ${actionText}`);
+  parts.push(`\nDO NOT REPEAT PREVIOUS NARRATIONS. DO NOT IGNORE THIS ACTION.`);
+  parts.push(`YOUR ONLY JOB: Describe what happens DIRECTLY BECAUSE OF THIS CHOICE.`);
+  parts.push(`═══════════════════════════════════════════════════════════`);
 
   return parts.join('\n\n');
 }
