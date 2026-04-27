@@ -3,3 +3,4 @@ game_data.json
 .env
 .superpowers/
 .worktrees/
+logs/*.txt
