@@ -133,15 +133,15 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   }
 
   // Flag 2: NPC interaction detection
-  // Look for: dialogue markers, NPC names, conversation verbs
+  // Look for: dialogue markers, conversation verbs, and titled NPCs (conservative approach)
   if (actionText && (
-    // Dialogue markers
+    // Dialogue markers (very reliable)
     actionText.match(/["'].*["']/) || // quoted dialogue
-    actionText.match(/\b(?:talk|speak|discuss|chat|ask|convince|threaten|bribe|seduce|negotiate|bargain|interrogate|approach|confront|meet|greet|address)\b/i) || // conversation verbs
-    // Named NPCs (capitalized proper nouns like "Lord Blackthorn" or "the bartender" — check for titlecase patterns)
-    actionText.match(/\b(?:to|with|at)\s+(?:the\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g) ||
-    // Capitalized names standing alone (at least 2 capitals for proper nouns)
-    actionText.match(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/g)
+    // Conversation verbs (very reliable)
+    actionText.match(/\b(?:talk|speak|discuss|chat|ask|convince|threaten|bribe|seduce|negotiate|bargain|interrogate|approach|confront|meet|greet|address)\b/i) ||
+    // NPCs with titles only (avoid false positives like "Fire Bolt", "Dead Bodies", "Guard position")
+    // Pattern: title (Lord, Lady, Sir, King, Queen, etc.) followed by proper name
+    actionText.match(/\b(?:lord|lady|sir|king|queen|master|captain|general|baron|duchess|prince|princess|count|countess|archbishop|abbot|abbess)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i)
   )) {
     turn.flags.npc = true;
   }
