@@ -302,16 +302,8 @@ function emitCharacterToken(gameId, data) {
 }
 
 // ── System Prompts per Game System ───────────────────────────────────────────
-// (Moved to prompt-builder.js)
-const { SYSTEM_PROMPTS } = promptBuilder;
-
-// Wrapper functions that call the implementations in promptBuilder
-function buildSystemPrompt(gameId, gameConfig) {
-  return promptBuilder.buildSystemPrompt(gameId, gameConfig, getGameState, ed);
-}
-function buildTrimmedPrompt(gameId, gameConfig) {
-  return promptBuilder.buildTrimmedPrompt(gameId, gameConfig, getGameState, ed);
-}
+// Destructure the prompt selection functions from prompt-builder
+const { SYSTEM_PROMPTS, buildMinimalPrompt, buildFullPrompt } = promptBuilder;
 
 // ── Parsing (single-pass, order-independent) ─────────────────────────────────
 function parseResponse(text) {
@@ -943,8 +935,22 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
   ];
 
   const model = 'claude-haiku-4-5-20251001';
-  const hasHistory = gd.chatHistory.some(m => m.role === 'assistant');
-  const systemPrompt = hasHistory ? buildTrimmedPrompt(gameId, gameConfig) : buildSystemPrompt(gameId, gameConfig);
+
+  // Determine which prompt to use based on game context
+  let isStoryMoment = false;
+  if (gs.turn?.flags?.story || gs.turn?.flags?.npc || gs.turn?.flags?.exploration) {
+    isStoryMoment = true;
+  }
+  if (gs._pendingChallenge) {
+    isStoryMoment = true;
+  }
+
+  const systemPrompt = gs.combatEngine?.state?.active
+    ? buildMinimalPrompt(gameConfig, gs)
+    : isStoryMoment
+      ? buildFullPrompt(gameConfig, gs)
+      : buildMinimalPrompt(gameConfig, gs);
+
   const startTime = Date.now();
 
   // Combat routing — resolve player action + enemy turns before calling Claude
