@@ -376,11 +376,17 @@ function shouldCallSonnetForFlavor(combatState) {
  * Streamed Sonnet API call for narration.
  * Emits: dm_stream_start, dm_stream_chunk, dm_stream_end via io.
  */
-async function callSonnetNarration(gameId, gameConfig, gs, characterName, actionText, io) {
+async function callSonnetNarration(gameId, gameConfig, gs, characterName, actionText, io, storyFlags) {
   // Lazy require to avoid circular dependency: server requires narration-pipeline
   const { anthropic } = require('./server');
+  const { buildFullPrompt, buildMinimalPrompt } = require('./prompt-builder');
 
-  const systemPrompt = buildNarrationPrompt(gameId, gameConfig, gs);
+  // Select prompt based on story flags and pending challenges
+  // Use full prompt for story moments (NPC interactions, exploration, encounter plans)
+  const isStoryMoment = storyFlags?.story || gs._pendingChallenge;
+  const systemPrompt = isStoryMoment
+    ? buildFullPrompt(gameConfig, gs)
+    : buildMinimalPrompt(gameConfig, gs);
   const userMessage = buildUserMessage(gs, characterName, actionText);
 
   let fullText = '';
@@ -509,8 +515,9 @@ async function callHaikuValidation(gameId, narration, options, gameState) {
  * Main orchestrator. Routes combat vs non-combat.
  *
  * deps: { initiateCombat, parseAction, resolveEnemyTurns, persistCombatState, emitCombatUpdate }
+ * storyFlags: { story, npc, exploration } — hints for full vs minimal prompt selection
  */
-async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionText, io, deps) {
+async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionText, io, deps, storyFlags) {
   const {
     initiateCombat,
     parseAction,
@@ -518,6 +525,9 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
     persistCombatState,
     emitCombatUpdate,
   } = deps || {};
+
+  // Store flags on game state for prompt selection
+  gs._turnFlags = storyFlags || {};
 
   const combatActive = gs.combatEngine?.state?.active;
 
@@ -644,7 +654,7 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
   let narration = '';
   let options = [];
   try {
-    const sonnetResult = await callSonnetNarration(gameId, gameConfig, gs, characterName, actionText, io);
+    const sonnetResult = await callSonnetNarration(gameId, gameConfig, gs, characterName, actionText, io, gs._turnFlags);
     narration = sonnetResult.narration;
     options = sonnetResult.options;
   } catch (err) {

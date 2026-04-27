@@ -116,10 +116,52 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
   const actionText = userMessage.replace(/^.*?:\s*/, '');
   const prefix = actingAs ? `[AUTO-ACTION for ${actingAs}]\n` : '';
 
+  // ── Story Moment Detection ─────────────────────────────────────────────────
+  // Detect if this turn is a story moment that warrants the full system prompt
+  // Story moments: encounter plans, NPC interactions, exploration, or manual flags
+  const turn = {
+    flags: {
+      story: false,
+      npc: false,
+      exploration: false,
+    }
+  };
+
+  // Flag 1: Encounter plan urgency
+  if (gs._pendingChallenge) {
+    turn.flags.story = true;
+  }
+
+  // Flag 2: NPC interaction detection
+  // Look for: dialogue markers, NPC names, conversation verbs
+  if (actionText && (
+    // Dialogue markers
+    actionText.match(/["'].*["']/) || // quoted dialogue
+    actionText.match(/\b(?:talk|speak|discuss|chat|ask|convince|threaten|bribe|seduce|negotiate|bargain|interrogate|approach|confront|meet|greet|address)\b/i) || // conversation verbs
+    // Named NPCs (capitalized proper nouns like "Lord Blackthorn" or "the bartender" — check for titlecase patterns)
+    actionText.match(/\b(?:to|with|at)\s+(?:the\s+)?([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b/g) ||
+    // Capitalized names standing alone (at least 2 capitals for proper nouns)
+    actionText.match(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/g)
+  )) {
+    turn.flags.npc = true;
+  }
+
+  // Flag 3: Exploration/investigation detection
+  // Look for: exploration verbs and location keywords
+  if (actionText && actionText.match(/\b(?:explore|investigate|search|examine|discover|venture|enter|descend|climb|lookfor|check|study|observe|inspect)\b/i)) {
+    turn.flags.exploration = true;
+  }
+
+  // Mark full story moment if any component is true
+  if (turn.flags.npc || turn.flags.exploration) {
+    turn.flags.story = true;
+  }
+
   try {
     const result = await narrationPipeline.handlePlayerAction(
       gameId, gameConfig, gs, characterName, prefix + actionText, io,
-      { initiateCombat, parseAction, resolveEnemyTurns, persistCombatState, emitCombatUpdate }
+      { initiateCombat, parseAction, resolveEnemyTurns, persistCombatState, emitCombatUpdate },
+      turn.flags
     );
 
     // Save to chat history (same format as legacy)
