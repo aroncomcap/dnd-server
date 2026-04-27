@@ -1,7 +1,16 @@
 # They Still Sing — CLAUDE.md
-<!-- Last updated: 2026-04-24 -->
+<!-- Last updated: 2026-04-27 -->
 
 ## Recent Fixes
+
+### 2026-04-27: Git Post-Commit Hook for Opus Review (Task 6)
+- **Feature:** Automated Opus analysis trigger when prompt-builder.js changes
+- **Implementation:** `scripts/post-commit-opus-review.sh` hook detects prompt-builder.js modifications
+- **Behavior:** Non-blocking informational hook (does not prevent commits)
+- **Installation:** `cp scripts/post-commit-opus-review.sh .git/hooks/post-commit && chmod +x .git/hooks/post-commit`
+- **Files Created:** `scripts/post-commit-opus-review.sh` (hook script), `scripts/opus-review.js` (placeholder for Task 7)
+- **Status:** READY - Hook infrastructure in place, awaiting Task 7 Opus analysis implementation
+- **See also:** Split-prompts feature branch, Task 7 (Opus review script)
 
 ### 2026-04-24: TEST_MODE for Automated Game Creation
 - **Implementation:** Added TEST_MODE environment variable
