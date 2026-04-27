@@ -358,7 +358,7 @@ Include CHAR_UPDATES whenever: leveling up, gaining items, learning spells, stat
 Only include ACCOMPLISHMENTS entries if something new was accomplished this turn. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, and MAP.`;
 }
 
-function buildTrimmedPrompt(gameId, gameConfig, getGameState, ed) {
+function buildMinimalPrompt_DnD(gameId, gameConfig, getGameState, ed) {
   const gs = getGameState(gameId);
   const gd = gs.data;
 
@@ -496,9 +496,37 @@ ${ contextBlock ? `\n--- CAMPAIGN REFERENCE MATERIAL (for context only) ---\n${c
 
 }
 
+function buildMinimalPrompt(gameId, gameConfig, getGameState, ed) {
+  const system = gameConfig.system || 'dnd5e'
+
+  switch(system) {
+    case 'dnd5e':
+      return buildMinimalPrompt_DnD(gameId, gameConfig, getGameState, ed)
+    case 'runequest':
+      return buildMinimalPrompt_DnD(gameId, gameConfig, getGameState, ed) // Falls back to DnD for now
+    default:
+      return buildMinimalPrompt_DnD(gameId, gameConfig, getGameState, ed)
+  }
+}
+
+function buildFullPrompt(gameId, gameConfig, getGameState, ed) {
+  const system = gameConfig.system || 'dnd5e'
+
+  switch(system) {
+    case 'dnd5e':
+      return buildFullPrompt_DnD(gameId, gameConfig, getGameState, ed)
+    case 'runequest':
+      return buildFullPrompt_DnD(gameId, gameConfig, getGameState, ed) // Falls back to DnD for now
+    default:
+      return buildFullPrompt_DnD(gameId, gameConfig, getGameState, ed)
+  }
+}
+
 module.exports = {
   ART_STYLES,
   SYSTEM_PROMPTS,
+  buildMinimalPrompt,
+  buildFullPrompt,
+  buildMinimalPrompt_DnD,
   buildFullPrompt_DnD,
-  buildTrimmedPrompt,
 };
