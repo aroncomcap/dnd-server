@@ -506,3 +506,36 @@ npm run test:watch # watch mode
 - Options buttons render markdown via innerHTML — `**bold**` → `<strong>bold</strong>`
 - Chat history stores ONLY narration (structured blocks stripped) — keep it lean
 - `selectCharacter()` must call `updateActionArea()` — forgetting this breaks turn controls
+
+## Developer Setup
+
+### Git Hooks (Split-Prompts Feature)
+The split-prompts feature includes automated git hooks for quality assurance:
+
+#### Post-Commit Hook (Opus Review Trigger)
+Automatically triggers Opus review when `prompt-builder.js` is modified.
+
+**Installation (one-time):**
+```bash
+cp scripts/post-commit-opus-review.sh .git/hooks/post-commit
+chmod +x .git/hooks/post-commit
+```
+
+**Behavior:**
+- Runs after every commit
+- Detects if `prompt-builder.js` was modified
+- If yes, runs `scripts/opus-review.js` for automated analysis
+- Non-blocking (does not prevent commits even if analysis fails)
+- Output appears on stdout (informational only)
+
+**Verify installation:**
+```bash
+ls -la .git/hooks/post-commit  # Should be executable
+```
+
+**Manual hook execution (for testing):**
+```bash
+bash .git/hooks/post-commit
+```
+
+**Task tracking:** Task 6 (hook infrastructure) ✅ / Task 7 (Opus review implementation) pending
