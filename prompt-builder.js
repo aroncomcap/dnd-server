@@ -72,7 +72,7 @@ Rune affinities (Air, Earth, Fire/Sky, Water, Darkness, Moon) influence magic an
   custom: `You are the Game Master for a live multiplayer tabletop RPG session.`,
 };
 
-function buildSystemPrompt(gameId, gameConfig, getGameState, ed) {
+function buildFullPrompt_DnD(gameId, gameConfig, getGameState, ed) {
   const gs = getGameState(gameId);
   const gd = gs.data;
 
@@ -499,6 +499,6 @@ ${ contextBlock ? `\n--- CAMPAIGN REFERENCE MATERIAL (for context only) ---\n${c
 module.exports = {
   ART_STYLES,
   SYSTEM_PROMPTS,
-  buildSystemPrompt,
+  buildFullPrompt_DnD,
   buildTrimmedPrompt,
 };
