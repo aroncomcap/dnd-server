@@ -3802,7 +3802,9 @@ ${levelGuidance || 'Standard starting characters.'}`;
     const prompt = `${directionBlock}${systemInstructions}
 
 ${contextSnippet ? 'CAMPAIGN CONTEXT (use this to set level and flavor):\n' + contextSnippet + '\n' : ''}
-For each character, output in this EXACT format (generate the number of characters specified in the direction, or 4 by default):
+CRITICAL: Read the PLAYER DIRECTION above to determine HOW MANY characters to generate. Then output EXACTLY that many characters using the format below.
+
+For EACH character, output this format ON SEPARATE LINES. Repeat for each character:
 
 ---CHARACTER---
 NAME: [A fitting fantasy name]
@@ -3812,9 +3814,14 @@ PERSONALITY: [2-3 sentences — personality traits, ideals, bonds, flaws]
 ACTIONS: [Comma-separated standard actions: e.g., Attack with longsword, Cast Fireball, Dodge, Help ally]
 BACKSTORY: [3-4 sentences — origin, motivation, how they joined the party]
 
-IMPORTANT: COMBAT_JSON must be a single line of valid JSON with accurate numbers from the STATS block. Include ALL weapons and spells the character has. For spellcasters, include spellcastingAbility ("int"/"wis"/"cha"), spellSlots (e.g. {"1":4,"2":3,"3":2}), and spells with damage/healing info.
+IMPORTANT:
+- COMBAT_JSON must be a single line of valid JSON with accurate numbers from the STATS block
+- Include ALL weapons and spells the character has
+- For spellcasters, include spellcastingAbility ("int"/"wis"/"cha"), spellSlots (e.g. {"1":4,"2":3,"3":2}), and spells with damage/healing info
+- Each character MUST start with ---CHARACTER--- on its own line
+- Each NAME: field MUST be on its own line after ---CHARACTER---
 
-Generate the characters now.`;
+Now generate the characters. Remember: check the PLAYER DIRECTION first to see how many characters to create.`;
 
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5-20251001',
