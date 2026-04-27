@@ -18,6 +18,7 @@ const payments = require('./payments');
 const CombatEngine = require('./combat-engine');
 const { parseAction, parseOptions, parseActionWithAI, parseOptionsWithAI } = require('./action-parser');
 const { parseStatsText } = require('./stat-parser');
+const xpSystem = require('./xp-system');
 const { getMonsterStats } = require('./monster-lookup');
 const ed = require('./encounter-designer');
 const narrationPipeline = require('./narration-pipeline');
@@ -3028,6 +3029,23 @@ io.on('connection', (socket) => {
       emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
       await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration);
       await advanceTurn(gameId, gameConfig, true);
+
+      // Award XP for completing this turn/encounter
+      const xpAwarded = xpSystem.awardXP(gs, 100); // 100 XP per turn
+      for (const result of xpAwarded) {
+        if (result.leveledUp) {
+          emitSystem(gameId, { text: `🎉 ${result.character} reached Level ${result.newLevel}!` });
+          io.to(gameId).emit('character_updated', {
+            name: result.character,
+            character: gs.data.characters[result.character]
+          });
+          await db.upsertCharacter(gameId, result.character, gs.data.characters[result.character]);
+        }
+      }
+      // Save updated character data with XP
+      for (const [charName, charData] of Object.entries(gs.data.characters)) {
+        await db.upsertCharacter(gameId, charName, charData);
+      }
     } catch (err) {
       console.error('player_action error:', err.message, err.stack?.split('\n').slice(0, 3).join(' | '));
       socket.emit('system', { text: 'Error communicating with the DM. Try again.' });
