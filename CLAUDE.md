@@ -3,14 +3,32 @@
 
 ## Recent Fixes
 
+### 2026-04-27: Opus Review Script Implementation (Task 7)
+- **Feature:** Automated Opus analysis to detect prompt bloat and drift
+- **Implementation:** `scripts/opus-review.js` — full Opus review logic (161 lines)
+- **Behavior:**
+  - Reads both `prompt-builder.js` and `game-engine.js`
+  - Extracts and counts lines for `buildMinimalPrompt_DnD()` (~137 lines) and `buildFullPrompt_DnD()` (~285 lines)
+  - Calls Claude Opus 4.6 with expert analysis prompt
+  - Generates timestamped reports: `logs/opus-review-YYYY-MM-DD.txt`
+  - Non-blocking: Always exits 0 (gracefully handles missing ANTHROPIC_API_KEY)
+- **Analysis Checks:**
+  - **Bloat:** Unnecessary sections, duplicate rules, redundant descriptions
+  - **Drift:** Features in game-engine.js not in prompts; features in prompts but removed from code
+  - **Output:** Bloat candidates, drift issues, working well, prioritized recommendations
+- **Trigger:** Post-commit hook (on prompt-builder.js edits) + manual invocation
+- **Manual Run:** `node scripts/opus-review.js` (any time)
+- **Files:** `scripts/opus-review.js` (161 lines), `logs/.gitkeep`, `.gitignore` (added `logs/*.txt`)
+- **Tests:** All 745 tests pass. Script validates file paths and handles errors gracefully.
+- **Status:** ✅ COMPLETE - Ready for weekly cron setup (optional enhancement)
+
 ### 2026-04-27: Git Post-Commit Hook for Opus Review (Task 6)
 - **Feature:** Automated Opus analysis trigger when prompt-builder.js changes
 - **Implementation:** `scripts/post-commit-opus-review.sh` hook detects prompt-builder.js modifications
 - **Behavior:** Non-blocking informational hook (does not prevent commits)
 - **Installation:** `cp scripts/post-commit-opus-review.sh .git/hooks/post-commit && chmod +x .git/hooks/post-commit`
-- **Files Created:** `scripts/post-commit-opus-review.sh` (hook script), `scripts/opus-review.js` (placeholder for Task 7)
-- **Status:** READY - Hook infrastructure in place, awaiting Task 7 Opus analysis implementation
-- **See also:** Split-prompts feature branch, Task 7 (Opus review script)
+- **Files Created:** `scripts/post-commit-opus-review.sh` (hook script), `scripts/opus-review.js` (now implemented in Task 7)
+- **Status:** ✅ COMPLETE - Hook infrastructure + Opus review script fully implemented
 
 ### 2026-04-24: TEST_MODE for Automated Game Creation
 - **Implementation:** Added TEST_MODE environment variable
