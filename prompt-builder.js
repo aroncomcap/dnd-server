@@ -72,8 +72,8 @@ Rune affinities (Air, Earth, Fire/Sky, Water, Darkness, Moon) influence magic an
   custom: `You are the Game Master for a live multiplayer tabletop RPG session.`,
 };
 
-function buildFullPrompt_DnD(gameId, gameConfig, getGameState, ed) {
-  const gs = getGameState(gameId);
+function buildFullPrompt_DnD(gameConfig, gameState) {
+  const gs = gameState;
   const gd = gs.data;
 
   const characterBlock = Object.entries(gd.characters)
@@ -115,7 +115,7 @@ You are a master storyteller in the tradition of great fantasy literature. Your 
 
   const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
 
-  let encounterPlanLineFull = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
+  let encounterPlanLineFull = gs._formattedEncounterPlan || '';
   if (gs._pendingChallenge) {
     const ch = gs._pendingChallenge;
     if (ch.pillar === 'social') {
@@ -358,8 +358,8 @@ Include CHAR_UPDATES whenever: leveling up, gaining items, learning spells, stat
 Only include ACCOMPLISHMENTS entries if something new was accomplished this turn. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, and MAP.`;
 }
 
-function buildMinimalPrompt_DnD(gameId, gameConfig, getGameState, ed) {
-  const gs = getGameState(gameId);
+function buildMinimalPrompt_DnD(gameConfig, gameState) {
+  const gs = gameState;
   const gd = gs.data;
 
   const characterBlock = Object.entries(gd.characters)
@@ -413,7 +413,7 @@ ${catchphrases}
   const pillarsLine = `Pillars: E${gs.pillars?.exploration ?? 33}/C${gs.pillars?.combat ?? 33}/S${gs.pillars?.social ?? 34}. Include skill checks every 1-2 actions.`;
 
   // Compact encounter + NPC context (only include if relevant)
-  let encounterPlanLine = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
+  let encounterPlanLine = gs._formattedEncounterPlan || '';
 
   // If there's a pending challenge from the encounter plan, inject it as an urgent directive
   if (gs._pendingChallenge) {
@@ -496,29 +496,29 @@ ${ contextBlock ? `\n--- CAMPAIGN REFERENCE MATERIAL (for context only) ---\n${c
 
 }
 
-function buildMinimalPrompt(gameId, gameConfig, getGameState, ed) {
+function buildMinimalPrompt(gameConfig, gameState) {
   const system = gameConfig.system || 'dnd5e'
 
   switch(system) {
     case 'dnd5e':
-      return buildMinimalPrompt_DnD(gameId, gameConfig, getGameState, ed)
+      return buildMinimalPrompt_DnD(gameConfig, gameState)
     case 'runequest':
-      return buildMinimalPrompt_DnD(gameId, gameConfig, getGameState, ed) // Falls back to DnD for now
+      return buildMinimalPrompt_DnD(gameConfig, gameState) // Falls back to DnD for now
     default:
-      return buildMinimalPrompt_DnD(gameId, gameConfig, getGameState, ed)
+      return buildMinimalPrompt_DnD(gameConfig, gameState)
   }
 }
 
-function buildFullPrompt(gameId, gameConfig, getGameState, ed) {
+function buildFullPrompt(gameConfig, gameState) {
   const system = gameConfig.system || 'dnd5e'
 
   switch(system) {
     case 'dnd5e':
-      return buildFullPrompt_DnD(gameId, gameConfig, getGameState, ed)
+      return buildFullPrompt_DnD(gameConfig, gameState)
     case 'runequest':
-      return buildFullPrompt_DnD(gameId, gameConfig, getGameState, ed) // Falls back to DnD for now
+      return buildFullPrompt_DnD(gameConfig, gameState) // Falls back to DnD for now
     default:
-      return buildFullPrompt_DnD(gameId, gameConfig, getGameState, ed)
+      return buildFullPrompt_DnD(gameConfig, gameState)
   }
 }
 
