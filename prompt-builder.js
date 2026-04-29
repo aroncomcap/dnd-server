@@ -479,6 +479,109 @@ function buildFullPrompt(gameConfig, gameState) {
   }
 }
 
+function buildTrimmedPrompt(gameId, gameConfig, getGameState, ed) {
+  const gs = getGameState(gameId);
+  const gd = gs.data;
+
+  const characterBlock = Object.entries(gd.characters)
+    .map(([name, c]) => {
+      const catchphrases = c.catchphrases?.length
+        ? `Catchphrases (use sparingly, max 1-2 per day): ${c.catchphrases.join('; ')}`
+        : '';
+      return `
+Player: ${name}
+${c.statsText || 'No stats provided'}
+Personality: ${c.personality || 'Not specified'}
+Standard Actions: ${c.standardActions || 'None defined'}
+Backstory: ${c.backstory || 'Unknown'}
+${catchphrases}
+      `.trim();
+    })
+    .join('\n\n');
+
+  const basePrompt = SYSTEM_PROMPTS[gameConfig.system] || SYSTEM_PROMPTS.custom;
+
+  let contextBlock = '';
+  if (gameConfig.custom_context) {
+    contextBlock = `\n\nCAMPAIGN SOURCE MATERIAL:\n${gameConfig.custom_context.slice(0, MAX_CONTEXT_CHARS)}`;
+    if (gameConfig.custom_context.length > MAX_CONTEXT_CHARS) {
+      contextBlock += '\n[...truncated — source material exceeds limit]';
+    }
+  }
+
+  const rulesCorrections = gs.rulesCorrections || [];
+  const houseRules = rulesCorrections.length
+    ? `\nHOUSE RULES & CORRECTIONS (follow strictly):\n${rulesCorrections.map(r => '- ' + r.text).join('\n')}\n`
+    : '';
+
+  const personaBlock = gs.dmPersona === 'overthetop'
+    ? `DM PERSONA: OVER THE TOP — Chaotic, hilarious, Critical Role energy. Ridiculous NPC quirks, fourth wall breaks, action-movie combat narration. Comedy from character, stakes still real.`
+    : `DM PERSONA: EPIC — Master storyteller, dramatic and atmospheric. Tight evocative prose, grounded NPCs, visceral combat. World has weight and history.`;
+
+  const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
+
+  const verbosityLine = gs.verbosity === 'terse' ? 'TERSE: 3 sentences max, under 50 words. No atmosphere or extended descriptions. State what happens mechanically. Keep it SHORT.' :
+    gs.verbosity === 'brief' ? 'ABSOLUTE HARD LIMIT: 50 words narration max. NO section headers. NO ## headings. Prose paragraphs only, then structured blocks.' :
+    'WORD LIMIT: 100 words max narration. Aim for 50-75. NO ## headings in narration. Prose paragraphs only.';
+
+  const ferocityLine = `Ferocity: ${gs.ferocity ?? 5}/5 — ${
+    gs.ferocity <= 1 ? 'extremely deadly, generous treasure' :
+    gs.ferocity <= 2 ? 'very dangerous, good treasure' :
+    gs.ferocity <= 3 ? 'balanced encounters, standard treasure' :
+    gs.ferocity <= 4 ? 'light challenges, modest treasure' :
+    'easy and forgiving, minimal treasure'}`;
+
+  const pillarsLine = `Pillars: E${gs.pillars?.exploration ?? 33}/C${gs.pillars?.combat ?? 33}/S${gs.pillars?.social ?? 34}. Include skill checks every 1-2 actions.`;
+
+  // Compact encounter + NPC context (only include if relevant)
+  let encounterPlanLine = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
+
+  // If there's a pending challenge from the encounter plan, inject it as an urgent directive
+  if (gs._pendingChallenge) {
+    const ch = gs._pendingChallenge;
+    if (ch.pillar === 'social') {
+      encounterPlanLine += ` URGENT: Present a social challenge NOW (DC ${ch.dc}, ${ch.successesNeeded} successes before ${ch.maxFailures} failures). An NPC should confront, negotiate with, or question the party.`;
+    } else if (ch.pillar === 'exploration') {
+      encounterPlanLine += ` URGENT: Present a trap, puzzle, or exploration challenge NOW (DC ${ch.dc}). The environment should pose an immediate obstacle.`;
+    }
+    gs._pendingChallenge = null; // Consumed
+  }
+
+  const npcMemoryEntries = Object.values(gs.npcMemory || {}).filter(npc => npc.encounters?.length > 0).slice(0, 3);
+  const npcMemoryBlockTrimmed = npcMemoryEntries.length > 0
+    ? `\nRecurring NPCs: ${npcMemoryEntries.map(npc => {
+        const last = npc.encounters[npc.encounters.length - 1];
+        return `${npc.name} (${last.survived ? 'alive' : 'dead'})`;
+      }).join(', ')}`
+    : '';
+
+  const pacingLine = `Track spell slots, HP. ${gs.ferocity <= 2 ? 'Encounters escalate.' : 'Moderate difficulty.'} Ask player for level-up choices.`;
+
+  return `${basePrompt}
+
+RULE #1 — WORD LIMIT (overrides ALL other instructions):
+${gs.verbosity === 'terse' ? `TERSE. Non-combat: 50 words max. Combat: dice line + 1 sentence per result only. No prose, no atmosphere.` :
+  gs.verbosity === 'brief' ? `BRIEF. 75 words max. Punchy. Then structured blocks.` :
+  `Max 100 words narration. Aim for 50-75.`}
+
+RULE #2 — TACTICAL COMBAT, NOT A NOVEL:
+Dice results + consequences only. Enemies attack aggressively. PCs get hurt when hit.
+${contextBlock}
+${houseRules}
+${personaBlock}
+
+CHARACTERS IN THIS CAMPAIGN:
+${characterBlock || 'No characters registered yet.'}
+${summary}
+${ferocityLine}
+${pillarsLine}
+${pacingLine}
+${encounterPlanLine}
+${npcMemoryBlockTrimmed}
+
+Only include ACCOMPLISHMENTS if something new. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, MAP.`;
+}
+
 module.exports = {
   ART_STYLES,
   SYSTEM_PROMPTS,
@@ -486,4 +589,5 @@ module.exports = {
   buildFullPrompt,
   buildMinimalPrompt_DnD,
   buildFullPrompt_DnD,
+  buildTrimmedPrompt,
 };

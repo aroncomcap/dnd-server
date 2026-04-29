@@ -304,7 +304,16 @@ function emitCharacterToken(gameId, data) {
 
 // ── System Prompts per Game System ───────────────────────────────────────────
 // Destructure the prompt selection functions from prompt-builder
-const { SYSTEM_PROMPTS, buildMinimalPrompt, buildFullPrompt } = promptBuilder;
+const { SYSTEM_PROMPTS, buildMinimalPrompt, buildFullPrompt, buildTrimmedPrompt: buildTrimmedPromptImpl } = promptBuilder;
+
+// Wrapper functions that call the implementations in promptBuilder
+function buildSystemPrompt(gameId, gameConfig) {
+  return buildFullPrompt(gameConfig, getGameState(gameId));
+}
+
+function buildTrimmedPrompt(gameId, gameConfig) {
+  return buildTrimmedPromptImpl(gameId, gameConfig, getGameState, ed);
+}
 
 // ── Parsing (single-pass, order-independent) ─────────────────────────────────
 function parseResponse(text) {
