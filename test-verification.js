@@ -131,6 +131,14 @@ async function runVerification() {
     let hasInitialNarration = false;
     let hasDetailedNarration = false;
     let hasGameStart = false;
+    let registeredCharacters = [];
+
+    socket.on('character_registered', (data) => {
+      if (data.name) {
+        registeredCharacters.push(data.name);
+        log(`✅ CHARACTER REGISTERED: ${data.name}`);
+      }
+    });
 
     socket.on('dm_message', (data) => {
       if (data.text) {
@@ -201,8 +209,11 @@ async function runVerification() {
 
         logTest('Party Generation', data.count > 0, `${data.count} characters`);
 
+        // Wait a bit for character_registered events to arrive
+        await wait(500);
+
         // Get first character name for player actions
-        const firstPlayerName = data.characters ? data.characters[0] : 'Unknown';
+        const firstPlayerName = registeredCharacters.length > 0 ? registeredCharacters[0] : 'Unknown';
         log(`First player: ${firstPlayerName}`);
 
         // Start game
