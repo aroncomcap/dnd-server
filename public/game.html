@@ -2077,11 +2077,15 @@ function showSceneImage(url, label) {
       window.pendingMonsterEntry = false;
     }
 
-    // Auto-collapse after 2 seconds
+    // Auto-collapse only on mobile (viewport width < 768px)
     clearTimeout(sceneAutoCollapseTimer);
-    sceneAutoCollapseTimer = setTimeout(() => {
-      collapseScene();
-    }, 3000);
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) {
+      sceneAutoCollapseTimer = setTimeout(() => {
+        collapseScene();
+      }, 3000);
+    }
+    // Desktop: scene stays open
   };
 }
 

@@ -954,11 +954,13 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
   if (gs._pendingChallenge) {
     isStoryMoment = true;
   }
+  // Game start is always a story moment (needs full context for opening narration)
+  const isGameStart = gd.chatHistory.length === 0;
 
   const systemPrompt = gs.combatEngine?.state?.active
     ? buildMinimalPrompt(gameConfig, gs)
-    : isStoryMoment
-      ? buildFullPrompt(gameConfig, gs)
+    : (isStoryMoment || isGameStart)
+      ? buildSystemPrompt(gameId, gameConfig)
       : buildMinimalPrompt(gameConfig, gs);
 
   const startTime = Date.now();
