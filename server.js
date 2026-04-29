@@ -3174,6 +3174,7 @@ io.on('connection', (socket) => {
       // Start billing ticker for this game
       billingTicker.startForGame(gameId, gameConfig.host_user_id, gs);
     } catch (err) {
+      console.error('[dm_start] Error:', err.message, err.stack?.split('\n').slice(0, 5).join(' | '));
       socket.emit('system', { text: 'Failed to start the game.' });
     }
   });
