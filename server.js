@@ -1182,6 +1182,8 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     // Lower temperature for terse/brief = more instruction-following, less creative wandering
     const temperature = gs.verbosity === 'terse' ? 0.3 : gs.verbosity === 'brief' ? 0.5 : 0.8;
 
+    console.log(`[stream-start] gameId=${gameId} model=${model} maxTokens=${maxTokens} temp=${temperature} sysPromptLen=${finalSystemPrompt.length} messagesLen=${messagesWithCombat.length}`);
+
     const stream = await anthropic.messages.stream({
       model,
       max_tokens: maxTokens,
@@ -1189,6 +1191,8 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
       system: [{ type: "text", text: finalSystemPrompt, cache_control: { type: "ephemeral" } }],
       messages: messagesWithCombat,
     });
+
+    console.log(`[stream-started] gameId=${gameId} stream created successfully`);
 
     for await (const event of stream) {
       if (event.type === 'content_block_delta' && event.delta?.text) {
@@ -1228,8 +1232,10 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     }
 
     finalMessage = await stream.finalMessage();
+    console.log(`[stream-complete] gameId=${gameId} success`);
   } catch (streamErr) {
-    console.error('[stream] Error during streaming:', streamErr.message);
+    console.error('[stream-error] gameId=${gameId} Error during streaming:', streamErr.message, 'Status:', streamErr.status, 'Type:', streamErr.type);
+    console.error('[stream-error-full] Stack:', streamErr.stack?.split('\n').slice(0, 10).join(' | '));
     io.to(gameId).emit('dm_stream_end', { narration: narrationText.trim() });
     throw streamErr;
   }
