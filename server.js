@@ -88,7 +88,8 @@ function parseStatsLocal(statsText) {
   // Features
   const features = [];
   if (/extra attack/i.test(text)) features.push('Extra Attack');
-  if (/sneak attack\s*(\d+d\d+)/i.test(text)) features.push(text.match(/sneak attack\s*(\d+d\d+)/i)[0]);
+  const sneakMatch = text.match(/sneak attack\s*(\d+d\d+)/i);
+  if (sneakMatch) features.push(sneakMatch[0]);
   if (/multiattack/i.test(text)) features.push('Multiattack');
   if (/action surge/i.test(text)) features.push('Action Surge');
   if (/channel divinity/i.test(text)) features.push('Channel Divinity');
@@ -308,7 +309,7 @@ const { SYSTEM_PROMPTS, buildMinimalPrompt, buildFullPrompt, buildTrimmedPrompt:
 
 // Wrapper functions that call the implementations in promptBuilder
 function buildSystemPrompt(gameId, gameConfig) {
-  return buildFullPrompt(gameConfig, getGameState(gameId));
+  return buildFullPrompt(gameId, gameConfig, getGameState, ed);
 }
 
 function buildTrimmedPrompt(gameId, gameConfig) {
@@ -3249,14 +3250,16 @@ io.on('connection', (socket) => {
       if (existing) {
         existing.description += ` | ${data.context}`;
       } else {
-        gs.world.locations.push({ name: data.name || data.context.split(' ')[0], description: data.context, distance: '' });
+        const locationName = data.name || (data.context ? data.context.split(' ')[0] : 'Unknown Location');
+        gs.world.locations.push({ name: locationName, description: data.context || '', distance: '' });
       }
     } else if (data.type === 'npc') {
       const existing = gs.world.npcs.find(n => n.name.toLowerCase() === data.name?.toLowerCase());
       if (existing) {
         existing.description += ` | ${data.context}`;
       } else {
-        gs.world.npcs.push({ name: data.name || data.context.split(' ')[0], description: data.context, location: '' });
+        const npcName = data.name || (data.context ? data.context.split(' ')[0] : 'Unknown NPC');
+        gs.world.npcs.push({ name: npcName, description: data.context || '', location: '' });
       }
     }
     await db.setState(gameId, 'world', gs.world);
