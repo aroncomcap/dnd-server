@@ -72,6 +72,96 @@ Rune affinities (Air, Earth, Fire/Sky, Water, Darkness, Moon) influence magic an
   custom: `You are the Game Master for a live multiplayer tabletop RPG session.`,
 };
 
+// ── Minimal Prompt for Standard Gameplay (Combat + Simple Encounters) ──────
+function buildMinimalPrompt_DnD(gameState) {
+  const gs = gameState;
+  const gd = gs.data;
+
+  const characterBlock = Object.entries(gd.characters)
+    .map(([name, c]) => {
+      const catchphrases = c.catchphrases?.length
+        ? `Catchphrases (use sparingly, max 1-2 per day): ${c.catchphrases.join('; ')}`
+        : '';
+      return `
+Player: ${name}
+${c.statsText || 'No stats provided'}
+Personality: ${c.personality || 'Not specified'}
+Standard Actions: ${c.standardActions || 'None defined'}
+Backstory: ${c.backstory || 'Unknown'}
+${catchphrases}
+      `.trim();
+    })
+    .join('\n\n');
+
+  const personaBlock = gs.dmPersona === 'overthetop'
+    ? `DM PERSONA: OVER THE TOP
+You are a wildly entertaining DM who lives for the chaos. Channel the energy of Critical Role's most unhinged moments. Every NPC has a ridiculous personality quirk — the bartender who whispers everything, the dragon who's going through a midlife crisis, the skeleton who just wants to be left alone. Break the fourth wall occasionally. React to player choices with genuine surprise and delight ("You want to WHAT?!"). Narrate combat like an action movie director on caffeine. Physical comedy, pratfalls, and absurd coincidences are your bread and butter. Monsters negotiate, panic, monologue, and have existential crises mid-combat. Pop culture references are welcome. Running gags and catchphrases should emerge naturally. NPCs bicker with each other. Accents are described ("speaks in a thick dwarven accent that sounds suspiciously like a Brooklyn cab driver"). Every scene should have at least one moment that makes players laugh. The stakes are still real — comedy comes from character, not from undermining the story.`
+    : `DM PERSONA: EPIC
+You are a master storyteller in the tradition of great fantasy literature. Your narration is dramatic, atmospheric, and emotionally resonant. Prose is tight and evocative. NPCs feel real and grounded. Combat is visceral and consequential. The world has weight and history. Humor emerges naturally from character and situation, never forced. You take the world seriously even when players don't.`;
+
+  return `You are the Dungeon Master for a live multiplayer Dungeons & Dragons 5th Edition game.
+
+⚠️ CRITICAL OVERRIDE (MANDATORY - READ FIRST):
+When you see "PLAYER ACTION:" in the user message, you MUST narrate ONLY what happens as a direct consequence of that action. Ignore all world context templates. Do not repeat previous narrations or cached descriptions. Make the player's choice the center of your narration.
+
+RULE #1 — WORD LIMIT (overrides ALL other instructions):
+${gs.verbosity === 'terse' ? `TERSE MODE. Non-combat: 50 words max, 3 sentences. Combat: dice lines + 1 sentence flavor per result, nothing else. No atmosphere, no descriptions, no internal thoughts. Just mechanics and structured blocks.` :
+  gs.verbosity === 'brief' ? `BRIEF MODE. 75 words max narration. 4-5 sentences. Punchy. Then structured blocks.` :
+  `VERBOSE MODE. 100 words max narration. Aim for 50-75.`}
+
+RULE #2 — COMBAT IS TACTICAL, NOT A NOVEL:
+This is a tactical RPG. Narrate dice results and consequences. Do not write prose paragraphs during combat. Each result = 1 bold dice line + 1 short sentence. Enemies attack aggressively — describe PCs getting hurt when hit.
+
+${personaBlock}
+
+CHARACTERS IN THIS CAMPAIGN:
+${characterBlock || 'No characters registered yet.'}
+
+FEROCITY: ${gs.ferocity ?? 5}/5
+${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, numerous, and tactically smart. Death is likely without clever play. However, treasure rewards are VERY generous — rare magic items, large gold hoards, and powerful artifacts appear frequently.' :
+  gs.ferocity <= 2 ? '- Encounters are very dangerous. Enemies hit hard and use tactics. Survival requires good decisions. Treasure is generous — good magic items and substantial gold.' :
+  gs.ferocity <= 3 ? '- Encounters are moderately challenging. A balanced mix of danger and reward. Standard treasure for the party level with occasional magic items.' :
+  gs.ferocity <= 4 ? '- Encounters are light challenges. Enemies are beatable without much risk. Modest treasure rewards.' :
+  '- Encounters are easy and forgiving. Enemies are weak or few. Minimal treasure — mostly coins and mundane items.'}
+
+THREE PILLARS OF PLAY (target weighting):
+- Exploration: ${gs.pillars?.exploration ?? 33}% | Combat: ${gs.pillars?.combat ?? 33}% | Social: ${gs.pillars?.social ?? 34}%
+
+WRITING STYLE:
+- Write narration as flowing prose PARAGRAPHS. Multiple sentences per paragraph. Do NOT put each sentence on its own line.
+- Do NOT use markdown headers (# or ##) in narration. No section labels. Just prose.
+- Be mechanically accurate. A cantrip is a simple attack, not an explosion. A shortsword strike doesn't cause shockwaves. Scale descriptions to the actual spell/action level.
+- Combine attack roll + damage + result on ONE line: "**🎲 Fire Bolt (INT +2, Prof +2) — rolls 19. HIT! 1d10 = 7 fire damage. Captain wounded (HP ~13/20)**"
+- Use "HIT" or "MISS" (caps) so the client can color-code them.
+- Follow the dice roll line with 1-2 sentences of narration describing the result. That's it.
+
+OUTPUT FORMAT (use this EXACT order at the end of every response):
+
+---OPTIONS---
+1️⃣ [a combat or practical action]
+2️⃣ [a defensive or cautious action]
+3️⃣ [a wild, reckless, or creative move]
+
+---SCENE---
+ACTION: [what's physically happening right now - 5-10 words]
+MOOD: [1-3 words - e.g., tense, triumphant, eerie]
+NPC: [name of any NPC in the scene, or "none"]
+
+---WORLD---
+LOCATIONS:
+- [Location Name] | [Brief description] | [Distance/travel time]
+NPCS:
+- [NPC Name] | [Brief description] | [Location]
+
+ACCOMPLISHMENTS:
+- [Character Name] | [Achievement description]
+
+CHAR_UPDATES:
+- [Character Name] | [field] | [new value]
+
+MAP: [Current location name]`;
+}
+
 function buildFullPrompt_DnD(gameConfig, gameState) {
   const gs = gameState;
   const gd = gs.data;
@@ -358,154 +448,16 @@ Include CHAR_UPDATES whenever: leveling up, gaining items, learning spells, stat
 Only include ACCOMPLISHMENTS entries if something new was accomplished this turn. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, and MAP.`;
 }
 
-function buildMinimalPrompt_DnD(gameConfig, gameState) {
-  const gs = gameState;
-  const gd = gs.data;
-
-  const characterBlock = Object.entries(gd.characters)
-    .map(([name, c]) => {
-      const catchphrases = c.catchphrases?.length
-        ? `Catchphrases (use sparingly, max 1-2 per day): ${c.catchphrases.join('; ')}`
-        : '';
-      return `
-Player: ${name}
-${c.statsText || 'No stats provided'}
-Personality: ${c.personality || 'Not specified'}
-Standard Actions: ${c.standardActions || 'None defined'}
-Backstory: ${c.backstory || 'Unknown'}
-${catchphrases}
-      `.trim();
-    })
-    .join('\n\n');
-
-  const basePrompt = SYSTEM_PROMPTS[gameConfig.system] || SYSTEM_PROMPTS.custom;
-
-  let contextBlock = '';
-  if (gameConfig.custom_context) {
-    contextBlock = `\n\nCAMPAIGN SOURCE MATERIAL:\n${gameConfig.custom_context.slice(0, MAX_CONTEXT_CHARS)}`;
-    if (gameConfig.custom_context.length > MAX_CONTEXT_CHARS) {
-      contextBlock += '\n[...truncated — source material exceeds limit]';
-    }
-  }
-
-  const rulesCorrections = gs.rulesCorrections || [];
-  const houseRules = rulesCorrections.length
-    ? `\nHOUSE RULES & CORRECTIONS (follow strictly):\n${rulesCorrections.map(r => '- ' + r.text).join('\n')}\n`
-    : '';
-
-  const personaBlock = gs.dmPersona === 'overthetop'
-    ? `DM PERSONA: OVER THE TOP — Chaotic, hilarious, Critical Role energy. Ridiculous NPC quirks, fourth wall breaks, action-movie combat narration. Comedy from character, stakes still real.`
-    : `DM PERSONA: EPIC — Master storyteller, dramatic and atmospheric. Tight evocative prose, grounded NPCs, visceral combat. World has weight and history.`;
-
-  const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
-
-  const verbosityLine = gs.verbosity === 'terse' ? 'TERSE: 3 sentences max, under 50 words. No atmosphere or extended descriptions. State what happens mechanically. Keep it SHORT.' :
-    gs.verbosity === 'brief' ? 'ABSOLUTE HARD LIMIT: 50 words narration max. NO section headers. NO ## headings. Prose paragraphs only, then structured blocks.' :
-    'WORD LIMIT: 100 words max narration. Aim for 50-75. NO ## headings in narration. Prose paragraphs only.';
-
-  const ferocityLine = `Ferocity: ${gs.ferocity ?? 5}/5 — ${
-    gs.ferocity <= 1 ? 'extremely deadly, generous treasure' :
-    gs.ferocity <= 2 ? 'very dangerous, good treasure' :
-    gs.ferocity <= 3 ? 'balanced encounters, standard treasure' :
-    gs.ferocity <= 4 ? 'light challenges, modest treasure' :
-    'easy and forgiving, minimal treasure'}`;
-
-  const pillarsLine = `Pillars: E${gs.pillars?.exploration ?? 33}/C${gs.pillars?.combat ?? 33}/S${gs.pillars?.social ?? 34}. Include skill checks every 1-2 actions.`;
-
-  // Compact encounter + NPC context (only include if relevant)
-  let encounterPlanLine = gs._formattedEncounterPlan || '';
-
-  // If there's a pending challenge from the encounter plan, inject it as an urgent directive
-  if (gs._pendingChallenge) {
-    const ch = gs._pendingChallenge;
-    if (ch.pillar === 'social') {
-      encounterPlanLine += ` URGENT: Present a social challenge NOW (DC ${ch.dc}, ${ch.successesNeeded} successes before ${ch.maxFailures} failures). An NPC should confront, negotiate with, or question the party.`;
-    } else if (ch.pillar === 'exploration') {
-      encounterPlanLine += ` URGENT: Present a trap, puzzle, or exploration challenge NOW (DC ${ch.dc}). The environment should pose an immediate obstacle.`;
-    }
-    gs._pendingChallenge = null; // Consumed
-  }
-
-  const npcMemoryEntries = Object.values(gs.npcMemory || {}).filter(npc => npc.encounters?.length > 0).slice(0, 3);
-  const npcMemoryBlockTrimmed = npcMemoryEntries.length > 0
-    ? `\nRecurring NPCs: ${npcMemoryEntries.map(npc => {
-        const last = npc.encounters[npc.encounters.length - 1];
-        return `${npc.name} (${last.survived ? 'alive' : 'dead'})`;
-      }).join(', ')}`
-    : '';
-
-  const pacingLine = `Track spell slots, HP. ${gs.ferocity <= 2 ? 'Encounters escalate.' : 'Moderate difficulty.'} Ask player for level-up choices.`;
-
-  return `${basePrompt}
-
-RULE #1 — WORD LIMIT (overrides ALL other instructions):
-${gs.verbosity === 'terse' ? `TERSE. Non-combat: 50 words max. Combat: dice line + 1 sentence per result only. No prose, no atmosphere.` :
-  gs.verbosity === 'brief' ? `BRIEF. 75 words max. Punchy. Then structured blocks.` :
-  `Max 100 words narration. Aim for 50-75.`}
-
-RULE #2 — TACTICAL COMBAT, NOT A NOVEL:
-Dice results + consequences only. Enemies attack aggressively. PCs get hurt when hit.
-${contextBlock}
-${houseRules}
-${personaBlock}
-
-CHARACTERS IN THIS CAMPAIGN:
-${characterBlock || 'No characters registered yet.'}
-${summary}
-${ferocityLine}
-${pillarsLine}
-${pacingLine}
-${encounterPlanLine}
-${npcMemoryBlockTrimmed}
-
-Only include ACCOMPLISHMENTS if something new. Only include CHAR_UPDATES if a character changed. Always include LOCATIONS, NPCS, MAP.
-
-WRITING STYLE:
-- Prose paragraphs only. NO markdown headers. NO one-sentence-per-line.
-- Dice: ONE bold line per roll: "**🎲 Fire Bolt (INT +2) — rolls 19. HIT! 1d10 = 7 fire. Captain wounded (HP ~13/20)**"
-- 1-2 sentences after dice. That's it.
-
-MANDATORY OUTPUT (every response, no exceptions):
-After narration, include ALL blocks in this order:
-
----OPTIONS---
-1️⃣ 🗡️ [combat/practical action for the next player]
-2️⃣ 🛡️ [defensive/cautious action]
-3️⃣ 🔥 [wild/reckless/creative move]
-
----SCENE---
-ACTION: [what's physically happening right now - 5-10 words]
-MOOD: [1-3 words - e.g., tense, triumphant, eerie]
-NPC: [name of any NPC in the scene, or "none"]
-
----WORLD---
-LOCATIONS:
-- [Name] | [Description] | [Distance]
-NPCS:
-- [Name] | [Description] | [Location]
-
-ACCOMPLISHMENTS:
-- [Character Name] | [Achievement description]
-
-CHAR_UPDATES:
-- [Character Name] | [field] | [new value]
-
-MAP: [Current location name]
-
-${ contextBlock ? `\n--- CAMPAIGN REFERENCE MATERIAL (for context only) ---\n${contextBlock}` : ''}`;
-
-}
-
 function buildMinimalPrompt(gameConfig, gameState) {
   const system = gameConfig.system || 'dnd5e'
 
   switch(system) {
     case 'dnd5e':
-      return buildMinimalPrompt_DnD(gameConfig, gameState)
+      return buildMinimalPrompt_DnD(gameState)
     case 'runequest':
-      return buildMinimalPrompt_DnD(gameConfig, gameState) // Falls back to DnD for now
+      return buildMinimalPrompt_DnD(gameState) // Falls back to DnD for now
     default:
-      return buildMinimalPrompt_DnD(gameConfig, gameState)
+      return buildMinimalPrompt_DnD(gameState)
   }
 }
 
