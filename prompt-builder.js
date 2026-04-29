@@ -74,12 +74,17 @@ Rune affinities (Air, Earth, Fire/Sky, Water, Darkness, Moon) influence magic an
 
 // ── Minimal Prompt for Standard Gameplay (Combat + Simple Encounters) ──────
 function buildMinimalPrompt_DnD(gameState) {
+  // Guard against null/undefined gameState
+  if (!gameState || !gameState.data) {
+    throw new Error('buildMinimalPrompt_DnD requires gameState with data property');
+  }
+
   const gs = gameState;
   const gd = gs.data;
 
-  const characterBlock = Object.entries(gd.characters)
+  const characterBlock = Object.entries(gd.characters || {})
     .map(([name, c]) => {
-      const catchphrases = c.catchphrases?.length
+      const catchphrases = (c.catchphrases && Array.isArray(c.catchphrases) && c.catchphrases.length)
         ? `Catchphrases (use sparingly, max 1-2 per day): ${c.catchphrases.join('; ')}`
         : '';
       return `
@@ -166,9 +171,9 @@ function buildFullPrompt_DnD(gameConfig, gameState) {
   const gs = gameState;
   const gd = gs.data;
 
-  const characterBlock = Object.entries(gd.characters)
+  const characterBlock = Object.entries(gd.characters || {})
     .map(([name, c]) => {
-      const catchphrases = c.catchphrases?.length
+      const catchphrases = (c.catchphrases && Array.isArray(c.catchphrases) && c.catchphrases.length)
         ? `Catchphrases (use sparingly, max 1-2 per day): ${c.catchphrases.join('; ')}`
         : '';
       return `
