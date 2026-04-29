@@ -1,156 +1,100 @@
 #!/usr/bin/env node
-// ────────────────────────────────────────────────────────────────────────────────
-// Opus Review Script — Automated Prompt Analysis
-//
-// Analyzes prompt-builder.js for bloat, drift, and maintenance issues.
-// - Called by post-commit hook (on-edit)
-// - Can be run manually: node scripts/opus-review.js
-// - Reports saved to logs/opus-review-YYYY-MM-DD.txt
-//
-// Non-blocking: Always exits 0 (reports are informational)
-// ────────────────────────────────────────────────────────────────────────────────
 
-const fs = require('fs');
-const path = require('path');
-const Anthropic = require('@anthropic-ai/sdk');
+/**
+ * Opus Review: Analyzes prompt-builder.js for bloat and drift
+ * Triggers: On-edit via git hook, or weekly via cron
+ */
 
-const LOGS_DIR = path.join(__dirname, '../logs');
-const PROMPT_BUILDER_PATH = path.join(__dirname, '../prompt-builder.js');
-const GAME_ENGINE_PATH = path.join(__dirname, '../game-engine.js');
+const Anthropic = require("@anthropic-ai/sdk");
+const fs = require("fs");
+const path = require("path");
 
-// Ensure logs directory exists
-if (!fs.existsSync(LOGS_DIR)) {
-  fs.mkdirSync(LOGS_DIR, { recursive: true });
-}
+const client = new Anthropic();
 
-async function runOpusReview() {
-  try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      console.warn('⚠️  ANTHROPIC_API_KEY not set. Skipping Opus review.');
-      process.exit(0);
-    }
+async function reviewPrompt(filePath, briefMode = false) {
+  console.log(`🔍 Reviewing ${path.basename(filePath)}...`);
 
-    const client = new Anthropic({ apiKey });
+  const content = fs.readFileSync(filePath, "utf-8");
+  const lineCount = content.split("\n").length;
 
-    // Read both files
-    const promptBuilder = fs.readFileSync(PROMPT_BUILDER_PATH, 'utf8');
-    const gameEngine = fs.readFileSync(GAME_ENGINE_PATH, 'utf8');
+  const reviewPrompt = `Review this D&D game narration system prompt builder for bloat and drift.
 
-    // Count approximate line counts for major sections
-    const minimalMatch = promptBuilder.match(
-      /function buildMinimalPrompt_DnD\([\s\S]*?\n\}/
-    );
-    const fullMatch = promptBuilder.match(
-      /function buildFullPrompt_DnD\([\s\S]*?\n}/
-    );
+FILE: ${path.basename(filePath)}
+LINES: ${lineCount}
 
-    const minimalLines = minimalMatch ? minimalMatch[0].split('\n').length : 0;
-    const fullLines = fullMatch ? fullMatch[0].split('\n').length : 0;
+CODE:
+\`\`\`javascript
+${content}
+\`\`\`
 
-    // Prepare analysis prompt
-    const analysisPrompt = `You are a prompt engineer reviewing a D&D narration system for bloat and drift.
-
-TASK: Analyze the attached prompt-builder.js and game-engine.js for:
-1. BLOAT in buildMinimalPrompt_DnD() and buildFullPrompt_DnD()
-2. DRIFT between prompts and actual game-engine.js
-3. REDUNDANCY and outdated sections
-
-MINIMAL PROMPT REVIEW (buildMinimalPrompt_DnD ~${minimalLines} lines):
-- Are all lines necessary for basic gameplay?
+MINIMAL PROMPT REVIEW (buildMinimalPrompt_DnD):
+- Are all ~80 lines necessary for basic gameplay?
 - Any duplicate rules or redundant sections?
-- Is the word limit rule clear and enforced?
-- Are character stats and location always up-to-date?
-- Is the output format (---OPTIONS---, ---SCENE---, ---WORLD---) necessary?
+- Is the word limit rule clear?
 
-FULL PROMPT REVIEW (buildFullPrompt_DnD ~${fullLines} lines):
-- World context: Still relevant? Outdated?
-- NPC memory section: Are NPCs from old encounters still needed?
-- Encounter plans: Do they match game-engine.js code?
-- Story summary: Is it consistent with game state?
-- Are ferocity, pillars, and pacing instructions clear?
-- SPELLS/POWERS/RESOURCES: Is this section needed given game-engine.js tracking?
+FULL PROMPT REVIEW (buildFullPrompt_DnD):
+- World context: Still relevant?
+- NPC memory section: Are old NPCs still listed?
+- Encounter plans: Do they match game-engine.js?
 
 DRIFT DETECTION:
-- Features in game-engine.js NOT mentioned in prompts (ferocity, pillars, etc.)?
-- Features described in prompts but removed from game-engine.js?
-- New handlers/functions in game-engine.js not reflected in prompts?
-- Output format (---ENEMIES---, KILLSHOT, etc.) matching game-engine.js?
+- New handlers in game-engine.js not mentioned in prompt?
+- New game features documented?
+- Old features still described but removed?
 
-REPORT FORMAT:
-Return exactly:
+${briefMode ? 'BRIEF REPORT: Only list issues if any found.' : 'FULL REPORT: Bloat candidates, drift issues, recommendations (prioritized).'}`;
 
-🔴 BLOAT CANDIDATES:
-- [section name] | [reason] | [line approx]
-- ...
+  const message = await client.messages.create({
+    model: "claude-opus-4-6",
+    max_tokens: 1024,
+    messages: [
+      {
+        role: "user",
+        content: reviewPrompt,
+      },
+    ],
+  });
 
-🟡 DRIFT ISSUES:
-- [feature name] | [status] | [recommended action]
-- ...
+  const report = message.content[0].text;
+  const timestamp = new Date().toISOString();
 
-💚 WORKING WELL:
-- [aspect] | [why it works]
+  console.log(`\n📊 Opus Review Report (${timestamp})`);
+  console.log("=".repeat(60));
+  console.log(report);
+  console.log("=".repeat(60));
 
-📋 RECOMMENDATIONS (prioritized):
-1. [Most impactful change]
-2. [Next highest impact]
-3. [Nice-to-have]
+  // Log to file
+  const logDir = path.join(path.dirname(filePath), "..", "logs");
+  if (!fs.existsSync(logDir)) fs.mkdirSync(logDir, { recursive: true });
 
-Keep report concise (under 500 words).`;
+  const logFile = path.join(logDir, `opus-review-${Date.now()}.log`);
+  fs.writeFileSync(
+    logFile,
+    `Opus Review Report
+Timestamp: ${timestamp}
+File: ${filePath}
+Lines: ${lineCount}
 
-    // Call Opus API
-    console.log('⏳ Calling Opus for prompt analysis...');
-    const response = await client.messages.create({
-      model: 'claude-opus-4-6-20250514',
-      max_tokens: 2000,
-      system:
-        'You are a prompt engineering expert. Analyze code for unnecessary bloat, drift from implementation, and improvement opportunities. Be direct and actionable.',
-      messages: [
-        {
-          role: 'user',
-          content: `${analysisPrompt}\n\n--- PROMPT BUILDER (${promptBuilder.length} chars) ---\n${promptBuilder}\n\n--- GAME ENGINE (excerpt, ${gameEngine.length} chars) ---\n${gameEngine}`,
-        },
-      ],
-    });
+${report}`
+  );
 
-    const report = response.content[0].text;
-
-    // Save report with timestamp
-    const now = new Date();
-    const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-    const timeStr = now.toTimeString().split(' ')[0]; // HH:MM:SS
-    const reportPath = path.join(LOGS_DIR, `opus-review-${dateStr}.txt`);
-
-    const reportContent = `Opus Prompt Review Report
-Generated: ${dateStr} ${timeStr}
-
-API Model: claude-opus-4-6-20250514
-Input Files: prompt-builder.js (${promptBuilder.length} chars), game-engine.js (${gameEngine.length} chars)
-
-────────────────────────────────────────────────────────────────────────────────
-
-${report}
-
-────────────────────────────────────────────────────────────────────────────────
-End of Report`;
-
-    fs.writeFileSync(reportPath, reportContent);
-
-    // Log usage stats
-    const inputTokens = response.usage?.input_tokens || 0;
-    const outputTokens = response.usage?.output_tokens || 0;
-    const totalTokens = inputTokens + outputTokens;
-
-    console.log('✅ Opus review complete');
-    console.log(`   Report: ${reportPath}`);
-    console.log(`   Tokens: ${inputTokens} input + ${outputTokens} output = ${totalTokens} total`);
-
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Opus review error:', error.message);
-    // Non-blocking: always exit 0
-    process.exit(0);
-  }
+  console.log(`📁 Report saved to: ${logFile}`);
 }
 
-runOpusReview();
+const args = process.argv.slice(2);
+const targetFile = args.includes("--target")
+  ? args[args.indexOf("--target") + 1]
+  : "prompt-builder.js";
+const briefMode = args.includes("--mode") && args[args.indexOf("--mode") + 1] === "brief";
+
+const filePath = path.join(__dirname, "..", targetFile);
+
+if (!fs.existsSync(filePath)) {
+  console.error(`❌ File not found: ${filePath}`);
+  process.exit(1);
+}
+
+reviewPrompt(filePath, briefMode).catch((err) => {
+  console.error("❌ Review failed:", err.message);
+  process.exit(1);
+});
