@@ -167,9 +167,14 @@ CHAR_UPDATES:
 MAP: [Current location name]`;
 }
 
-function buildFullPrompt_DnD(gameConfig, gameState) {
-  const gs = gameState;
+function buildFullPrompt_DnD(gameId, gameConfig, getGameState, ed) {
+  const gs = getGameState(gameId);
   const gd = gs.data;
+
+  // Guard against null/undefined gameState
+  if (!gs || !gd) {
+    throw new Error('buildFullPrompt_DnD requires valid gameState with data property');
+  }
 
   const characterBlock = Object.entries(gd.characters || {})
     .map(([name, c]) => {
@@ -466,16 +471,18 @@ function buildMinimalPrompt(gameConfig, gameState) {
   }
 }
 
-function buildFullPrompt(gameConfig, gameState) {
-  const system = gameConfig.system || 'dnd5e'
+// ── System Selector: Route to correct full prompt ───────────────────────
+function buildFullPrompt(gameId, gameConfig, getGameState, ed) {
+  const system = gameConfig.system || 'dnd5e';
 
-  switch(system) {
+  switch (system) {
     case 'dnd5e':
-      return buildFullPrompt_DnD(gameConfig, gameState)
+      return buildFullPrompt_DnD(gameId, gameConfig, getGameState, ed);
     case 'runequest':
-      return buildFullPrompt_DnD(gameConfig, gameState) // Falls back to DnD for now
+      // TODO: buildFullPrompt_RuneQuest when RQ support added
+      return buildFullPrompt_DnD(gameId, gameConfig, getGameState, ed);
     default:
-      return buildFullPrompt_DnD(gameConfig, gameState)
+      return buildFullPrompt_DnD(gameId, gameConfig, getGameState, ed);
   }
 }
 
