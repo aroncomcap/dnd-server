@@ -551,49 +551,89 @@ function rotateKillshots() {
   const lobbyContent = document.getElementById('lobby-content');
   const bar = document.getElementById('auth-bar');
 
-  try {
-    const resp = await fetch('/auth/me', { credentials: 'include' });
-    const data = await resp.json();
+  // Helper to show authenticated state
+  function showAuthenticated(user) {
+    authGate.style.display = 'none';
+    lobbyContent.style.display = 'block';
+    bar.innerHTML = `
+      <span class="user-name">${user.email}</span>
+      ${!user.hasPassword ? '<a href="#" id="btn-set-pw">Set Password</a>' : ''}
+      <a href="/help">Help</a>
+      <button id="btn-logout">Logout</button>
+    `;
+    document.getElementById('btn-logout')?.addEventListener('click', async () => {
+      await fetch('/auth/logout', { method: 'POST' });
+      sessionStorage.removeItem('auth_user');
+      localStorage.removeItem('auth_user_cache');
+      window.location.reload();
+    });
+    document.getElementById('btn-set-pw')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const pw = prompt('Set a password (min 8 characters):');
+      if (pw && pw.length >= 8) {
+        fetch('/auth/set-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pw }),
+        }).then(r => r.json()).then(d => {
+          if (d.ok) alert('Password set! You can now log in with email + password.');
+          else alert(d.error || 'Failed');
+        });
+      } else if (pw) {
+        alert('Password must be at least 8 characters.');
+      }
+    });
+    loadGames();
+    loadHallOfFame();
+  }
 
-    if (data.user) {
-      authGate.style.display = 'none';
-      lobbyContent.style.display = 'block';
-      bar.innerHTML = `
-        <span class="user-name">${data.user.email}</span>
-        ${!data.user.hasPassword ? '<a href="#" id="btn-set-pw">Set Password</a>' : ''}
-        <a href="/help">Help</a>
-        <button id="btn-logout">Logout</button>
-      `;
-      document.getElementById('btn-logout')?.addEventListener('click', async () => {
-        await fetch('/auth/logout', { method: 'POST' });
-        window.location.reload();
-      });
-      document.getElementById('btn-set-pw')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        const pw = prompt('Set a password (min 8 characters):');
-        if (pw && pw.length >= 8) {
-          fetch('/auth/set-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: pw }),
-          }).then(r => r.json()).then(d => {
-            if (d.ok) alert('Password set! You can now log in with email + password.');
-            else alert(d.error || 'Failed');
-          });
-        } else if (pw) {
-          alert('Password must be at least 8 characters.');
-        }
-      });
-      loadGames();
-      loadHallOfFame();
-    } else {
-      authGate.style.display = 'block';
-      lobbyContent.style.display = 'none';
-      bar.innerHTML = '<a href="/help">Help</a>';
-    }
-  } catch {
+  function showNotAuthenticated() {
     authGate.style.display = 'block';
     lobbyContent.style.display = 'none';
+    bar.innerHTML = '<a href="/help">Help</a>';
+  }
+
+  // Try to get auth from cache first (resilient to network failures)
+  let cachedUser = sessionStorage.getItem('auth_user');
+  if (!cachedUser) {
+    const cached = localStorage.getItem('auth_user_cache');
+    if (cached) {
+      try {
+        cachedUser = JSON.parse(cached);
+      } catch (e) {
+        localStorage.removeItem('auth_user_cache');
+      }
+    }
+  }
+
+  try {
+    const resp = await fetch('/auth/me', { credentials: 'include' });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.user) {
+        // Cache the user info for resilience against network blocks
+        sessionStorage.setItem('auth_user', JSON.stringify(data.user));
+        localStorage.setItem('auth_user_cache', JSON.stringify(data.user));
+        showAuthenticated(data.user);
+      } else {
+        showNotAuthenticated();
+      }
+    } else {
+      // Auth check failed, use cache if available
+      if (cachedUser) {
+        showAuthenticated(cachedUser);
+      } else {
+        showNotAuthenticated();
+      }
+    }
+  } catch (err) {
+    // Network error - use cache if available, otherwise show login
+    console.warn('Auth check failed, using cached auth status if available:', err);
+    if (cachedUser) {
+      showAuthenticated(cachedUser);
+    } else {
+      showNotAuthenticated();
+    }
   }
 
   const params = new URLSearchParams(window.location.search);
