@@ -4032,7 +4032,7 @@ const CATEGORIES = ['combat', 'general', 'pacing', 'social', 'homebrew'];
 
 function renderRulesList() {
   const list = document.getElementById('rules-list');
-  const rules = (state.rulesCorrections || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const rules = (gameState.rulesCorrections || []).sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
   list.innerHTML = rules.map(r => `
     <div style="background:rgba(0,0,0,0.2);padding:8px;border-radius:6px;margin-bottom:6px;">
@@ -4044,7 +4044,7 @@ function renderRulesList() {
           </div>
         </div>
         <div style="display:flex;gap:4px;">
-          ${r.created_by_user_id === state.currentUserId ? `
+          ${r.created_by_user_id === gameState.currentUserId ? `
             <button class="btn-icon" onclick="toggleRulePrivacy(${r.id}, ${!r.is_private})" title="${r.is_private ? 'Make shared' : 'Make private'}" style="font-size:0.8rem;">
               ${r.is_private ? '🔒' : '🌐'}
             </button>
