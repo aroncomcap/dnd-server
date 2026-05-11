@@ -103,3 +103,10 @@ test('combat loading state preserves and restores action controls', () => {
   assert.match(gameHtml, /socket\.on\('combat_started'[\s\S]*?updateActionArea\(\);/, 'combat_started should restore action controls');
   assert.match(gameHtml, /socket\.on\('combat_update'[\s\S]*?updateActionArea\(\);/, 'combat_update should also restore controls if combat_started was missed');
 });
+
+test('combat victories award XP and publish character level updates', () => {
+  assert.match(serverJs, /awardCombatXpForGame/, 'server should award XP when combat ends');
+  assert.match(serverJs, /character_updated'[\s\S]*?leveledUp/, 'level changes should be pushed through character_updated events');
+  assert.match(serverJs, /XP awarded:/, 'players should see an XP grant system message');
+  assert.match(serverJs, /combat_ended'[\s\S]*?xp:/, 'combat_ended payload should include the XP award summary');
+});

@@ -27,6 +27,7 @@ const llmModels = require('./llm/model-registry');
 const promptBuilder = require('./prompt-builder');
 const imageEngine = require('./image-engine');
 const gameEngine = require('./game-engine');
+const { awardCombatXP } = require('./xp-system');
 const USE_SPLIT_PIPELINE = process.env.SPLIT_PIPELINE === 'true';
 const TEST_MODE = process.env.TEST_MODE === 'true';
 
@@ -714,6 +715,12 @@ async function initiateCombat(gameId, gameConfig, enemies) {
   }
 
   const state = gs.combatEngine.initCombat(pcCombatants, enemyCombatants, system);
+  gs.currentCombatId = crypto.randomUUID();
+  gs.combatXpAwardedForCombatId = null;
+  gs.lastCombatXpAward = null;
+  db.setState(gameId, 'currentCombatId', gs.currentCombatId).catch(() => {});
+  db.setState(gameId, 'combatXpAwardedForCombatId', null).catch(() => {});
+  db.setState(gameId, 'lastCombatXpAward', null).catch(() => {});
   io.to(gameId).emit('combat_started', {
     initiativeOrder: state.initiativeOrder,
     combatants: Object.fromEntries(
@@ -888,6 +895,92 @@ function recordCombatConclusion(gameId, reason = 'combat_over') {
 
   db.setState(gameId, 'lastCombatConclusion', gs.lastCombatConclusion).catch(() => {});
   return gs.lastCombatConclusion;
+}
+
+function formatXpAwardForPrompt(award) {
+  if (!award || !award.results?.length) return '';
+
+  const defeatedNames = award.defeated.map(enemy => enemy.name).filter(Boolean).join(', ') || 'the defeated enemies';
+  const lines = [
+    `Total encounter XP: ${award.totalXP}.`,
+    `Party award: ${award.xpPerCharacter} XP each for defeating ${defeatedNames}.`,
+  ];
+
+  const levelUps = award.results
+    .filter(result => result.leveledUp)
+    .map(result => `${result.character} reached Level ${result.newLevel}`);
+  if (levelUps.length) {
+    lines.push(`Level ups: ${levelUps.join('; ')}.`);
+  }
+
+  return lines.join('\n');
+}
+
+async function awardCombatXpForGame(gameId, reason = 'combat_over') {
+  const gs = getGameState(gameId);
+  const combatants = gs.combatEngine?.state?.combatants || {};
+  const combatId = gs.currentCombatId || 'active-combat';
+
+  if (gs.combatXpAwardedForCombatId === combatId) {
+    return gs.lastCombatXpAward || null;
+  }
+
+  const award = awardCombatXP(gs, combatants);
+  if (!award.results.length || award.xpPerCharacter <= 0) {
+    return null;
+  }
+
+  const compactAward = {
+    reason,
+    combatId,
+    totalXP: award.totalXP,
+    xpPerCharacter: award.xpPerCharacter,
+    defeated: award.defeated.map(enemy => ({
+      name: enemy.name,
+      xp: enemy.xp,
+      cr: enemy.cr ?? enemy.challengeRating ?? enemy.challenge_rating ?? null,
+    })),
+    results: award.results.map(result => ({
+      character: result.character,
+      xpGained: result.xpGained,
+      totalXP: result.totalXP,
+      leveledUp: result.leveledUp,
+      newLevel: result.newLevel,
+    })),
+    updatedAt: new Date().toISOString(),
+  };
+
+  gs.lastCombatXpAward = compactAward;
+  gs.combatXpAwardedForCombatId = combatId;
+  db.setState(gameId, 'lastCombatXpAward', compactAward).catch(() => {});
+  db.setState(gameId, 'combatXpAwardedForCombatId', combatId).catch(() => {});
+
+  const defeatedNames = compactAward.defeated.map(enemy => enemy.name).filter(Boolean).join(', ') || 'the defeated enemies';
+  emitSystem(gameId, {
+    text: `XP awarded: ${compactAward.xpPerCharacter} XP each for defeating ${defeatedNames}.`,
+  });
+
+  for (const result of compactAward.results) {
+    const char = gs.data.characters[result.character];
+    if (!char) continue;
+    db.upsertCharacter(gameId, result.character, char).catch(e => console.error('[xp-persist]', e.message));
+    io.to(gameId).emit('character_updated', {
+      name: result.character,
+      character: char,
+      xpGained: result.xpGained,
+      totalXP: result.totalXP,
+      level: result.newLevel,
+      leveledUp: result.leveledUp,
+    });
+
+    if (result.leveledUp) {
+      emitSystem(gameId, {
+        text: `Level up: ${result.character} reached Level ${result.newLevel}! Total XP: ${result.totalXP}.`,
+      });
+    }
+  }
+
+  return compactAward;
 }
 
 // ── Character Token Generation ───────────────────────────────────────────────
@@ -1206,6 +1299,12 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
         if (overCheck.over) {
           combatContext += `\n\nCOMBAT IS OVER: ${overCheck.reason === 'enemies_defeated' ? 'All enemies defeated. Narrate aftermath and loot.' : 'All PCs are down.'}`;
           recordCombatConclusion(gameId, overCheck.reason);
+          const xpAward = overCheck.reason === 'enemies_defeated'
+            ? await awardCombatXpForGame(gameId, overCheck.reason)
+            : null;
+          if (xpAward) {
+            combatContext += `\n\nXP AWARDS:\n${formatXpAwardForPrompt(xpAward)}\nMention these XP grants and any level ups in the aftermath.`;
+          }
           gs.combatEngine.endCombat();
           persistCombatState(gameId);
           // Collect DPR data from combat
@@ -1270,7 +1369,7 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
           }
           db.setState(gameId, 'npcMemory', gs.npcMemory).catch(() => {});
 
-          io.to(gameId).emit('combat_ended', { reason: overCheck.reason });
+          io.to(gameId).emit('combat_ended', { reason: overCheck.reason, xp: xpAward });
         }
       }
     } catch (combatErr) {
@@ -1584,9 +1683,10 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     if (aiSaysCombatOver.test(parsed.narration || '')) {
       console.log(`[desync] AI narrated combat end but engine still active — force-ending combat`);
       recordCombatConclusion(gameId, 'narrated_combat_over');
+      const xpAward = await awardCombatXpForGame(gameId, 'narrated_combat_over');
       gs.combatEngine.endCombat();
       persistCombatState(gameId);
-      io.to(gameId).emit('combat_ended', { reason: 'enemies_defeated' });
+      io.to(gameId).emit('combat_ended', { reason: 'enemies_defeated', xp: xpAward });
     }
   }
 
@@ -3001,6 +3101,9 @@ io.on('connection', (socket) => {
       gs.difficultyCorrection = await db.getState(gameId, 'difficultyCorrection', 1.0);
       gs.npcMemory = await db.getState(gameId, 'npcMemory', {});
       gs.lastCombatConclusion = await db.getState(gameId, 'lastCombatConclusion', null);
+      gs.currentCombatId = await db.getState(gameId, 'currentCombatId', null);
+      gs.combatXpAwardedForCombatId = await db.getState(gameId, 'combatXpAwardedForCombatId', null);
+      gs.lastCombatXpAward = await db.getState(gameId, 'lastCombatXpAward', null);
       const savedCombat = await db.getState(gameId, 'combatState', null);
       if (savedCombat) gs.combatEngine.loadState(savedCombat);
     }
