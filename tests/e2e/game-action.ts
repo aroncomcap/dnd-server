@@ -72,8 +72,10 @@ export async function getActionResponseDiagnostics(page: Page, beforeCount: numb
     const streamBody = document.querySelector('#dm-stream-body');
     const thinking = document.querySelector('#thinking-indicator, #thinking-tip');
     const sendButton = document.querySelector('#btn-send') as HTMLButtonElement | null;
+    const turnBanner = document.querySelector('#turn-banner');
     const lastCompleted = completedMessages[completedMessages.length - 1];
     const lastText = (lastCompleted?.textContent || '').replace(/\s+/g, ' ').trim();
+    const actionInFlight = Boolean((window as any).actionInFlight);
 
     return [
       `url=${window.location.href}`,
@@ -81,8 +83,10 @@ export async function getActionResponseDiagnostics(page: Page, beforeCount: numb
       `completed_dm_before_action=${before}`,
       `streaming=${Boolean(streamBody)}`,
       `thinking=${Boolean(thinking)}`,
+      `action_in_flight=${actionInFlight}`,
       `send_disabled=${sendButton ? sendButton.disabled : 'missing'}`,
       `send_text=${sendButton ? sendButton.textContent?.trim() : 'missing'}`,
+      `turn=${turnBanner ? turnBanner.textContent?.replace(/\s+/g, ' ').trim() : 'missing'}`,
       `last_dm=${lastText.slice(-400)}`,
     ].join('\n');
   }, beforeCount).catch(err => `diagnostics_unavailable=${err.message}`);

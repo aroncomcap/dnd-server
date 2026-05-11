@@ -1909,6 +1909,7 @@ let actionFallbackTimer = null;
 
 function resetSendButton() {
   actionInFlight = false;
+  window._actionInFlight = false;
   if (actionFallbackTimer) {
     clearTimeout(actionFallbackTimer);
     actionFallbackTimer = null;
@@ -1922,6 +1923,7 @@ function resetSendButton() {
 
 function markActionPending() {
   actionInFlight = true;
+  window._actionInFlight = true;
   const sendBtn = document.getElementById('btn-send');
   if (sendBtn) {
     sendBtn.textContent = '⏳ ...';
@@ -2962,6 +2964,11 @@ socket.on('dm_message', (data) => {
   // Update world data
   if (data.world) updateWorldPanel(data.world);
   if (data.world?.turnOrder) updateTurnOrder(data.world.turnOrder);
+  updateActionArea();
+});
+
+socket.on('action_complete', () => {
+  resetSendButton();
   updateActionArea();
 });
 

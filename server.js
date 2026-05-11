@@ -1575,6 +1575,7 @@ function startTurnTimer(gameId, gameConfig, playerName) {
       const nextPlayer = gs2.data.turnOrder[nextIdx] || null;
       await advanceTurn(gameId, gameConfig, false);
       emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName, forPlayer: nextPlayer, world });
+      io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
       maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
         .catch(err => console.error('[scene-gen-after-auto-action]', err.message));
     } catch (err) {
@@ -3067,6 +3068,7 @@ io.on('connection', (socket) => {
       const nextPlayer = gs.data.turnOrder[nextIdx] || null;
       await advanceTurn(gameId, gameConfig, true);
       emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
+      io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
       maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
         .catch(err => console.error('[scene-gen-after-player-action]', err.message));
     } catch (err) {
@@ -3520,6 +3522,7 @@ const discordGameEngine = {
     const nextPlayer = gs.data.turnOrder[nextIdx] || null;
     await advanceTurn(gameId, gameConfig, true);
     emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
+    io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
     const playerToken = gs.data.characters[playerName]?.token || null;
     io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });
     maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
