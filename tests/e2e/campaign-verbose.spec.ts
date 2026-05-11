@@ -4,7 +4,9 @@ import {
   getActionResponseDiagnostics,
   getCompletedDmMessageCount,
   getLastCompletedDmText,
+  isActionResponsePending,
   waitForActionResponse,
+  waitForPendingActionToSettle,
 } from './game-action';
 
 const CAMPAIGN_TIMEOUT_MS = Number(process.env.CAMPAIGN_TIMEOUT_MS || 20 * 60 * 1000);
@@ -138,6 +140,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
 
       // Try to take action
       let actionTaken = false;
+      let responseAlreadyReady = false;
       const beforeDmCount = await getCompletedDmMessageCount(page);
 
       const optionButtons = await page.locator('button[class*="option"], button:has-text("→")').all();
@@ -188,10 +191,32 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
         }
       }
 
+      if (!actionTaken && await isActionResponsePending(page)) {
+        const pendingResult = await waitForPendingActionToSettle(page, beforeDmCount);
+        if (pendingResult === 'timeout') {
+          missingResponseCount++;
+          const diagnostics = await getActionResponseDiagnostics(page, beforeDmCount);
+          console.log(`⚠️  Pending action did not produce a completed DM response (${missingResponseCount}/${MAX_MISSING_RESPONSES})`);
+          console.log(diagnostics);
+          if (missingResponseCount >= MAX_MISSING_RESPONSES) {
+            throw new Error(`Campaign stalled waiting for pending action response.\n${diagnostics}`);
+          }
+          noActionCount++;
+          continue;
+        }
+
+        if (pendingResult === 'settled') {
+          continue;
+        }
+
+        actionTaken = true;
+        responseAlreadyReady = true;
+      }
+
       if (!actionTaken) {
         noActionCount++;
       } else {
-        const responseReady = await waitForActionResponse(page, beforeDmCount);
+        const responseReady = responseAlreadyReady || await waitForActionResponse(page, beforeDmCount);
         if (!responseReady) {
           missingResponseCount++;
           const diagnostics = await getActionResponseDiagnostics(page, beforeDmCount);

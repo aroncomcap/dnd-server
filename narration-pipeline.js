@@ -461,6 +461,16 @@ async function callSonnetNarration(gameId, gameConfig, gs, characterName, action
   const userMessage = buildUserMessage(gs, characterName, actionText);
 
   let fullText = '';
+  let streamEnded = false;
+
+  const closeStream = (narration) => {
+    if (!io || streamEnded) return;
+    io.to(gameId).emit('dm_stream_end', {
+      gameId,
+      narration: narration || 'The world holds its breath...',
+    });
+    streamEnded = true;
+  };
 
   // Emit stream start to the game room
   if (io) {
@@ -470,37 +480,39 @@ async function callSonnetNarration(gameId, gameConfig, gs, characterName, action
   const verbosityMaxTokens = { terse: 250, brief: 400, verbose: 1500 };
   const maxTokens = verbosityMaxTokens[gs.verbosity] || verbosityMaxTokens.brief;
 
-  const stream = anthropic.messages.stream({
-    model: SONNET_MODEL,
-    max_tokens: maxTokens,
-    system: [
-      {
-        type: 'text',
-        text: systemPrompt,
-        cache_control: { type: 'ephemeral' },
-      },
-    ],
-    messages: [
-      { role: 'user', content: userMessage },
-    ],
-  });
+  try {
+    const stream = anthropic.messages.stream({
+      model: SONNET_MODEL,
+      max_tokens: maxTokens,
+      system: [
+        {
+          type: 'text',
+          text: systemPrompt,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+      messages: [
+        { role: 'user', content: userMessage },
+      ],
+    });
 
-  for await (const event of stream) {
-    if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-      const chunk = event.delta.text;
-      fullText += chunk;
-      if (io) {
-        io.to(gameId).emit('dm_stream_chunk', { gameId, text: chunk, chunk });
+    for await (const event of stream) {
+      if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
+        const chunk = event.delta.text;
+        fullText += chunk;
+        if (io) {
+          io.to(gameId).emit('dm_stream_chunk', { gameId, text: chunk, chunk });
+        }
       }
     }
-  }
 
-  const parsed = parseSonnetResponse(fullText);
-  if (io) {
-    io.to(gameId).emit('dm_stream_end', { gameId, narration: parsed.narration || fullText.trim() });
+    const parsed = parseSonnetResponse(fullText);
+    closeStream(parsed.narration || fullText.trim());
+    return parsed;
+  } catch (err) {
+    closeStream(fullText.trim());
+    throw err;
   }
-
-  return parsed;
 }
 
 // ---------------------------------------------------------------------------

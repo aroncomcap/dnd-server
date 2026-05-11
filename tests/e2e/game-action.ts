@@ -58,6 +58,54 @@ export async function waitForActionResponse(page: Page, beforeCount: number, tim
   ).then(() => true).catch(() => false);
 }
 
+export async function isActionResponsePending(page: Page): Promise<boolean> {
+  return page.evaluate(() => {
+    const sendButton = document.querySelector('#btn-send') as HTMLButtonElement | null;
+    const sendText = sendButton?.textContent?.trim().toLowerCase() || '';
+    const sendBusy = Boolean(sendButton?.disabled && /sending|\.\.\.|⏳/.test(sendText));
+
+    return Boolean((window as any)._actionInFlight) && (
+      Boolean(document.querySelector('#dm-stream-body')) ||
+      Boolean(document.querySelector('#thinking-indicator, #thinking-tip')) ||
+      sendBusy
+    );
+  }).catch(() => false);
+}
+
+export async function waitForPendingActionToSettle(
+  page: Page,
+  beforeCount: number,
+  timeout = Number(process.env.CAMPAIGN_RESPONSE_TIMEOUT_MS || 90000)
+): Promise<'response' | 'settled' | 'timeout'> {
+  return page.waitForFunction(
+    (before) => {
+      const isCompletedDmMessage = (msg: Element) => {
+        if (msg.id === 'dm-stream-bubble' || msg.id === 'thinking-indicator') return false;
+        if (msg.querySelector('#dm-stream-body') || msg.querySelector('#thinking-tip')) return false;
+        const text = (msg.textContent || '').trim();
+        return text.length > 0 && !text.includes('Thinking...');
+      };
+      const completedDmCount = Array.from(document.querySelectorAll('#chat-log .msg-dm'))
+        .filter(isCompletedDmMessage)
+        .length;
+      if (completedDmCount > before) return 'response';
+
+      const sendButton = document.querySelector('#btn-send') as HTMLButtonElement | null;
+      const sendText = sendButton?.textContent?.trim().toLowerCase() || '';
+      const sendBusy = Boolean(sendButton?.disabled && /sending|\.\.\.|⏳/.test(sendText));
+      const actionPending = Boolean((window as any)._actionInFlight) && (
+        Boolean(document.querySelector('#dm-stream-body')) ||
+        Boolean(document.querySelector('#thinking-indicator, #thinking-tip')) ||
+        sendBusy
+      );
+
+      return actionPending ? false : 'settled';
+    },
+    beforeCount,
+    { timeout }
+  ).then(result => result.jsonValue() as Promise<'response' | 'settled'>).catch(() => 'timeout');
+}
+
 export async function getActionResponseDiagnostics(page: Page, beforeCount: number): Promise<string> {
   return page.evaluate((before) => {
     const isCompletedDmMessage = (msg: Element) => {

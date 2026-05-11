@@ -5,7 +5,9 @@ const test = require('node:test');
 
 const gameHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'game.html'), 'utf8');
 const serverJs = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+const narrationPipelineJs = fs.readFileSync(path.join(__dirname, '..', 'narration-pipeline.js'), 'utf8');
 const gameActionTs = fs.readFileSync(path.join(__dirname, 'e2e', 'game-action.ts'), 'utf8');
+const campaignVerboseTs = fs.readFileSync(path.join(__dirname, 'e2e', 'campaign-verbose.spec.ts'), 'utf8');
 
 test('game inline script parses', () => {
   const start = gameHtml.indexOf('<script>');
@@ -23,12 +25,29 @@ test('game navigation binding is invoked', () => {
 test('DM rendering strips structured marker blocks before display', () => {
   assert.match(gameHtml, /function stripStructuredBlocksFromNarration\(text\)/, 'structured block sanitizer should exist');
   assert.match(gameHtml, /let cleaned = stripStructuredBlocksFromNarration\(text\)/, 'renderDmText should sanitize all DM text');
-  assert.match(gameHtml, /const narration = stripStructuredBlocksFromNarration\(data\.narration \|\| body\.textContent \|\| ''\)/, 'stream end should sanitize fallback text');
+  assert.match(gameHtml, /const finalText = stripStructuredBlocksFromNarration\(narration \|\| body\.textContent \|\| ''\)/, 'stream finalizer should sanitize fallback text');
 });
 
 test('E2E action waiter requires a new completed DM message', () => {
   assert.match(gameActionTs, /return completedDmCount > before;/, 'waitForActionResponse should require a new completed DM message');
   assert.doesNotMatch(gameActionTs, /completedDmCount > before\s*\|\|/, 'idle send button should not count as an action response');
+});
+
+test('E2E campaign harness waits for already pending accepted actions', () => {
+  assert.match(gameActionTs, /export async function isActionResponsePending/, 'E2E helpers should expose actionable pending response state');
+  assert.match(gameActionTs, /export async function waitForPendingActionToSettle/, 'E2E helpers should allow pending state to settle without requiring a duplicate response');
+  assert.match(campaignVerboseTs, /await isActionResponsePending\(page\)/, 'verbose campaign should detect an already pending action');
+  assert.match(campaignVerboseTs, /pendingResult === 'settled'/, 'campaign should keep moving when a pending action has already settled');
+  assert.match(campaignVerboseTs, /Pending action did not produce a completed DM response/, 'pending action stalls should be diagnosed separately');
+  assert.match(campaignVerboseTs, /const responseReady = responseAlreadyReady \|\| await waitForActionResponse/, 'campaign should not wait twice after an in-flight response already completed');
+});
+
+test('streamed narration failures are finalized instead of leaving a live stream bubble', () => {
+  assert.match(gameHtml, /function finalizeStreamBubble\(narration\)/, 'client should have a reusable stream finalizer');
+  assert.match(gameHtml, /socket\.on\('dm_stream_end'[\s\S]*?finalizeStreamBubble\(narration\);/, 'stream end should finalize the live stream bubble');
+  assert.match(gameHtml, /if \(lastMessageWasStreamed\) \{[\s\S]*?finalizeStreamBubble\(data\.text\);[\s\S]*?lastMessageWasStreamed = false;/, 'fallback dm_message should finalize an orphaned stream bubble');
+  assert.match(narrationPipelineJs, /const closeStream = \(narration\) => \{[\s\S]*?dm_stream_end[\s\S]*?streamEnded = true;/, 'split pipeline should centralize stream closure');
+  assert.match(narrationPipelineJs, /catch \(err\) \{[\s\S]*?closeStream\(fullText\.trim\(\)\);[\s\S]*?throw err;/, 'split pipeline should emit dm_stream_end even when Sonnet streaming fails');
 });
 
 test('action submit is latched until a server response or long fallback', () => {

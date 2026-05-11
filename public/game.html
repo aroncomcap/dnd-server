@@ -2946,6 +2946,22 @@ socket.on('error_msg', (data) => {
 // Track whether the current DM response was streamed
 let lastMessageWasStreamed = false;
 
+function finalizeStreamBubble(narration) {
+  const body = document.getElementById('dm-stream-body');
+  const wrap = document.getElementById('dm-stream-bubble');
+  if (!body) {
+    if (wrap) wrap.removeAttribute('id');
+    return false;
+  }
+
+  const finalText = stripStructuredBlocksFromNarration(narration || body.textContent || '');
+  body.innerHTML = renderDmText(finalText);
+  body.removeAttribute('id');
+  if (wrap) wrap.removeAttribute('id');
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return true;
+}
+
 socket.on('dm_stream_start', (data) => {
   sfx.chime();
   lastMessageWasStreamed = true;
@@ -2986,19 +3002,10 @@ socket.on('dm_stream_chunk', (data) => {
 });
 
 socket.on('dm_stream_end', (data) => {
-  const body = document.getElementById('dm-stream-body');
-  if (!body) return;
-  // Replace plain text with fully formatted HTML
-  const narration = stripStructuredBlocksFromNarration(data.narration || body.textContent || '');
-  body.innerHTML = renderDmText(narration);
+  const narration = data.narration || document.getElementById('dm-stream-body')?.textContent || '';
   if (/\bHIT\b/.test(narration)) sfx.hit();
   else if (/\bMISS\b/.test(narration)) sfx.miss();
-  body.removeAttribute('id');
-
-  const wrap = document.getElementById('dm-stream-bubble');
-  if (wrap) wrap.removeAttribute('id');
-
-  chatLog.scrollTop = chatLog.scrollHeight;
+  finalizeStreamBubble(narration);
 });
 
 socket.on('dm_message', (data) => {
@@ -3008,6 +3015,7 @@ socket.on('dm_message', (data) => {
 
   if (lastMessageWasStreamed) {
     // Narration was already rendered by stream handlers — just handle options/world
+    finalizeStreamBubble(data.text);
     lastMessageWasStreamed = false;
   } else {
     // Reconnect / catch-up case — render the full message normally
