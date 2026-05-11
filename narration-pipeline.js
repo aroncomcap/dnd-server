@@ -515,9 +515,23 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
       },
     });
 
-    const parsed = parseNarrationResponse(fullText);
+    const responseText = fullText || response.text || '';
+    if (!responseText.trim()) {
+      const fallback = buildFallbackTurn(characterName, actionText);
+      closeStream(fallback.narration, response.llmRunId || null);
+      return {
+        ...fallback,
+        llmRunId: response.llmRunId || null,
+        fallback: true,
+      };
+    }
+
+    const parsed = parseNarrationResponse(responseText);
+    if (!parsed.options.length) {
+      parsed.options = [...FALLBACK_OPTIONS];
+    }
     parsed.llmRunId = response.llmRunId;
-    closeStream(parsed.narration || fullText.trim(), response.llmRunId);
+    closeStream(parsed.narration || responseText.trim(), response.llmRunId);
     return parsed;
   } catch (err) {
     const fallback = buildFallbackTurn(characterName, actionText);

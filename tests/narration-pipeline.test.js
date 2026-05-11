@@ -571,4 +571,58 @@ describe('handlePlayerAction fallback behavior', () => {
     assert.ok(streamEnd, 'fallback should close the stream for clients');
     assert.strictEqual(streamEnd.payload.narration, result.narration);
   });
+
+  it('treats an empty streamed narration as a playable fallback', async () => {
+    let completeJsonCalls = 0;
+    llm.setProviderForTesting({
+      streamText: async () => ({ text: '', usage: { inputTokens: 10, outputTokens: 0 } }),
+      completeJson: async () => {
+        completeJsonCalls++;
+        throw new Error('empty stream fallback should not call structured model tasks');
+      },
+    });
+
+    const emitted = [];
+    const io = {
+      to: room => ({
+        emit: (event, payload) => emitted.push({ room, event, payload }),
+      }),
+    };
+    const gs = {
+      ...makeGameState(),
+      data: {
+        characters: {
+          Kael: {
+            class: 'Fighter',
+            level: 5,
+            personality: 'Bold and honorable.',
+            standardActions: 'Attack, Dodge',
+            backstory: 'Frontier veteran.',
+            statsText: 'Level 5 fighter',
+          },
+        },
+        chatHistory: [],
+        turnOrder: ['Kael'],
+        currentTurnIndex: 0,
+      },
+    };
+
+    const result = await handlePlayerAction(
+      'game-empty-stream',
+      makeGameConfig(),
+      gs,
+      'Kael',
+      'I search the room for hidden items.',
+      io,
+      {}
+    );
+
+    assert.ok(result.narration.includes('Kael'), 'fallback should name the acting character');
+    assert.strictEqual(result.options.length, 3, 'fallback should keep the turn actionable');
+    assert.strictEqual(completeJsonCalls, 0, 'fallback should not spend extra failed structured calls');
+
+    const streamEnd = emitted.find(e => e.event === 'dm_stream_end');
+    assert.ok(streamEnd, 'fallback should close the stream for clients');
+    assert.strictEqual(streamEnd.payload.narration, result.narration);
+  });
 });
