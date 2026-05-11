@@ -35,6 +35,8 @@ test('action submit is latched until a server response or long fallback', () => 
   assert.match(gameHtml, /function resetSendButton\(\)/, 'there should be one reset path for the send button');
   assert.match(gameHtml, /window\._actionInFlight = false;/, 'diagnostics should see reset action state');
   assert.match(gameHtml, /window\._actionInFlight = true;/, 'diagnostics should see pending action state');
+  assert.match(gameHtml, /function shouldResetActionForSystemMessage\(text\)/, 'only action-related system messages should reset pending action state');
+  assert.match(gameHtml, /if \(actionInFlight && shouldResetActionForSystemMessage\(data\.text\)\) resetSendButton\(\);/, 'generic system messages should not clear pending action state');
   assert.match(gameHtml, /actionFallbackTimer = setTimeout\(resetSendButton, 90000\);/, 'fallback should be long enough to avoid duplicate slow-turn sends');
   assert.match(gameHtml, /socket\.on\('dm_message'[\s\S]*?resetSendButton\(\);/, 'DM responses should clear pending action state');
   assert.match(gameHtml, /socket\.on\('turn_change'[\s\S]*?resetSendButton\(\);/, 'turn changes should clear pending action state');

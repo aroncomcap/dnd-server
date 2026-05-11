@@ -38,7 +38,7 @@ export async function getLastCompletedDmText(page: Page): Promise<string> {
   });
 }
 
-export async function waitForActionResponse(page: Page, beforeCount: number, timeout = 45000): Promise<boolean> {
+export async function waitForActionResponse(page: Page, beforeCount: number, timeout = Number(process.env.CAMPAIGN_RESPONSE_TIMEOUT_MS || 90000)): Promise<boolean> {
   return page.waitForFunction(
     (before) => {
       const isCompletedDmMessage = (msg: Element) => {
@@ -75,7 +75,7 @@ export async function getActionResponseDiagnostics(page: Page, beforeCount: numb
     const turnBanner = document.querySelector('#turn-banner');
     const lastCompleted = completedMessages[completedMessages.length - 1];
     const lastText = (lastCompleted?.textContent || '').replace(/\s+/g, ' ').trim();
-    const actionInFlight = Boolean((window as any).actionInFlight);
+    const actionInFlight = Boolean((window as any)._actionInFlight);
 
     return [
       `url=${window.location.href}`,

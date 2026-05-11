@@ -1933,6 +1933,10 @@ function markActionPending() {
   actionFallbackTimer = setTimeout(resetSendButton, 90000);
 }
 
+function shouldResetActionForSystemMessage(text) {
+  return /Error communicating with the DM|not yours|spectator mode|Combat is loading|Create a free account/i.test(text || '');
+}
+
 if (!gameId) { window.location.href = '/'; }
 
 // Fetch deploy time
@@ -2981,7 +2985,7 @@ socket.on('player_message', (data) => {
   addMsg('player', data.text, data.player, data.token);
 });
 socket.on('system', (data) => {
-  if (actionInFlight) resetSendButton();
+  if (actionInFlight && shouldResetActionForSystemMessage(data.text)) resetSendButton();
   addMsg('system', data.text);
 });
 
