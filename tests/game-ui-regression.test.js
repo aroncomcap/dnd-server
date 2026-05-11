@@ -52,8 +52,17 @@ test('player actions survive socket reconnects', () => {
   assert.match(gameHtml, /socket\.on\('connect'[\s\S]*?requestGameJoin\(\);[\s\S]*?updateActionArea\(\);/, 'client should rejoin the room after reconnect');
   assert.match(gameHtml, /socket\.on\('disconnect'[\s\S]*?gameJoinReady = false;[\s\S]*?updateActionArea\(\);/, 'client should mark actions unavailable after disconnect');
   assert.match(gameHtml, /if \(!socket\.connected \|\| !gameJoinReady\)[\s\S]*?return;/, 'sendAction should not locally echo actions before the socket rejoins');
-  assert.match(gameHtml, /socket\.emit\('player_action', \{ gameId, playerName: name, action \}\);/, 'player actions should include gameId as a reconnect recovery fallback');
+  assert.match(gameHtml, /socket\.timeout\(ACTION_ACK_TIMEOUT_MS\)\.emit\('player_action', \{ gameId, playerName: name, action \}/, 'player actions should include gameId as a reconnect recovery fallback');
   assert.match(serverJs, /if \(!gameId && typeof data\?\.gameId === 'string'\)[\s\S]*?socket\.join\(requestedGameId\);[\s\S]*?socket\.gameId = requestedGameId;/, 'server should recover buffered actions from sockets that reconnected before join_game');
+});
+
+test('player actions wait for server receipt before entering pending DM state', () => {
+  assert.match(gameHtml, /const ACTION_ACK_TIMEOUT_MS = 8000;/, 'client should use a short action receipt timeout');
+  assert.match(gameHtml, /function markActionSending\(\)/, 'client should distinguish sending from waiting on DM narration');
+  assert.match(gameHtml, /if \(err \|\| !ack\?\.ok\)[\s\S]*?resetSendButton\(\);[\s\S]*?input\.value = action;/, 'lost action emits should reset and restore the typed action');
+  assert.match(gameHtml, /ack\?\.ok[\s\S]*?addMsg\('player', action, getMyName\(\)\);[\s\S]*?showThinkingIndicator\(\);[\s\S]*?markActionPending\(\);/, 'client should echo and show thinking only after server receipt');
+  assert.match(serverJs, /socket\.on\('player_action', async \(data, ack\) =>/, 'server should accept a Socket.IO action acknowledgement callback');
+  assert.match(serverJs, /ackAction\(\{ ok: true \}\);[\s\S]*?io\.to\(gameId\)\.emit\('player_message'/, 'server should acknowledge accepted actions before expensive DM generation');
 });
 
 test('combat loading state preserves and restores action controls', () => {

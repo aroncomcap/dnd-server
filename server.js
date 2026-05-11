@@ -3004,12 +3004,20 @@ io.on('connection', (socket) => {
   });
 
   // Player sends an action
-  socket.on('player_action', async (data) => {
+  socket.on('player_action', async (data, ack) => {
+    let actionAcknowledged = false;
+    const ackAction = (payload) => {
+      if (actionAcknowledged || typeof ack !== 'function') return;
+      actionAcknowledged = true;
+      try { ack(payload); } catch {}
+    };
+
     let gameId = socket.gameId;
     if (!gameId && typeof data?.gameId === 'string') {
       const requestedGameId = truncate(data.gameId, 100);
       const game = await db.getGame(requestedGameId);
       if (!game) {
+        ackAction({ ok: false, error: 'Game not found.' });
         socket.emit('error_msg', { text: 'Game not found.' });
         return;
       }
@@ -3021,6 +3029,7 @@ io.on('connection', (socket) => {
       }
     }
     if (!gameId) {
+      ackAction({ ok: false, error: 'Reconnecting to the game. Try again in a moment.' });
       socket.emit('system', { text: 'Reconnecting to the game. Try again in a moment.' });
       return;
     }
@@ -3028,6 +3037,7 @@ io.on('connection', (socket) => {
     const playerName = truncate(data?.playerName, 50);
     const action = truncate(data?.action, 2000);
     if (!playerName || !action) {
+      ackAction({ ok: false, error: 'Choose a character and action before sending.' });
       socket.emit('system', { text: 'Choose a character and action before sending.' });
       return;
     }
@@ -3036,6 +3046,7 @@ io.on('connection', (socket) => {
     if (socket.anonId && !socket.userId) {
       const anonSession = await db.getAnonSession(socket.anonId);
       if (anonSession && anonSession.minutes_used >= MAX_ANON_MINUTES) {
+        ackAction({ ok: false, error: 'Create a free account to keep playing.' });
         socket.emit('signup_required', {
           minutesUsed: anonSession.minutes_used,
           message: 'Create a free account to keep playing. It takes 10 seconds.',
@@ -3046,6 +3057,7 @@ io.on('connection', (socket) => {
 
     // Block spectators from taking actions
     if (socket.userId && billingTicker.isSpectator(gameId, socket.userId)) {
+      ackAction({ ok: false, error: 'You are in spectator mode. Add time to resume control.' });
       socket.emit('system', { text: 'You are in spectator mode. Add time to resume control.' });
       return;
     }
@@ -3053,6 +3065,7 @@ io.on('connection', (socket) => {
     // Gate: combat initializing — only allow OOC during monster loading
     const gsCheck = games[gameId];
     if (gsCheck?.combatInitializing) {
+      ackAction({ ok: false, error: 'Combat is loading. Try again in a moment.' });
       socket.emit('system', { text: '⏳ Combat is loading — use OOC to chat while initiative is rolled.' });
       return;
     }
@@ -3060,6 +3073,7 @@ io.on('connection', (socket) => {
     const current = getCurrentPlayer(gameId);
 
     if (current && current.toLowerCase() !== playerName.toLowerCase()) {
+      ackAction({ ok: false, error: `It's ${current}'s turn, not yours.` });
       socket.emit('system', { text: `It's ${current}'s turn, not yours.` });
       return;
     }
@@ -3076,6 +3090,7 @@ io.on('connection', (socket) => {
     }
 
     const playerToken = gs.data.characters[playerName]?.token || null;
+    ackAction({ ok: true });
     io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });
     discord.onSystem(gameId, { text: `**${playerName}:** ${action}` }).catch(() => {});
 

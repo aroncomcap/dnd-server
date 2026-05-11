@@ -1907,6 +1907,7 @@ let pendingForPlayer = null;
 let gameJoinReady = false;
 let actionInFlight = false;
 let actionFallbackTimer = null;
+const ACTION_ACK_TIMEOUT_MS = 8000;
 
 function resetSendButton() {
   actionInFlight = false;
@@ -1932,6 +1933,35 @@ function markActionPending() {
   }
   if (actionFallbackTimer) clearTimeout(actionFallbackTimer);
   actionFallbackTimer = setTimeout(resetSendButton, 90000);
+}
+
+function markActionSending() {
+  actionInFlight = true;
+  window._actionInFlight = true;
+  const sendBtn = document.getElementById('btn-send');
+  if (sendBtn) {
+    sendBtn.textContent = 'Sending...';
+    sendBtn.disabled = true;
+  }
+}
+
+function showThinkingIndicator() {
+  const existing = document.getElementById('thinking-indicator');
+  if (existing) existing.remove();
+  if (window._thinkingInterval) { clearInterval(window._thinkingInterval); window._thinkingInterval = null; }
+
+  const thinkingDiv = document.createElement('div');
+  thinkingDiv.id = 'thinking-indicator';
+  thinkingDiv.classList.add('msg', 'msg-dm');
+  thinkingDiv.innerHTML = '<div class="msg-label" style="color:var(--gold);">🎲 Game Master</div><div><span class="spinner"></span> Thinking... <span id="thinking-timer">0s</span></div><div id="thinking-tip" style="margin-top:8px;font-size:0.82rem;line-height:1.4;opacity:0.5;max-width:380px;">' + getNextTip() + '</div>';
+  chatLog.appendChild(thinkingDiv);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  let thinkSeconds = 0;
+  window._thinkingInterval = setInterval(() => {
+    thinkSeconds++;
+    const el = document.getElementById('thinking-timer');
+    if (el) el.textContent = thinkSeconds + 's';
+  }, 1000);
 }
 
 function shouldResetActionForSystemMessage(text) {
@@ -3513,7 +3543,6 @@ document.getElementById('action-input').addEventListener('keydown', e => {
 
 function sendAction() {
   if (actionInFlight) return;
-  sfx.dice();
   if (!socket.connected || !gameJoinReady) {
     requestGameJoin();
     updateActionArea();
@@ -3534,26 +3563,26 @@ function sendAction() {
     input.style.borderColor = '';
     return;
   }
-  // Immediately echo the action in chat so player sees it was received
-  addMsg('player', action, getMyName());
-  window._lastSentAction = action;
-  socket.emit('player_action', { gameId, playerName: name, action });
-  document.getElementById('action-input').value = '';
-  // Show thinking indicator with timer
-  const thinkingDiv = document.createElement('div');
-  thinkingDiv.id = 'thinking-indicator';
-  thinkingDiv.classList.add('msg', 'msg-dm');
-  thinkingDiv.innerHTML = '<div class="msg-label" style="color:var(--gold);">🎲 Game Master</div><div><span class="spinner"></span> Thinking... <span id="thinking-timer">0s</span></div><div id="thinking-tip" style="margin-top:8px;font-size:0.82rem;line-height:1.4;opacity:0.5;max-width:380px;">' + getNextTip() + '</div>';
-  chatLog.appendChild(thinkingDiv);
-  chatLog.scrollTop = chatLog.scrollHeight;
-  let thinkSeconds = 0;
-  window._thinkingInterval = setInterval(() => {
-    thinkSeconds++;
-    const el = document.getElementById('thinking-timer');
-    if (el) el.textContent = thinkSeconds + 's';
-  }, 1000);
-  showOptions([]);
-  markActionPending();
+
+  markActionSending();
+  socket.timeout(ACTION_ACK_TIMEOUT_MS).emit('player_action', { gameId, playerName: name, action }, (err, ack) => {
+    if (err || !ack?.ok) {
+      resetSendButton();
+      input.value = action;
+      if (!socket.connected) requestGameJoin();
+      if (ack?.error) addMsg('system', ack.error);
+      updateActionArea();
+      return;
+    }
+
+    sfx.dice();
+    addMsg('player', action, getMyName());
+    window._lastSentAction = action;
+    input.value = '';
+    showThinkingIndicator();
+    showOptions([]);
+    markActionPending();
+  });
 }
 
 // ── Skip turn ─────────────────────────────────────────────────
