@@ -21,6 +21,22 @@ const FALLBACK_OPTIONS = [
   'Ask the party what they notice',
 ];
 
+function buildFallbackTurn(characterName, actionText) {
+  const actor = characterName && characterName !== 'Unknown' ? characterName : 'The adventurer';
+  const action = String(actionText || '')
+    .replace(/\[AUTO-ACTION[^\]]*\]\s*/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const actionClause = action
+    ? ` follows through: ${action}`
+    : ' takes a cautious step forward';
+
+  return {
+    narration: `${actor}${actionClause}. The scene stays tense but playable as the party keeps its footing and watches for the next opening.`,
+    options: [...FALLBACK_OPTIONS],
+  };
+}
+
 const FEROCITY_LABELS = {
   1: 'Deadly (lethal, every encounter is life-threatening)',
   2: 'Dangerous (tough fights, meaningful consequences)',
@@ -504,8 +520,13 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
     closeStream(parsed.narration || fullText.trim(), response.llmRunId);
     return parsed;
   } catch (err) {
-    closeStream(fullText.trim(), err.llmRunId || null);
-    throw err;
+    const fallback = buildFallbackTurn(characterName, actionText);
+    closeStream(fullText.trim() || fallback.narration, err.llmRunId || null);
+    return {
+      ...fallback,
+      llmRunId: err.llmRunId || null,
+      fallback: true,
+    };
   }
 }
 
@@ -727,10 +748,31 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
     narration = narrationResult.narration;
     options = narrationResult.options;
     llmRunId = narrationResult.llmRunId || null;
+    if (narrationResult.fallback) {
+      return {
+        narration,
+        options,
+        scene: null,
+        world: null,
+        isKillshot: false,
+        llmRunId,
+        fallback: true,
+      };
+    }
   } catch (err) {
     console.error(`[narration-pipeline] callModelNarration failed:`, err.message);
-    narration = 'The world holds its breath...';
-    options = FALLBACK_OPTIONS;
+    const fallback = buildFallbackTurn(characterName, actionText);
+    narration = fallback.narration;
+    options = fallback.options;
+    return {
+      narration,
+      options,
+      scene: null,
+      world: null,
+      isKillshot: false,
+      llmRunId,
+      fallback: true,
+    };
   }
 
   // Calls 2 & 3: structured model extraction + validation in parallel

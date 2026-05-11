@@ -1,7 +1,8 @@
 'use strict';
 
-const { describe, it, beforeEach } = require('node:test');
+const { describe, it, afterEach } = require('node:test');
 const assert = require('node:assert');
+const llm = require('../llm');
 
 const {
   buildNarrationPrompt,
@@ -11,7 +12,12 @@ const {
   parseNarrationResponse,
   processViolation,
   shouldCallModelForFlavor,
+  handlePlayerAction,
 } = require('../narration-pipeline');
+
+afterEach(() => {
+  llm.resetProviderForTesting();
+});
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -499,5 +505,70 @@ describe('buildValidationPrompt', () => {
     const prompt = buildValidationPrompt(narration, options, gameState);
     assert.ok(typeof prompt === 'string' && prompt.length > 0, 'Should return a non-empty string');
     assert.ok(prompt.includes('entrance to the dungeon'), 'Should include narration');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handlePlayerAction fallback behavior
+// ---------------------------------------------------------------------------
+
+describe('handlePlayerAction fallback behavior', () => {
+  it('returns an actionable fallback immediately when narration streaming fails', async () => {
+    let completeJsonCalls = 0;
+    llm.setProviderForTesting({
+      streamText: async () => {
+        const err = new Error('insufficient quota');
+        err.code = 'insufficient_quota';
+        throw err;
+      },
+      completeJson: async () => {
+        completeJsonCalls++;
+        throw new Error('fallback should not call structured model tasks');
+      },
+    });
+
+    const emitted = [];
+    const io = {
+      to: room => ({
+        emit: (event, payload) => emitted.push({ room, event, payload }),
+      }),
+    };
+    const gs = {
+      ...makeGameState(),
+      data: {
+        characters: {
+          Kael: {
+            class: 'Fighter',
+            level: 5,
+            personality: 'Bold and honorable.',
+            standardActions: 'Attack, Dodge',
+            backstory: 'Frontier veteran.',
+            statsText: 'Level 5 fighter',
+          },
+        },
+        chatHistory: [],
+        turnOrder: ['Kael'],
+        currentTurnIndex: 0,
+      },
+    };
+
+    const result = await handlePlayerAction(
+      'game-fallback',
+      makeGameConfig(),
+      gs,
+      'Kael',
+      'I search the room for hidden items.',
+      io,
+      {}
+    );
+
+    assert.ok(result.narration.includes('Kael'), 'fallback should name the acting character');
+    assert.ok(result.narration.toLowerCase().includes('search'), 'fallback should reflect the action');
+    assert.strictEqual(result.options.length, 3, 'fallback should keep the turn actionable');
+    assert.strictEqual(completeJsonCalls, 0, 'fallback should not spend extra failed structured calls');
+
+    const streamEnd = emitted.find(e => e.event === 'dm_stream_end');
+    assert.ok(streamEnd, 'fallback should close the stream for clients');
+    assert.strictEqual(streamEnd.payload.narration, result.narration);
   });
 });
