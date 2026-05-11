@@ -72,6 +72,27 @@ Rune affinities (Air, Earth, Fire/Sky, Water, Darkness, Moon) influence magic an
   custom: `You are the Game Master for a live multiplayer tabletop RPG session.`,
 };
 
+function formatResolvedCombatState(lastCombatConclusion) {
+  if (!lastCombatConclusion) return '';
+
+  const defeated = Array.isArray(lastCombatConclusion.defeated)
+    ? lastCombatConclusion.defeated.filter(Boolean)
+    : [];
+  const defeatedLine = defeated.length > 0
+    ? `Defeated opponents: ${defeated.join(', ')}.`
+    : '';
+  const reason = lastCombatConclusion.reason || 'resolved';
+  const summary = lastCombatConclusion.summary || '';
+
+  return [
+    `RESOLVED COMBAT STATE:`,
+    `Last combat result: ${reason}.`,
+    defeatedLine,
+    summary ? `Outcome: ${summary}` : '',
+    `Do not revive defeated opponents, restart the same fight, or make defeated opponents attack again unless the current player explicitly causes that reversal.`,
+  ].filter(Boolean).join('\n');
+}
+
 // ── Minimal Prompt for Standard Gameplay (Combat + Simple Encounters) ──────
 function buildMinimalPrompt_DnD(gameState) {
   // Guard against null/undefined gameState
@@ -121,6 +142,8 @@ ${personaBlock}
 
 CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
+
+${formatResolvedCombatState(gs.lastCombatConclusion)}
 
 FEROCITY: ${gs.ferocity ?? 5}/5
 ${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, numerous, and tactically smart. Death is likely without clever play. However, treasure rewards are VERY generous — rare magic items, large gold hoards, and powerful artifacts appear frequently.' :
@@ -214,6 +237,7 @@ You are a wildly entertaining DM who lives for the chaos. Channel the energy of 
 You are a master storyteller in the tradition of great fantasy literature. Your narration is dramatic, atmospheric, and emotionally resonant. Prose is tight and evocative. NPCs feel real and grounded. Combat is visceral and consequential. The world has weight and history. Humor emerges naturally from character and situation, never forced. You take the world seriously even when players don't.`;
 
   const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
+  const resolvedCombatState = formatResolvedCombatState(gs.lastCombatConclusion);
 
   let encounterPlanLineFull = gs._formattedEncounterPlan || '';
   if (gs._pendingChallenge) {
@@ -256,6 +280,7 @@ ${personaBlock}
 CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 ${summary}
+${resolvedCombatState ? `\n${resolvedCombatState}\n` : ''}
 ${encounterPlanLine}
 ${npcMemoryBlock}
 
@@ -526,6 +551,7 @@ ${catchphrases}
     : `DM PERSONA: EPIC — Master storyteller, dramatic and atmospheric. Tight evocative prose, grounded NPCs, visceral combat. World has weight and history.`;
 
   const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
+  const resolvedCombatState = formatResolvedCombatState(gs.lastCombatConclusion);
 
   const verbosityLine = gs.verbosity === 'terse' ? 'TERSE: 3 sentences max, under 50 words. No atmosphere or extended descriptions. State what happens mechanically. Keep it SHORT.' :
     gs.verbosity === 'brief' ? 'ABSOLUTE HARD LIMIT: 50 words narration max. NO section headers. NO ## headings. Prose paragraphs only, then structured blocks.' :
@@ -580,6 +606,7 @@ ${personaBlock}
 CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 ${summary}
+${resolvedCombatState ? `\n${resolvedCombatState}\n` : ''}
 ${ferocityLine}
 ${pillarsLine}
 ${pacingLine}
@@ -597,4 +624,5 @@ module.exports = {
   buildMinimalPrompt_DnD,
   buildFullPrompt_DnD,
   buildTrimmedPrompt,
+  formatResolvedCombatState,
 };

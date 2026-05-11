@@ -1,0 +1,16 @@
+{
+  "commit_docs": true,
+  "workflow": {
+    "research": false,
+    "skip_discuss": true,
+    "code_review": true,
+    "ui_phase": true,
+    "ui_review": true,
+    "nyquist_validation": true,
+    "ai_integration_phase": true,
+    "text_mode": true
+  },
+  "git": {
+    "base_branch": "main"
+  }
+}

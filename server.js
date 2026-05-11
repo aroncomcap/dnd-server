@@ -736,6 +736,27 @@ function persistCombatState(gameId) {
   db.setState(gameId, 'combatState', gs.combatEngine.state).catch(() => {});
 }
 
+function recordCombatConclusion(gameId, reason = 'combat_over') {
+  const gs = getGameState(gameId);
+  const combatants = gs.combatEngine?.state?.combatants || {};
+  const defeated = Object.values(combatants)
+    .filter(c => c.type !== 'PC' && ((c.hp ?? c.totalHp ?? 0) <= 0))
+    .map(c => c.name)
+    .filter(Boolean);
+
+  gs.lastCombatConclusion = {
+    reason,
+    defeated,
+    summary: defeated.length > 0
+      ? `${defeated.join(', ')} defeated. The fight is over.`
+      : 'The fight is over.',
+    updatedAt: new Date().toISOString(),
+  };
+
+  db.setState(gameId, 'lastCombatConclusion', gs.lastCombatConclusion).catch(() => {});
+  return gs.lastCombatConclusion;
+}
+
 // ── Character Token Generation ───────────────────────────────────────────────
 // (Moved to image-engine.js)
 
@@ -1056,6 +1077,7 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
         const overCheck = gs.combatEngine.isCombatOver();
         if (overCheck.over) {
           combatContext += `\n\nCOMBAT IS OVER: ${overCheck.reason === 'enemies_defeated' ? 'All enemies defeated. Narrate aftermath and loot.' : 'All PCs are down.'}`;
+          recordCombatConclusion(gameId, overCheck.reason);
           gs.combatEngine.endCombat();
           persistCombatState(gameId);
           // Collect DPR data from combat
@@ -1437,6 +1459,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     const aiSaysCombatOver = /(?:combat\s+(?:is\s+)?(?:over|ended|resolved|finished)|(?:all|the)\s+(?:enemies|monsters|foes|skeletons|goblins|orcs)\s+(?:are\s+)?(?:dead|defeated|slain|fallen|destroyed)|victory|(?:last|final)\s+(?:enemy|monster|foe)\s+(?:falls|drops|crumbles|collapses))/i;
     if (aiSaysCombatOver.test(parsed.narration || '')) {
       console.log(`[desync] AI narrated combat end but engine still active — force-ending combat`);
+      recordCombatConclusion(gameId, 'narrated_combat_over');
       gs.combatEngine.endCombat();
       persistCombatState(gameId);
       io.to(gameId).emit('combat_ended', { reason: 'enemies_defeated' });
@@ -1550,9 +1573,10 @@ function startTurnTimer(gameId, gameConfig, playerName) {
       const gs2 = getGameState(gameId);
       const nextIdx = (gs2.data.currentTurnIndex + 1) % (gs2.data.turnOrder.length || 1);
       const nextPlayer = gs2.data.turnOrder[nextIdx] || null;
+      await advanceTurn(gameId, gameConfig, false);
       emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName, forPlayer: nextPlayer, world });
-      await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration);
-      advanceTurn(gameId, gameConfig, false);
+      maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
+        .catch(err => console.error('[scene-gen-after-auto-action]', err.message));
     } catch (err) {
       emitSystem(gameId, { text: 'Error during auto-action.' });
     }
@@ -1587,24 +1611,26 @@ async function advanceTurn(gameId, gameConfig, wasHumanAction = false) {
         name => name.toLowerCase().replace(/\s+/g, '-') === engineNext.id
       ) || engineNext.name;
       const token = gd.characters[enginePlayerName]?.token || null;
-      emitTurnChange(gameId, { player: enginePlayerName, duration: gs.turnDuration * 1000, token });
-      startTurnTimer(gameId, gameConfig, enginePlayerName);
       // Sync normal turn index to match
       const idx = gd.turnOrder.indexOf(enginePlayerName);
       if (idx >= 0) gd.currentTurnIndex = idx;
-      await db.saveTurnState(gameId, gd.currentTurnIndex, gd.turnOrder);
+      emitTurnChange(gameId, { player: enginePlayerName, duration: gs.turnDuration * 1000, token });
+      startTurnTimer(gameId, gameConfig, enginePlayerName);
+      db.saveTurnState(gameId, gd.currentTurnIndex, gd.turnOrder)
+        .catch(e => console.error('[turn-save]', e.message));
       return;
     }
   }
 
   gd.currentTurnIndex = (gd.currentTurnIndex + 1) % (gd.turnOrder.length || 1);
-  await db.saveTurnState(gameId, gd.currentTurnIndex, gd.turnOrder);
   const next = getCurrentPlayer(gameId);
   if (next) {
     const token = gd.characters[next]?.token || null;
     emitTurnChange(gameId, { player: next, duration: gs.turnDuration * 1000, token });
     startTurnTimer(gameId, gameConfig, next);
   }
+  db.saveTurnState(gameId, gd.currentTurnIndex, gd.turnOrder)
+    .catch(e => console.error('[turn-save]', e.message));
 }
 
 async function maybeGenerateImage(gameId, gameConfig, scene, isKillshot = false, mapMoved = false, narration = '') {
@@ -2812,6 +2838,7 @@ io.on('connection', (socket) => {
       gs.combatHistory = await db.getState(gameId, 'combatHistory', {});
       gs.difficultyCorrection = await db.getState(gameId, 'difficultyCorrection', 1.0);
       gs.npcMemory = await db.getState(gameId, 'npcMemory', {});
+      gs.lastCombatConclusion = await db.getState(gameId, 'lastCombatConclusion', null);
       const savedCombat = await db.getState(gameId, 'combatState', null);
       if (savedCombat) gs.combatEngine.loadState(savedCombat);
     }
@@ -3038,9 +3065,10 @@ io.on('connection', (socket) => {
       );
       const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
       const nextPlayer = gs.data.turnOrder[nextIdx] || null;
-      emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
-      await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration);
       await advanceTurn(gameId, gameConfig, true);
+      emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
+      maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
+        .catch(err => console.error('[scene-gen-after-player-action]', err.message));
     } catch (err) {
       console.error('player_action error:', err.message, err.stack?.split('\n').slice(0, 3).join(' | '));
       socket.emit('system', { text: 'Error communicating with the DM. Try again.' });
@@ -3490,11 +3518,12 @@ const discordGameEngine = {
     );
     const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
     const nextPlayer = gs.data.turnOrder[nextIdx] || null;
+    await advanceTurn(gameId, gameConfig, true);
     emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
     const playerToken = gs.data.characters[playerName]?.token || null;
     io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });
-    await maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration);
-    await advanceTurn(gameId, gameConfig, true);
+    maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
+      .catch(err => console.error('[scene-gen-after-discord-action]', err.message));
     return { ok: true };
   },
 

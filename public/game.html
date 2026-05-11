@@ -1904,6 +1904,32 @@ let currentCharacters = {};
 const tokenCache = {};
 let pendingOptions = [];
 let pendingForPlayer = null;
+let actionInFlight = false;
+let actionFallbackTimer = null;
+
+function resetSendButton() {
+  actionInFlight = false;
+  if (actionFallbackTimer) {
+    clearTimeout(actionFallbackTimer);
+    actionFallbackTimer = null;
+  }
+  const sendBtn = document.getElementById('btn-send');
+  if (sendBtn) {
+    sendBtn.textContent = 'Send Action';
+    sendBtn.disabled = false;
+  }
+}
+
+function markActionPending() {
+  actionInFlight = true;
+  const sendBtn = document.getElementById('btn-send');
+  if (sendBtn) {
+    sendBtn.textContent = '⏳ ...';
+    sendBtn.disabled = true;
+  }
+  if (actionFallbackTimer) clearTimeout(actionFallbackTimer);
+  actionFallbackTimer = setTimeout(resetSendButton, 90000);
+}
 
 if (!gameId) { window.location.href = '/'; }
 
@@ -2884,6 +2910,7 @@ socket.on('dm_stream_end', (data) => {
 socket.on('dm_message', (data) => {
   debugEvent('dm_message', 'options:' + (data.options?.length || 0) + ' for:' + (data.forPlayer || '?'));
   console.log('dm_message received:', { hasOptions: !!data.options?.length, forPlayer: data.forPlayer, myName: getMyName(), optionCount: data.options?.length });
+  resetSendButton();
 
   if (lastMessageWasStreamed) {
     // Narration was already rendered by stream handlers — just handle options/world
@@ -2946,7 +2973,10 @@ socket.on('player_message', (data) => {
   }
   addMsg('player', data.text, data.player, data.token);
 });
-socket.on('system', (data) => addMsg('system', data.text));
+socket.on('system', (data) => {
+  if (actionInFlight) resetSendButton();
+  addMsg('system', data.text);
+});
 
 socket.on('turn_change', (data) => {
   if (data.token) tokenCache[data.player] = data.token;
@@ -2954,10 +2984,7 @@ socket.on('turn_change', (data) => {
   debugEvent('turn_change', data.player);
   console.log('Turn changed:', { currentPlayer, myName: getMyName(), isMyTurn: isMyTurnCheck() });
   startVisualTimer(data.duration);
-  // Reset send button
-  const sendBtn = document.getElementById('btn-send');
-  sendBtn.textContent = 'Send Action';
-  sendBtn.disabled = false;
+  resetSendButton();
   // "It's your turn!" notification
   if (isMyTurnCheck()) {
     sfx.turn();
@@ -3416,6 +3443,7 @@ document.getElementById('action-input').addEventListener('keydown', e => {
 });
 
 function sendAction() {
+  if (actionInFlight) return;
   sfx.dice();
   const input = document.getElementById('action-input');
   const action = input.value.trim();
@@ -3451,11 +3479,7 @@ function sendAction() {
     if (el) el.textContent = thinkSeconds + 's';
   }, 1000);
   showOptions([]);
-  // Show a brief "processing" state — turn_change will update properly
-  const sendBtn = document.getElementById('btn-send');
-  sendBtn.textContent = '⏳ ...';
-  sendBtn.disabled = true;
-  setTimeout(() => { sendBtn.textContent = 'Send Action'; sendBtn.disabled = false; }, 15000);
+  markActionPending();
 }
 
 // ── Skip turn ─────────────────────────────────────────────────

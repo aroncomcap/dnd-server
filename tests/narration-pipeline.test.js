@@ -119,6 +119,20 @@ describe('buildNarrationPrompt', () => {
     assert.ok(prompt.includes('Curious and cautious'), 'Should include personality');
   });
 
+  it('preserves recent resolved combat outcomes as permanent state', () => {
+    const gs = makeGameState();
+    gs.lastCombatConclusion = {
+      reason: 'enemies_defeated',
+      defeated: ['Ashenvale Beast'],
+      summary: 'Ashenvale Beast was defeated and the village is safe.',
+    };
+    const cfg = makeGameConfig();
+    const prompt = buildNarrationPrompt('game-1', cfg, gs);
+    assert.ok(prompt.includes('RESOLVED COMBAT STATE'), 'Should include a resolved combat state section');
+    assert.ok(prompt.includes('Ashenvale Beast'), 'Should name defeated enemies');
+    assert.ok(prompt.includes('do not revive') || prompt.includes('Do not revive'), 'Should prevent undoing the outcome');
+  });
+
   it('does NOT include stat blocks (HP, AC, raw stats)', () => {
     const gs = makeGameState();
     const cfg = makeGameConfig();
@@ -351,6 +365,19 @@ describe('buildUserMessage', () => {
     const gs = makeGameState();
     const msg = buildUserMessage(gs, 'Kael', 'I search the room.');
     assert.ok(msg.includes('Kael'), 'Should include the acting character name');
+  });
+
+  it('carries resolved combat state into the immediate user message', () => {
+    const gs = makeGameState();
+    gs.lastCombatConclusion = {
+      reason: 'enemies_defeated',
+      defeated: ['Ashenvale Beast'],
+      summary: 'Ashenvale Beast was defeated and the village is safe.',
+    };
+    const msg = buildUserMessage(gs, 'Kael', 'I tend wounds after the fight.');
+    assert.ok(msg.includes('RESOLVED COMBAT STATE'), 'Should include resolved combat state');
+    assert.ok(msg.includes('Ashenvale Beast'), 'Should include defeated enemy names');
+    assert.ok(msg.includes('already defeated') || msg.includes('do not revive'), 'Should guard against resurrection drift');
   });
 });
 

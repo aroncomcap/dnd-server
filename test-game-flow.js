@@ -6,7 +6,7 @@
 
 const ioModule = require(__dirname + '/node_modules/socket.io/client-dist/socket.io.js');
 const io = ioModule.io || ioModule;
-const fetch = require('node-fetch') || require('node:fetch');
+const fetch = globalThis.fetch;
 
 const BASE_URL = 'https://theystillsing.com';
 
@@ -61,7 +61,8 @@ async function authenticate() {
     console.log(`✅ Authenticated`);
     return !!authToken;
   } catch (err) {
-    console.error(`❌ Auth failed: ${err.message}`);
+    const cause = err.cause ? ` (${err.cause.code || 'cause'}: ${err.cause.message})` : '';
+    console.error(`❌ Auth failed: ${err.message}${cause}`);
     return false;
   }
 }
@@ -97,19 +98,23 @@ async function createGame() {
 async function runGameFlow() {
   if (!await authenticate()) {
     console.log('❌ Could not authenticate');
-    return;
+    return false;
   }
 
   const gameId = await createGame();
   if (!gameId) {
     console.log('❌ Could not create game');
-    return;
+    return false;
   }
 
   return new Promise((resolve) => {
+    let smokePassed = true;
     const socket = io(BASE_URL, {
       transports: ['websocket'],
       reconnection: false,
+      extraHeaders: {
+        Cookie: `tt_token=${authToken}`,
+      },
     });
 
     let firstPlayerName = null;
@@ -152,8 +157,9 @@ async function runGameFlow() {
 
       const partyTimeout = setTimeout(() => {
         console.log(`❌ Party generation timeout`);
+        smokePassed = false;
         socket.disconnect();
-        resolve();
+        resolve(false);
       }, 60000);
 
       socket.once('party_ready', async (data) => {
@@ -172,6 +178,7 @@ async function runGameFlow() {
           console.log(`✅ Opening narration received (${opening.length} chars)`);
         } else {
           console.log(`❌ No opening narration received after 15s`);
+          smokePassed = false;
         }
 
         await wait(500);
@@ -203,6 +210,7 @@ async function runGameFlow() {
             console.log(`✅ Response received (${response.length} chars): "${response.slice(0, 80)}..."`);
           } else {
             console.log(`❌ No response after 15s`);
+            smokePassed = false;
           }
 
           await wait(1000);
@@ -213,7 +221,7 @@ async function runGameFlow() {
         console.log(`${'='.repeat(60)}\n`);
 
         socket.disconnect();
-        resolve();
+        resolve(smokePassed);
       });
     });
 
@@ -223,14 +231,19 @@ async function runGameFlow() {
 
     socket.on('error', (err) => {
       console.error(`[ERROR] ${err}`);
+      smokePassed = false;
     });
   });
 }
 
 runGameFlow()
-  .then(() => {
-    console.log('✅ Test complete');
-    process.exit(0);
+  .then((passed) => {
+    if (passed) {
+      console.log('✅ Test complete');
+      process.exit(0);
+    }
+    console.log('❌ Test failed');
+    process.exit(1);
   })
   .catch(err => {
     console.error('Test failed:', err);

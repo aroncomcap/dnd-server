@@ -30,6 +30,27 @@ const PERSONA_BLOCKS = {
   over_the_top: `You are an OVER THE TOP Dungeon Master — comedic, chaotic, and full of Critical Role energy. Your narration is vivid but playful: absurd humor, dramatic flair, occasional fourth-wall glances, and zany NPC personalities. Think: Matthew Mercer on a caffeine high, Sam Riegel doing three voices at once, and the entire table losing it. Lean into the chaos.`,
 };
 
+function formatResolvedCombatState(lastCombatConclusion) {
+  if (!lastCombatConclusion) return '';
+
+  const defeated = Array.isArray(lastCombatConclusion.defeated)
+    ? lastCombatConclusion.defeated.filter(Boolean)
+    : [];
+  const reason = lastCombatConclusion.reason || 'resolved';
+  const summary = lastCombatConclusion.summary || '';
+  const defeatedLine = defeated.length > 0
+    ? `Defeated opponents: ${defeated.join(', ')}.`
+    : '';
+
+  return [
+    `=== RESOLVED COMBAT STATE ===`,
+    `Last combat result: ${reason}.`,
+    defeatedLine,
+    summary ? `Outcome: ${summary}` : '',
+    `This outcome is permanent story state: defeated opponents are already defeated. Do not revive them, restart the same fight, or make them attack again unless the current player explicitly causes that reversal.`,
+  ].filter(Boolean).join('\n');
+}
+
 // ---------------------------------------------------------------------------
 // buildNarrationPrompt
 // ---------------------------------------------------------------------------
@@ -89,6 +110,7 @@ function buildNarrationPrompt(gameId, gameConfig, gs) {
 
   // Story summary
   const storySummary = gs.storySummary || '';
+  const resolvedCombatState = formatResolvedCombatState(gs.lastCombatConclusion);
 
   // Encounter plan
   let encounterGuidance = '';
@@ -125,6 +147,8 @@ function buildNarrationPrompt(gameId, gameConfig, gs) {
     npcs.length > 0 ? `=== NPC MEMORY (recent) ===\n${npcLines}` : '',
     '',
     storySummary ? `=== STORY SO FAR ===\n${storySummary}` : '',
+    '',
+    resolvedCombatState,
     '',
     campaignMaterial ? `=== CAMPAIGN SOURCE MATERIAL ===\n${campaignMaterial}` : '',
     '',
@@ -180,6 +204,11 @@ function buildUserMessage(gs, characterName, actionText) {
       return `${role}: ${msg.content}`;
     });
     parts.push(`[RECENT HISTORY]\n${historyLines.join('\n')}`);
+  }
+
+  const resolvedCombatState = formatResolvedCombatState(gs.lastCombatConclusion);
+  if (resolvedCombatState) {
+    parts.push(`[${resolvedCombatState}]`);
   }
 
   // Player action with system override instruction
@@ -658,6 +687,18 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
     if (combatOver && combatEngine.endCombat) {
       try {
         combatEngine.endCombat();
+        const defeated = Object.values(combatEngine.state.combatants || {})
+          .filter(c => c.type !== 'PC' && ((c.hp ?? c.totalHp ?? 0) <= 0))
+          .map(c => c.name)
+          .filter(Boolean);
+        gs.lastCombatConclusion = {
+          reason: 'combat_over',
+          defeated,
+          summary: defeated.length > 0
+            ? `${defeated.join(', ')} defeated. The fight is over.`
+            : 'The fight is over.',
+          updatedAt: new Date().toISOString(),
+        };
       } catch (err) {
         console.error(`[narration-pipeline] endCombat failed:`, err.message);
       }
@@ -753,6 +794,7 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
 module.exports = {
   buildNarrationPrompt,
   buildUserMessage,
+  formatResolvedCombatState,
   buildExtractionPrompt,
   buildValidationPrompt,
   parseSonnetResponse,

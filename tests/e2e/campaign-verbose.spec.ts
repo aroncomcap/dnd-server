@@ -1,6 +1,19 @@
 import { test, expect } from '@playwright/test';
 import { loginTestUserInBrowser } from './test-user';
-import { getCompletedDmMessageCount, getLastCompletedDmText, waitForActionResponse } from './game-action';
+import {
+  getActionResponseDiagnostics,
+  getCompletedDmMessageCount,
+  getLastCompletedDmText,
+  waitForActionResponse,
+} from './game-action';
+
+const CAMPAIGN_TIMEOUT_MS = Number(process.env.CAMPAIGN_TIMEOUT_MS || 20 * 60 * 1000);
+const TARGET_LEVEL = Number(process.env.CAMPAIGN_TARGET_LEVEL || 3);
+const TURNS_PER_LEVEL = Number(process.env.CAMPAIGN_TURNS_PER_LEVEL || 30);
+const MAX_SESSIONS = Number(process.env.CAMPAIGN_MAX_SESSIONS || 4);
+const MAX_MISSING_RESPONSES = Number(process.env.CAMPAIGN_MAX_MISSING_RESPONSES || 2);
+
+test.setTimeout(CAMPAIGN_TIMEOUT_MS);
 
 /**
  * Campaign Verbose Test - Detailed Output
@@ -16,10 +29,18 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
   let totalTurns = 0;
   let gameCount = 0;
   let currentLevel = 1;
-  const targetLevel = 3;
-  const turnsPerLevel = 30;
+  const targetLevel = TARGET_LEVEL;
+  const turnsPerLevel = TURNS_PER_LEVEL;
+  const deadline = Date.now() + CAMPAIGN_TIMEOUT_MS - 60000;
 
   while (currentLevel < targetLevel) {
+    if (Date.now() > deadline) {
+      throw new Error(`Campaign deadline reached before target level. sessions=${gameCount}, turns=${totalTurns}, level=${currentLevel}/${targetLevel}`);
+    }
+    if (gameCount >= MAX_SESSIONS) {
+      throw new Error(`Campaign did not reach target before max sessions. sessions=${gameCount}, turns=${totalTurns}, level=${currentLevel}/${targetLevel}`);
+    }
+
     gameCount++;
     console.log(`\n${'='.repeat(70)}`);
     console.log(`SESSION ${gameCount} - LEVEL ${currentLevel}`);
@@ -87,6 +108,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
     // Play session with verbose capture
     let sessionTurns = 0;
     let noActionCount = 0;
+    let missingResponseCount = 0;
     const maxSessionTurns = 50;
     const maxNoAction = 6;
 
@@ -94,6 +116,10 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
 
     while (sessionTurns < maxSessionTurns && noActionCount < maxNoAction) {
       // Wait for loading
+      if (Date.now() > deadline) {
+        throw new Error(`Campaign deadline reached during session. session=${gameCount}, sessionTurns=${sessionTurns}, totalTurns=${totalTurns}, level=${currentLevel}/${targetLevel}`);
+      }
+
       try {
         await page.waitForFunction(
           () => {
@@ -167,10 +193,17 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
       } else {
         const responseReady = await waitForActionResponse(page, beforeDmCount);
         if (!responseReady) {
-          console.log(`⚠️  No completed DM response after action; waiting for another opportunity`);
+          missingResponseCount++;
+          const diagnostics = await getActionResponseDiagnostics(page, beforeDmCount);
+          console.log(`⚠️  No completed DM response after action (${missingResponseCount}/${MAX_MISSING_RESPONSES})`);
+          console.log(diagnostics);
+          if (missingResponseCount >= MAX_MISSING_RESPONSES) {
+            throw new Error(`Campaign stalled waiting for completed DM response.\n${diagnostics}`);
+          }
           noActionCount++;
           continue;
         }
+        missingResponseCount = 0;
 
         sessionTurns++;
         totalTurns++;
@@ -204,6 +237,10 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
 
     console.log(`\n\n✅ Session complete: ${sessionTurns} turns`);
     currentLevel = 1 + Math.floor(totalTurns / turnsPerLevel);
+    if (currentLevel < targetLevel && (sessionTurns === 0 || noActionCount >= maxNoAction)) {
+      const diagnostics = await getActionResponseDiagnostics(page, 0);
+      throw new Error(`Campaign session stalled before reaching target level. session=${gameCount}, sessionTurns=${sessionTurns}, noActionCount=${noActionCount}, totalTurns=${totalTurns}, level=${currentLevel}/${targetLevel}\n${diagnostics}`);
+    }
     console.log(`📊 Total turns: ${totalTurns} | Current level: ${currentLevel}/${targetLevel}\n`);
   }
 
