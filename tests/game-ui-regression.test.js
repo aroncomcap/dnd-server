@@ -43,11 +43,11 @@ test('E2E campaign harness waits for already pending accepted actions', () => {
 });
 
 test('streamed narration failures are finalized instead of leaving a live stream bubble', () => {
-  assert.match(gameHtml, /function finalizeStreamBubble\(narration\)/, 'client should have a reusable stream finalizer');
-  assert.match(gameHtml, /socket\.on\('dm_stream_end'[\s\S]*?finalizeStreamBubble\(narration\);/, 'stream end should finalize the live stream bubble');
-  assert.match(gameHtml, /if \(lastMessageWasStreamed\) \{[\s\S]*?finalizeStreamBubble\(data\.text\);[\s\S]*?lastMessageWasStreamed = false;/, 'fallback dm_message should finalize an orphaned stream bubble');
-  assert.match(narrationPipelineJs, /const closeStream = \(narration\) => \{[\s\S]*?dm_stream_end[\s\S]*?streamEnded = true;/, 'split pipeline should centralize stream closure');
-  assert.match(narrationPipelineJs, /catch \(err\) \{[\s\S]*?closeStream\(fullText\.trim\(\)\);[\s\S]*?throw err;/, 'split pipeline should emit dm_stream_end even when Sonnet streaming fails');
+  assert.match(gameHtml, /function finalizeStreamBubble\(narration, llmRunId = null\)/, 'client should have a reusable stream finalizer');
+  assert.match(gameHtml, /socket\.on\('dm_stream_end'[\s\S]*?finalizeStreamBubble\(narration, data\.llmRunId\);/, 'stream end should finalize the live stream bubble');
+  assert.match(gameHtml, /if \(lastMessageWasStreamed\) \{[\s\S]*?finalizeStreamBubble\(data\.text, data\.llmRunId\);[\s\S]*?lastMessageWasStreamed = false;/, 'fallback dm_message should finalize an orphaned stream bubble');
+  assert.match(narrationPipelineJs, /const closeStream = \(narration, llmRunId = null\) => \{[\s\S]*?dm_stream_end[\s\S]*?streamEnded = true;/, 'split pipeline should centralize stream closure');
+  assert.match(narrationPipelineJs, /catch \(err\) \{[\s\S]*?closeStream\(fullText\.trim\(\), err\.llmRunId \|\| null\);[\s\S]*?throw err;/, 'split pipeline should emit dm_stream_end even when model streaming fails');
   assert.match(narrationPipelineJs, /const FALLBACK_OPTIONS = \[[\s\S]*?Press forward cautiously/, 'split pipeline should keep fallback turns actionable');
   assert.match(narrationPipelineJs, /options = FALLBACK_OPTIONS;/, 'narration failures should emit fallback options');
 });

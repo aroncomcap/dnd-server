@@ -127,7 +127,9 @@ pool.on('error', (err, client) => {
 
 // Initialize monitoring on module load
 initSlowQueryMonitor();
-initPoolHealthCheck();
+if (process.env.DATABASE_URL) {
+  initPoolHealthCheck();
+}
 
 // ── Schema ───────────────────────────────────────────────────────────────────
 async function initDB() {
@@ -152,11 +154,11 @@ async function initDB() {
       system TEXT NOT NULL DEFAULT 'dnd5e',
       custom_context TEXT DEFAULT '',
       image_style TEXT DEFAULT 'fantasy illustration',
-      model TEXT DEFAULT 'claude-haiku-4-5-20251001',
+      model TEXT DEFAULT 'openai:gpt-5.4-mini',
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
     -- Add model column if upgrading from older schema
-    ALTER TABLE games ADD COLUMN IF NOT EXISTS model TEXT DEFAULT 'claude-haiku-4-5-20251001';
+    ALTER TABLE games ADD COLUMN IF NOT EXISTS model TEXT DEFAULT 'openai:gpt-5.4-mini';
     CREATE TABLE IF NOT EXISTS characters (
       game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
@@ -387,6 +389,65 @@ async function initDB() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_bug_reports_game ON bug_reports(game_id, created_at DESC);
+  `);
+
+  // ── LLM Model Lab ──────────────────────────────────────────────
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS llm_experiments (
+      id TEXT PRIMARY KEY,
+      task TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      variants JSONB NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      ended_at TIMESTAMPTZ
+    );
+
+    CREATE TABLE IF NOT EXISTS llm_experiment_assignments (
+      experiment_id TEXT REFERENCES llm_experiments(id) ON DELETE CASCADE,
+      game_id TEXT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+      variant_id TEXT NOT NULL,
+      assigned_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (experiment_id, game_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS llm_runs (
+      id TEXT PRIMARY KEY,
+      experiment_id TEXT,
+      variant_id TEXT,
+      game_id TEXT REFERENCES games(id) ON DELETE CASCADE,
+      turn_id TEXT,
+      task TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      model TEXT NOT NULL,
+      status TEXT NOT NULL,
+      latency_ms INT,
+      input_tokens INT DEFAULT 0,
+      output_tokens INT DEFAULT 0,
+      estimated_cost_usd NUMERIC(12, 6) DEFAULT 0,
+      prompt_hash TEXT,
+      output_hash TEXT,
+      prompt_text TEXT,
+      output_text TEXT,
+      error_code TEXT,
+      error_message TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS narration_feedback (
+      id TEXT PRIMARY KEY,
+      llm_run_id TEXT REFERENCES llm_runs(id) ON DELETE CASCADE,
+      game_id TEXT REFERENCES games(id) ON DELETE CASCADE,
+      user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      rating INT CHECK (rating BETWEEN 1 AND 5),
+      tags JSONB NOT NULL DEFAULT '[]',
+      note TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (llm_run_id, user_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_llm_runs_game_created ON llm_runs (game_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_llm_runs_variant_created ON llm_runs (experiment_id, variant_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_narration_feedback_run ON narration_feedback (llm_run_id);
   `);
 }
 
@@ -991,6 +1052,122 @@ async function updateBugReport(id, updates) {
   return rows[0];
 }
 
+// ── LLM Model Lab ─────────────────────────────────────────────────────────
+async function upsertLlmExperiment({ id, task, variants, status = 'active' }) {
+  const { rows } = await pool.query(
+    `INSERT INTO llm_experiments (id, task, variants, status, created_at)
+     VALUES ($1, $2, $3, $4, NOW())
+     ON CONFLICT (id) DO UPDATE SET task = $2, variants = $3, status = $4
+     RETURNING *`,
+    [id, task, JSON.stringify(variants), status]
+  );
+  return rows[0];
+}
+
+async function getLlmExperimentAssignment(experimentId, gameId) {
+  const { rows } = await pool.query(
+    `SELECT * FROM llm_experiment_assignments WHERE experiment_id = $1 AND game_id = $2`,
+    [experimentId, gameId]
+  );
+  return rows[0] || null;
+}
+
+async function saveLlmExperimentAssignment(experimentId, gameId, variantId) {
+  const { rows } = await pool.query(
+    `INSERT INTO llm_experiment_assignments (experiment_id, game_id, variant_id, assigned_at)
+     VALUES ($1, $2, $3, NOW())
+     ON CONFLICT (experiment_id, game_id) DO UPDATE SET variant_id = $3
+     RETURNING *`,
+    [experimentId, gameId, variantId]
+  );
+  return rows[0];
+}
+
+async function saveLlmRun(run) {
+  const { rows } = await pool.query(
+    `INSERT INTO llm_runs (
+      id, experiment_id, variant_id, game_id, turn_id, task, provider, model, status,
+      latency_ms, input_tokens, output_tokens, estimated_cost_usd, prompt_hash,
+      output_hash, prompt_text, output_text, error_code, error_message, created_at
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9,
+      $10, $11, $12, $13, $14,
+      $15, $16, $17, $18, $19, NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      status = EXCLUDED.status,
+      latency_ms = EXCLUDED.latency_ms,
+      input_tokens = EXCLUDED.input_tokens,
+      output_tokens = EXCLUDED.output_tokens,
+      estimated_cost_usd = EXCLUDED.estimated_cost_usd,
+      output_hash = EXCLUDED.output_hash,
+      output_text = EXCLUDED.output_text,
+      error_code = EXCLUDED.error_code,
+      error_message = EXCLUDED.error_message
+    RETURNING *`,
+    [
+      run.id, run.experimentId, run.variantId, run.gameId, run.turnId, run.task,
+      run.provider, run.model, run.status, run.latencyMs, run.inputTokens,
+      run.outputTokens, run.estimatedCostUsd, run.promptHash, run.outputHash,
+      run.promptText, run.outputText, run.errorCode, run.errorMessage,
+    ]
+  );
+  return rows[0];
+}
+
+async function saveNarrationFeedback({ id, llmRunId, gameId, userId, rating, tags = [], note = '' }) {
+  const { rows } = await pool.query(
+    `INSERT INTO narration_feedback (id, llm_run_id, game_id, user_id, rating, tags, note, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+     ON CONFLICT (llm_run_id, user_id) DO UPDATE SET
+       rating = EXCLUDED.rating,
+       tags = EXCLUDED.tags,
+       note = EXCLUDED.note,
+       created_at = NOW()
+     RETURNING *`,
+    [id, llmRunId, gameId, userId, rating, JSON.stringify(tags), note]
+  );
+  return rows[0];
+}
+
+async function cleanupOldLlmRunText(retentionDays) {
+  const { rowCount } = await pool.query(
+    `UPDATE llm_runs
+     SET prompt_text = NULL, output_text = NULL
+     WHERE created_at < NOW() - ($1::int * INTERVAL '1 day')
+       AND (prompt_text IS NOT NULL OR output_text IS NOT NULL)`,
+    [retentionDays]
+  );
+  return rowCount;
+}
+
+async function getLlmExperimentSummary(days = 30) {
+  const { rows } = await pool.query(
+    `SELECT
+       COALESCE(experiment_id, 'none') AS experiment_id,
+       COALESCE(variant_id, model) AS variant_id,
+       model,
+       task,
+       COUNT(*)::int AS runs,
+       COUNT(*) FILTER (WHERE status = 'success')::int AS successes,
+       COUNT(*) FILTER (WHERE status <> 'success')::int AS failures,
+       ROUND(AVG(latency_ms))::int AS avg_latency_ms,
+       ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY latency_ms))::int AS p95_latency_ms,
+       COALESCE(SUM(input_tokens), 0)::int AS input_tokens,
+       COALESCE(SUM(output_tokens), 0)::int AS output_tokens,
+       COALESCE(SUM(estimated_cost_usd), 0)::float AS estimated_cost_usd,
+       ROUND(AVG(nf.rating)::numeric, 2)::float AS avg_rating,
+       COUNT(nf.id)::int AS feedback_count
+     FROM llm_runs lr
+     LEFT JOIN narration_feedback nf ON nf.llm_run_id = lr.id
+     WHERE lr.created_at > NOW() - ($1::int * INTERVAL '1 day')
+     GROUP BY experiment_id, variant_id, model, task
+     ORDER BY task, variant_id`,
+    [days]
+  );
+  return rows;
+}
+
 // ── Graceful Shutdown ──────────────────────────────────────────────────────
 function shutdownPoolHealthCheck() {
   if (healthCheckIntervalId) {
@@ -1061,6 +1238,13 @@ module.exports = {
   saveBugReport,
   getBugReports,
   updateBugReport,
+  upsertLlmExperiment,
+  getLlmExperimentAssignment,
+  saveLlmExperimentAssignment,
+  saveLlmRun,
+  saveNarrationFeedback,
+  cleanupOldLlmRunText,
+  getLlmExperimentSummary,
   // Pool monitoring exports
   initPoolHealthCheck,
   initSlowQueryMonitor,

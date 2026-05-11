@@ -1,5 +1,7 @@
 'use strict';
 
+const llm = require('./llm');
+
 // ---------------------------------------------------------------------------
 // Fuzzy matching helpers
 // ---------------------------------------------------------------------------
@@ -279,14 +281,14 @@ function parseOptions(options, playerId, ctx) {
 // ---------------------------------------------------------------------------
 
 /**
- * Tier 2 AI-assisted action parser using Haiku.
+ * Tier 2 AI-assisted action parser using the configured LLM layer.
  * @param {string} input
  * @param {string} playerId
  * @param {object} ctx
- * @param {object} anthropic  Anthropic SDK instance
+ * @param {object} _legacyClient  Ignored legacy client parameter.
  * @returns {Promise<object>} parsed action (never null — has fallback)
  */
-async function parseActionWithAI(input, playerId, ctx, anthropic) {
+async function parseActionWithAI(input, playerId, ctx, _legacyClient) {
   const combatants = ctx.combatants || {};
   const player = combatants[playerId] || {};
   const weapons = (player.weapons || []).map(w => w.name);
@@ -311,13 +313,15 @@ Respond with ONLY valid JSON (no markdown, no explanation):
 {"type":"attack"|"spell"|"dodge"|"disengage"|"dash"|"help","targetId":"id or null","weapon":"name or null","spell":"name or null","notes":"brief description"}`;
 
   try {
-    const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 150,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await llm.completeText({
+      task: 'action-parse',
+      prompt,
+      maxTokens: 150,
+      temperature: 0,
+      gameId: ctx.gameId,
     });
 
-    const text = message.content[0].text.trim();
+    const text = response.text.trim();
     // Extract JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
@@ -346,14 +350,14 @@ Respond with ONLY valid JSON (no markdown, no explanation):
 // ---------------------------------------------------------------------------
 
 /**
- * AI-powered option parsing — one Haiku call for all 3 options.
+ * AI-powered option parsing — one cheap structured-model call for all 3 options.
  * @param {string[]} options  Array of 3 option strings
  * @param {string}   playerId
  * @param {object}   ctx
- * @param {object}   anthropic  Anthropic SDK instance
+ * @param {object}   _legacyClient  Ignored legacy client parameter.
  * @returns {Promise<Array>} Array of 3 parsed actions
  */
-async function parseOptionsWithAI(options, playerId, ctx, anthropic) {
+async function parseOptionsWithAI(options, playerId, ctx, _legacyClient) {
   const combatants = ctx.combatants || {};
   const player = combatants[playerId] || {};
   const weapons = (player.weapons || []).map(w => w.name);
@@ -387,13 +391,15 @@ Respond with ONLY a JSON array of 3 objects (no markdown, no explanation):
 ]`;
 
   try {
-    const message = await anthropic.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 300,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await llm.completeText({
+      task: 'action-parse',
+      prompt,
+      maxTokens: 300,
+      temperature: 0,
+      gameId: ctx.gameId,
     });
 
-    const text = message.content[0].text.trim();
+    const text = response.text.trim();
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);

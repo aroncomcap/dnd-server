@@ -2,6 +2,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const llm = require('./llm');
 
 // ── In-memory cache ──────────────────────────────────────────────────────────
 const cache = {};
@@ -60,14 +61,14 @@ function loadDefaultMonsters(system) {
 }
 
 /**
- * Generate monster stats with AI (Haiku).
+ * Generate monster stats with the configured LLM layer.
  * @param {string} slug - Monster slug (e.g. "goblin")
  * @param {string} system - Game system
- * @param {object} anthropic - Anthropic client instance
+ * @param {object} _legacyClient - Ignored legacy client parameter
  * @param {string|null} hint - Optional description hint
  * @returns {object|null} Monster data object or null on failure
  */
-async function generateMonsterWithAI(slug, system, anthropic, hint = null) {
+async function generateMonsterWithAI(slug, system, _legacyClient, hint = null, gameId = null) {
   const name = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
   const schemas = {
@@ -103,13 +104,15 @@ async function generateMonsterWithAI(slug, system, anthropic, hint = null) {
   ].filter(Boolean).join('\n');
 
   try {
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await llm.completeText({
+      task: 'stat-parse',
+      prompt,
+      maxTokens: 1024,
+      temperature: 0,
+      gameId,
     });
 
-    const text = response.content[0]?.text || '';
+    const text = response.text || '';
     // Strip potential markdown fences
     const jsonText = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     return JSON.parse(jsonText);
@@ -130,14 +133,13 @@ async function generateMonsterWithAI(slug, system, anthropic, hint = null) {
  * @param {string} slug - Monster slug
  * @param {object} options
  * @param {object} [options.db] - db module (needs getMonsterFromSources, saveMonsterToGameOverrides)
- * @param {object} [options.anthropic] - Anthropic client
  * @param {boolean} [options.skipDB=false]
  * @param {boolean} [options.skipAI=false]
  * @param {string|null} [options.hint=null] - Hint passed to AI if generated
  * @returns {object|null} Monster data or null
  */
 async function getMonsterStats(gameId, system, slug, options = {}) {
-  const { db, anthropic, skipDB = false, skipAI = false, hint = null } = options;
+  const { db, skipDB = false, skipAI = false, hint = null } = options;
 
   // 1. DB lookup
   if (!skipDB && db) {
@@ -158,8 +160,8 @@ async function getMonsterStats(gameId, system, slug, options = {}) {
   }
 
   // 3. AI generation
-  if (!skipAI && anthropic) {
-    const generated = await generateMonsterWithAI(slug, system, anthropic, hint);
+  if (!skipAI) {
+    const generated = await generateMonsterWithAI(slug, system, null, hint, gameId);
     if (generated) {
       // Persist to game overrides if DB available
       if (!skipDB && db) {

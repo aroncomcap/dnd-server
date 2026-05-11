@@ -3,6 +3,7 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { parseStatsText, DND5E_SCHEMA, RUNEQUEST_SCHEMA, buildPrompt } = require('../stat-parser.js');
+const llm = require('../llm');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -230,7 +231,34 @@ describe('parseStatsText — input validation', () => {
     await assert.rejects(() => parseStatsText('text', 'pathfinder', { mock: true }), TypeError);
   });
 
-  it('throws Error in real mode without anthropic client', async () => {
-    await assert.rejects(() => parseStatsText('text', 'dnd5e', {}), Error);
+  it('uses the LLM layer in real mode without a legacy provider client', async () => {
+    llm.setProviderForTesting({
+      completeText: async () => ({
+        text: JSON.stringify({
+          system: 'dnd5e',
+          level: 1,
+          ac: 12,
+          hp: 8,
+          maxHp: 8,
+          speed: 30,
+          abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+          proficiencyBonus: 2,
+          saveProficiencies: [],
+          weapons: [],
+          spells: [],
+          spellSlots: {},
+          spellcastingAbility: null,
+          features: [],
+        }),
+        usage: { inputTokens: 1, outputTokens: 1 },
+      }),
+    });
+    try {
+      const parsed = await parseStatsText('simple stat block text', 'dnd5e', {});
+      assert.strictEqual(parsed.system, 'dnd5e');
+      assert.strictEqual(parsed.ac, 12);
+    } finally {
+      llm.resetProviderForTesting();
+    }
   });
 });

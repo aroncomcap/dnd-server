@@ -308,6 +308,15 @@
     </div>
   </div>
 
+  <!-- LLM Model Lab -->
+  <div class="panel">
+    <div class="panel-title">LLM Model Lab</div>
+    <table>
+      <thead><tr><th>Task</th><th>Variant</th><th>Runs</th><th>Rating</th><th>Cost</th><th>Latency</th><th>Failures</th></tr></thead>
+      <tbody id="llm-tbody"><tr><td colspan="7">Loading...</td></tr></tbody>
+    </table>
+  </div>
+
   <!-- Direct Credit -->
   <div class="panel">
     <div class="panel-title">Direct Credit</div>
@@ -417,6 +426,29 @@ document.getElementById('btn-toggle-billing').addEventListener('click', async ()
   const data = await res.json();
   loadBillingStatus();
 });
+
+// ── LLM model lab ──────────────────────────────────────────────────────────
+async function loadLlmSummary() {
+  const res = await fetch('/api/admin/llm-summary?days=30');
+  const data = await res.json();
+  const rows = data.rows || [];
+  const tbody = document.getElementById('llm-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;font-style:italic">No model runs yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td>${escapeHtml(r.task)}</td>
+      <td>${escapeHtml(r.variant_id || r.model)}</td>
+      <td>${r.runs}</td>
+      <td>${r.avg_rating ?? '—'} ${r.feedback_count ? `(${r.feedback_count})` : ''}</td>
+      <td>$${Number(r.estimated_cost_usd || 0).toFixed(4)}</td>
+      <td>${r.avg_latency_ms || '—'}ms / p95 ${r.p95_latency_ms || '—'}ms</td>
+      <td>${r.failures}</td>
+    </tr>
+  `).join('');
+}
 
 // ── Users ───────────────────────────────────────────────────────────────────
 let allUsers = [];
@@ -587,6 +619,7 @@ document.getElementById('btn-add-feature').addEventListener('click', async () =>
   loadBillingStatus();
   loadUsers();
   loadPromos();
+  loadLlmSummary();
   loadFeatures();
 })();
 </script>

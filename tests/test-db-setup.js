@@ -48,7 +48,7 @@ async function createSchema() {
       system TEXT NOT NULL DEFAULT 'dnd5e',
       custom_context TEXT DEFAULT '',
       image_style TEXT DEFAULT 'fantasy illustration',
-      model TEXT DEFAULT 'claude-haiku-4-5-20251001',
+      model TEXT DEFAULT 'openai:gpt-5.4-mini',
       billing_mode TEXT DEFAULT 'host_pays',
       host_user_id TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()

@@ -8,9 +8,9 @@ const {
   buildUserMessage,
   buildExtractionPrompt,
   buildValidationPrompt,
-  parseSonnetResponse,
+  parseNarrationResponse,
   processViolation,
-  shouldCallSonnetForFlavor,
+  shouldCallModelForFlavor,
 } = require('../narration-pipeline');
 
 // ---------------------------------------------------------------------------
@@ -241,10 +241,10 @@ describe('buildNarrationPrompt', () => {
 });
 
 // ---------------------------------------------------------------------------
-// parseSonnetResponse
+// parseNarrationResponse
 // ---------------------------------------------------------------------------
 
-describe('parseSonnetResponse', () => {
+describe('parseNarrationResponse', () => {
   it('parses emoji-numbered options correctly', () => {
     const text = `The dragon swoops down with terrifying speed, its wings casting shadows over the village.
 
@@ -252,7 +252,7 @@ describe('parseSonnetResponse', () => {
 2️⃣ Cast Shield and call for backup
 3️⃣ Try to reason with the dragon`;
 
-    const { narration, options } = parseSonnetResponse(text);
+    const { narration, options } = parseNarrationResponse(text);
     assert.ok(narration.includes('dragon swoops'), 'Narration should include story text');
     assert.strictEqual(options.length, 3);
     assert.ok(options[0].includes('Draw your sword'), `Option 1: ${options[0]}`);
@@ -262,7 +262,7 @@ describe('parseSonnetResponse', () => {
 
   it('treats entire text as narration when no options found', () => {
     const text = 'The tavern door swings open, revealing a hooded figure.';
-    const { narration, options } = parseSonnetResponse(text);
+    const { narration, options } = parseNarrationResponse(text);
     assert.ok(narration.includes('hooded figure'));
     assert.strictEqual(options.length, 0);
   });
@@ -274,7 +274,7 @@ describe('parseSonnetResponse', () => {
 2. Turn east toward the forest
 3. Make camp here for the night`;
 
-    const { narration, options } = parseSonnetResponse(text);
+    const { narration, options } = parseNarrationResponse(text);
     assert.strictEqual(options.length, 3);
     assert.ok(options[0].includes('north'));
     assert.ok(options[1].includes('east'));
@@ -288,7 +288,7 @@ describe('parseSonnetResponse', () => {
 2) Dodge to the side
 3) Counter-attack`;
 
-    const { narration, options } = parseSonnetResponse(text);
+    const { narration, options } = parseNarrationResponse(text);
     assert.strictEqual(options.length, 3);
     assert.ok(options[0].includes('Parry'));
   });
@@ -300,7 +300,7 @@ describe('parseSonnetResponse', () => {
 2️⃣ Retreat
 3️⃣ Cast a spell`;
 
-    const { narration, options } = parseSonnetResponse(text);
+    const { narration, options } = parseNarrationResponse(text);
     // Options should NOT start with the emoji
     assert.ok(!options[0].startsWith('1️⃣'), 'Option should not start with emoji');
     assert.ok(options[0].trim().length > 0, 'Option should have content after stripping');
@@ -309,13 +309,13 @@ describe('parseSonnetResponse', () => {
   it('returns narration-only when only 1 option-like line found', () => {
     const text = `Some narration.
 1. Only one option here.`;
-    const { narration, options } = parseSonnetResponse(text);
+    const { narration, options } = parseNarrationResponse(text);
     assert.strictEqual(options.length, 0, 'Should return no options if fewer than 2 option-like lines');
     assert.ok(narration.includes('Some narration') || narration.length > 0);
   });
 
   it('handles empty string gracefully', () => {
-    const { narration, options } = parseSonnetResponse('');
+    const { narration, options } = parseNarrationResponse('');
     assert.strictEqual(narration, '');
     assert.strictEqual(options.length, 0);
   });
@@ -434,40 +434,40 @@ describe('processViolation', () => {
 });
 
 // ---------------------------------------------------------------------------
-// shouldCallSonnetForFlavor
+// shouldCallModelForFlavor
 // ---------------------------------------------------------------------------
 
-describe('shouldCallSonnetForFlavor', () => {
+describe('shouldCallModelForFlavor', () => {
   it('returns true on round 1', () => {
-    assert.strictEqual(shouldCallSonnetForFlavor({ round: 1, active: true }), true);
+    assert.strictEqual(shouldCallModelForFlavor({ round: 1, active: true }), true);
   });
 
   it('returns true on round 3 (every 3rd round)', () => {
-    assert.strictEqual(shouldCallSonnetForFlavor({ round: 3, active: true }), true);
+    assert.strictEqual(shouldCallModelForFlavor({ round: 3, active: true }), true);
   });
 
   it('returns true on round 6', () => {
-    assert.strictEqual(shouldCallSonnetForFlavor({ round: 6, active: true }), true);
+    assert.strictEqual(shouldCallModelForFlavor({ round: 6, active: true }), true);
   });
 
   it('returns false on round 2', () => {
-    assert.strictEqual(shouldCallSonnetForFlavor({ round: 2, active: true }), false);
+    assert.strictEqual(shouldCallModelForFlavor({ round: 2, active: true }), false);
   });
 
   it('returns false on round 4', () => {
-    assert.strictEqual(shouldCallSonnetForFlavor({ round: 4, active: true }), false);
+    assert.strictEqual(shouldCallModelForFlavor({ round: 4, active: true }), false);
   });
 
   it('returns false on round 5', () => {
-    assert.strictEqual(shouldCallSonnetForFlavor({ round: 5, active: true }), false);
+    assert.strictEqual(shouldCallModelForFlavor({ round: 5, active: true }), false);
   });
 
   it('returns true when combat is over', () => {
-    assert.strictEqual(shouldCallSonnetForFlavor({ round: 4, active: false }), true);
+    assert.strictEqual(shouldCallModelForFlavor({ round: 4, active: false }), true);
   });
 
   it('returns true when combatState has over flag', () => {
-    assert.strictEqual(shouldCallSonnetForFlavor({ round: 4, active: true, over: true }), true);
+    assert.strictEqual(shouldCallModelForFlavor({ round: 4, active: true, over: true }), true);
   });
 });
 

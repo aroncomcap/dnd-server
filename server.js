@@ -3,7 +3,6 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const crypto = require('crypto');
-const Anthropic = require('@anthropic-ai/sdk');
 const Together = require('together-ai');
 const multer = require('multer');
 const { PDFParse } = require('pdf-parse');
@@ -22,6 +21,9 @@ const { getMonsterStats } = require('./monster-lookup');
 const ed = require('./encounter-designer');
 const narrationPipeline = require('./narration-pipeline');
 const costTracker = require('./cost-tracker');
+const llm = require('./llm');
+const llmTelemetry = require('./llm/telemetry');
+const llmModels = require('./llm/model-registry');
 const promptBuilder = require('./prompt-builder');
 const imageEngine = require('./image-engine');
 const gameEngine = require('./game-engine');
@@ -309,7 +311,6 @@ app.get('/api/diag/parse-errors', (req, res) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const together = new Together({ apiKey: process.env.TOGETHER_API_KEY });
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -577,7 +578,7 @@ function parseResponse(text) {
         }
       }
     }
-    // Parse ENEMIES block — flexible matching for Haiku's varied output formats
+    // Parse ENEMIES block — flexible matching for model output formats
     // Matches: "ENEMIES:", "ENEMIES (...):", "ENEMIES (when combat starts):", etc.
     const enemiesMatch = worldRaw.match(/ENEMIES[^:\n]*:\s*\n((?:[-*•]\s*.+\n?)+)/i);
     let enemies = [];
@@ -634,22 +635,24 @@ async function initiateCombat(gameId, gameConfig, enemies) {
   for (const entry of enemies) {
     for (let i = 0; i < entry.count; i++) {
       const stats = await getMonsterStats(gameId, system, entry.slug, {
-        db, anthropic, hint: entry.hint,
+        db, hint: entry.hint,
       });
       if (stats) {
         const id = entry.count > 1 ? `${entry.slug}-${i + 1}` : entry.slug;
         const name = entry.count > 1 ? `${entry.displayName} ${i + 1}` : entry.displayName;
         enemyCombatants.push({ ...stats, id, name, type: 'Enemy' });
 
-        // For solo/named enemies, generate a unique personality twist via Haiku
+        // For solo/named enemies, generate a unique personality twist.
         if (entry.count === 1 && stats.personality) {
           try {
-            const variantResponse = await anthropic.messages.create({
-              model: 'claude-haiku-4-5-20251001',
-              max_tokens: 100,
-              messages: [{ role: 'user', content: `This ${stats.name} has a base personality: "${stats.personality}". Give this specific ${name} a unique twist in 1-2 sentences — a quirk, obsession, or unusual trait that makes it memorable. Reply with ONLY the personality text.` }],
+            const variantResponse = await llm.completeText({
+              task: 'summary',
+              gameId,
+              maxTokens: 100,
+              temperature: 0.7,
+              prompt: `This ${stats.name} has a base personality: "${stats.personality}". Give this specific ${name} a unique twist in 1-2 sentences — a quirk, obsession, or unusual trait that makes it memorable. Reply with ONLY the personality text.`,
             });
-            const uniquePersonality = variantResponse.content[0]?.text?.trim();
+            const uniquePersonality = variantResponse.text?.trim();
             if (uniquePersonality) {
               enemyCombatants[enemyCombatants.length - 1].personality = uniquePersonality;
             }
@@ -698,7 +701,7 @@ async function initiateCombat(gameId, gameConfig, enemies) {
     let combatStats = char.combatStats;
     if (!combatStats) {
       try {
-        combatStats = await parseStatsText(char.statsText || '', system, { anthropic });
+        combatStats = await parseStatsText(char.statsText || '', system, { gameId });
         char.combatStats = combatStats;
         db.upsertCharacter(gameId, name, char).catch(() => {});
       } catch (e) {
@@ -789,11 +792,14 @@ Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
       let targetId = Object.values(engine.state.combatants).find(c => c.type === 'PC')?.id;
 
       try {
-        const response = await anthropic.messages.create({
-          model: 'claude-haiku-4-5-20251001', max_tokens: 80,
-          messages: [{ role: 'user', content: enemy.prompt }],
+        const response = await llm.completeText({
+          task: 'enemy-tactics',
+          gameId,
+          maxTokens: 80,
+          temperature: 0.2,
+          prompt: enemy.prompt,
         });
-        const text = response.content[0].text.trim();
+        const text = response.text.trim();
         const m = text.match(/ACTION:\s*\S+\s+(\S+)\s+(\S+)/);
         if (m) { actionType = m[1]; targetId = m[2]; }
       } catch (e) {
@@ -919,19 +925,16 @@ async function refreshStorySummary(gameId, gameConfig) {
     m.role === 'user' ? `Player: ${m.content}` : `DM: ${m.content}`
   ).join('\n').slice(0, 3000);
 
-  const response = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 300,
+  const response = await llm.completeText({
+    task: 'summary',
+    gameId,
+    maxTokens: 300,
+    temperature: 0.2,
     system: 'Summarize this RPG session in 150 words. Focus on: current quest, recent events, unresolved tensions, character status. Be concise.',
-    messages: [{ role: 'user', content: transcript }],
+    prompt: transcript,
   });
 
-  const inputTokens = response.usage?.input_tokens || 0;
-  const outputTokens = response.usage?.output_tokens || 0;
-  logCost({ gameId, model: 'claude-haiku-4-5-20251001', inputTokens, outputTokens,
-    cost: estimateCost('claude-haiku-4-5-20251001', inputTokens, outputTokens), type: 'story-summary' });
-
-  gs.storySummary = response.content[0].text;
+  gs.storySummary = response.text;
   // Trim history to just the last 6 messages
   gd.chatHistory = gd.chatHistory.slice(-6);
   await db.saveChatHistory(gameId, gd.chatHistory);
@@ -939,16 +942,16 @@ async function refreshStorySummary(gameId, gameConfig) {
   console.log('Story summary refreshed for', gameId);
 }
 
-// ── Claude Call (scoped to a game) ───────────────────────────────────────────
-async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
+// ── Game Master LLM Call (scoped to a game) ──────────────────────────────────
+async function callGameLLM(gameId, gameConfig, userMessage, actingAs = null) {
   if (!USE_SPLIT_PIPELINE) {
-    return legacyCallClaude(gameId, gameConfig, userMessage, actingAs);
+    return legacyCallLLM(gameId, gameConfig, userMessage, actingAs);
   }
 
-  // Combat turns use legacy path — combat engine integration is complex and already works well with Haiku
+  // Combat turns use legacy path — combat engine integration has special handling.
   const gs0 = getGameState(gameId);
   if (gs0.combatEngine?.state?.active) {
-    return legacyCallClaude(gameId, gameConfig, userMessage, actingAs);
+    return legacyCallLLM(gameId, gameConfig, userMessage, actingAs);
   }
 
   // Rate limit check
@@ -997,7 +1000,7 @@ async function callClaude(gameId, gameConfig, userMessage, actingAs = null) {
     return result;
   } catch (err) {
     console.error('[pipeline] Error, falling back to legacy:', err.message, err.stack?.split('\n').slice(0, 3).join(' | '));
-    return legacyCallClaude(gameId, gameConfig, userMessage, actingAs);
+    return legacyCallLLM(gameId, gameConfig, userMessage, actingAs);
   }
 }
 
@@ -1055,7 +1058,7 @@ function applyWorldUpdates(gameId, worldUpdates) {
   db.setState(gameId, 'world', gd.world).catch(() => {});
 }
 
-async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null) {
+async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
   // Rate limit check
   if (!checkRateLimit(gameId)) {
     const gs = getGameState(gameId);
@@ -1087,8 +1090,6 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
     { role: 'user', content: prefix + userMessage },
   ];
 
-  const model = 'claude-haiku-4-5-20251001';
-
   // Determine which prompt to use based on game context
   let isStoryMoment = false;
   if (gs.turn?.flags?.story || gs.turn?.flags?.npc || gs.turn?.flags?.exploration) {
@@ -1108,7 +1109,7 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
 
   const startTime = Date.now();
 
-  // Combat routing — resolve player action + enemy turns before calling Claude
+  // Combat routing — resolve player action + enemy turns before calling the model.
   const combatActive = gs.combatEngine?.state?.active;
 
   // Token limits: combat narration needs fewer tokens (just describing pre-resolved results)
@@ -1325,21 +1326,16 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     // Lower temperature for terse/brief = more instruction-following, less creative wandering
     const temperature = gs.verbosity === 'terse' ? 0.3 : gs.verbosity === 'brief' ? 0.5 : 0.8;
 
-    console.log(`[stream-start] gameId=${gameId} model=${model} maxTokens=${maxTokens} temp=${temperature} sysPromptLen=${finalSystemPrompt.length} messagesLen=${messagesWithCombat.length}`);
+    console.log(`[stream-start] gameId=${gameId} task=narration maxTokens=${maxTokens} temp=${temperature} sysPromptLen=${finalSystemPrompt.length} messagesLen=${messagesWithCombat.length}`);
 
-    const stream = await anthropic.messages.stream({
-      model,
-      max_tokens: maxTokens,
+    finalMessage = await llm.streamText({
+      task: 'narration',
+      gameId,
+      maxTokens,
       temperature,
-      system: [{ type: "text", text: finalSystemPrompt, cache_control: { type: "ephemeral" } }],
+      system: finalSystemPrompt,
       messages: messagesWithCombat,
-    });
-
-    console.log(`[stream-started] gameId=${gameId} stream created successfully`);
-
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && event.delta?.text) {
-        const delta = event.delta.text;
+      onToken: (delta) => {
         accumulatedText += delta;
 
         if (state === 'NARRATING') {
@@ -1365,8 +1361,10 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
         } else {
           structuredBuffer += delta;
         }
-      }
-    }
+      },
+    });
+
+    console.log(`[stream-started] gameId=${gameId} stream created successfully`);
 
     // Flush remaining
     if (state === 'NARRATING' && pendingTail) {
@@ -1374,12 +1372,11 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
       narrationText += pendingTail;
     }
 
-    finalMessage = await stream.finalMessage();
     console.log(`[stream-complete] gameId=${gameId} success`);
   } catch (streamErr) {
     console.error('[stream-error] gameId=${gameId} Error during streaming:', streamErr.message, 'Status:', streamErr.status, 'Type:', streamErr.type);
     console.error('[stream-error-full] Stack:', streamErr.stack?.split('\n').slice(0, 10).join(' | '));
-    io.to(gameId).emit('dm_stream_end', { narration: narrationText.trim() });
+    io.to(gameId).emit('dm_stream_end', { narration: narrationText.trim(), llmRunId: streamErr.llmRunId || null });
     throw streamErr;
   }
 
@@ -1387,16 +1384,17 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   const reply = accumulatedText;
 
   // Emit stream end with final narration for re-rendering
-  io.to(gameId).emit('dm_stream_end', { narration: narrationText.trim() });
+  io.to(gameId).emit('dm_stream_end', { narration: narrationText.trim(), llmRunId: finalMessage.llmRunId || null });
 
   // Log cost
-  const inputTokens = finalMessage.usage?.input_tokens || 0;
-  const outputTokens = finalMessage.usage?.output_tokens || 0;
-  const cost = estimateCost(model, inputTokens, outputTokens);
-  logCost({ gameId, model, inputTokens, outputTokens, cost, type: actingAs ? 'auto-action' : 'player-action' });
-  console.log(`API call: ${model} | ${inputTokens}in/${outputTokens}out | $${cost.toFixed(4)} | ${elapsed}ms | ${actingAs ? 'auto' : 'human'}`);
+  const inputTokens = finalMessage.usage?.inputTokens || 0;
+  const outputTokens = finalMessage.usage?.outputTokens || 0;
+  const cost = finalMessage.cost || llmModels.estimateCost(finalMessage.model, inputTokens, outputTokens);
+  logCost({ gameId, model: finalMessage.model, inputTokens, outputTokens, cost, type: actingAs ? 'auto-action' : 'player-action' });
+  console.log(`LLM call: ${finalMessage.model} | ${inputTokens}in/${outputTokens}out | $${cost.toFixed(4)} | ${elapsed}ms | ${actingAs ? 'auto' : 'human'}`);
 
   const parsed = parseResponse(reply);
+  parsed.llmRunId = finalMessage.llmRunId || null;
   console.log(`[stream-debug] state=${state} narration=${narrationText.length}ch structured=${structuredBuffer.length}ch options=${parsed.options.length} scene=${!!parsed.scene} world=${!!parsed.world}`);
 
   // Include a minimal structured block in history so the AI sees the output format pattern
@@ -1415,17 +1413,16 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   if (parsed.options.length === 0 && !actingAs) {
     try {
       const nextPlayer = getCurrentPlayer(gameId);
-      const optionsResponse = await anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 200,
-        messages: [{
-          role: 'user',
-          content: `Given this narration from a ${gameConfig.system || 'D&D 5e'} game, suggest exactly 3 action options for ${nextPlayer || 'the next player'}. Output ONLY this format with number emojis, nothing else:\n\n1️⃣ 🗡️ [combat/practical action]\n2️⃣ 🛡️ [defensive/cautious action]\n3️⃣ 🔥 [wild/reckless/creative move]\n\nNarration: ${parsed.narration.slice(-500)}`,
-        }],
+      const optionsResponse = await llm.completeText({
+        task: 'options-fallback',
+        gameId,
+        maxTokens: 200,
+        temperature: 0.3,
+        prompt: `Given this narration from a ${gameConfig.system || 'D&D 5e'} game, suggest exactly 3 action options for ${nextPlayer || 'the next player'}. Output ONLY this format with number emojis, nothing else:\n\n1️⃣ 🗡️ [combat/practical action]\n2️⃣ 🛡️ [defensive/cautious action]\n3️⃣ 🔥 [wild/reckless/creative move]\n\nNarration: ${parsed.narration.slice(-500)}`,
       });
-      const optLines = optionsResponse.content[0].text.split('\n')
-        .filter(l => /^\d+\.\s/.test(l.trim()))
-        .map(l => l.replace(/^\d+\.\s*/, '').trim())
+      const optLines = optionsResponse.text.split('\n')
+        .filter(l => /^[1-3](?:\uFE0F?\u20E3|[.)])\s*/.test(l.trim()))
+        .map(l => l.replace(/^[1-3](?:\uFE0F?\u20E3|[.)])\s*/, '').trim())
         .filter(Boolean)
         .slice(0, 3);
       if (optLines.length >= 2) parsed.options = optLines;
@@ -1632,10 +1629,10 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   if (gs.combatEngine.state.active && parsed.options?.length > 0) {
     const nextPlayer = gs.combatEngine.getCurrentTurn();
     if (nextPlayer) {
-      const combatCtx = { combatants: gs.combatEngine.state.combatants };
+      const combatCtx = { combatants: gs.combatEngine.state.combatants, gameId };
       const tier1 = parseOptions(parsed.options, nextPlayer.id, combatCtx);
       if (tier1.some(r => r === null)) {
-        parseOptionsWithAI(parsed.options, nextPlayer.id, combatCtx, anthropic)
+        parseOptionsWithAI(parsed.options, nextPlayer.id, combatCtx)
           .then(results => { gs.preTaggedOptions = results; }).catch(() => {});
       } else {
         gs.preTaggedOptions = tier1;
@@ -1690,18 +1687,18 @@ function startTurnTimer(gameId, gameConfig, playerName) {
       ? `It is ${playerName}'s turn but they did not respond. Act on their behalf as their character (${char.class}, personality: ${char.personality}). Choose the most fitting action given the current situation and their standard actions: ${char.standardActions || 'none'}. Narrate what they do.`
       : `It is ${playerName}'s turn but they did not respond. Have them take a cautious, sensible action.`;
 
-    emitSystem(gameId, { text: `⏰ ${playerName} ran out of time. Claude is acting for them...` });
+    emitSystem(gameId, { text: `⏰ ${playerName} ran out of time. The GM is acting for them...` });
 
     try {
       // ✅ FIX: Serialize narration streaming per game
-      const { narration, options, scene, world, isKillshot, mapMoved } = await withStreamingLock(gameId, () =>
-        callClaude(gameId, gameConfig, autoPrompt, playerName)
+      const { narration, options, scene, world, isKillshot, mapMoved, llmRunId } = await withStreamingLock(gameId, () =>
+        callGameLLM(gameId, gameConfig, autoPrompt, playerName)
       );
       const gs2 = getGameState(gameId);
       const nextIdx = (gs2.data.currentTurnIndex + 1) % (gs2.data.turnOrder.length || 1);
       const nextPlayer = gs2.data.turnOrder[nextIdx] || null;
       await advanceTurn(gameId, gameConfig, false);
-      emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName, forPlayer: nextPlayer, world });
+      emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName, forPlayer: nextPlayer, world, llmRunId });
       io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
       maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
         .catch(err => console.error('[scene-gen-after-auto-action]', err.message));
@@ -1942,18 +1939,20 @@ app.post('/api/games/:id/upload-pdf', requireAuth, upload.array('pdfs', 10), asy
       const data = await parser.getText();
       const rawText = data.text.slice(0, 30000); // cap raw text for extraction call
 
-      // Extract structured summary via Haiku
+      // Extract structured summary via configured LLM.
       console.log(`[PDF] Extracting summary for ${file.originalname} (${data.text.length} chars raw)...`);
-      const extractionResponse = await anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2000,
+      const extractionResponse = await llm.completeText({
+        task: 'summary',
+        gameId,
+        maxTokens: 2000,
+        temperature: 0.2,
         system: 'You are a tabletop RPG content analyzer. Extract and organize the key information from this source material into a structured summary. Be comprehensive but concise.',
-        messages: [{ role: 'user', content: `Analyze this RPG source material and extract a structured summary covering:\n\n1. SETTING: World/region description, key themes, time period\n2. LOCATIONS: Name, description, notable features for each major location\n3. NPCS: Name, role, personality, motivations for each major NPC\n4. ENCOUNTERS: Key encounters/scenes with difficulty and rewards\n5. PLOT: Main quest hooks, story arc, key events\n6. RULES: Any custom rules, house rules, or system-specific modifications\n7. LOOT: Notable treasure, magic items, rewards\n8. LEVEL RANGE: Recommended character levels\n\nSource material:\n${rawText}` }],
+        prompt: `Analyze this RPG source material and extract a structured summary covering:\n\n1. SETTING: World/region description, key themes, time period\n2. LOCATIONS: Name, description, notable features for each major location\n3. NPCS: Name, role, personality, motivations for each major NPC\n4. ENCOUNTERS: Key encounters/scenes with difficulty and rewards\n5. PLOT: Main quest hooks, story arc, key events\n6. RULES: Any custom rules, house rules, or system-specific modifications\n7. LOOT: Notable treasure, magic items, rewards\n8. LEVEL RANGE: Recommended character levels\n\nSource material:\n${rawText}`,
       });
 
-      const summary = extractionResponse.content[0].text;
-      const inputTokens = extractionResponse.usage?.input_tokens || 0;
-      const outputTokens = extractionResponse.usage?.output_tokens || 0;
+      const summary = extractionResponse.text;
+      const inputTokens = extractionResponse.usage?.inputTokens || 0;
+      const outputTokens = extractionResponse.usage?.outputTokens || 0;
       console.log(`[PDF] Summary for ${file.originalname}: ${summary.length} chars (${inputTokens} in / ${outputTokens} out tokens)`);
 
       uploads.push({
@@ -2243,20 +2242,16 @@ ${recentErrors || 'none'}
 Bug Report: ${bug.description}
 `;
 
-    // Call Haiku to analyze and suggest fixes
-    const analysis = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 500,
-      messages: [
-        {
-          role: 'user',
-          content: `Analyze this game bug and suggest fixes. Return JSON only: { "analysis": "...", "fixes": [...fix actions...], "manual_steps": "..." }. Available fix actions: RESET_COMBAT, CLEAR_PAUSE, RESET_IDLE, ADVANCE_TURN, CLEAR_ERRORS.\n\n${stateContext}`,
-        },
-      ],
+    const analysis = await llm.completeText({
+      task: 'summary',
+      gameId,
+      maxTokens: 500,
+      temperature: 0.1,
+      prompt: `Analyze this game bug and suggest fixes. Return JSON only: { "analysis": "...", "fixes": [...fix actions...], "manual_steps": "..." }. Available fix actions: RESET_COMBAT, CLEAR_PAUSE, RESET_IDLE, ADVANCE_TURN, CLEAR_ERRORS.\n\n${stateContext}`,
     });
 
     let fixData = { analysis: '', fixes: [], manual_steps: '' };
-    const responseText = analysis.content[0].type === 'text' ? analysis.content[0].text : '';
+    const responseText = analysis.text || '';
     try {
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -2467,7 +2462,7 @@ app.post('/api/test/combat', requireAuth, async (req, res) => {
   const gameId = `test-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
   try {
-    // Minimal game row for getGame calls inside callClaude
+    // Minimal game row for getGame calls inside callGameLLM.
     await db.pool.query(
       `INSERT INTO games (id, name, system, host_user_id) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
       [gameId, `Combat Test ${gameId}`, 'dnd5e', req.user.id]
@@ -2545,7 +2540,7 @@ app.post('/api/test/combat', requireAuth, async (req, res) => {
     try {
       // ✅ FIX: Serialize narration streaming per game
       const result = await withStreamingLock(gameId, () =>
-        callClaude(gameId, gameConfig, userMessage)
+        callGameLLM(gameId, gameConfig, userMessage)
       );
       const turnElapsed = Date.now() - turnStart;
 
@@ -2679,6 +2674,16 @@ app.get('/api/admin/errors', requireAuth, requireAdmin, (req, res) => {
 app.delete('/api/admin/errors', requireAuth, requireAdmin, (req, res) => {
   global._combatErrors = [];
   res.json({ cleared: true });
+});
+
+app.get('/api/admin/llm-summary', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const days = Math.max(1, Math.min(90, parseInt(req.query.days || '30', 10)));
+    const rows = await db.getLlmExperimentSummary(days);
+    res.json({ days, rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.get('/api/admin/promo/list', requireAuth, requireAdmin, async (req, res) => {
@@ -2828,13 +2833,14 @@ app.post('/api/generate-prompt', async (req, res) => {
       party: `Generate a unique party composition description for a ${systemName} campaign. Describe the party in 1-2 sentences, specifying number of characters, approximate level/capability, and general theme/style. Return ONLY the description text, nothing else.`,
     };
 
-    const msg = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 150,
-      messages: [{ role: 'user', content: prompts[type] }],
+    const msg = await llm.completeText({
+      task: 'summary',
+      maxTokens: 150,
+      temperature: 0.8,
+      prompt: prompts[type],
     });
 
-    const prompt = msg.content[0]?.text?.trim() || '';
+    const prompt = msg.text?.trim() || '';
     res.json({ prompt });
   } catch (err) {
     console.error('Prompt generation error:', err.message);
@@ -2927,6 +2933,34 @@ function safeSocketHandler(handler) {
 // ── Socket Events ─────────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
+
+  socket.on('narration_feedback', safeSocketHandler(async (data, ack) => {
+    const gameId = socket.gameId;
+    const llmRunId = data?.llmRunId;
+    const rating = Number(data?.rating);
+    if (!gameId || !llmRunId || !Number.isInteger(rating) || rating < 1 || rating > 5) {
+      if (ack) ack({ error: 'Invalid feedback' });
+      return;
+    }
+    const allowedTags = new Set([
+      'great_moment', 'funny', 'vivid', 'useful_options',
+      'confusing', 'boring', 'too_long', 'rules_wrong', 'forgot_context',
+    ]);
+    const tags = Array.isArray(data.tags)
+      ? data.tags.filter(tag => allowedTags.has(tag)).slice(0, 6)
+      : [];
+    const note = truncate(String(data.note || ''), 500);
+    const saved = await db.saveNarrationFeedback({
+      id: crypto.randomUUID(),
+      llmRunId,
+      gameId,
+      userId: socket.userId || null,
+      rating,
+      tags,
+      note,
+    });
+    if (ack) ack({ ok: true, feedbackId: saved.id });
+  }));
 
   // Join a game room
   socket.on('join_game', async (gameId) => {
@@ -3098,7 +3132,7 @@ io.on('connection', (socket) => {
       const result = await discordGameEngine.generateParty(gameId, direction);
       socket.emit('party_generated', { count: result.count });
 
-      // COMBAT_JSON is now parsed directly during party generation (no separate Haiku calls needed)
+      // COMBAT_JSON is now parsed directly during party generation.
       const gs = getGameState(gameId);
       let withStats = 0;
       const charStats = {};
@@ -3259,13 +3293,13 @@ io.on('connection', (socket) => {
     try {
       const gameConfig = await db.getGame(gameId);
       // ✅ FIX: Serialize narration streaming per game to prevent concurrent chunk interleaving
-      const { narration, options, scene, world, isKillshot, mapMoved } = await withStreamingLock(gameId, () =>
-        callClaude(gameId, gameConfig, `${playerName}: ${action}`)
+      const { narration, options, scene, world, isKillshot, mapMoved, llmRunId } = await withStreamingLock(gameId, () =>
+        callGameLLM(gameId, gameConfig, `${playerName}: ${action}`)
       );
       const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
       const nextPlayer = gs.data.turnOrder[nextIdx] || null;
       await advanceTurn(gameId, gameConfig, true);
-      emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
+      emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world, llmRunId });
       io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
       maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
         .catch(err => console.error('[scene-gen-after-player-action]', err.message));
@@ -3287,20 +3321,18 @@ io.on('connection', (socket) => {
       const gameConfig = await db.getGame(gameId);
       const oocPrompt = `[OOC from ${playerName}]: ${message}\n\nThis is an out-of-character instruction about rules, setting, or gameplay. Acknowledge briefly and adjust accordingly. Do NOT advance the turn or narrate an action. Do NOT include ---OPTIONS--- or ---SCENE--- blocks. Just respond to the instruction.`;
 
-      const response = await anthropic.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 256,
-        system: [{ type: "text", text: buildTrimmedPrompt(gameId, gameConfig), cache_control: { type: "ephemeral" } }],
+      const response = await llm.completeText({
+        task: 'ooc',
+        gameId,
+        maxTokens: 256,
+        temperature: 0.5,
+        system: buildTrimmedPrompt(gameId, gameConfig),
         messages: [...gs.data.chatHistory, { role: 'user', content: oocPrompt }],
       });
 
-      const reply = response.content[0].text;
-      const inputTokens = response.usage?.input_tokens || 0;
-      const outputTokens = response.usage?.output_tokens || 0;
-      logCost({ gameId, model: 'claude-haiku-4-5-20251001', inputTokens, outputTokens,
-        cost: estimateCost('claude-haiku-4-5-20251001', inputTokens, outputTokens), type: 'ooc' });
+      const reply = response.text;
 
-      // Save OOC exchanges in history so Claude remembers
+      // Save OOC exchanges in history so the GM remembers.
       gs.data.chatHistory.push(
         { role: 'user', content: `[OOC: ${message}]` },
         { role: 'assistant', content: `[OOC acknowledged: ${reply}]` }
@@ -3346,11 +3378,11 @@ io.on('connection', (socket) => {
       const gameConfig = await db.getGame(gameId);
       const gs = getGameState(gameId);
       // ✅ FIX: Serialize narration streaming per game
-      const { narration, options, scene, world } = await withStreamingLock(gameId, () =>
-        callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.')
+      const { narration, options, scene, world, llmRunId } = await withStreamingLock(gameId, () =>
+        callGameLLM(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.')
       );
       const firstPlayer = getCurrentPlayer(gameId);
-      emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world });
+      emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world, llmRunId });
       // Always generate image for the opening scene
       if (scene) {
         const openingLabel = scene.npc && scene.npc.toLowerCase() !== 'none' ? scene.npc : scene.action || 'The adventure begins';
@@ -3447,7 +3479,7 @@ io.on('connection', (socket) => {
     const existing = char.backstory || '';
     char.backstory = existing + (existing ? '\n' : '') + `[Added: ${data.text}]`;
     await db.upsertCharacter(gameId, data.name, char);
-    socket.emit('system', { text: `📝 Backstory note added for ${data.name}. Claude will weave it into the narrative.` });
+    socket.emit('system', { text: `📝 Backstory note added for ${data.name}. The GM will weave it into the narrative.` });
     io.to(gameId).emit('character_updated', { name: data.name, character: char });
   });
 
@@ -3476,7 +3508,7 @@ io.on('connection', (socket) => {
     }
     await db.setState(gameId, 'world', gs.world);
     io.to(gameId).emit('world_updated', gs.world);
-    socket.emit('system', { text: `🗺️ World context added. Claude will use this in the narrative.` });
+    socket.emit('system', { text: `🗺️ World context added. The GM will use this in the narrative.` });
   });
 
   socket.on('save_character', async (data) => {
@@ -3713,13 +3745,13 @@ const discordGameEngine = {
 
     const gameConfig = await db.getGame(gameId);
     // ✅ FIX: Serialize narration streaming per game
-    const { narration, options, scene, world, isKillshot, mapMoved } = await withStreamingLock(gameId, () =>
-      callClaude(gameId, gameConfig, `${playerName}: ${action}`)
+    const { narration, options, scene, world, isKillshot, mapMoved, llmRunId } = await withStreamingLock(gameId, () =>
+      callGameLLM(gameId, gameConfig, `${playerName}: ${action}`)
     );
     const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
     const nextPlayer = gs.data.turnOrder[nextIdx] || null;
     await advanceTurn(gameId, gameConfig, true);
-    emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world });
+    emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world, llmRunId });
     io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
     const playerToken = gs.data.characters[playerName]?.token || null;
     io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });
@@ -3771,11 +3803,11 @@ const discordGameEngine = {
     gs.paused = false;
     gs.idleTurns = 0;
     // ✅ FIX: Serialize narration streaming per game
-    const { narration, options, scene, world } = await withStreamingLock(gameId, () =>
-      callClaude(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.')
+    const { narration, options, scene, world, llmRunId } = await withStreamingLock(gameId, () =>
+      callGameLLM(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.')
     );
     const firstPlayer = getCurrentPlayer(gameId);
-    emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world });
+    emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: firstPlayer, world, llmRunId });
     if (scene) {
       const startLabel = scene.npc && scene.npc.toLowerCase() !== 'none' ? scene.npc : scene.action || 'The adventure begins';
       io.to(gameId).emit('scene_generating');
@@ -3838,19 +3870,16 @@ const discordGameEngine = {
       .join('\n')
       .slice(0, 8000);
 
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 600,
+    const response = await llm.completeText({
+      task: 'catch-up',
+      gameId,
+      maxTokens: 600,
+      temperature: 0.4,
       system: `Summarize what happened in this RPG session in 400 words or less. Focus on key events, combat outcomes, discoveries, and story developments. Write from a third-person perspective. Be vivid but concise.`,
-      messages: [{ role: 'user', content: `Summarize what ${playerName} missed:\n\n${transcript}` }],
+      prompt: `Summarize what ${playerName} missed:\n\n${transcript}`,
     });
 
-    const inputTokens = response.usage?.input_tokens || 0;
-    const outputTokens = response.usage?.output_tokens || 0;
-    logCost({ gameId, model: 'claude-haiku-4-5-20251001', inputTokens, outputTokens,
-      cost: estimateCost('claude-haiku-4-5-20251001', inputTokens, outputTokens), type: 'catch-up' });
-
-    return { summary: response.content[0].text };
+    return { summary: response.text };
   },
 
   async skipTurn(gameId) {
@@ -3925,18 +3954,16 @@ const discordGameEngine = {
     const gameConfig = await db.getGame(gameId);
     const oocPrompt = `[OOC from ${playerName}]: ${message}\n\nThis is an out-of-character instruction about rules, setting, or gameplay. Acknowledge briefly and adjust accordingly. Do NOT advance the turn or narrate an action. Do NOT include ---OPTIONS--- or ---SCENE--- blocks. Just respond to the instruction.`;
 
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 256,
-      system: [{ type: "text", text: buildTrimmedPrompt(gameId, gameConfig), cache_control: { type: "ephemeral" } }],
+    const response = await llm.completeText({
+      task: 'ooc',
+      gameId,
+      maxTokens: 256,
+      temperature: 0.5,
+      system: buildTrimmedPrompt(gameId, gameConfig),
       messages: [...gs.data.chatHistory, { role: 'user', content: oocPrompt }],
     });
 
-    const reply = response.content[0].text;
-    const inputTokens = response.usage?.input_tokens || 0;
-    const outputTokens = response.usage?.output_tokens || 0;
-    logCost({ gameId, model: 'claude-haiku-4-5-20251001', inputTokens, outputTokens,
-      cost: estimateCost('claude-haiku-4-5-20251001', inputTokens, outputTokens), type: 'ooc' });
+    const reply = response.text;
 
     gs.data.chatHistory.push(
       { role: 'user', content: `[OOC: ${message}]` },
@@ -4069,14 +4096,16 @@ IMPORTANT:
 
 Now generate the characters. Remember: check the PLAYER DIRECTION first to see how many characters to create.`;
 
-    const response = await anthropic.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 4000,
+    const response = await llm.completeText({
+      task: 'party-gen',
+      gameId,
+      maxTokens: 4000,
+      temperature: 0.8,
       system: 'You are a character creation assistant for tabletop RPGs. Generate detailed, playable characters.',
-      messages: [{ role: 'user', content: prompt }],
+      prompt,
     });
 
-    const text = response.content[0].text;
+    const text = response.text;
 
     // Parse the characters
     const charBlocks = text.split('---CHARACTER---').filter(b => b.trim());
@@ -4145,11 +4174,10 @@ Now generate the characters. Remember: check the PLAYER DIRECTION first to see h
 
     await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
 
-    // Log cost
-    const inputTokens = response.usage?.input_tokens || 0;
-    const outputTokens = response.usage?.output_tokens || 0;
-    logCost({ gameId, model: 'claude-haiku-4-5-20251001', inputTokens, outputTokens,
-      cost: estimateCost('claude-haiku-4-5-20251001', inputTokens, outputTokens), type: 'party-gen' });
+    const inputTokens = response.usage?.inputTokens || 0;
+    const outputTokens = response.usage?.outputTokens || 0;
+    logCost({ gameId, model: response.model, inputTokens, outputTokens,
+      cost: response.cost || llmModels.estimateCost(response.model, inputTokens, outputTokens), type: 'party-gen' });
 
     return { count };
   },
@@ -4163,6 +4191,7 @@ const PORT = process.env.PORT || 3020;
 async function boot() {
   await db.initDB();
   console.log('DB initialized');
+  llmTelemetry.scheduleCleanup();
 
   // Cost estimate on startup
   const gamesList = await db.listGames();
@@ -4171,18 +4200,14 @@ async function boot() {
   console.log('  💰 COST ESTIMATE');
   console.log('══════════════════════════════════════════');
   console.log(`  Active games: ${activeGames}`);
-  console.log(`  Default model: Haiku ($0.80/$4.00 per 1M tokens)`);
+  console.log(`  Default narration variants: ${process.env.LLM_NARRATION_VARIANTS || llmModels.DEFAULT_NARRATION_VARIANTS}`);
   console.log(`  Turn timer: ${DEFAULT_TURN_DURATION}s | Idle pause: after 2 auto-turns`);
   console.log(`  Rate limit: ${MAX_CALLS_PER_HOUR} calls/game/hour`);
   console.log('  ─────────────────────────────────────');
-  console.log('  Per API call (Haiku, ~2k in/500 out): ~$0.004');
-  console.log('  Per API call (Sonnet, ~2k/500):       ~$0.014');
-  console.log('  Per API call (Opus, ~2k/500):         ~$0.068');
+  console.log('  Per narration call: tracked in llm_runs with model-specific pricing');
   console.log('  Per image (FLUX):                     ~$0.003');
   console.log('  ─────────────────────────────────────');
-  console.log('  Max hourly (Haiku, 60 calls+30 imgs): ~$0.33');
-  console.log('  Max hourly (Sonnet, 60 calls+30 imgs):~$0.93');
-  console.log('  Max hourly (Opus, 60 calls+30 imgs):  ~$4.17');
+  console.log('  Max hourly: depends on experiment mix; monitor /api/costs and /api/admin/llm-summary');
   console.log('  ─────────────────────────────────────');
   console.log('  Safety: no timer without clients, 2-turn idle pause,');
   console.log('  60 calls/hr rate limit, timer killed on disconnect');
@@ -4221,7 +4246,3 @@ boot().catch((err) => {
   console.error('Failed to start:', err);
   process.exit(1);
 });
-
-// ── Singleton Export ──────────────────────────────────────────────────────
-// Export anthropic client singleton for use in other modules (narration-pipeline, template-engine)
-module.exports.anthropic = anthropic;

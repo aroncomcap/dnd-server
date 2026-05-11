@@ -303,6 +303,45 @@
     margin-bottom: 2px;
     letter-spacing: 0.08em;
   }
+  .narration-feedback {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    margin-top: 6px;
+    opacity: 0.42;
+    transition: opacity 0.15s ease;
+  }
+  .msg-dm:hover .narration-feedback,
+  .narration-feedback:focus-within,
+  .narration-feedback.submitted {
+    opacity: 0.9;
+  }
+  .feedback-label {
+    font-size: 0.68rem;
+    color: var(--parchment-dark);
+  }
+  .feedback-score,
+  .feedback-tag {
+    border: 1px solid rgba(201, 166, 107, 0.3);
+    background: transparent;
+    color: var(--parchment-dark);
+    border-radius: 999px;
+    font-size: 0.68rem;
+    line-height: 1;
+    padding: 3px 6px;
+    cursor: pointer;
+  }
+  .feedback-score:hover,
+  .feedback-tag:hover,
+  .feedback-tag.selected {
+    color: var(--gold);
+    border-color: rgba(201, 166, 107, 0.75);
+  }
+  .feedback-thanks {
+    font-size: 0.68rem;
+    color: var(--gold);
+  }
 
   .msg-player {
     background: var(--parchment-dark);
@@ -1204,7 +1243,7 @@
 
   <div id="spectator-banner" style="display:none; background:linear-gradient(135deg,#8b2020,#aa3030); color:#fff; padding:10px 16px; border-radius:8px; text-align:center; margin-bottom:8px;">
     <div style="font-family:'Cinzel Decorative',cursive;font-size:0.75rem;">&#9203; Time Expired</div>
-    <div style="font-size:0.85rem;margin:4px 0;">Claude is playing for you. <span id="spectator-countdown"></span></div>
+    <div style="font-size:0.85rem;margin:4px 0;">The GM is playing for you. <span id="spectator-countdown"></span></div>
     <a href="/purchase" style="display:inline-block;background:var(--gold);color:#0d0600;padding:6px 16px;border-radius:6px;font-family:'Cinzel Decorative',cursive;font-size:0.75rem;text-decoration:none;margin-top:4px;">Add Time</a>
     <div id="spectator-tip" style="margin-top:16px;font-size:0.85rem;line-height:1.5;opacity:0.6;max-width:400px;text-align:center;margin-left:auto;margin-right:auto;"></div>
   </div>
@@ -1266,10 +1305,10 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
 
     <label>📝 Add to Backstory</label>
     <div style="display:flex;gap:6px;">
-      <input id="backstory-addition" type="text" placeholder="Add new backstory detail for Claude to weave in..." style="flex:1;font-size:0.85rem;padding:6px 8px;"/>
+      <input id="backstory-addition" type="text" placeholder="Add new backstory detail for the GM to weave in..." style="flex:1;font-size:0.85rem;padding:6px 8px;"/>
       <button class="token-btn" id="btn-add-backstory">+ Add</button>
     </div>
-    <p class="host-note">Claude will process this and evolve the backstory. Edit the backstory field above to adjust manually.</p>
+    <p class="host-note">The GM will process this and evolve the backstory. Edit the backstory field above to adjust manually.</p>
 
     <label>✨ Spells, Powers & Resources</label>
     <div id="c-spells" style="min-height:40px; background:rgba(255,255,255,0.3); border-radius:8px; padding:10px; font-size:0.85rem; color:var(--ink-light);">
@@ -2946,10 +2985,86 @@ socket.on('error_msg', (data) => {
 // Track whether the current DM response was streamed
 let lastMessageWasStreamed = false;
 
-function finalizeStreamBubble(narration) {
+const feedbackTags = [
+  ['great_moment', 'Great'],
+  ['funny', 'Funny'],
+  ['vivid', 'Vivid'],
+  ['useful_options', 'Useful'],
+  ['confusing', 'Confusing'],
+  ['boring', 'Boring'],
+  ['too_long', 'Long'],
+  ['rules_wrong', 'Rules'],
+  ['forgot_context', 'Context'],
+];
+
+function attachNarrationFeedback(wrap, llmRunId) {
+  if (!wrap || !llmRunId || wrap.querySelector('.narration-feedback')) return;
+
+  const bar = document.createElement('div');
+  bar.className = 'narration-feedback';
+  bar.dataset.llmRunId = llmRunId;
+
+  const label = document.createElement('span');
+  label.className = 'feedback-label';
+  label.textContent = 'Tune GM';
+  bar.appendChild(label);
+
+  const selectedTags = new Set();
+  let selectedRating = null;
+
+  function submitFeedback() {
+    if (!selectedRating) return;
+    socket.emit('narration_feedback', {
+      llmRunId,
+      rating: selectedRating,
+      tags: Array.from(selectedTags),
+    }, (res) => {
+      if (res?.ok) {
+        bar.classList.add('submitted');
+        bar.innerHTML = '<span class="feedback-thanks">Thanks</span>';
+      }
+    });
+  }
+
+  [1, 2, 3, 4, 5].forEach(score => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'feedback-score';
+    btn.title = `${score}/5`;
+    btn.textContent = '★'.repeat(score);
+    btn.addEventListener('click', () => {
+      selectedRating = score;
+      submitFeedback();
+    });
+    bar.appendChild(btn);
+  });
+
+  feedbackTags.forEach(([tag, text]) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'feedback-tag';
+    btn.textContent = text;
+    btn.addEventListener('click', () => {
+      if (selectedTags.has(tag)) {
+        selectedTags.delete(tag);
+        btn.classList.remove('selected');
+      } else {
+        selectedTags.add(tag);
+        btn.classList.add('selected');
+      }
+      if (selectedRating) submitFeedback();
+    });
+    bar.appendChild(btn);
+  });
+
+  wrap.appendChild(bar);
+}
+
+function finalizeStreamBubble(narration, llmRunId = null) {
   const body = document.getElementById('dm-stream-body');
   const wrap = document.getElementById('dm-stream-bubble');
   if (!body) {
+    if (llmRunId) attachNarrationFeedback(chatLog.querySelector('.msg-dm:last-of-type'), llmRunId);
     if (wrap) wrap.removeAttribute('id');
     return false;
   }
@@ -2957,6 +3072,7 @@ function finalizeStreamBubble(narration) {
   const finalText = stripStructuredBlocksFromNarration(narration || body.textContent || '');
   body.innerHTML = renderDmText(finalText);
   body.removeAttribute('id');
+  attachNarrationFeedback(wrap, llmRunId);
   if (wrap) wrap.removeAttribute('id');
   chatLog.scrollTop = chatLog.scrollHeight;
   return true;
@@ -3005,7 +3121,7 @@ socket.on('dm_stream_end', (data) => {
   const narration = data.narration || document.getElementById('dm-stream-body')?.textContent || '';
   if (/\bHIT\b/.test(narration)) sfx.hit();
   else if (/\bMISS\b/.test(narration)) sfx.miss();
-  finalizeStreamBubble(narration);
+  finalizeStreamBubble(narration, data.llmRunId);
 });
 
 socket.on('dm_message', (data) => {
@@ -3015,7 +3131,7 @@ socket.on('dm_message', (data) => {
 
   if (lastMessageWasStreamed) {
     // Narration was already rendered by stream handlers — just handle options/world
-    finalizeStreamBubble(data.text);
+    finalizeStreamBubble(data.text, data.llmRunId);
     lastMessageWasStreamed = false;
   } else {
     // Reconnect / catch-up case — render the full message normally
@@ -3037,6 +3153,7 @@ socket.on('dm_message', (data) => {
     const body = document.createElement('div');
     body.innerHTML = renderDmText(data.text);
     wrap.appendChild(body);
+    attachNarrationFeedback(wrap, data.llmRunId);
     chatLog.appendChild(wrap);
     chatLog.scrollTop = chatLog.scrollHeight;
   }
@@ -3050,7 +3167,7 @@ socket.on('dm_message', (data) => {
     }
   }
   if (!data.options || !data.options.length) {
-    console.warn('NO OPTIONS in Claude response');
+    console.warn('NO OPTIONS in model response');
     // Show fallback notice if it's my turn and no options were provided
     if (isMyTurnCheck()) {
       const notice = document.createElement('div');
@@ -3461,13 +3578,13 @@ document.getElementById('btn-save-char').addEventListener('click', () => {
   document.getElementById('char-status').textContent = '💾 Saving...';
 });
 
-// ── Character updated (from Claude or another client) ─────────
+// ── Character updated (from the GM or another client) ─────────
 socket.on('character_updated', (data) => {
   if (data.character) {
     currentCharacters[data.name] = data.character;
     updatePartyCard(data.name, data.character);
   } else if (data.field && data.value) {
-    // Single field update from Claude
+    // Single field update from the GM
     if (currentCharacters[data.name]) {
       currentCharacters[data.name][data.field] = data.value;
     }
@@ -3939,7 +4056,7 @@ function prefillCharacterForm(name, char) {
   if (char.token) showTokenPreview(char.token);
   // Catchphrases
   renderCatchphrases(char.catchphrases || []);
-  // Update spells/powers from stats text (Claude embeds them)
+  // Update spells/powers from stats text (the GM embeds them)
   const spellsDiv = document.getElementById('c-spells');
   const statsText = char.statsText || '';
   // Look for spell/power related lines

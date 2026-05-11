@@ -1,5 +1,7 @@
 'use strict';
 
+const llm = require('./llm');
+
 // ---------------------------------------------------------------------------
 // Schemas — describe the expected shape of combatStats for each system
 // ---------------------------------------------------------------------------
@@ -152,7 +154,7 @@ function applyDefaults(parsed, defaults) {
  *
  * @param {string} statsText   Raw character stat block text.
  * @param {'dnd5e'|'runequest'} system  Game system.
- * @param {{ mock?: boolean, anthropic?: object }} [options]
+ * @param {{ mock?: boolean, gameId?: string }} [options]
  * @returns {Promise<object>}  Structured combatStats.
  */
 async function parseStatsText(statsText, system, options = {}) {
@@ -168,17 +170,16 @@ async function parseStatsText(statsText, system, options = {}) {
   if (options.mock) {
     parsed = system === 'runequest' ? mockRunequest() : mockDnd5e();
   } else {
-    if (!options.anthropic) {
-      throw new Error('options.anthropic (Anthropic client) is required in real mode');
-    }
     const prompt = buildPrompt(statsText, system);
-    const message = await options.anthropic.messages.create({
-      model: 'claude-haiku-4-5',
-      max_tokens: 1024,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await llm.completeText({
+      task: 'stat-parse',
+      prompt,
+      maxTokens: 1024,
+      temperature: 0,
+      gameId: options.gameId,
     });
 
-    let raw = message.content[0].text.trim();
+    let raw = response.text.trim();
 
     // Strip markdown code fences if present
     raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();

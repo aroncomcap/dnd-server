@@ -2,13 +2,12 @@
 
 const templateEngine = require('./template-engine');
 const { formatPlanForPrompt } = require('./encounter-designer');
+const llm = require('./llm');
+const { worldExtractionSchema, validationSchema } = require('./llm/schemas/world-extraction');
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const SONNET_MODEL = 'claude-sonnet-4-6';
-const HAIKU_MODEL = 'claude-haiku-4-5-20251001';
 
 const VERBOSITY_RULES = {
   verbose: 'Write ~100 words of narration. Vivid detail and atmosphere.',
@@ -62,7 +61,7 @@ function formatResolvedCombatState(lastCombatConclusion) {
 // ---------------------------------------------------------------------------
 
 /**
- * Build ~800 token Sonnet system prompt.
+ * Build ~800 token model system prompt.
  * Includes: persona, characters (no stat blocks), story summary,
  * campaign material, house rules, NPC memory, encounter guidance,
  * ferocity, pillars, verbosity rules.
@@ -231,7 +230,7 @@ function buildUserMessage(gs, characterName, actionText) {
 // ---------------------------------------------------------------------------
 
 /**
- * Haiku extraction prompt for world state changes.
+ * structured model extraction prompt for world state changes.
  */
 function buildExtractionPrompt(narration, actionText, worldState) {
   return `You are a world state extractor for a tabletop RPG game. Given the DM narration and player action, extract any changes to the world state.
@@ -270,7 +269,7 @@ Rules:
 // ---------------------------------------------------------------------------
 
 /**
- * Haiku validation prompt checking narration against game state.
+ * structured model validation prompt checking narration against game state.
  */
 function buildValidationPrompt(narration, options, gameState) {
   return `You are a rules compliance validator for a tabletop RPG game. Check the DM narration for violations.
@@ -302,7 +301,7 @@ Return ONLY the JSON object. If no violations, return { "violations": [] }`;
 }
 
 // ---------------------------------------------------------------------------
-// parseSonnetResponse
+// parseNarrationResponse
 // ---------------------------------------------------------------------------
 
 function getStructuredMarkerPositions(text) {
@@ -340,14 +339,14 @@ function extractOptions(text) {
 }
 
 /**
- * Extract narration + options from Sonnet's response.
+ * Extract narration + options from model's response.
  * Lines matching ^[1-3]️⃣ are options (emoji format).
  * Lines matching ^[1-3][.)] are options (numbered format).
  * Structured ---OPTIONS---/---SCENE---/---WORLD--- blocks are stripped from narration.
  * If fewer than 2 option-like lines found outside structured blocks, treat entire text as narration with empty options.
  * Returns { narration, options } where options is array of up to 3 strings.
  */
-function parseSonnetResponse(text) {
+function parseNarrationResponse(text) {
   if (!text || text.trim() === '') {
     return { narration: '', options: [] };
   }
@@ -407,7 +406,7 @@ function processViolation(gs, violation) {
   if (!gs.minorViolationCounts) gs.minorViolationCounts = {};
 
   const { severity } = violation;
-  // Support both { key, message } (Haiku validation format) and { type, description, correction } (pipeline format)
+  // Support both { key, message } (structured model validation format) and { type, description, correction } (pipeline format)
   const key = violation.key || violation.type;
   // Store the full violation object when using the type/description format, else store message string
   const payload = violation.description !== undefined ? violation : violation.message;
@@ -430,13 +429,13 @@ function processViolation(gs, violation) {
 }
 
 // ---------------------------------------------------------------------------
-// shouldCallSonnetForFlavor
+// shouldCallModelForFlavor
 // ---------------------------------------------------------------------------
 
 /**
  * Returns true on round 1, every 3rd round, or when combat is over.
  */
-function shouldCallSonnetForFlavor(combatState) {
+function shouldCallModelForFlavor(combatState) {
   if (!combatState) return true;
   if (!combatState.active || combatState.over) return true;
   const round = combatState.round || 1;
@@ -446,16 +445,14 @@ function shouldCallSonnetForFlavor(combatState) {
 }
 
 // ---------------------------------------------------------------------------
-// API call: Sonnet narration (streamed)
+// API call: model narration (streamed)
 // ---------------------------------------------------------------------------
 
 /**
- * Streamed Sonnet API call for narration.
+ * Streamed model API call for narration.
  * Emits: dm_stream_start, dm_stream_chunk, dm_stream_end via io.
  */
-async function callSonnetNarration(gameId, gameConfig, gs, characterName, actionText, io, storyFlags) {
-  // Lazy require to avoid circular dependency: server requires narration-pipeline
-  const { anthropic } = require('./server');
+async function callModelNarration(gameId, gameConfig, gs, characterName, actionText, io, storyFlags) {
   const { buildFullPrompt, buildMinimalPrompt } = require('./prompt-builder');
 
   // Select prompt based on story flags and pending challenges
@@ -469,11 +466,12 @@ async function callSonnetNarration(gameId, gameConfig, gs, characterName, action
   let fullText = '';
   let streamEnded = false;
 
-  const closeStream = (narration) => {
+  const closeStream = (narration, llmRunId = null) => {
     if (!io || streamEnded) return;
     io.to(gameId).emit('dm_stream_end', {
       gameId,
       narration: narration || 'The world holds its breath...',
+      llmRunId,
     });
     streamEnded = true;
   };
@@ -487,112 +485,80 @@ async function callSonnetNarration(gameId, gameConfig, gs, characterName, action
   const maxTokens = verbosityMaxTokens[gs.verbosity] || verbosityMaxTokens.brief;
 
   try {
-    const stream = anthropic.messages.stream({
-      model: SONNET_MODEL,
-      max_tokens: maxTokens,
-      system: [
-        {
-          type: 'text',
-          text: systemPrompt,
-          cache_control: { type: 'ephemeral' },
-        },
-      ],
-      messages: [
-        { role: 'user', content: userMessage },
-      ],
-    });
-
-    for await (const event of stream) {
-      if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
-        const chunk = event.delta.text;
+    const response = await llm.streamText({
+      task: 'narration',
+      gameId,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+      maxTokens,
+      onToken: (chunk) => {
         fullText += chunk;
         if (io) {
           io.to(gameId).emit('dm_stream_chunk', { gameId, text: chunk, chunk });
         }
-      }
-    }
+      },
+    });
 
-    const parsed = parseSonnetResponse(fullText);
-    closeStream(parsed.narration || fullText.trim());
+    const parsed = parseNarrationResponse(fullText);
+    parsed.llmRunId = response.llmRunId;
+    closeStream(parsed.narration || fullText.trim(), response.llmRunId);
     return parsed;
   } catch (err) {
-    closeStream(fullText.trim());
+    closeStream(fullText.trim(), err.llmRunId || null);
     throw err;
   }
 }
 
 // ---------------------------------------------------------------------------
-// API call: Haiku extraction (non-streaming)
+// API call: structured model extraction (non-streaming)
 // ---------------------------------------------------------------------------
 
 /**
- * Haiku extraction API call. Returns parsed world state changes.
+ * structured model extraction API call. Returns parsed world state changes.
  */
-async function callHaikuExtraction(gameId, narration, actionText, worldState) {
-  // Lazy require to avoid circular dependency: server requires narration-pipeline
-  const { anthropic } = require('./server');
-
+async function callWorldExtraction(gameId, narration, actionText, worldState) {
   const prompt = buildExtractionPrompt(narration, actionText, worldState);
 
-  let response;
   try {
-    response = await anthropic.messages.create({
-      model: HAIKU_MODEL,
-      max_tokens: 512,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await llm.completeJson({
+      task: 'world-extraction',
+      gameId,
+      prompt,
+      schema: worldExtractionSchema,
+      maxTokens: 700,
+      temperature: 0,
     });
+    return response.object;
   } catch (err) {
-    console.error(`[narration-pipeline] Haiku extraction failed for game ${gameId}:`, err.message);
-    return null;
-  }
-
-  const text = response.content[0]?.text || '';
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return null;
-
-  try {
-    return JSON.parse(jsonMatch[0]);
-  } catch (err) {
-    console.error(`[narration-pipeline] Haiku extraction JSON parse failed:`, err.message);
+    console.error(`[narration-pipeline] world extraction failed for game ${gameId}:`, err.message);
     return null;
   }
 }
 
 // ---------------------------------------------------------------------------
-// API call: Haiku validation (non-streaming)
+// API call: structured model validation (non-streaming)
 // ---------------------------------------------------------------------------
 
 /**
- * Haiku validation API call. Returns { violations: [] } on failure.
+ * structured model validation API call. Returns { violations: [] } on failure.
  */
-async function callHaikuValidation(gameId, narration, options, gameState) {
-  // Lazy require to avoid circular dependency: server requires narration-pipeline
-  const { anthropic } = require('./server');
-
+async function callNarrationValidation(gameId, narration, options, gameState) {
   const prompt = buildValidationPrompt(narration, options, gameState);
 
   const defaultResult = { violations: [] };
 
-  let response;
   try {
-    response = await anthropic.messages.create({
-      model: HAIKU_MODEL,
-      max_tokens: 256,
-      messages: [{ role: 'user', content: prompt }],
+    const response = await llm.completeJson({
+      task: 'validation',
+      gameId,
+      prompt,
+      schema: validationSchema,
+      maxTokens: 300,
+      temperature: 0,
     });
+    return response.object?.violations ? response.object : defaultResult;
   } catch (err) {
-    console.error(`[narration-pipeline] Haiku validation failed for game ${gameId}:`, err.message);
-    return defaultResult;
-  }
-
-  const text = response.content[0]?.text || '';
-  const jsonMatch = text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return defaultResult;
-
-  try {
-    const parsed = JSON.parse(jsonMatch[0]);
-    return parsed.violations ? parsed : defaultResult;
-  } catch (err) {
+    console.error(`[narration-pipeline] validation failed for game ${gameId}:`, err.message);
     return defaultResult;
   }
 }
@@ -692,7 +658,7 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
       options = ['Attack', 'Dodge', 'Use ability'];
     }
 
-    // Skip Sonnet flavor calls during combat - template narration is sufficient
+    // Skip model flavor calls during combat - template narration is sufficient
     // Avoid concurrent Socket.IO emissions that could cause text interleaving
 
     // Check if combat is over
@@ -752,30 +718,32 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
   // NON-COMBAT PATH
   // -------------------------------------------------------------------------
 
-  // Call 1: Sonnet narration (streamed)
+  // Call 1: model narration (streamed)
   let narration = '';
   let options = [];
+  let llmRunId = null;
   try {
-    const sonnetResult = await callSonnetNarration(gameId, gameConfig, gs, characterName, actionText, io, gs._turnFlags);
-    narration = sonnetResult.narration;
-    options = sonnetResult.options;
+    const narrationResult = await callModelNarration(gameId, gameConfig, gs, characterName, actionText, io, gs._turnFlags);
+    narration = narrationResult.narration;
+    options = narrationResult.options;
+    llmRunId = narrationResult.llmRunId || null;
   } catch (err) {
-    console.error(`[narration-pipeline] callSonnetNarration failed:`, err.message);
+    console.error(`[narration-pipeline] callModelNarration failed:`, err.message);
     narration = 'The world holds its breath...';
     options = FALLBACK_OPTIONS;
   }
 
-  // Calls 2 & 3: Haiku extraction + validation in parallel
+  // Calls 2 & 3: structured model extraction + validation in parallel
   const worldState = gs.world || {};
   const gameStateForValidation = { system: gameConfig.system, ferocity: gs.ferocity };
 
   const [extractionResult, validationResult] = await Promise.all([
-    callHaikuExtraction(gameId, narration, actionText, worldState).then(r => r || {}).catch(err => {
-      console.error(`[narration-pipeline] callHaikuExtraction failed:`, err.message);
+    callWorldExtraction(gameId, narration, actionText, worldState).then(r => r || {}).catch(err => {
+      console.error(`[narration-pipeline] callWorldExtraction failed:`, err.message);
       return {};
     }),
-    callHaikuValidation(gameId, narration, options, gameStateForValidation).catch(err => {
-      console.error(`[narration-pipeline] callHaikuValidation failed:`, err.message);
+    callNarrationValidation(gameId, narration, options, gameStateForValidation).catch(err => {
+      console.error(`[narration-pipeline] callNarrationValidation failed:`, err.message);
       return { violations: [] };
     }),
   ]);
@@ -802,6 +770,7 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
     scene: extractionResult.scene || null,
     world: extractionResult,
     isKillshot: extractionResult.scene?.action?.toLowerCase().includes('killshot') || false,
+    llmRunId,
   };
 }
 
@@ -815,14 +784,11 @@ module.exports = {
   formatResolvedCombatState,
   buildExtractionPrompt,
   buildValidationPrompt,
-  parseSonnetResponse,
+  parseNarrationResponse,
   processViolation,
-  shouldCallSonnetForFlavor,
-  callSonnetNarration,
-  callHaikuExtraction,
-  callHaikuValidation,
+  shouldCallModelForFlavor,
+  callModelNarration,
+  callWorldExtraction,
+  callNarrationValidation,
   handlePlayerAction,
-  // Constants exposed for callers
-  SONNET_MODEL,
-  HAIKU_MODEL,
 };

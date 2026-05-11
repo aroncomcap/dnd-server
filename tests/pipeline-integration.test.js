@@ -4,15 +4,15 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert');
 
 const {
-  parseSonnetResponse,
+  parseNarrationResponse,
   buildNarrationPrompt,
   processViolation,
 } = require('../narration-pipeline');
 
 describe('Pipeline Integration', () => {
-  it('parseSonnetResponse handles streamed chunks assembled into full text', () => {
+  it('parseNarrationResponse handles streamed chunks assembled into full text', () => {
     const fullText = 'The door creaks open.\n\n1️⃣ 🗡️ Enter carefully\n2️⃣ 🛡️ Listen first\n3️⃣ 🔥 Kick it wide open';
-    const result = parseSonnetResponse(fullText);
+    const result = parseNarrationResponse(fullText);
     assert.ok(result.narration.includes('door creaks'));
     assert.strictEqual(result.options.length, 3);
     assert.ok(result.options[0].includes('Enter'));
@@ -49,30 +49,30 @@ describe('Pipeline Integration', () => {
     assert.strictEqual(gs.pendingCorrections[0].description, 'too long');
   });
 
-  it('parseSonnetResponse handles response with no options gracefully', () => {
+  it('parseNarrationResponse handles response with no options gracefully', () => {
     const text = 'The room is empty. Dust motes float in the light.';
-    const result = parseSonnetResponse(text);
+    const result = parseNarrationResponse(text);
     assert.ok(result.narration.includes('room is empty'));
     assert.strictEqual(result.options.length, 0);
   });
 
-  it('parseSonnetResponse handles multiline narration with options', () => {
+  it('parseNarrationResponse handles multiline narration with options', () => {
     const text = 'Line one of narration.\nLine two of narration.\n\n1️⃣ 🗡️ Option A\n2️⃣ 🛡️ Option B\n3️⃣ 🔥 Option C';
-    const result = parseSonnetResponse(text);
+    const result = parseNarrationResponse(text);
     assert.ok(result.narration.includes('Line one'));
     assert.ok(result.narration.includes('Line two'));
     assert.strictEqual(result.options.length, 3);
   });
 
-  it('parseSonnetResponse strips inline structured marker blocks from narration', () => {
+  it('parseNarrationResponse strips inline structured marker blocks from narration', () => {
     const text = 'The road narrows beneath the ash trees. ---OPTIONS------SCENE---\nACTION: Road travel\nMOOD: uneasy\n---WORLD---\nLOCATIONS:\n- Ash Road | Shadowed lane | current';
-    const result = parseSonnetResponse(text);
+    const result = parseNarrationResponse(text);
     assert.strictEqual(result.narration, 'The road narrows beneath the ash trees.');
     assert.ok(!result.narration.includes('---OPTIONS---'));
     assert.ok(!result.narration.includes('---SCENE---'));
   });
 
-  it('parseSonnetResponse extracts structured options without leaking markers', () => {
+  it('parseNarrationResponse extracts structured options without leaking markers', () => {
     const text = `The bridge sways in the rain.
 
 ---OPTIONS---
@@ -82,7 +82,7 @@ describe('Pipeline Integration', () => {
 
 ---SCENE---
 ACTION: Crossing the ravine`;
-    const result = parseSonnetResponse(text);
+    const result = parseNarrationResponse(text);
     assert.strictEqual(result.narration, 'The bridge sways in the rain.');
     assert.deepStrictEqual(result.options, [
       'Cross one at a time',

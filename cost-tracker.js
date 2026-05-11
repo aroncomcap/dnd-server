@@ -1,17 +1,10 @@
 // ── Cost Tracking & Rate Limiting ─────────────────────────────────────────────
 
-const MODEL_COSTS = { // per 1M tokens (input/output)
-  'claude-haiku-4-5-20251001': { input: 0.80, output: 4.00 },
-  'claude-sonnet-4-6': { input: 3.00, output: 15.00 },
-  'claude-opus-4-6': { input: 15.00, output: 75.00 },
-};
+const { MODEL_PRICES, estimateCost } = require('./llm/model-registry');
+
+const MODEL_COSTS = MODEL_PRICES; // per 1M tokens (input/output)
 const IMAGE_COST = 0.003; // per Together AI FLUX image
 const costLog = []; // { timestamp, gameId, model, inputTokens, outputTokens, cost, type }
-
-function estimateCost(model, inputTokens, outputTokens) {
-  const rates = MODEL_COSTS[model] || MODEL_COSTS['claude-haiku-4-5-20251001'];
-  return (inputTokens / 1_000_000 * rates.input) + (outputTokens / 1_000_000 * rates.output);
-}
 
 function logCost(entry) {
   costLog.push({ ...entry, timestamp: Date.now() });

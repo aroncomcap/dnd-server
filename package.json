@@ -1,7 +1,7 @@
 {
   "name": "dnd-ai-server",
   "version": "1.0.0",
-  "description": "Multiplayer D&D 5e game server with Claude as Dungeon Master",
+  "description": "Multiplayer D&D 5e game server with an AI Game Master",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -13,8 +13,10 @@
     "test:e2e:debug": "playwright test --debug"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.39.0",
+    "@ai-sdk/openai": "^3.0.63",
+    "@ai-sdk/openai-compatible": "^2.0.47",
     "@nicokaiser/passport-apple": "^3.3.0",
+    "ai": "^6.0.177",
     "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
