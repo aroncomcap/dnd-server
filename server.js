@@ -3005,11 +3005,32 @@ io.on('connection', (socket) => {
 
   // Player sends an action
   socket.on('player_action', async (data) => {
-    const gameId = socket.gameId;
-    if (!gameId) return;
+    let gameId = socket.gameId;
+    if (!gameId && typeof data?.gameId === 'string') {
+      const requestedGameId = truncate(data.gameId, 100);
+      const game = await db.getGame(requestedGameId);
+      if (!game) {
+        socket.emit('error_msg', { text: 'Game not found.' });
+        return;
+      }
+      socket.join(requestedGameId);
+      socket.gameId = requestedGameId;
+      gameId = requestedGameId;
+      if (socket.handshake.auth?.userId) {
+        socket.userId = socket.handshake.auth.userId;
+      }
+    }
+    if (!gameId) {
+      socket.emit('system', { text: 'Reconnecting to the game. Try again in a moment.' });
+      return;
+    }
 
-    const playerName = data.playerName;
-    const action = truncate(data.action, 2000);
+    const playerName = truncate(data?.playerName, 50);
+    const action = truncate(data?.action, 2000);
+    if (!playerName || !action) {
+      socket.emit('system', { text: 'Choose a character and action before sending.' });
+      return;
+    }
 
     // Block anonymous users past 120-minute limit
     if (socket.anonId && !socket.userId) {

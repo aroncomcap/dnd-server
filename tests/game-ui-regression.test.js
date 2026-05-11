@@ -4,6 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const gameHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'game.html'), 'utf8');
+const serverJs = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 const gameActionTs = fs.readFileSync(path.join(__dirname, 'e2e', 'game-action.ts'), 'utf8');
 
 test('game inline script parses', () => {
@@ -43,4 +44,14 @@ test('action submit is latched until a server response or long fallback', () => 
   assert.match(gameHtml, /socket\.on\('action_complete'[\s\S]*?resetSendButton\(\);/, 'action completion acknowledgements should clear pending action state');
   assert.match(gameHtml, /function sendAction\(\) \{\s*if \(actionInFlight\) return;/, 'duplicate sends should be ignored while pending');
   assert.doesNotMatch(gameHtml, /setTimeout\(\(\) => \{ sendBtn\.textContent = 'Send Action'; sendBtn\.disabled = false; \}, 15000\);/, 'short fixed resend timer should not return');
+});
+
+test('player actions survive socket reconnects', () => {
+  assert.match(gameHtml, /let gameJoinReady = false;/, 'client should track whether this socket has joined the game room');
+  assert.match(gameHtml, /function requestGameJoin\(\)[\s\S]*?socket\.emit\('join_game', gameId\);/, 'client should have a reusable join request');
+  assert.match(gameHtml, /socket\.on\('connect'[\s\S]*?requestGameJoin\(\);[\s\S]*?updateActionArea\(\);/, 'client should rejoin the room after reconnect');
+  assert.match(gameHtml, /socket\.on\('disconnect'[\s\S]*?gameJoinReady = false;[\s\S]*?updateActionArea\(\);/, 'client should mark actions unavailable after disconnect');
+  assert.match(gameHtml, /if \(!socket\.connected \|\| !gameJoinReady\)[\s\S]*?return;/, 'sendAction should not locally echo actions before the socket rejoins');
+  assert.match(gameHtml, /socket\.emit\('player_action', \{ gameId, playerName: name, action \}\);/, 'player actions should include gameId as a reconnect recovery fallback');
+  assert.match(serverJs, /if \(!gameId && typeof data\?\.gameId === 'string'\)[\s\S]*?socket\.join\(requestedGameId\);[\s\S]*?socket\.gameId = requestedGameId;/, 'server should recover buffered actions from sockets that reconnected before join_game');
 });

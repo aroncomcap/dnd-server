@@ -1904,6 +1904,7 @@ let currentCharacters = {};
 const tokenCache = {};
 let pendingOptions = [];
 let pendingForPlayer = null;
+let gameJoinReady = false;
 let actionInFlight = false;
 let actionFallbackTimer = null;
 
@@ -2256,6 +2257,14 @@ function updateActionArea() {
 
   const myName = getMyName();
 
+  if (!socket.connected || !gameJoinReady) {
+    myTurnControls.style.display = 'none';
+    waitingMsg.style.display = 'block';
+    waitingName.textContent = 'Reconnecting to the table...';
+    startWaitingTips();
+    return;
+  }
+
   if (!currentPlayer) {
     // No turn set — show controls (pre-game)
     myTurnControls.style.display = 'block';
@@ -2546,7 +2555,25 @@ function updateTurnOrder(turnOrderData) {
 }
 
 // ── Socket: Join game ─────────────────────────────────────────
-socket.emit('join_game', gameId);
+function requestGameJoin() {
+  if (!socket.connected || !gameId) return;
+  gameJoinReady = false;
+  window._gameJoinReady = false;
+  socket.emit('join_game', gameId);
+}
+
+socket.on('connect', () => {
+  requestGameJoin();
+  updateActionArea();
+});
+
+socket.on('disconnect', () => {
+  gameJoinReady = false;
+  window._gameJoinReady = false;
+  updateActionArea();
+});
+
+if (socket.connected) requestGameJoin();
 
 const RANDOM_PROMPTS = {
   dnd5e: [
@@ -2611,6 +2638,8 @@ document.getElementById('btn-shuffle-party')?.addEventListener('click', () => {
 });
 
 socket.on('game_joined', (state) => {
+  gameJoinReady = true;
+  window._gameJoinReady = true;
   gameState = state;  // Save global state reference
   gameConfig = state.game;
   // Hide session setup if adventure already started
@@ -3456,6 +3485,11 @@ document.getElementById('action-input').addEventListener('keydown', e => {
 function sendAction() {
   if (actionInFlight) return;
   sfx.dice();
+  if (!socket.connected || !gameJoinReady) {
+    requestGameJoin();
+    updateActionArea();
+    return;
+  }
   const input = document.getElementById('action-input');
   const action = input.value.trim();
   const name = playerName || document.getElementById('c-name').value.trim();
@@ -3474,7 +3508,7 @@ function sendAction() {
   // Immediately echo the action in chat so player sees it was received
   addMsg('player', action, getMyName());
   window._lastSentAction = action;
-  socket.emit('player_action', { playerName: name, action });
+  socket.emit('player_action', { gameId, playerName: name, action });
   document.getElementById('action-input').value = '';
   // Show thinking indicator with timer
   const thinkingDiv = document.createElement('div');
@@ -3880,7 +3914,7 @@ document.getElementById('playing-as-inline').addEventListener('click', () => {
   localStorage.removeItem('playerName_' + gameId);
   document.getElementById('playing-as-inline').textContent = '';
   // Emit a re-join to get fresh state
-  socket.emit('join_game', gameId);
+  requestGameJoin();
 });
 
 // ── Token Upload / Generate ───────────────────────────────────
