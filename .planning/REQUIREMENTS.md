@@ -41,6 +41,16 @@ Requirements for the Production Stabilization milestone.
 
 Deferred beyond this stabilization pass.
 
+### LLM Model Lab
+
+- [ ] **LLM-01**: Runtime LLM calls go through a local provider-agnostic abstraction instead of direct Anthropic/OpenAI SDK usage in game logic.
+- [ ] **LLM-02**: OpenAI is the primary production LLM provider and Anthropic is not required for production runtime calls.
+- [ ] **LLM-03**: Streamed narration uses the abstraction layer and preserves the existing no-stall turn lifecycle guarantees.
+- [ ] **LLM-04**: Structured extraction, validation, summaries, party generation, OOC, and side AI calls are migrated behind the abstraction with task-specific model routing.
+- [ ] **LLM-05**: Narration A/B experiments assign sticky variants per game/session and compare OpenAI models on quality, latency, reliability, and estimated cost.
+- [ ] **LLM-06**: Players see compact feedback controls after completed DM narrations without seeing model/provider identity.
+- [ ] **LLM-07**: Admin/reporting can compare experiment variants by rating, feedback tags, cost per 100 turns, latency, failure rate, fallback rate, and marker/options compliance.
+
 ### Product Expansion
 
 - **PROD-01**: Improve game discovery beyond access-list card grid.
@@ -75,12 +85,21 @@ Deferred beyond this stabilization pass.
 | E2E-01 | Phase 5 | Done |
 | E2E-02 | Phase 5 | Done |
 | E2E-03 | Phase 5 | Pending |
+| LLM-01 | Phase 6 | Design ready |
+| LLM-02 | Phase 6 | Design ready |
+| LLM-03 | Phase 6 | Design ready |
+| LLM-04 | Phase 6 | Design ready |
+| LLM-05 | Phase 6 | Design ready |
+| LLM-06 | Phase 6 | Design ready |
+| LLM-07 | Phase 6 | Design ready |
 
 **Coverage:**
 - v1.0 requirements: 15 total
 - Mapped to phases: 15
+- v1.1 LLM requirements: 7 total
+- Mapped to phases: 7
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-10*
-*Last updated: 2026-05-10 after GSD bootstrap*
+*Last updated: 2026-05-11 after Phase 6 LLM design contract*

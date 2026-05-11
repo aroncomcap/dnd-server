@@ -6,6 +6,8 @@ They Still Sing is a multiplayer tabletop RPG web app where players create or jo
 
 The current product is already live at `theystillsing.com`. The immediate milestone is production stabilization: prove the newly deployed auth, lobby, narration, and game-flow fixes work end to end, then clean up the remaining test and repo-health issues.
 
+The next planned product expansion is an OpenAI-first, provider-agnostic LLM layer with player-visible narration A/B testing so model quality can be compared against live cost, latency, and reliability.
+
 ## Core Value
 
 Players must be able to sign in, find or create a game, and receive reliable AI Game Master narration without broken turns, leaked system markers, or stalled flows.
@@ -42,6 +44,7 @@ Players must be able to sign in, find or create a game, and receive reliable AI 
 ### Out of Scope
 
 - New gameplay features — this milestone is stabilization, not expansion.
+- LLM provider replacement and narration experimentation — designed for v1.1 Phase 6 after the stabilization gate.
 - Large auth-provider replacement — keep Passport/local/OAuth patterns unless a focused phase decides otherwise.
 - Visual redesign beyond fixing broken states — UI work here should support verification and usability, not restyle the product.
 - Mobile/native app work — web production stability comes first.
@@ -91,4 +94,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state.
 
 ---
-*Last updated: 2026-05-10 after GSD bootstrap for v1.0 Production Stabilization*
+*Last updated: 2026-05-11 after Phase 6 LLM model lab design*

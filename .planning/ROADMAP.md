@@ -4,9 +4,12 @@
 
 This milestone turns the existing live app into a verified production baseline. The work starts by stabilizing the planning/repo surface, then locks down narration parsing and targeted tests, resolves the remaining Node test-health issue, and finishes with live smoke plus browser campaign validation against `theystillsing.com`.
 
+After the stabilization gate, the next product milestone is a provider-agnostic LLM layer with player-visible narration A/B testing so model quality can be compared against real cost and latency.
+
 ## Milestones
 
 - 🚧 **v1.0 Production Stabilization** - Phases 1-5 (in progress)
+- 🧭 **v1.1 LLM Model Lab** - Phase 6 (design ready)
 
 ## Phases
 
@@ -19,6 +22,7 @@ This milestone turns the existing live app into a verified production baseline. 
 - [x] **Phase 3: Node Test Health** - Resolve or quarantine the remaining integration deserialization failure.
 - [x] **Phase 4: Live Production Smoke** - Prove the deployed auth/socket/game loop completes.
 - [ ] **Phase 5: Browser Campaign Verification** - Run the long browser campaign with the patched harness and capture any real remaining failures.
+- [ ] **Phase 6: Model Abstraction And Narration A/B Testing** - Replace Anthropic runtime calls with an OpenAI-first provider abstraction and compare narration models using player-visible feedback, cost, latency, and reliability.
 
 ## Phase Details
 
@@ -90,10 +94,25 @@ Plans:
 Plans:
 - [ ] 05-01: Run post-fix campaign E2E and triage result.
 
+### Phase 6: Model Abstraction And Narration A/B Testing
+**Goal**: Replace Anthropic as the runtime LLM dependency with an OpenAI-first model abstraction layer and run sticky, player-visible narration experiments that identify the best quality-per-dollar model.
+**Depends on**: Phase 5
+**Requirements**: [LLM-01, LLM-02, LLM-03, LLM-04, LLM-05, LLM-06, LLM-07]
+**Success Criteria** (what must be TRUE):
+  1. Game logic calls a local provider-agnostic `llm` interface instead of vendor SDKs directly.
+  2. OpenAI Responses API handles streamed narration and structured extraction through normalized adapter methods.
+  3. Narration experiments assign sticky variants per game/session while hiding model identity from players.
+  4. Players can rate completed DM narrations with compact visible feedback controls.
+  5. Telemetry records provider, model, task, latency, token usage, estimated cost, status, experiment variant, and feedback.
+  6. Admin/reporting surfaces compare quality, cost per 100 turns, latency, failures, and feedback tags by variant.
+  7. Anthropic is no longer required for production runtime LLM calls.
+**AI Design Contract**: `.planning/phases/06-model-abstraction-narration-ab-testing/06-AI-SPEC.md`
+**Plans**: 0 plans
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -102,3 +121,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 3. Node Test Health | 1/1 | Complete | 2026-05-10 |
 | 4. Live Production Smoke | 1/1 | Complete | 2026-05-10 |
 | 5. Browser Campaign Verification | 0/1 | Production run found turn-stall; local fix applied, deploy/rerun pending | - |
+| 6. Model Abstraction And Narration A/B Testing | 0/0 | Design ready for planning after Phase 5 | - |

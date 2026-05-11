@@ -9,7 +9,7 @@ progress:
   phases_complete: 4
   plans_total: 5
   plans_complete: 4
-updated_at: 2026-05-10
+updated_at: 2026-05-11
 ---
 
 # State: They Still Sing / Tavern Table
@@ -19,11 +19,11 @@ updated_at: 2026-05-10
 Phase: 5 - Browser Campaign Verification
 Plan: 05-01
 Status: Browser campaign found a production turn-stall; local fix applied and deploy/rerun pending
-Last activity: 2026-05-10 - Node suite made green locally, combat-conclusion prompt guard added, campaign E2E harness hardened, authenticated production smoke passed, and a production campaign turn-stall was fixed locally.
+Last activity: 2026-05-11 - Phase 6 AI design contract created for OpenAI-first model abstraction and player-visible narration A/B testing while Phase 5 remains the active stabilization gate.
 
 ## Project Reference
 
-See: `.planning/PROJECT.md` (updated 2026-05-10)
+See: `.planning/PROJECT.md` (updated 2026-05-11)
 
 **Core value:** Players must be able to sign in, find or create a game, and receive reliable AI Game Master narration without broken turns, leaked system markers, or stalled flows.
 **Current focus:** Production stabilization and verification.
@@ -39,6 +39,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-10)
 - Browser campaign rerun against production reached session 1 turn 2, then stalled with narration completed but the send button still pending and no usable action controls.
 - Local turn-flow fix now advances turns before emitting the completed DM payload, makes turn persistence non-blocking for UI progress, and prevents duplicate sends while an action is in flight.
 - `AGENTS.md` was created at repo root and remains untracked until explicitly committed.
+- Phase 6 AI design contract created for OpenAI-first model abstraction and player-visible narration A/B testing.
 
 ## Blockers / Concerns
 
@@ -58,6 +59,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-10)
 - Richer lobby/game discovery enhancements.
 - Broader observability improvements.
 - Auth-provider strategy revisit if Passport/OAuth maintenance becomes the real blocker.
+- LLM model lab execution should wait until the Phase 5 browser campaign gate is closed, then use `.planning/phases/06-model-abstraction-narration-ab-testing/06-AI-SPEC.md` as the design contract.
 
 ## Next Recommended Run
 
