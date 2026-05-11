@@ -47,14 +47,32 @@ function getTokenUsage(usage) {
   return { inputTokens, outputTokens };
 }
 
+function getMaxRetries() {
+  const parsed = Number(process.env.LLM_MAX_RETRIES ?? 0);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function getCallSettings(model, maxTokens, temperature) {
+  const modelId = String(model || '').split(':').pop();
+  const settings = {
+    maxOutputTokens: maxTokens,
+    maxRetries: getMaxRetries(),
+  };
+
+  if (temperature !== undefined && !/^gpt-5(?:[.-]|$)/i.test(modelId)) {
+    settings.temperature = temperature;
+  }
+
+  return settings;
+}
+
 async function streamText({ model, system, messages, maxTokens, temperature, onToken }) {
   const { registry, streamText: aiStreamText } = await loadRegistry();
   const result = aiStreamText({
     model: registry.languageModel(model),
     system,
     messages: normalizeMessages(messages),
-    maxOutputTokens: maxTokens,
-    temperature,
+    ...getCallSettings(model, maxTokens, temperature),
   });
 
   let text = '';
@@ -77,8 +95,7 @@ async function completeText({ model, system, messages, maxTokens, temperature })
     model: registry.languageModel(model),
     system,
     messages: normalizeMessages(messages),
-    maxOutputTokens: maxTokens,
-    temperature,
+    ...getCallSettings(model, maxTokens, temperature),
   });
 
   return {
@@ -95,8 +112,7 @@ async function completeJson({ model, system, messages, schema, maxTokens, temper
     system,
     messages: normalizeMessages(messages),
     schema: jsonSchema(schema),
-    maxOutputTokens: maxTokens,
-    temperature,
+    ...getCallSettings(model, maxTokens, temperature),
   });
 
   return {
