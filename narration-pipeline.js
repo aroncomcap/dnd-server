@@ -270,11 +270,46 @@ Return ONLY the JSON object. If no violations, return { "violations": [] }`;
 // parseSonnetResponse
 // ---------------------------------------------------------------------------
 
+function getStructuredMarkerPositions(text) {
+  const markerRegex = /(?:-{3,}\s*(OPTIONS|SCENE|WORLD)\s*-{3,}?|#{1,3}\s*(OPTIONS?|SCENE|WORLD)\s*(?=\n|$))/gim;
+  const positions = [];
+
+  for (const match of text.matchAll(markerRegex)) {
+    let name = (match[1] || match[2] || '').toLowerCase();
+    if (name === 'option') name = 'options';
+    positions.push({ name, idx: match.index, len: match[0].length });
+  }
+
+  return positions.sort((a, b) => a.idx - b.idx);
+}
+
+function parseOptionLine(line) {
+  const emojiOptionRe = /^([1-3])️⃣\s*/u;
+  const numberedOptionRe = /^([1-3])[.)]\s+/;
+
+  if (emojiOptionRe.test(line)) {
+    return line.replace(emojiOptionRe, '').trim();
+  }
+  if (numberedOptionRe.test(line)) {
+    return line.replace(numberedOptionRe, '').trim();
+  }
+  return null;
+}
+
+function extractOptions(text) {
+  return text
+    .split('\n')
+    .map(line => parseOptionLine(line.trim()))
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
 /**
  * Extract narration + options from Sonnet's response.
  * Lines matching ^[1-3]️⃣ are options (emoji format).
  * Lines matching ^[1-3][.)] are options (numbered format).
- * If fewer than 2 option-like lines found, treat entire text as narration with empty options.
+ * Structured ---OPTIONS---/---SCENE---/---WORLD--- blocks are stripped from narration.
+ * If fewer than 2 option-like lines found outside structured blocks, treat entire text as narration with empty options.
  * Returns { narration, options } where options is array of up to 3 strings.
  */
 function parseSonnetResponse(text) {
@@ -282,26 +317,33 @@ function parseSonnetResponse(text) {
     return { narration: '', options: [] };
   }
 
+  const markerPositions = getStructuredMarkerPositions(text);
+  if (markerPositions.length > 0) {
+    const narration = text.slice(0, markerPositions[0].idx).trim();
+    let optionsRaw = '';
+
+    for (let i = 0; i < markerPositions.length; i++) {
+      const start = markerPositions[i].idx + markerPositions[i].len;
+      const end = i + 1 < markerPositions.length ? markerPositions[i + 1].idx : text.length;
+      if (markerPositions[i].name === 'options') {
+        optionsRaw += '\n' + text.slice(start, end).trim();
+      }
+    }
+
+    return {
+      narration,
+      options: extractOptions(optionsRaw),
+    };
+  }
+
   const lines = text.split('\n');
   const narrationLines = [];
   const optionLines = [];
 
-  // Regex patterns for options
-  const emojiOptionRe = /^([1-3])️⃣\s*/u;
-  const numberedOptionRe = /^([1-3])[.)]\s+/;
-
   for (const line of lines) {
-    const emojiMatch = line.match(emojiOptionRe);
-    const numberedMatch = line.match(numberedOptionRe);
-
-    if (emojiMatch) {
-      // Strip the emoji prefix (e.g. "1️⃣ ")
-      const stripped = line.replace(emojiOptionRe, '').trim();
-      optionLines.push(stripped);
-    } else if (numberedMatch) {
-      // Strip "1. " or "1) " prefix
-      const stripped = line.replace(numberedOptionRe, '').trim();
-      optionLines.push(stripped);
+    const optionText = parseOptionLine(line.trim());
+    if (optionText) {
+      optionLines.push(optionText);
     } else {
       narrationLines.push(line);
     }

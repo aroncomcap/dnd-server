@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { loginTestUserInBrowser } from './test-user';
-import { getCompletedDmMessageCount, waitForActionResponse } from './game-action';
+import { getCompletedDmMessageCount, getLastCompletedDmText, waitForActionResponse } from './game-action';
 
 /**
  * Campaign Series Test - Plays multiple games sequentially to reach level 1-10
@@ -119,17 +119,22 @@ test('Campaign Series: Multi-Session Campaign Level 1-3', async ({ page, baseURL
 
       // Look for option buttons
       const optionButtons = await page.locator('button[class*="option"], button:has-text("→")').all();
+      const readyOptionButtons = [];
+      for (const btn of optionButtons) {
+        const isReady = await btn.isVisible().catch(() => false) && await btn.isEnabled().catch(() => false);
+        if (isReady) readyOptionButtons.push(btn);
+      }
 
-      if (optionButtons.length > 0) {
-        const randomBtn = optionButtons[Math.floor(Math.random() * optionButtons.length)];
+      if (readyOptionButtons.length > 0) {
+        const randomBtn = readyOptionButtons[Math.floor(Math.random() * readyOptionButtons.length)];
         try {
-          await randomBtn.click({ timeout: 2000, force: true });
+          await randomBtn.click({ timeout: 2000 });
           actionTaken = true;
           noActionCount = 0;
         } catch {
           // Try force without timeout
           try {
-            await randomBtn.click({ force: true });
+            await randomBtn.click();
             actionTaken = true;
             noActionCount = 0;
           } catch {
@@ -149,8 +154,9 @@ test('Campaign Series: Multi-Session Campaign Level 1-3', async ({ page, baseURL
               await input.fill(actions[Math.floor(Math.random() * actions.length)]);
               const sendBtn = page.locator('#btn-send');
               const isSendVisible = await sendBtn.isVisible({ timeout: 500 }).catch(() => false);
-              if (isSendVisible) {
-                await sendBtn.click({ force: true });
+              const isSendEnabled = await sendBtn.isEnabled().catch(() => false);
+              if (isSendVisible && isSendEnabled) {
+                await sendBtn.click();
                 actionTaken = true;
                 noActionCount = 0;
               }
@@ -177,29 +183,11 @@ test('Campaign Series: Multi-Session Campaign Level 1-3', async ({ page, baseURL
         totalTurns++;
 
         // Capture narration and combat after action
-        const content = await page.evaluate(() => {
-          const chatLog = document.getElementById('chat-log');
-          if (!chatLog) return { narration: '', combat: false };
-
-          // Get all msg-dm elements
-          const allMsgs = document.querySelectorAll('#chat-log .msg-dm');
-          if (allMsgs.length === 0) return { narration: '', combat: false };
-
-          const lastMsg = allMsgs[allMsgs.length - 1];
-          const divs = lastMsg.querySelectorAll('div');
-          if (divs.length === 0) return { narration: '', combat: false };
-
-          const msgBody = divs[divs.length - 1];
-          const text = (msgBody.textContent || '').trim();
-
-          // Check for combat indicators
-          const isCombat = /\b(COMBAT|attack|hit|miss|damage|spell|initiative)\b/i.test(text);
-
-          return {
-            narration: text.substring(0, 800),
-            combat: isCombat
-          };
-        });
+        const narration = await getLastCompletedDmText(page);
+        const content = {
+          narration: narration.substring(0, 800),
+          combat: /\b(COMBAT|attack|hit|miss|damage|spell|initiative)\b/i.test(narration),
+        };
 
         if (content.narration && content.narration.length > 50) {
           const indicator = content.combat ? '⚔️  COMBAT' : '📖 Narration';

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { loginTestUserInBrowser } from './test-user';
-import { getCompletedDmMessageCount, waitForActionResponse } from './game-action';
+import { getCompletedDmMessageCount, getLastCompletedDmText, waitForActionResponse } from './game-action';
 
 /**
  * Campaign Verbose Test - Detailed Output
@@ -115,15 +115,20 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
       const beforeDmCount = await getCompletedDmMessageCount(page);
 
       const optionButtons = await page.locator('button[class*="option"], button:has-text("→")').all();
-      if (optionButtons.length > 0) {
-        const randomBtn = optionButtons[Math.floor(Math.random() * optionButtons.length)];
+      const readyOptionButtons = [];
+      for (const btn of optionButtons) {
+        const isReady = await btn.isVisible().catch(() => false) && await btn.isEnabled().catch(() => false);
+        if (isReady) readyOptionButtons.push(btn);
+      }
+      if (readyOptionButtons.length > 0) {
+        const randomBtn = readyOptionButtons[Math.floor(Math.random() * readyOptionButtons.length)];
         try {
-          await randomBtn.click({ timeout: 2000, force: true });
+          await randomBtn.click({ timeout: 2000 });
           actionTaken = true;
           noActionCount = 0;
         } catch {
           try {
-            await randomBtn.click({ force: true });
+            await randomBtn.click();
             actionTaken = true;
             noActionCount = 0;
           } catch {
@@ -143,8 +148,9 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
               await input.fill(actions[Math.floor(Math.random() * actions.length)]);
               const sendBtn = page.locator('#btn-send');
               const isSendVisible = await sendBtn.isVisible({ timeout: 500 }).catch(() => false);
-              if (isSendVisible) {
-                await sendBtn.click({ force: true });
+              const isSendEnabled = await sendBtn.isEnabled().catch(() => false);
+              if (isSendVisible && isSendEnabled) {
+                await sendBtn.click();
                 actionTaken = true;
                 noActionCount = 0;
               }
@@ -169,38 +175,16 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
         sessionTurns++;
         totalTurns++;
 
-        // VERBOSE CAPTURE - Get all narration
-        const fullContent = await page.evaluate(() => {
-          const chatLog = document.getElementById('chat-log');
-          if (!chatLog) return { messages: [], allText: '' };
-
-          const messages = [];
-          const allDmMessages = document.querySelectorAll('#chat-log .msg-dm');
-
-          allDmMessages.forEach((msg) => {
-            const label = msg.querySelector('.msg-label')?.textContent || 'Game Master';
-            const body = msg.querySelector('div:last-child')?.textContent || '';
-            if (body) {
-              messages.push({ label, body: body.trim() });
-            }
-          });
-
-          return {
-            messages,
-            totalMessages: allDmMessages.length
-          };
-        });
-
         // Print verbose output
-        if (fullContent.messages.length > 0) {
-          const lastMsg = fullContent.messages[fullContent.messages.length - 1];
+        const lastBody = await getLastCompletedDmText(page);
+        if (lastBody) {
           console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
           console.log(`TURN ${sessionTurns}`);
           console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
-          console.log(`\n${lastMsg.body}\n`);
+          console.log(`\n${lastBody}\n`);
 
           // Extract and highlight rolls and combat
-          const rollMatches = lastMsg.body.match(/(\d+d\d+[+\-\d]*|\broll[s]?\s+\d+|\bHIT|MISS|damage|attack)/gi);
+          const rollMatches = lastBody.match(/(\d+d\d+[+\-\d]*|\broll[s]?\s+\d+|\bHIT|MISS|damage|attack)/gi);
           if (rollMatches && rollMatches.length > 0) {
             console.log(`🎲 DICE & COMBAT:`);
             rollMatches.forEach(m => console.log(`   • ${m}`));

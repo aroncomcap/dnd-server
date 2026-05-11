@@ -323,20 +323,15 @@ function parseResponse(text) {
   let sceneRaw = '';
   let worldRaw = '';
 
-  // Find marker positions with flexible matching (case-insensitive, optional spaces)
-  // Also match markdown heading variants like "## OPTIONS" that the AI sometimes uses
-  const markerPatterns = [
-    { name: 'options', regex: /^(?:-{3,}\s*OPTIONS\s*-{3,}|#{1,3}\s*OPTIONS?\s*$)/im },
-    { name: 'scene', regex: /^(?:-{3,}\s*SCENE\s*-{3,}|#{1,3}\s*SCENE\s*$)/im },
-    { name: 'world', regex: /^(?:-{3,}\s*WORLD\s*-{3,}|#{1,3}\s*WORLD\s*$)/im },
-  ];
-
+  // Find marker positions with flexible matching (case-insensitive, optional spaces).
+  // Markers sometimes arrive inline or jammed together (---OPTIONS------SCENE---),
+  // so do not require line starts.
+  const markerRegex = /(?:-{3,}\s*(OPTIONS|SCENE|WORLD)\s*-{3,}?|#{1,3}\s*(OPTIONS?|SCENE|WORLD)\s*(?=\n|$))/gim;
   const positions = [];
-  for (const mp of markerPatterns) {
-    const match = text.match(mp.regex);
-    if (match) {
-      positions.push({ name: mp.name, idx: match.index, len: match[0].length });
-    }
+  for (const match of text.matchAll(markerRegex)) {
+    let name = (match[1] || match[2] || '').toLowerCase();
+    if (name === 'option') name = 'options';
+    positions.push({ name, idx: match.index, len: match[0].length });
   }
   positions.sort((a, b) => a.idx - b.idx);
 
@@ -1167,7 +1162,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   let state = 'NARRATING'; // NARRATING or BUFFERING
   let pendingTail = '';
   const LOOKAHEAD = 30; // chars to hold back for marker detection
-  const markerRegex = /\n-{3,}\s*(?:OPTIONS|SCENE|WORLD)\s*-{3,}|\n#{1,3}\s*(?:OPTIONS?|SCENE|WORLD)\s*$/im;
+  const markerRegex = /(?:-{3,}\s*(?:OPTIONS|SCENE|WORLD)\s*-{3,}?|#{1,3}\s*(?:OPTIONS?|SCENE|WORLD)\s*(?=\n|$))/im;
 
 
   // Emit stream start

@@ -113,6 +113,7 @@ async function runGameFlow() {
     });
 
     let firstPlayerName = null;
+    let currentPlayerName = null;
 
     socket.on('dm_message', (data) => {
       if (data.text) {
@@ -127,6 +128,13 @@ async function runGameFlow() {
       if (data.name) {
         console.log(`✅ CHARACTER: ${data.name}`);
         if (!firstPlayerName) firstPlayerName = data.name;
+      }
+    });
+
+    socket.on('turn_change', (data) => {
+      if (data.player) {
+        currentPlayerName = data.player;
+        console.log(`➡️  Turn: ${currentPlayerName}`);
       }
     });
 
@@ -182,7 +190,7 @@ async function runGameFlow() {
           console.log(`📤 Action ${i + 1}: "${action}"`);
           const beforeCount = narrations.length;
           socket.emit('player_action', {
-            playerName: firstPlayerName,
+            playerName: currentPlayerName || firstPlayerName,
             action: action,
           });
 

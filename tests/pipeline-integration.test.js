@@ -64,6 +64,33 @@ describe('Pipeline Integration', () => {
     assert.strictEqual(result.options.length, 3);
   });
 
+  it('parseSonnetResponse strips inline structured marker blocks from narration', () => {
+    const text = 'The road narrows beneath the ash trees. ---OPTIONS------SCENE---\nACTION: Road travel\nMOOD: uneasy\n---WORLD---\nLOCATIONS:\n- Ash Road | Shadowed lane | current';
+    const result = parseSonnetResponse(text);
+    assert.strictEqual(result.narration, 'The road narrows beneath the ash trees.');
+    assert.ok(!result.narration.includes('---OPTIONS---'));
+    assert.ok(!result.narration.includes('---SCENE---'));
+  });
+
+  it('parseSonnetResponse extracts structured options without leaking markers', () => {
+    const text = `The bridge sways in the rain.
+
+---OPTIONS---
+1. Cross one at a time
+2. Anchor a rope first
+3. Search for another crossing
+
+---SCENE---
+ACTION: Crossing the ravine`;
+    const result = parseSonnetResponse(text);
+    assert.strictEqual(result.narration, 'The bridge sways in the rain.');
+    assert.deepStrictEqual(result.options, [
+      'Cross one at a time',
+      'Anchor a rope first',
+      'Search for another crossing',
+    ]);
+  });
+
   it('buildNarrationPrompt excludes stat blocks', () => {
     const prompt = buildNarrationPrompt('test', { system: 'dnd5e', custom_context: '' }, {
       dmPersona: 'epic', verbosity: 'brief', ferocity: 3,

@@ -16,20 +16,15 @@ function parseResponse(text) {
   let sceneRaw = '';
   let worldRaw = '';
 
-  // Find marker positions with flexible matching (case-insensitive, optional spaces)
-  // Also match markdown heading variants like "## OPTIONS" that the AI sometimes uses
-  const markerPatterns = [
-    { name: 'options', regex: /^(?:-{3,}\s*OPTIONS\s*-{3,}|#{1,3}\s*OPTIONS?\s*$)/im },
-    { name: 'scene', regex: /^(?:-{3,}\s*SCENE\s*-{3,}|#{1,3}\s*SCENE\s*$)/im },
-    { name: 'world', regex: /^(?:-{3,}\s*WORLD\s*-{3,}|#{1,3}\s*WORLD\s*$)/im },
-  ];
-
+  // Find marker positions with flexible matching (case-insensitive, optional spaces).
+  // Markers sometimes arrive inline or jammed together (---OPTIONS------SCENE---),
+  // so do not require line starts.
+  const markerRegex = /(?:-{3,}\s*(OPTIONS|SCENE|WORLD)\s*-{3,}?|#{1,3}\s*(OPTIONS?|SCENE|WORLD)\s*(?=\n|$))/gim;
   const positions = [];
-  for (const mp of markerPatterns) {
-    const match = text.match(mp.regex);
-    if (match) {
-      positions.push({ name: mp.name, idx: match.index, len: match[0].length });
-    }
+  for (const match of text.matchAll(markerRegex)) {
+    let name = (match[1] || match[2] || '').toLowerCase();
+    if (name === 'option') name = 'options';
+    positions.push({ name, idx: match.index, len: match[0].length });
   }
   positions.sort((a, b) => a.idx - b.idx);
 
@@ -230,6 +225,16 @@ LOCATIONS:
     assert.deepStrictEqual(result.options, []);
     assert.strictEqual(result.scene, null);
     assert.strictEqual(result.world, null);
+  });
+
+  it('keeps inline jammed structured markers out of narration', () => {
+    const text = 'The road bends into a fog bank. ---OPTIONS------SCENE---\nACTION: Entering the fog\nMOOD: eerie\n---WORLD---\nLOCATIONS:\n- Fog Road | Pale and quiet | current';
+    const result = parseResponse(text);
+    assert.strictEqual(result.narration, 'The road bends into a fog bank.');
+    assert.ok(result.scene);
+    assert.strictEqual(result.scene.action, 'Entering the fog');
+    assert.ok(result.world);
+    assert.ok(!result.narration.includes('---OPTIONS---'));
   });
 
   it('handles empty string input', () => {
