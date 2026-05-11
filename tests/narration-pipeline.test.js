@@ -625,4 +625,39 @@ describe('handlePlayerAction fallback behavior', () => {
     assert.ok(streamEnd, 'fallback should close the stream for clients');
     assert.strictEqual(streamEnd.payload.narration, result.narration);
   });
+
+  it('does not treat a game-start prompt as the fallback actor name', async () => {
+    llm.setProviderForTesting({
+      streamText: async () => ({ text: '', usage: { inputTokens: 10, outputTokens: 0 } }),
+    });
+
+    const emitted = [];
+    const io = {
+      to: room => ({
+        emit: (event, payload) => emitted.push({ room, event, payload }),
+      }),
+    };
+    const gs = {
+      ...makeGameState(),
+      data: {
+        characters: {},
+        chatHistory: [],
+        turnOrder: [],
+        currentTurnIndex: 0,
+      },
+    };
+
+    const result = await handlePlayerAction(
+      'game-start-fallback',
+      makeGameConfig(),
+      gs,
+      'Begin the adventure. Set the scene vividly.',
+      'Begin the adventure. Set the scene vividly.',
+      io,
+      {}
+    );
+
+    assert.ok(result.narration.startsWith('The story moves forward'), 'fallback should use a generic story actor');
+    assert.ok(!result.narration.startsWith('Begin the adventure'), 'fallback should not use prompt text as actor name');
+  });
 });

@@ -22,13 +22,17 @@ const FALLBACK_OPTIONS = [
 ];
 
 function buildFallbackTurn(characterName, actionText) {
-  const actor = characterName && characterName !== 'Unknown' ? characterName : 'The adventurer';
+  const rawActor = String(characterName || '').trim();
+  const actor = rawActor && rawActor !== 'Unknown' && rawActor.length <= 40 && !/[.!?]/.test(rawActor)
+    ? rawActor
+    : 'The story';
   const action = String(actionText || '')
     .replace(/\[AUTO-ACTION[^\]]*\]\s*/i, '')
     .replace(/\s+/g, ' ')
     .trim();
+  const verb = actor === 'The story' ? 'moves forward' : 'follows through';
   const actionClause = action
-    ? ` follows through: ${action}`
+    ? ` ${verb}: ${action}`
     : ' takes a cautious step forward';
 
   return {
