@@ -106,6 +106,133 @@ function parseStatsLocal(statsText) {
   };
 }
 
+function createFallbackCombatStats({ ac, hp, abilities, weapons, spells = [], spellSlots = {}, spellcastingAbility = null, features = [], saveProficiencies = [] }) {
+  return {
+    system: 'dnd5e',
+    level: 1,
+    ac,
+    hp,
+    maxHp: hp,
+    speed: 30,
+    abilities,
+    proficiencyBonus: 2,
+    saveProficiencies,
+    weapons,
+    spells,
+    spellSlots,
+    spellcastingAbility,
+    features,
+    conditions: [],
+    concentrating: null,
+    deathSaves: { successes: 0, failures: 0 },
+    inspiration: false,
+    resistances: [],
+    vulnerabilities: [],
+    immunities: [],
+  };
+}
+
+function createFallbackParty(system = 'dnd5e') {
+  if (system !== 'dnd5e') {
+    return [
+      {
+        name: 'Mira Stone',
+        statsText: 'Level 1 Adventurer. HP 12. AC 14. STR 14 DEX 12 CON 14 INT 10 WIS 10 CHA 10. Shortsword (1d6 piercing).',
+        personality: 'Practical and brave, Mira keeps the group moving when plans fall apart.',
+        standardActions: 'Attack with shortsword, Dodge, Help ally, Search the area',
+        backstory: 'Mira is a reliable traveler who stepped forward when the road became dangerous.',
+        combatStats: createFallbackCombatStats({
+          ac: 14,
+          hp: 12,
+          abilities: { str: 14, dex: 12, con: 14, int: 10, wis: 10, cha: 10 },
+          weapons: [{ name: 'shortsword', attackMod: 'str', damage: '1d6', damageType: 'piercing', properties: [] }],
+        }),
+      },
+    ];
+  }
+
+  return [
+    {
+      name: 'Thorgrim Ironbeard',
+      statsText: 'Level 1 dwarf fighter. HP 13. AC 16. STR 15 DEX 12 CON 14 INT 10 WIS 13 CHA 8. Longsword (1d8 slashing), handaxe (1d6 slashing).',
+      personality: 'Gruff, loyal, and direct. Thorgrim protects companions first and asks questions later.',
+      standardActions: 'Attack with longsword, Throw handaxe, Dodge, Protect an ally',
+      backstory: 'Thorgrim left his clanhold to earn honor on the open road and prove his shield arm still matters.',
+      combatStats: createFallbackCombatStats({
+        ac: 16,
+        hp: 13,
+        abilities: { str: 15, dex: 12, con: 14, int: 10, wis: 13, cha: 8 },
+        saveProficiencies: ['str', 'con'],
+        weapons: [
+          { name: 'longsword', attackMod: 'str', damage: '1d8', damageType: 'slashing', properties: [] },
+          { name: 'handaxe', attackMod: 'str', damage: '1d6', damageType: 'slashing', properties: ['thrown'] },
+        ],
+        features: ['Second Wind'],
+      }),
+    },
+    {
+      name: 'Lyssa Moonwhisper',
+      statsText: 'Level 1 elf cleric. HP 10. AC 15. STR 10 DEX 12 CON 14 INT 10 WIS 15 CHA 13. Mace (1d6 bludgeoning). Spells: Sacred Flame, Healing Word, Cure Wounds.',
+      personality: 'Calm under pressure and quietly stubborn. Lyssa believes mercy and resolve can share the same hand.',
+      standardActions: 'Cast Sacred Flame, Cast Healing Word, Attack with mace, Help ally',
+      backstory: 'Lyssa follows a moonlit pilgrimage, offering aid wherever fear has taken root.',
+      combatStats: createFallbackCombatStats({
+        ac: 15,
+        hp: 10,
+        abilities: { str: 10, dex: 12, con: 14, int: 10, wis: 15, cha: 13 },
+        saveProficiencies: ['wis', 'cha'],
+        weapons: [{ name: 'mace', attackMod: 'str', damage: '1d6', damageType: 'bludgeoning', properties: [] }],
+        spells: [
+          { name: 'sacred flame', type: 'damage', damage: '1d8', damageType: 'radiant', save: 'dex' },
+          { name: 'healing word', type: 'heal', healing: '1d4' },
+          { name: 'cure wounds', type: 'heal', healing: '1d8' },
+        ],
+        spellSlots: { 1: 2 },
+        spellcastingAbility: 'wis',
+      }),
+    },
+    {
+      name: 'Kael Swiftblade',
+      statsText: 'Level 1 halfling rogue. HP 9. AC 14. STR 8 DEX 15 CON 13 INT 12 WIS 10 CHA 14. Rapier (1d8 piercing), shortbow (1d6 piercing). Sneak Attack 1d6.',
+      personality: 'Quick-witted, curious, and allergic to obvious doors. Kael masks caution with jokes.',
+      standardActions: 'Attack with rapier, Shoot shortbow, Sneak ahead, Search for traps',
+      backstory: 'Kael learned survival in crowded alleys and now uses those instincts for better causes.',
+      combatStats: createFallbackCombatStats({
+        ac: 14,
+        hp: 9,
+        abilities: { str: 8, dex: 15, con: 13, int: 12, wis: 10, cha: 14 },
+        saveProficiencies: ['dex', 'int'],
+        weapons: [
+          { name: 'rapier', attackMod: 'dex', damage: '1d8', damageType: 'piercing', properties: ['finesse'] },
+          { name: 'shortbow', attackMod: 'dex', damage: '1d6', damageType: 'piercing', properties: ['ranged'] },
+        ],
+        features: ['Sneak Attack 1d6'],
+      }),
+    },
+    {
+      name: 'Ember Flamecrest',
+      statsText: 'Level 1 tiefling sorcerer. HP 8. AC 12. STR 8 DEX 14 CON 12 INT 13 WIS 10 CHA 15. Dagger (1d4 piercing). Spells: Fire Bolt, Burning Hands, Shield.',
+      personality: 'Dramatic, sharp, and fiercely protective. Ember treats danger as an insult to answer brightly.',
+      standardActions: 'Cast Fire Bolt, Cast Burning Hands, Cast Shield, Search arcane traces',
+      backstory: 'Ember left a burned bridge behind and joined the party to turn raw talent into something heroic.',
+      combatStats: createFallbackCombatStats({
+        ac: 12,
+        hp: 8,
+        abilities: { str: 8, dex: 14, con: 12, int: 13, wis: 10, cha: 15 },
+        saveProficiencies: ['con', 'cha'],
+        weapons: [{ name: 'dagger', attackMod: 'dex', damage: '1d4', damageType: 'piercing', properties: ['finesse'] }],
+        spells: [
+          { name: 'fire bolt', type: 'damage', damage: '1d10', damageType: 'fire', attack: true },
+          { name: 'burning hands', type: 'damage', damage: '3d6', damageType: 'fire', save: 'dex' },
+          { name: 'shield', type: 'defense' },
+        ],
+        spellSlots: { 1: 2 },
+        spellcastingAbility: 'cha',
+      }),
+    },
+  ];
+}
+
 const DEPLOY_TIME = new Date().toISOString();
 
 // ── Magic number constants ──────────────────────────────────────────────────────
@@ -2996,12 +3123,47 @@ io.on('connection', (socket) => {
         }
       }
 
-      io.to(gameId).emit('party_ready', { count: result.count, statsParsed: withStats, combatStats: charStats });
-    } catch (err) {
-      console.error('Party generation failed:', err.message);
-      socket.emit('party_gen_failed', { error: err.message });
-    }
-  });
+	      io.to(gameId).emit('party_ready', { count: result.count, statsParsed: withStats, combatStats: charStats });
+	    } catch (err) {
+	      console.error('Party generation failed:', err.message);
+	      try {
+	        const gameConfig = await db.getGame(gameId);
+	        const gs = getGameState(gameId);
+	        const fallbackParty = createFallbackParty(gameConfig.system || 'dnd5e');
+	        let fallbackCount = 0;
+	        const charStats = {};
+
+	        for (const character of fallbackParty) {
+	          const charData = {
+	            statsText: character.statsText,
+	            personality: character.personality,
+	            standardActions: character.standardActions,
+	            backstory: character.backstory,
+	            combatStats: character.combatStats,
+	            token: null,
+	          };
+
+	          gs.data.characters[character.name] = charData;
+	          if (!gs.data.turnOrder.includes(character.name)) {
+	            gs.data.turnOrder.push(character.name);
+	          }
+	          if (charData.combatStats) charStats[character.name] = charData.combatStats;
+	          await db.upsertCharacter(gameId, character.name, charData);
+	          io.to(gameId).emit('character_registered', { name: character.name, character: charData });
+	          emitSystem(gameId, { text: `📜 ${character.name} has joined the campaign.` });
+	          fallbackCount++;
+	        }
+
+	        await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
+	        socket.emit('party_generated', { count: fallbackCount, fallback: true });
+	        io.to(gameId).emit('party_ready', { count: fallbackCount, statsParsed: Object.keys(charStats).length, combatStats: charStats, fallback: true });
+	        console.log(`Fallback party generated: ${fallbackCount} characters after party generation failure`);
+	      } catch (fallbackErr) {
+	        console.error('Fallback party generation failed:', fallbackErr.message);
+	        socket.emit('party_gen_failed', { error: err.message });
+	      }
+	    }
+	  });
 
   // Player sends an action
   socket.on('player_action', async (data, ack) => {

@@ -16,6 +16,12 @@ const VERBOSITY_RULES = {
   terse:   'TERSE MODE — ABSOLUTE LIMIT: 50 words max. 3 sentences max. No atmosphere, no descriptions, no internal thoughts. State what happens mechanically. Count your words. If you write more than 50 words, you have failed.',
 };
 
+const FALLBACK_OPTIONS = [
+  'Press forward cautiously',
+  'Search the area for clues',
+  'Ask the party what they notice',
+];
+
 const FEROCITY_LABELS = {
   1: 'Deadly (lethal, every encounter is life-threatening)',
   2: 'Dangerous (tough fights, meaningful consequences)',
@@ -756,7 +762,7 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
   } catch (err) {
     console.error(`[narration-pipeline] callSonnetNarration failed:`, err.message);
     narration = 'The world holds its breath...';
-    options = [];
+    options = FALLBACK_OPTIONS;
   }
 
   // Calls 2 & 3: Haiku extraction + validation in parallel

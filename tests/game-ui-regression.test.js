@@ -48,6 +48,15 @@ test('streamed narration failures are finalized instead of leaving a live stream
   assert.match(gameHtml, /if \(lastMessageWasStreamed\) \{[\s\S]*?finalizeStreamBubble\(data\.text\);[\s\S]*?lastMessageWasStreamed = false;/, 'fallback dm_message should finalize an orphaned stream bubble');
   assert.match(narrationPipelineJs, /const closeStream = \(narration\) => \{[\s\S]*?dm_stream_end[\s\S]*?streamEnded = true;/, 'split pipeline should centralize stream closure');
   assert.match(narrationPipelineJs, /catch \(err\) \{[\s\S]*?closeStream\(fullText\.trim\(\)\);[\s\S]*?throw err;/, 'split pipeline should emit dm_stream_end even when Sonnet streaming fails');
+  assert.match(narrationPipelineJs, /const FALLBACK_OPTIONS = \[[\s\S]*?Press forward cautiously/, 'split pipeline should keep fallback turns actionable');
+  assert.match(narrationPipelineJs, /options = FALLBACK_OPTIONS;/, 'narration failures should emit fallback options');
+});
+
+test('AI party generation failures create a playable fallback party', () => {
+  assert.match(serverJs, /function createFallbackParty\(system = 'dnd5e'\)/, 'server should define a deterministic fallback party');
+  assert.match(serverJs, /Party generation failed:[\s\S]*?createFallbackParty\(gameConfig\.system \|\| 'dnd5e'\)/, 'party generation catch path should create fallback characters');
+  assert.match(serverJs, /socket\.emit\('party_generated', \{ count: fallbackCount, fallback: true \}\);/, 'fallback party should unblock auto-start flow');
+  assert.match(serverJs, /io\.to\(gameId\)\.emit\('party_ready', \{ count: fallbackCount,[\s\S]*?fallback: true \}\);/, 'fallback party should publish combat stats');
 });
 
 test('action submit is latched until a server response or long fallback', () => {
