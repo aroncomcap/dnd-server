@@ -848,25 +848,24 @@
     font-size: 0.8rem;
   }
 
-  /* Mobile: Turn order collapsed by default, clickable to expand */
-  #turn-order-overlay {
-    max-height: 48px !important;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-    cursor: pointer;
-  }
-  #turn-order-overlay.expanded {
-    max-height: 500px !important;
-  }
-  #turn-order-overlay #turn-order-list {
-    display: none;
-  }
-  #turn-order-overlay.expanded #turn-order-list {
-    display: block;
-  }
-
   /* Mobile: Scene panel starts collapsed on small screens */
-  @media (max-width: 640px) {
+  @media (max-width: 640px) and (pointer: coarse) {
+    #turn-order-overlay {
+      max-height: 48px !important;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      cursor: pointer;
+    }
+    #turn-order-overlay.expanded {
+      max-height: 500px !important;
+    }
+    #turn-order-overlay #turn-order-list {
+      display: none;
+    }
+    #turn-order-overlay.expanded #turn-order-list {
+      display: block;
+    }
+
     #screen-game #map-sidebar {
       display: none !important;
     }
@@ -1078,6 +1077,18 @@
       overflow-y: auto;
     }
     #screen-game.has-map #action-area { grid-column: 1 / -1; grid-row: 2; }
+
+    #turn-order-overlay {
+      max-height: none !important;
+      overflow: visible;
+      cursor: grab;
+    }
+    #turn-order-overlay #turn-order-list {
+      display: block;
+    }
+    #turn-order-overlay.expanded {
+      max-height: none !important;
+    }
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -1920,7 +1931,7 @@ fetch('/api/deploy-time').then(r => r.json()).then(d => {
       if (screenEl) screenEl.classList.add('active');
     });
   });
-});
+})();
 
 // ── Player name persistence ───────────────────────────────────
 (function() {
@@ -2045,6 +2056,10 @@ let sceneImg = document.getElementById('scene-img');
 
 let sceneAutoCollapseTimer = null;
 
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 640px) and (pointer: coarse)').matches;
+}
+
 function showSceneImage(url, label) {
   if (!url) return;
   sceneImg = document.getElementById('scene-img') || sceneImg;
@@ -2077,10 +2092,9 @@ function showSceneImage(url, label) {
       window.pendingMonsterEntry = false;
     }
 
-    // Auto-collapse only on mobile (viewport width < 768px)
+    // Auto-collapse only on mobile.
     clearTimeout(sceneAutoCollapseTimer);
-    const isMobile = window.innerWidth < 768;
-    if (isMobile) {
+    if (isMobileViewport()) {
       sceneAutoCollapseTimer = setTimeout(() => {
         collapseScene();
       }, 3000);
@@ -2090,6 +2104,7 @@ function showSceneImage(url, label) {
 }
 
 function collapseScene() {
+  if (!isMobileViewport()) return;
   scenePanel.classList.add('collapsed');
   const expandBtn = document.createElement('button');
   expandBtn.id = 'scene-expand-btn';
@@ -2115,11 +2130,12 @@ function expandScene() {
   }
   document.getElementById('scene-collapse-btn')?.addEventListener('click', collapseScene);
   sceneImg = document.getElementById('scene-img');
-  // Reset auto-collapse timer
   clearTimeout(sceneAutoCollapseTimer);
-  sceneAutoCollapseTimer = setTimeout(() => {
-    collapseScene();
-  }, 3000);
+  if (isMobileViewport()) {
+    sceneAutoCollapseTimer = setTimeout(() => {
+      collapseScene();
+    }, 3000);
+  }
 }
 
 function switchSidebarTab(level) {
@@ -2836,8 +2852,9 @@ socket.on('dm_stream_start', (data) => {
 
 socket.on('dm_stream_chunk', (data) => {
   const body = document.getElementById('dm-stream-body');
-  if (!body || !data.text) return;
-  body.textContent += data.text;
+  const text = data.text || data.content || data.chunk || data.data || '';
+  if (!body || !text) return;
+  body.textContent += text;
   chatLog.scrollTop = chatLog.scrollHeight;
 });
 
@@ -2845,7 +2862,7 @@ socket.on('dm_stream_end', (data) => {
   const body = document.getElementById('dm-stream-body');
   if (!body) return;
   // Replace plain text with fully formatted HTML
-  const narration = data.narration || '';
+  const narration = data.narration || body.textContent || '';
   body.innerHTML = renderDmText(narration);
   if (/\bHIT\b/.test(narration)) sfx.hit();
   else if (/\bMISS\b/.test(narration)) sfx.miss();
@@ -3358,7 +3375,7 @@ socket.on('scene_generating', () => {
   document.getElementById('map-sidebar').style.display = 'block';
   switchSidebarTab('scene');
   const img = document.getElementById('scene-img');
-  img.style.opacity = '0.3';
+  if (img) img.style.opacity = '0.3';
   // Add a small loading text
   let loader = document.getElementById('scene-loader');
   if (!loader) {
@@ -3374,7 +3391,7 @@ socket.on('scene_gen_failed', () => {
   const loader = document.getElementById('scene-loader');
   if (loader) loader.remove();
   const img = document.getElementById('scene-img');
-  img.style.opacity = '1';
+  if (img) img.style.opacity = '1';
 });
 
 // Update scene_image handler to clear loader
@@ -4516,7 +4533,8 @@ function debugEvent(name, detail) {
 
 function updateDebug() {
   const el = document.getElementById('debug-content');
-  if (!el || document.getElementById('debug-panel').style.display === 'none') return;
+  const panel = document.getElementById('debug-panel');
+  if (!el || !panel || panel.style.display === 'none') return;
 
   const myName = getMyName();
   const isMyTurn = isMyTurnCheck();
@@ -4541,15 +4559,22 @@ function updateDebug() {
 // Update debug every second
 setInterval(updateDebug, 1000);
 
-// Toggle
-document.getElementById('debug-toggle').addEventListener('click', () => {
-  document.getElementById('debug-panel').style.display = 'block';
-  document.getElementById('debug-toggle').style.display = 'none';
-  updateDebug();
-});
-document.getElementById('debug-toggle-close').addEventListener('click', () => {
-  document.getElementById('debug-panel').style.display = 'none';
-  document.getElementById('debug-toggle').style.display = 'block';
+// Toggle. These controls are declared after the script, so bind after parsing.
+document.addEventListener('DOMContentLoaded', () => {
+  const toggle = document.getElementById('debug-toggle');
+  const close = document.getElementById('debug-toggle-close');
+  const panel = document.getElementById('debug-panel');
+  if (!toggle || !close || !panel) return;
+
+  toggle.addEventListener('click', () => {
+    panel.style.display = 'block';
+    toggle.style.display = 'none';
+    updateDebug();
+  });
+  close.addEventListener('click', () => {
+    panel.style.display = 'none';
+    toggle.style.display = 'block';
+  });
 });
 
 // ── Encounter Plan UI ──────────────────────────────────────────

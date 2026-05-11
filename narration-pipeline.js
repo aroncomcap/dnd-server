@@ -419,16 +419,17 @@ async function callSonnetNarration(gameId, gameConfig, gs, characterName, action
       const chunk = event.delta.text;
       fullText += chunk;
       if (io) {
-        io.to(gameId).emit('dm_stream_chunk', { gameId, chunk });
+        io.to(gameId).emit('dm_stream_chunk', { gameId, text: chunk, chunk });
       }
     }
   }
 
+  const parsed = parseSonnetResponse(fullText);
   if (io) {
-    io.to(gameId).emit('dm_stream_end', { gameId });
+    io.to(gameId).emit('dm_stream_end', { gameId, narration: parsed.narration || fullText.trim() });
   }
 
-  return parseSonnetResponse(fullText);
+  return parsed;
 }
 
 // ---------------------------------------------------------------------------

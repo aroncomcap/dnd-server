@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { loginTestUserInBrowser } from './test-user';
+import { getCompletedDmMessageCount, waitForActionResponse } from './game-action';
 
 /**
  * Campaign Series Test - Plays multiple games sequentially to reach level 1-10
@@ -114,6 +115,7 @@ test('Campaign Series: Multi-Session Campaign Level 1-3', async ({ page, baseURL
 
       // Try to take an action
       let actionTaken = false;
+      const beforeDmCount = await getCompletedDmMessageCount(page);
 
       // Look for option buttons
       const optionButtons = await page.locator('button[class*="option"], button:has-text("→")').all();
@@ -145,7 +147,7 @@ test('Campaign Series: Multi-Session Campaign Level 1-3', async ({ page, baseURL
             const actions = ['I attack', 'Move', 'Cast spell', 'Search', 'Go forward'];
             try {
               await input.fill(actions[Math.floor(Math.random() * actions.length)]);
-              const sendBtn = page.locator('button:has-text("SEND"), button:has-text("Submit")').first();
+              const sendBtn = page.locator('#btn-send');
               const isSendVisible = await sendBtn.isVisible({ timeout: 500 }).catch(() => false);
               if (isSendVisible) {
                 await sendBtn.click({ force: true });
@@ -164,11 +166,17 @@ test('Campaign Series: Multi-Session Campaign Level 1-3', async ({ page, baseURL
         noActionCount++;
         process.stdout.write('.');
       } else {
+        const responseReady = await waitForActionResponse(page, beforeDmCount);
+        if (!responseReady) {
+          console.log(`\n⚠️  No completed DM response after action; waiting for another opportunity`);
+          noActionCount++;
+          continue;
+        }
+
         sessionTurns++;
         totalTurns++;
 
         // Capture narration and combat after action
-        await page.waitForTimeout(1500); // Wait for narration to stream
         const content = await page.evaluate(() => {
           const chatLog = document.getElementById('chat-log');
           if (!chatLog) return { narration: '', combat: false };

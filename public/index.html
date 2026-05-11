@@ -238,9 +238,9 @@
     position: absolute;
     top: 8px;
     right: 8px;
-    background: linear-gradient(135deg, #ff6b6b, #ff8787);
+    background: rgba(20, 8, 4, 0.78);
     color: #fff;
-    border: 2px solid rgba(255,255,255,0.8);
+    border: 1px solid rgba(255,255,255,0.65);
     border-radius: 50%;
     width: 36px;
     height: 36px;
@@ -251,14 +251,94 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 8px rgba(255,100,100,0.4);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+    z-index: 3;
   }
   .game-card-delete:hover {
-    background: linear-gradient(135deg, #ff5252, #ff6b6b);
-    box-shadow: 0 4px 12px rgba(255,100,100,0.6);
+    background: var(--red);
+    border-color: rgba(255,255,255,0.9);
+    box-shadow: 0 4px 12px rgba(139,32,32,0.55);
     transform: scale(1.1);
   }
   .game-card-delete:active { transform: scale(0.95); }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(13, 6, 0, 0.72);
+    backdrop-filter: blur(3px);
+  }
+  .modal-backdrop[hidden] { display: none; }
+
+  .delete-modal {
+    width: min(100%, 420px);
+    background: var(--parchment);
+    border: 1px solid var(--parchment-dark);
+    border-radius: 10px;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+    padding: 22px;
+    color: var(--ink);
+  }
+  .delete-modal h2 {
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 1.05rem;
+    color: var(--red);
+    margin-bottom: 10px;
+  }
+  .delete-modal p {
+    color: var(--ink-light);
+    font-size: 0.98rem;
+    line-height: 1.35;
+    margin-bottom: 12px;
+  }
+  .delete-modal strong {
+    color: var(--ink);
+  }
+  .delete-modal-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 700;
+    color: var(--red);
+  }
+  .delete-modal-error {
+    min-height: 20px;
+    margin-top: 8px;
+    color: var(--red);
+    font-size: 0.9rem;
+  }
+  .delete-modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .delete-modal-actions button {
+    flex: 1;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 14px;
+    font-family: 'Cinzel Decorative', cursive;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+  }
+  #delete-cancel {
+    background: rgba(255,255,255,0.55);
+    color: var(--ink);
+    border: 1px solid var(--parchment-dark);
+  }
+  #delete-submit {
+    background: var(--red);
+    color: white;
+  }
+  #delete-submit:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
 
   .empty-state {
     text-align: center;
@@ -451,6 +531,19 @@
 </div>
 </div>
 
+<div class="modal-backdrop" id="delete-modal" hidden>
+  <div class="delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+    <h2 id="delete-modal-title">Delete Game</h2>
+    <p>Type <span class="delete-modal-code">CONFIRM</span> to permanently delete <strong id="delete-game-name"></strong>.</p>
+    <input type="text" id="delete-confirm-input" autocomplete="off" spellcheck="false" aria-label="Type CONFIRM to delete" />
+    <div class="delete-modal-error" id="delete-modal-error" aria-live="polite"></div>
+    <div class="delete-modal-actions">
+      <button type="button" id="delete-cancel">Cancel</button>
+      <button type="button" id="delete-submit" disabled>Delete</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const SYSTEM_LABELS = {
   dnd5e: 'D&D 5e',
@@ -463,6 +556,79 @@ const SYSTEM_EMOJIS = {
   runequest: '⚔️',
   custom: '🎲',
 };
+
+let pendingDeleteGame = null;
+
+function openDeleteModal(game) {
+  pendingDeleteGame = game;
+  const modal = document.getElementById('delete-modal');
+  const name = document.getElementById('delete-game-name');
+  const input = document.getElementById('delete-confirm-input');
+  const submit = document.getElementById('delete-submit');
+  const error = document.getElementById('delete-modal-error');
+
+  name.textContent = game.name || 'this game';
+  input.value = '';
+  error.textContent = '';
+  submit.disabled = true;
+  submit.textContent = 'Delete';
+  modal.hidden = false;
+  setTimeout(() => input.focus(), 0);
+}
+
+function closeDeleteModal() {
+  pendingDeleteGame = null;
+  document.getElementById('delete-modal').hidden = true;
+}
+
+async function deletePendingGame() {
+  if (!pendingDeleteGame) return;
+
+  const input = document.getElementById('delete-confirm-input');
+  const submit = document.getElementById('delete-submit');
+  const error = document.getElementById('delete-modal-error');
+
+  if (input.value !== 'CONFIRM') {
+    error.textContent = 'Enter CONFIRM to delete this game.';
+    return;
+  }
+
+  submit.disabled = true;
+  submit.textContent = 'Deleting...';
+  error.textContent = '';
+
+  try {
+    const res = await fetch('/api/games/' + pendingDeleteGame.id, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: input.value }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || 'Delete failed.');
+    closeDeleteModal();
+    loadGames();
+  } catch (err) {
+    error.textContent = err.message || 'Delete failed.';
+    submit.disabled = input.value !== 'CONFIRM';
+    submit.textContent = 'Delete';
+  }
+}
+
+document.getElementById('delete-confirm-input').addEventListener('input', (e) => {
+  document.getElementById('delete-submit').disabled = e.target.value !== 'CONFIRM';
+  document.getElementById('delete-modal-error').textContent = '';
+});
+
+document.getElementById('delete-cancel').addEventListener('click', closeDeleteModal);
+document.getElementById('delete-submit').addEventListener('click', deletePendingGame);
+document.getElementById('delete-modal').addEventListener('click', (e) => {
+  if (e.target.id === 'delete-modal') closeDeleteModal();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !document.getElementById('delete-modal').hidden) {
+    closeDeleteModal();
+  }
+});
 
 async function loadGames() {
   const res = await fetch('/api/games');
@@ -487,13 +653,11 @@ async function loadGames() {
     del.className = 'game-card-delete';
     del.textContent = '✕';
     del.title = 'Delete game';
-    del.addEventListener('click', async (e) => {
+    del.setAttribute('aria-label', `Delete ${g.name || 'game'}`);
+    del.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (confirm(`Delete "${g.name}"? This cannot be undone.`)) {
-        await fetch('/api/games/' + g.id, { method: 'DELETE' });
-        loadGames();
-      }
+      openDeleteModal(g);
     });
 
     const emoji = SYSTEM_EMOJIS[systemClass] || '🎲';

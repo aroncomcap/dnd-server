@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { loginTestUserInBrowser } from './test-user';
+import { getCompletedDmMessageCount, waitForActionResponse } from './game-action';
 
 /**
  * Campaign Verbose Test - Detailed Output
@@ -111,6 +112,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
 
       // Try to take action
       let actionTaken = false;
+      const beforeDmCount = await getCompletedDmMessageCount(page);
 
       const optionButtons = await page.locator('button[class*="option"], button:has-text("→")').all();
       if (optionButtons.length > 0) {
@@ -139,7 +141,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
             const actions = ['I attack', 'Move', 'Cast spell', 'Search', 'Go forward'];
             try {
               await input.fill(actions[Math.floor(Math.random() * actions.length)]);
-              const sendBtn = page.locator('button:has-text("SEND"), button:has-text("Submit")').first();
+              const sendBtn = page.locator('#btn-send');
               const isSendVisible = await sendBtn.isVisible({ timeout: 500 }).catch(() => false);
               if (isSendVisible) {
                 await sendBtn.click({ force: true });
@@ -157,11 +159,17 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
       if (!actionTaken) {
         noActionCount++;
       } else {
+        const responseReady = await waitForActionResponse(page, beforeDmCount);
+        if (!responseReady) {
+          console.log(`⚠️  No completed DM response after action; waiting for another opportunity`);
+          noActionCount++;
+          continue;
+        }
+
         sessionTurns++;
         totalTurns++;
 
         // VERBOSE CAPTURE - Get all narration
-        await page.waitForTimeout(1500);
         const fullContent = await page.evaluate(() => {
           const chatLog = document.getElementById('chat-log');
           if (!chatLog) return { messages: [], allText: '' };

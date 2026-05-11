@@ -104,14 +104,32 @@ async function generateCompositeScene(gameId, sceneData, gameConfig) {
 }
 
 function shouldGenerateImage(gameId, sceneData, mapMoved, isKillshot) {
-  if (isKillshot) return true;
-  if (mapMoved) return true;
-  // Generate if a named NPC is present in the scene
-  if (sceneData.npc && sceneData.npc.toLowerCase() !== 'none') return true;
-  // Generate every 20th turn as a baseline (reduce frequency to lower costs)
   const gs = getGameState(gameId);
-  if (gs.turnCount > 0 && gs.turnCount % 20 === 0) return true;
-  return false;
+  const turnCount = gs.turnCount || 0;
+  const namedNpc = sceneData.npc && sceneData.npc.toLowerCase() !== 'none';
+  const keySource = namedNpc ? sceneData.npc : sceneData.action;
+  const sceneKey = [
+    isKillshot ? 'killshot' : mapMoved ? 'map' : namedNpc ? 'npc' : 'scene',
+    String(keySource || '').toLowerCase().replace(/\s+/g, ' ').trim(),
+  ].join(':');
+
+  if (!isKillshot && gs.lastSceneImageKey === sceneKey && turnCount - (gs.lastSceneImageTurn || 0) < 8) {
+    return false;
+  }
+
+  let shouldGenerate = false;
+  if (isKillshot) shouldGenerate = true;
+  if (mapMoved) shouldGenerate = true;
+  // Generate if a named NPC is present in the scene
+  if (namedNpc) shouldGenerate = true;
+  // Generate every 20th turn as a baseline (reduce frequency to lower costs)
+  if (turnCount > 0 && turnCount % 20 === 0) shouldGenerate = true;
+
+  if (shouldGenerate) {
+    gs.lastSceneImageKey = sceneKey;
+    gs.lastSceneImageTurn = turnCount;
+  }
+  return shouldGenerate;
 }
 
 // ── World Art Generation (Together AI / FLUX) ─────────────────────────────────
