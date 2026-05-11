@@ -55,3 +55,13 @@ test('player actions survive socket reconnects', () => {
   assert.match(gameHtml, /socket\.emit\('player_action', \{ gameId, playerName: name, action \}\);/, 'player actions should include gameId as a reconnect recovery fallback');
   assert.match(serverJs, /if \(!gameId && typeof data\?\.gameId === 'string'\)[\s\S]*?socket\.join\(requestedGameId\);[\s\S]*?socket\.gameId = requestedGameId;/, 'server should recover buffered actions from sockets that reconnected before join_game');
 });
+
+test('combat loading state preserves and restores action controls', () => {
+  const combatInitBlock = gameHtml.match(/socket\.on\('combat_initializing'[\s\S]*?\n}\);/);
+  assert.ok(combatInitBlock, 'combat_initializing handler should exist');
+  assert.match(gameHtml, /function ensureWaitingMessageStructure\(\)/, 'waiting panel should be restorable after temporary combat loading UI');
+  assert.doesNotMatch(combatInitBlock[0], /waitMsg\.innerHTML\s*=/, 'combat loading should not replace the waiting panel shell');
+  assert.match(combatInitBlock[0], /waitingName\.innerHTML\s*=/, 'combat loading should write inside the preserved waiting-name node');
+  assert.match(gameHtml, /socket\.on\('combat_started'[\s\S]*?updateActionArea\(\);/, 'combat_started should restore action controls');
+  assert.match(gameHtml, /socket\.on\('combat_update'[\s\S]*?updateActionArea\(\);/, 'combat_update should also restore controls if combat_started was missed');
+});

@@ -2250,12 +2250,28 @@ function isMyTurnCheck() {
   return me && current === me;
 }
 
+function ensureWaitingMessageStructure() {
+  const waitingMsg = document.getElementById('waiting-msg');
+  if (!waitingMsg) return null;
+  if (!document.getElementById('waiting-name') || !document.getElementById('waiting-tip')) {
+    waitingMsg.innerHTML = 'Waiting for <strong id="waiting-name"></strong> to act...' +
+      '<div id="waiting-tip" style="margin-top:12px;font-size:0.85rem;line-height:1.5;opacity:0.6;max-width:400px;"></div>';
+  }
+  return {
+    waitingMsg,
+    waitingName: document.getElementById('waiting-name'),
+    waitingTip: document.getElementById('waiting-tip'),
+  };
+}
+
 function updateActionArea() {
   const myTurnControls = document.getElementById('my-turn-controls');
-  const waitingMsg = document.getElementById('waiting-msg');
-  const waitingName = document.getElementById('waiting-name');
+  const waiting = ensureWaitingMessageStructure();
+  const waitingMsg = waiting?.waitingMsg;
+  const waitingName = waiting?.waitingName;
 
   const myName = getMyName();
+  if (!myTurnControls || !waitingMsg || !waitingName) return;
 
   if (!socket.connected || !gameJoinReady) {
     myTurnControls.style.display = 'none';
@@ -2305,28 +2321,32 @@ let reactionTimeout = null;
 
 socket.on('combat_initializing', (data) => {
   // Switch to OOC-only mode while monsters load
-  const actionArea = document.getElementById('action-area');
   const myTurn = document.getElementById('my-turn-controls');
-  const waitMsg = document.getElementById('waiting-msg');
+  const waiting = ensureWaitingMessageStructure();
+  const waitMsg = waiting?.waitingMsg;
+  const waitingName = waiting?.waitingName;
+  const waitingTip = waiting?.waitingTip;
   if (myTurn) myTurn.style.display = 'none';
-  if (waitMsg) {
+  if (waitMsg && waitingName) {
     waitMsg.style.display = 'block';
-    const nameEl = document.getElementById('waiting-name');
-    if (nameEl) nameEl.innerHTML = '';
-    waitMsg.innerHTML = '<div style="text-align:center;padding:12px;">' +
+    waitingName.innerHTML = '<div style="text-align:center;padding:12px;">' +
       '<div style="font-family:\'Cinzel Decorative\',cursive;color:var(--gold);font-size:0.9rem;margin-bottom:8px;">⚔️ Rolling Initiative...</div>' +
       '<div style="color:var(--parchment-dark);font-size:0.85rem;">' + (data.enemies || []).join(', ') + '</div>' +
       '<div style="color:var(--parchment-dark);font-size:0.8rem;margin-top:8px;opacity:0.6;">Use 💭 OOC to chat while combat loads</div>' +
       '</div>';
+    if (waitingTip) waitingTip.style.display = 'none';
   }
 });
 
 socket.on('combat_init_failed', () => {
   // Restore normal action area
   const myTurn = document.getElementById('my-turn-controls');
-  const waitMsg = document.getElementById('waiting-msg');
+  const waiting = ensureWaitingMessageStructure();
+  const waitMsg = waiting?.waitingMsg;
+  const waitingTip = waiting?.waitingTip;
   if (myTurn) myTurn.style.display = '';
   if (waitMsg) waitMsg.style.display = 'none';
+  if (waitingTip) waitingTip.style.display = '';
 });
 
 socket.on('combat_started', (data) => {
@@ -2334,19 +2354,28 @@ socket.on('combat_started', (data) => {
   combatState = data;
   // Restore full action input
   const myTurn = document.getElementById('my-turn-controls');
-  const waitMsg = document.getElementById('waiting-msg');
+  const waiting = ensureWaitingMessageStructure();
+  const waitMsg = waiting?.waitingMsg;
+  const waitingTip = waiting?.waitingTip;
   if (myTurn) myTurn.style.display = '';
   if (waitMsg) waitMsg.style.display = 'none';
+  if (waitingTip) waitingTip.style.display = '';
   document.getElementById('combat-log').style.display = 'none';
   document.getElementById('combat-log-toggle').style.display = 'block';
   document.getElementById('combat-log').innerHTML = '<div class="round-header">Combat Begins!</div>';
   updateCombatTurnOrder(data);
+  updateActionArea();
 });
 
 socket.on('combat_update', (data) => {
+  combatActive = true;
   combatState = data;
+  const waiting = ensureWaitingMessageStructure();
+  if (waiting?.waitingMsg) waiting.waitingMsg.style.display = 'none';
+  if (waiting?.waitingTip) waiting.waitingTip.style.display = '';
   updateCombatTurnOrder(data);
   if (data.log) appendCombatLog(data.log);
+  updateActionArea();
 });
 
 socket.on('combat_ended', (data) => {
