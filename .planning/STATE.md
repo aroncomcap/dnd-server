@@ -53,6 +53,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-11)
 - Bootstrap GSD around the current stabilization loop before adding new product work.
 - Keep long browser/AI-credit checks behind narrow validation.
 - Preserve existing app architecture and auth/game APIs during stabilization.
+- Phase 6 execution is authorized to run unattended with AI SDK under the local `llm` adapter, `gpt-5.4-mini`/`gpt-5.4` narration split at 70/30, full prompt/output capture during the model lab, periodic raw-text cleanup, subtle player feedback after narrations, and commit/push/deploy/test autonomy.
+- Commit immediately before Phase 6 runtime changes is the final Claude-based baseline.
 
 ## Deferred Ideas
 

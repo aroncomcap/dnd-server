@@ -71,12 +71,12 @@ No domain-specific regulation identified. General privacy and billing expectatio
 
 ## 2. Framework Decision
 
-**Selected Framework:** Custom `llm` provider abstraction using the OpenAI JavaScript SDK and Responses API as the first provider.
+**Selected Framework:** Custom Tavern `llm` product abstraction backed by Vercel AI SDK Core provider registry, with OpenAI as the first production provider.
 
-**Version:** Pin current `openai` npm SDK at implementation time. Prices and supported model IDs must be loaded from config rather than hardcoded assumptions.
+**Version:** Pin current `ai`, `@ai-sdk/openai`, and `@ai-sdk/openai-compatible` npm packages at implementation time. Prices and supported model IDs must be loaded from config rather than hardcoded assumptions.
 
 **Rationale:**
-The app already has direct Express, Socket.IO, PostgreSQL, and test patterns. It does not need agent orchestration; it needs a stable boundary between game logic and model providers. A small adapter gives the project the least moving parts while still supporting OpenAI, OpenAI-compatible providers, and future non-OpenAI providers. OpenAI Responses API is the first implementation because it supports semantic streaming events and structured outputs, which map directly to the current streamed narration and JSON extraction needs.
+The app already has direct Express, Socket.IO, PostgreSQL, and test patterns. It does not need agent orchestration; it needs a stable boundary between game logic and model providers. A Tavern-owned adapter keeps telemetry, experiments, and game semantics under local control, while AI SDK Core supplies a mature provider registry, model aliases, streaming helpers, and OpenAI-compatible provider support. That combination keeps future cheap/good model trials mostly config-driven instead of requiring another migration.
 
 **Alternatives Considered:**
 
@@ -84,10 +84,11 @@ The app already has direct Express, Socket.IO, PostgreSQL, and test patterns. It
 |-----------|-------------------|
 | OpenAI Agents SDK | Useful for agent workflows, but this phase is provider routing, streaming narration, and structured extraction, not tool-using agent orchestration. |
 | LangChain.js / LangGraph.js | More abstraction than the app needs right now; adds framework concepts without solving the core experiment telemetry problem. |
-| Vercel AI SDK | Strong streaming ergonomics, but the existing app is not built around its UI/server conventions and still needs custom experiment persistence. |
+| Raw Vercel AI SDK everywhere | Strong provider and streaming ergonomics, but Tavern still needs a product-specific boundary for experiments, cost tracking, retention, and feedback. Use it underneath the local adapter, not as the game-layer API. |
 | Direct OpenAI calls throughout code | Fastest short-term migration, but it recreates provider lock-in and makes A/B telemetry inconsistent. |
+| LiteLLM proxy | Excellent future gateway for many providers, budgets, and central admin, but it adds another service to deploy/debug before the model lab has proven its local telemetry shape. |
 
-**Vendor Lock-In Accepted:** Partial. Phase 6 replaces Anthropic runtime dependency with OpenAI as the primary provider, but all game code must call the local `llm` interface rather than the OpenAI SDK directly.
+**Vendor Lock-In Accepted:** Partial. Phase 6 replaces Anthropic runtime dependency with OpenAI as the primary provider, but all game code must call the local `llm` interface rather than any provider SDK or AI SDK primitive directly.
 
 ---
 
@@ -96,20 +97,15 @@ The app already has direct Express, Socket.IO, PostgreSQL, and test patterns. It
 ### Installation
 
 ```bash
-npm install openai
-```
-
-Optional structured-output helper if implementation chooses Zod over raw JSON Schema:
-
-```bash
-npm install zod
+npm install ai @ai-sdk/openai @ai-sdk/openai-compatible
 ```
 
 ### Core Imports
 
 ```js
-const OpenAI = require('openai');
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const { createProviderRegistry, streamText: aiStreamText, generateObject, generateText } = require('ai');
+const { openai } = require('@ai-sdk/openai');
+const { createOpenAICompatible } = require('@ai-sdk/openai-compatible');
 ```
 
 ### Entry Point Pattern
@@ -130,33 +126,37 @@ module.exports = { streamText, completeJson };
 ```
 
 ```js
-// llm/providers/openai-responses.js
+// llm/provider-registry.js
+const registry = createProviderRegistry({
+  openai,
+  custom: createOpenAICompatible({
+    name: 'custom',
+    apiKey: process.env.CUSTOM_LLM_API_KEY,
+    baseURL: process.env.CUSTOM_LLM_BASE_URL,
+  }),
+});
+
+module.exports = { registry };
+```
+
+```js
+// llm/providers/ai-sdk.js
 async function streamText({ model, system, messages, maxTokens, temperature, onToken }) {
-  const stream = await client.responses.create({
-    model,
-    input: [
-      { role: 'system', content: system },
-      ...messages,
-    ],
-    max_output_tokens: maxTokens,
+  const result = aiStreamText({
+    model: registry.languageModel(model),
+    system,
+    messages,
+    maxOutputTokens: maxTokens,
     temperature,
-    stream: true,
   });
 
   let text = '';
-  let usage = null;
-  for await (const event of stream) {
-    if (event.type === 'response.output_text.delta') {
-      text += event.delta;
-      onToken?.(event.delta);
-    } else if (event.type === 'response.completed') {
-      usage = event.response?.usage || null;
-    } else if (event.type === 'error' || event.type === 'response.error') {
-      throw new Error(event.error?.message || 'OpenAI stream failed');
-    }
+  for await (const chunk of result.textStream) {
+    text += chunk;
+    onToken?.(chunk);
   }
 
-  return normalizeRunResult({ text, usage });
+  return normalizeRunResult({ text, usage: await result.usage });
 }
 ```
 
@@ -164,7 +164,7 @@ async function streamText({ model, system, messages, maxTokens, temperature, onT
 
 | Concept | What It Is | When You Use It |
 |---------|------------|-----------------|
-| Provider | SDK/API implementation for one vendor or protocol. | OpenAI Responses API, future OpenAI-compatible providers, future local providers. |
+| Provider | SDK/API implementation for one vendor or protocol. | AI SDK OpenAI provider, OpenAI-compatible providers, future native providers. |
 | Model config | Declarative model registry with provider, task fit, price, token limits, and defaults. | Routing, cost estimation, experiments. |
 | Task type | Stable product intent such as `narration`, `world-extraction`, `validation`, `party-gen`, `ooc`, `summary`. | Selecting model, prompt, schema, temperature, and metrics. |
 | Run record | One provider call with timing, usage, cost, output metadata, error state. | Cost and reliability analysis. |
@@ -183,12 +183,12 @@ async function streamText({ model, system, messages, maxTokens, temperature, onT
 ```text
 llm/
   index.js
+  provider-registry.js
   model-registry.js
   experiments.js
   telemetry.js
   providers/
-    openai-responses.js
-    openai-compatible.js
+    ai-sdk.js
   schemas/
     world-extraction.js
     narration-validation.js
@@ -209,11 +209,12 @@ Use environment-driven defaults so models can be changed without code deploy:
 ```text
 LLM_PROVIDER=openai
 LLM_NARRATION_EXPERIMENT=2026-q2-openai-narration
-LLM_NARRATION_VARIANTS=gpt-5.4-mini:70,gpt-5.4:30
-LLM_STRUCTURED_MODEL=gpt-5.4-nano
-LLM_SUMMARY_MODEL=gpt-5.4-nano
-LLM_OOC_MODEL=gpt-5.4-mini
+LLM_NARRATION_VARIANTS=openai:gpt-5.4-mini:70,openai:gpt-5.4:30
+LLM_STRUCTURED_MODEL=openai:gpt-5.4-nano
+LLM_SUMMARY_MODEL=openai:gpt-5.4-nano
+LLM_OOC_MODEL=openai:gpt-5.4-mini
 LLM_STORE_TEXT=true
+LLM_TEXT_RETENTION_DAYS=30
 LLM_EXPERIMENTS_ENABLED=true
 OPENAI_API_KEY=...
 ```
@@ -402,7 +403,7 @@ const worldExtractionSchema = {
 };
 ```
 
-Provider implementation should use OpenAI Structured Outputs with `text.format` / JSON Schema for non-tool responses and normalize refusals or schema failures into retryable errors.
+Provider implementation should use AI SDK object generation backed by OpenAI Structured Outputs / JSON Schema for non-tool responses and normalize refusals or schema failures into retryable errors.
 
 ### Async-First Design
 
@@ -474,6 +475,19 @@ Add focused unit tests for:
 **Labeling:**
 Product owner and one experienced tabletop GM rate examples using the Phase 6 rubric. Live player ratings are collected continuously and compared against the expert sample.
 
+### Output Quality Harness
+
+The implementation must include a deterministic test harness that replays saved turn fixtures against configured models and evaluates every output before production rollout. It should check:
+- visible narration is non-empty and free of structured marker leakage,
+- exactly 3 options parse from the output,
+- options are distinct and actionable,
+- narration stays within verbosity budget,
+- combat-adjacent turns do not resolve engine-owned mechanics,
+- structured extraction validates against schema,
+- token/cost/latency telemetry is recorded for each run.
+
+The harness should support fixture-only CI with mocked providers and an opt-in live mode for real model comparisons.
+
 ---
 
 ## 6. Guardrails
@@ -488,6 +502,7 @@ Product owner and one experienced tabletop GM rate examples using the Phase 6 ru
 | Excessive length | Narration exceeds verbosity cap by configured threshold. | Trim display only if necessary, queue correction for next turn, flag run. |
 | Structured schema failure | Extraction/validation output fails schema. | Retry once on same structured model, then skip state mutation and log failure. |
 | Cost anomaly | Per-call estimated cost exceeds task threshold. | Flag in telemetry; optionally disable expensive variant if rolling cost threshold is exceeded. |
+| Retention cleanup | Stored prompt/output rows exceed retention window. | Scheduled cleanup deletes raw text while preserving aggregate metadata. |
 
 ### Offline Flywheel
 
@@ -521,6 +536,9 @@ Product owner and one experienced tabletop GM rate examples using the Phase 6 ru
 **Smart Sampling Strategy:**
 Prioritize human review for low ratings, negative tags, expensive runs, high-latency runs, fallback runs, schema failures, and long sessions where continuity matters.
 
+**Retention Policy:**
+Store full prompt/output text for complete evaluation during the active model lab window. A scheduled cleanup deletes raw prompt/output text after `LLM_TEXT_RETENTION_DAYS` days, while preserving hashes, task metadata, usage, cost, latency, model, variant, rating, and tags for long-term analysis.
+
 ---
 
 ## Player-Visible Experiment UX
@@ -533,6 +551,7 @@ Player feedback appears below each completed DM narration after the message fini
 - A one-line neutral disclosure in the feedback surface: "Rate this narration to help tune the Game Master."
 - Model/provider identity hidden from players to avoid bias.
 - Admin/debug view can show model, variant, cost, and run id.
+- The control should be visually quiet: small icons/chips below the narration, muted until hover/focus, never competing with action buttons.
 
 Feedback must not block the next turn, resize old messages dramatically, or steal focus from active play.
 
@@ -558,7 +577,7 @@ Feedback must not block the next turn, resize old messages dramatically, or stea
 3. What budget threshold should pause an expensive narration variant automatically?
 
 Recommended defaults for implementation unless overridden:
-- Store output text for narration runs, not full raw prompts, with `LLM_STORE_TEXT=true` configurable.
+- Store full prompt/output text for active model-lab runs, then purge raw text after `LLM_TEXT_RETENTION_DAYS`.
 - Show feedback after every narration but collapse it after the first response if ignored repeatedly.
 - Pause a variant if it costs 2x baseline with less than 0.4 average-rating lift after 50 rated runs.
 
@@ -590,5 +609,7 @@ Recommended defaults for implementation unless overridden:
 - OpenAI streaming responses: https://platform.openai.com/docs/api-reference/streaming
 - OpenAI structured outputs: https://platform.openai.com/docs/guides/structured-outputs?api-mode=responses&lang=javascript
 - OpenAI API pricing: https://openai.com/api/pricing/
+- AI SDK provider management: https://ai-sdk.dev/docs/ai-sdk-core/provider-management
+- AI SDK providers and models: https://ai-sdk.dev/docs/foundations/providers-and-models
 - GPT-5.4 mini model page: https://developers.openai.com/api/docs/models/gpt-5.4-mini/
 - GPT-5.4 nano model page: https://developers.openai.com/api/docs/models/gpt-5.4-nano/
