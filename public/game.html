@@ -2842,8 +2842,13 @@ if (state.ferocity != null) {
   // Store and show last options if they're for us
   pendingOptions = state.lastOptions || [];
   pendingForPlayer = state.lastForPlayer || null;
+  if (pendingForPlayer && currentPlayer && pendingForPlayer !== currentPlayer) {
+    pendingOptions = [];
+    pendingForPlayer = null;
+    showOptions([]);
+  }
   updateActionArea();
-  if (pendingOptions.length && isMyTurnCheck()) {
+  if (pendingOptions.length && isMyTurnCheck() && (!pendingForPlayer || pendingForPlayer === currentPlayer)) {
     showOptions(pendingOptions);
   }
 
@@ -3158,11 +3163,13 @@ socket.on('dm_message', (data) => {
     chatLog.scrollTop = chatLog.scrollHeight;
   }
 
-  // Save and show options — show if it's your turn, ignore forPlayer check
+  // Save and show options only when they belong to the visible turn owner.
   if (data.options && data.options.length) {
     pendingOptions = data.options;
     pendingForPlayer = data.forPlayer;
-    if (isMyTurnCheck()) {
+    if (pendingForPlayer && currentPlayer && pendingForPlayer !== currentPlayer) {
+      showOptions([]);
+    } else if (isMyTurnCheck() && (!pendingForPlayer || pendingForPlayer === currentPlayer || !currentPlayer)) {
       showOptions(data.options);
     }
   }
@@ -3205,6 +3212,13 @@ socket.on('system', (data) => {
 socket.on('turn_change', (data) => {
   if (data.token) tokenCache[data.player] = data.token;
   setTurn(data.player, data.token);
+  if (pendingForPlayer && currentPlayer && pendingForPlayer !== currentPlayer) {
+    pendingOptions = [];
+    pendingForPlayer = null;
+    showOptions([]);
+  } else if (pendingOptions.length && isMyTurnCheck() && (!pendingForPlayer || pendingForPlayer === currentPlayer)) {
+    showOptions(pendingOptions);
+  }
   debugEvent('turn_change', data.player);
   console.log('Turn changed:', { currentPlayer, myName: getMyName(), isMyTurn: isMyTurnCheck() });
   startVisualTimer(data.duration);
@@ -4042,7 +4056,7 @@ function selectCharacter(name, char) {
   // Critical: update action area now that we know who we are
   updateActionArea();
   // Re-show last options if it's our turn
-  if (pendingOptions.length && isMyTurnCheck()) {
+  if (pendingOptions.length && isMyTurnCheck() && (!pendingForPlayer || pendingForPlayer === currentPlayer)) {
     showOptions(pendingOptions);
   }
 }

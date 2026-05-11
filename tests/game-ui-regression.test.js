@@ -110,3 +110,9 @@ test('combat victories award XP and publish character level updates', () => {
   assert.match(serverJs, /XP awarded:/, 'players should see an XP grant system message');
   assert.match(serverJs, /combat_ended'[\s\S]*?xp:/, 'combat_ended payload should include the XP award summary');
 });
+
+test('dm options are scoped to the player receiving the next turn', () => {
+  assert.match(serverJs, /sanitizeOptionsForPlayer/, 'server should guard against stale options for the wrong character');
+  assert.match(serverJs, /optionsRetargeted/, 'retargeted options should be visible in the dm_message payload for diagnostics');
+  assert.match(gameHtml, /pendingForPlayer && currentPlayer && pendingForPlayer !== currentPlayer/, 'client should clear options that belong to a different turn owner');
+});

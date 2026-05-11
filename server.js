@@ -28,6 +28,7 @@ const promptBuilder = require('./prompt-builder');
 const imageEngine = require('./image-engine');
 const gameEngine = require('./game-engine');
 const { awardCombatXP } = require('./xp-system');
+const { sanitizeOptionsForPlayer } = require('./turn-options');
 const USE_SPLIT_PIPELINE = process.env.SPLIT_PIPELINE === 'true';
 const TEST_MODE = process.env.TEST_MODE === 'true';
 
@@ -407,12 +408,26 @@ async function withStreamingLock(gameId, streamFn) {
 function emitDmMessage(gameId, data) {
   // Save last options for reconnects
   const gs = games[gameId];
-  if (gs && data.options?.length) {
-    gs.lastOptions = data.options;
-    gs.lastForPlayer = data.forPlayer;
+  let messageData = data;
+  if (gs && data?.forPlayer && data.options?.length) {
+    const scoped = sanitizeOptionsForPlayer(data.options, data.forPlayer, Object.keys(gs.data.characters || {}));
+    if (scoped.retargeted) {
+      gs.preTaggedOptions = null;
+      console.warn(`[options-retarget] ${gameId}: options for ${data.forPlayer} mentioned ${scoped.mismatchedNames.join(', ')}`);
+      messageData = {
+        ...data,
+        options: scoped.options,
+        optionsRetargeted: true,
+        optionsRetargetedFrom: scoped.mismatchedNames,
+      };
+    }
   }
-  io.to(gameId).emit('dm_message', data);
-  discord.onDmMessage(gameId, data).catch(e => console.error('Discord dm_message error:', e.message));
+  if (gs && messageData.options?.length) {
+    gs.lastOptions = messageData.options;
+    gs.lastForPlayer = messageData.forPlayer;
+  }
+  io.to(gameId).emit('dm_message', messageData);
+  discord.onDmMessage(gameId, messageData).catch(e => console.error('Discord dm_message error:', e.message));
 }
 function emitTurnChange(gameId, data) {
   io.to(gameId).emit('turn_change', data);
