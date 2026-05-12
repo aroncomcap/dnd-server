@@ -21,6 +21,13 @@ const FALLBACK_OPTIONS = [
   'Ask the party what they notice',
 ];
 
+const STRUCTURED_MARKER_PATTERN = String.raw`(?:-{3,}\s*(OPTIONS|SCENE|WORLD)\s*-{3,}?|#{1,3}\s*(OPTIONS?|SCENE|WORLD)\s*(?=\n|$))`;
+const STREAM_MARKER_LOOKAHEAD = 60;
+
+function createStructuredMarkerRegex(flags) {
+  return new RegExp(STRUCTURED_MARKER_PATTERN, flags);
+}
+
 function buildFallbackTurn(characterName, actionText) {
   const rawActor = String(characterName || '').trim();
   const actor = rawActor && rawActor !== 'Unknown' && rawActor.length <= 40 && !/[.!?]/.test(rawActor)
@@ -325,7 +332,7 @@ Return ONLY the JSON object. If no violations, return { "violations": [] }`;
 // ---------------------------------------------------------------------------
 
 function getStructuredMarkerPositions(text) {
-  const markerRegex = /(?:-{3,}\s*(OPTIONS|SCENE|WORLD)\s*-{3,}?|#{1,3}\s*(OPTIONS?|SCENE|WORLD)\s*(?=\n|$))/gim;
+  const markerRegex = createStructuredMarkerRegex('gim');
   const positions = [];
 
   for (const match of text.matchAll(markerRegex)) {
@@ -484,7 +491,45 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
   const userMessage = buildUserMessage(gs, characterName, actionText);
 
   let fullText = '';
+  let visibleNarration = '';
+  let pendingNarrationTail = '';
+  let streamingState = 'NARRATING';
+  const markerRegex = createStructuredMarkerRegex('im');
   let streamEnded = false;
+
+  const emitVisibleChunk = (text) => {
+    if (!text) return;
+    visibleNarration += text;
+    if (io) {
+      io.to(gameId).emit('dm_stream_chunk', { gameId, text, chunk: text });
+    }
+  };
+
+  const bufferStreamChunk = (chunk) => {
+    if (!chunk || streamingState !== 'NARRATING') return;
+
+    pendingNarrationTail += chunk;
+    const markerMatch = pendingNarrationTail.match(markerRegex);
+
+    if (markerMatch) {
+      emitVisibleChunk(pendingNarrationTail.slice(0, markerMatch.index).replace(/\s+$/, ''));
+      pendingNarrationTail = '';
+      streamingState = 'BUFFERING_STRUCTURED';
+      return;
+    }
+
+    if (pendingNarrationTail.length > STREAM_MARKER_LOOKAHEAD) {
+      emitVisibleChunk(pendingNarrationTail.slice(0, -STREAM_MARKER_LOOKAHEAD));
+      pendingNarrationTail = pendingNarrationTail.slice(-STREAM_MARKER_LOOKAHEAD);
+    }
+  };
+
+  const flushVisibleNarration = () => {
+    if (streamingState === 'NARRATING' && pendingNarrationTail) {
+      emitVisibleChunk(pendingNarrationTail);
+    }
+    pendingNarrationTail = '';
+  };
 
   const closeStream = (narration, llmRunId = null) => {
     if (!io || streamEnded) return;
@@ -513,11 +558,10 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
       maxTokens,
       onToken: (chunk) => {
         fullText += chunk;
-        if (io) {
-          io.to(gameId).emit('dm_stream_chunk', { gameId, text: chunk, chunk });
-        }
+        bufferStreamChunk(chunk);
       },
     });
+    flushVisibleNarration();
 
     const responseText = fullText || response.text || '';
     if (!responseText.trim()) {
@@ -539,7 +583,8 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
     return parsed;
   } catch (err) {
     const fallback = buildFallbackTurn(characterName, actionText);
-    closeStream(fullText.trim() || fallback.narration, err.llmRunId || null);
+    flushVisibleNarration();
+    closeStream(visibleNarration.trim() || fallback.narration, err.llmRunId || null);
     return {
       ...fallback,
       llmRunId: err.llmRunId || null,

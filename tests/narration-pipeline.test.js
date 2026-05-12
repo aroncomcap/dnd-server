@@ -12,6 +12,7 @@ const {
   parseNarrationResponse,
   processViolation,
   shouldCallModelForFlavor,
+  callModelNarration,
   handlePlayerAction,
 } = require('../narration-pipeline');
 
@@ -513,6 +514,67 @@ describe('buildValidationPrompt', () => {
 // ---------------------------------------------------------------------------
 
 describe('handlePlayerAction fallback behavior', () => {
+  it('stops streaming visible narration before structured metadata', async () => {
+    llm.setProviderForTesting({
+      streamText: async ({ onToken }) => {
+        onToken('The dust settles.');
+        onToken(' ---OPTIONS---\n1️⃣ Follow the blue trail\n2️⃣ Inspect the room\n3️⃣ Cast detect magic');
+        onToken('\n---SCENE---\nACTION: Caldus secures the path');
+        return {
+          text: 'The dust settles. ---OPTIONS---\n1️⃣ Follow the blue trail\n2️⃣ Inspect the room\n3️⃣ Cast detect magic\n---SCENE---\nACTION: Caldus secures the path',
+          usage: { inputTokens: 10, outputTokens: 40 },
+          llmRunId: 'run-stream-metadata',
+        };
+      },
+    });
+
+    const emitted = [];
+    const io = {
+      to: room => ({
+        emit: (event, payload) => emitted.push({ room, event, payload }),
+      }),
+    };
+
+    const result = await callModelNarration(
+      'game-stream-metadata',
+      makeGameConfig(),
+      {
+        ...makeGameState(),
+        data: {
+          characters: {
+            Caldus: {
+              class: 'Fighter',
+              level: 5,
+              personality: 'Cautious and steady.',
+              standardActions: 'Attack, Dodge',
+              backstory: 'Shield-bearing veteran.',
+            },
+          },
+          chatHistory: [],
+        },
+      },
+      'Caldus',
+      'I secure the path.',
+      io,
+      {}
+    );
+
+    const streamedText = emitted
+      .filter(e => e.event === 'dm_stream_chunk')
+      .map(e => e.payload.text)
+      .join('');
+
+    assert.strictEqual(streamedText, 'The dust settles.');
+    assert.ok(!streamedText.includes('---OPTIONS---'));
+    assert.ok(!streamedText.includes('---SCENE---'));
+    assert.strictEqual(result.narration, 'The dust settles.');
+    assert.deepStrictEqual(result.options, [
+      'Follow the blue trail',
+      'Inspect the room',
+      'Cast detect magic',
+    ]);
+  });
+
   it('returns an actionable fallback immediately when narration streaming fails', async () => {
     let completeJsonCalls = 0;
     llm.setProviderForTesting({
