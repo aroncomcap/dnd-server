@@ -1315,6 +1315,11 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
       <em>Tracked automatically during play.</em>
     </div>
 
+    <label>⚔️ Combat Math</label>
+    <div id="c-combat-math" style="min-height:40px; background:rgba(255,255,255,0.3); border-radius:8px; padding:8px; font-size:0.82rem; color:var(--ink-light);">
+      <em>Attack and spell math appears after the sheet is parsed.</em>
+    </div>
+
     <label>💬 Catchphrases <span style="font-weight:normal;font-size:0.75rem;color:var(--ink-light);">(max 10, used sparingly by the GM)</span></label>
     <div id="c-catchphrases" style="min-height:30px; background:rgba(255,255,255,0.3); border-radius:8px; padding:8px; font-size:0.85rem; color:var(--ink-light);">
       <em>No catchphrases yet.</em>
@@ -3471,6 +3476,7 @@ document.getElementById('btn-register')?.addEventListener('click', () => {
     personality: document.getElementById('c-personality').value.trim(),
     standardActions: document.getElementById('c-actions').value.trim(),
     backstory: document.getElementById('c-backstory').value.trim(),
+    combatProfiles: collectCombatMathProfiles(),
   });
 
   if (!playerName) {
@@ -3605,6 +3611,7 @@ document.getElementById('btn-save-char').addEventListener('click', () => {
     personality: document.getElementById('c-personality').value.trim(),
     standardActions: document.getElementById('c-actions').value.trim(),
     backstory: document.getElementById('c-backstory').value.trim(),
+    combatProfiles: collectCombatMathProfiles(),
   });
   document.getElementById('char-status').textContent = '💾 Saving...';
 });
@@ -4096,7 +4103,10 @@ function prefillCharacterForm(name, char) {
   );
   if (spellLines.length) {
     spellsDiv.innerHTML = spellLines.map(l => l.trim()).join('<br/>');
+  } else {
+    spellsDiv.innerHTML = '<em>Tracked automatically during play.</em>';
   }
+  renderCombatMathProfiles(char.combatStats?.attackProfiles || []);
   // Update accomplishments from world data
   const accDiv = document.getElementById('c-accomplishments');
   const worldAcc = document.querySelectorAll('#world-accomplishments .world-item');
@@ -4111,6 +4121,79 @@ function prefillCharacterForm(name, char) {
   } else {
     accDiv.innerHTML = '<em>No accomplishments yet — play to earn them!</em>';
   }
+}
+
+function renderCombatMathProfiles(profiles) {
+  const div = document.getElementById('c-combat-math');
+  if (!div) return;
+  if (!profiles || !profiles.length) {
+    div.innerHTML = '<em>Attack and spell math appears after the sheet is parsed.</em>';
+    return;
+  }
+  div.innerHTML = '';
+  profiles.forEach(profile => {
+    const row = document.createElement('div');
+    row.className = 'combat-math-profile';
+    row.dataset.profileId = profile.id || '';
+    row.dataset.source = profile.source || '';
+    row.dataset.name = profile.name || '';
+    row.dataset.autoAttackBonus = profile.auto?.attackBonus ?? '';
+    row.dataset.autoDamageFormula = profile.auto?.damageFormula || '';
+    row.dataset.autoAttacksPerAction = profile.auto?.attacksPerAction ?? '';
+    row.dataset.autoSaveDc = profile.auto?.saveDC ?? '';
+    row.style.cssText = 'display:grid;grid-template-columns:minmax(120px,1.3fr) 74px 96px 64px;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(92,61,30,0.12);';
+    const carriedControl = profile.source === 'weapon'
+      ? `<label style="margin:0;font-size:0.72rem;font-weight:600;color:var(--ink-light);"><input class="combat-profile-carried" type="checkbox" ${profile.carried === false ? '' : 'checked'} style="width:auto;margin-right:3px;"/> Carry</label>`
+      : '';
+    const saveDc = profile.saveDC !== undefined && profile.saveDC !== null
+      ? `<span style="font-size:0.72rem;color:var(--ink-light);">DC ${escapeHtml(String(profile.saveDC))}</span>`
+      : '';
+    row.innerHTML = `
+      <div>
+        <strong style="display:block;color:var(--ink);font-size:0.84rem;">${escapeHtml(profile.name || 'Attack')}</strong>
+        <label style="margin:0;font-size:0.72rem;font-weight:600;color:var(--ink-light);"><input class="combat-profile-enabled" type="checkbox" ${profile.enabled === false ? '' : 'checked'} style="width:auto;margin-right:3px;"/> Use</label>
+        ${carriedControl}
+        ${saveDc}
+      </div>
+      <input class="combat-profile-attack" type="number" value="${profile.attackBonus ?? ''}" placeholder="+hit" style="font-size:0.78rem;padding:5px 6px;"/>
+      <input class="combat-profile-damage" type="text" value="${escapeHtml(profile.damageFormula || '')}" placeholder="damage" style="font-size:0.78rem;padding:5px 6px;"/>
+      <input class="combat-profile-count" type="number" min="1" max="12" value="${profile.attacksPerAction || 1}" title="Attacks per action" style="font-size:0.78rem;padding:5px 6px;"/>
+    `;
+    div.appendChild(row);
+  });
+}
+
+function collectCombatMathProfiles() {
+  return Array.from(document.querySelectorAll('#c-combat-math .combat-math-profile')).map(row => {
+    const attackInput = row.querySelector('.combat-profile-attack');
+    const damageInput = row.querySelector('.combat-profile-damage');
+    const countInput = row.querySelector('.combat-profile-count');
+    const enabledInput = row.querySelector('.combat-profile-enabled');
+    const carriedInput = row.querySelector('.combat-profile-carried');
+    const attackBonus = attackInput?.value === '' ? null : Number(attackInput.value);
+    const attacksPerAction = countInput?.value === '' ? 1 : Number(countInput.value);
+    const saveDC = row.dataset.autoSaveDc === '' ? null : Number(row.dataset.autoSaveDc);
+    const autoAttack = row.dataset.autoAttackBonus === '' ? null : Number(row.dataset.autoAttackBonus);
+    const autoCount = row.dataset.autoAttacksPerAction === '' ? null : Number(row.dataset.autoAttacksPerAction);
+    const autoDamage = row.dataset.autoDamageFormula || '';
+    const damageFormula = damageInput?.value.trim() || '';
+    const manual =
+      (attackBonus !== null && autoAttack !== null && attackBonus !== autoAttack) ||
+      (damageFormula && autoDamage && damageFormula !== autoDamage) ||
+      (attacksPerAction && autoCount !== null && attacksPerAction !== autoCount);
+    return {
+      id: row.dataset.profileId,
+      source: row.dataset.source,
+      name: row.dataset.name,
+      enabled: enabledInput ? enabledInput.checked : true,
+      carried: carriedInput ? carriedInput.checked : true,
+      attackBonus,
+      saveDC,
+      damageFormula,
+      attacksPerAction,
+      manual,
+    };
+  });
 }
 
 document.getElementById('picker-new-btn').addEventListener('click', () => {

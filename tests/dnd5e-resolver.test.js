@@ -150,6 +150,12 @@ describe('getAttackMod', () => {
     const weapon = { attackMod: 'dex', damage: '1d6' };
     assert.equal(getAttackMod(pc, weapon), 4);
   });
+
+  it('uses numeric attackMod as the final to-hit bonus when parsed from a sheet', () => {
+    const pc = makePC();
+    const weapon = { attackMod: 7, damage: '1d8+4' };
+    assert.equal(getAttackMod(pc, weapon), 7);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -280,6 +286,38 @@ describe('resolveAttack', () => {
     }
   });
 
+  it('adds ability modifier to bare weapon dice exactly once', () => {
+    const strongAttacker = makePC({ abilities: { str: 18, dex: 12, con: 14, int: 10, wis: 13, cha: 8 } });
+    const bareWeapon = { name: 'longsword', attackMod: 'str', damage: '1d8', damageType: 'slashing', properties: [] };
+    let checked = false;
+    for (let i = 0; i < 300; i++) {
+      const r = resolveAttack(strongAttacker, target, bareWeapon, [], []);
+      if (r.hit && !r.critical) {
+        assert.ok(r.totalDamage >= 5 && r.totalDamage <= 12, `bare dice damage ${r.totalDamage} should include +4 once`);
+        assert.equal(r.damageFormula, '1d8+4');
+        checked = true;
+        break;
+      }
+    }
+    assert.ok(checked, 'never found a normal hit to test');
+  });
+
+  it('does not add ability modifier twice when weapon damage already includes a flat modifier', () => {
+    const strongAttacker = makePC({ abilities: { str: 18, dex: 12, con: 14, int: 10, wis: 13, cha: 8 } });
+    const sheetWeapon = { name: 'longsword', attackMod: 'str', damage: '1d8+4', damageType: 'slashing', properties: [] };
+    let checked = false;
+    for (let i = 0; i < 300; i++) {
+      const r = resolveAttack(strongAttacker, target, sheetWeapon, [], []);
+      if (r.hit && !r.critical) {
+        assert.ok(r.totalDamage >= 5 && r.totalDamage <= 12, `sheet damage ${r.totalDamage} should not double-count +4`);
+        assert.equal(r.damageFormula, '1d8+4');
+        checked = true;
+        break;
+      }
+    }
+    assert.ok(checked, 'never found a normal hit to test');
+  });
+
   describe('advantage/disadvantage from conditions', () => {
     it('prone target gives advantage on melee attack (roll has advantageRolls)', () => {
       const proneTarget = makeEnemy({ conditions: ['prone'] });
@@ -330,6 +368,17 @@ describe('resolveSpell (save-based)', () => {
     const targets = [makeEnemy()];
     const result = resolveSpell(caster, spell, targets, [], []);
     assert.equal(result.saveDC, 11);
+  });
+
+  it('uses editable spell profile save DC when present', () => {
+    const caster = makePC({
+      attackProfiles: [
+        { id: 'spell-fireball', source: 'spell', name: 'fireball', enabled: true, saveDC: 15, damageFormula: '8d6' },
+      ],
+    });
+    const spell = { name: 'fireball', level: 3, save: 'dex', damage: '8d6', damageType: 'fire' };
+    const result = resolveSpell(caster, spell, [makeEnemy()], [], []);
+    assert.equal(result.saveDC, 15);
   });
 
   it('each target has a saveRoll and save result', () => {
@@ -587,6 +636,7 @@ describe('getAvailableActions', () => {
     const weaponActions = actions.filter(a => a.type === 'weapon');
     assert.ok(weaponActions.length > 0, 'should have weapon actions');
     assert.ok(weaponActions.some(a => a.name === 'longsword'));
+    assert.ok(weaponActions.some(a => a.label === 'Attack with longsword'), 'weapon actions should have enemy prompt labels');
   });
 
   it('includes spells when spell slots are available', () => {

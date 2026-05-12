@@ -1,6 +1,14 @@
 'use strict';
 
-const { roll, d20, advantage, disadvantage } = require('./dice');
+const { d20, advantage, disadvantage, rollDie } = require('./dice');
+const {
+  getAttackBonus,
+  getAttacksPerAction,
+  getDamageFormula,
+  findAttackProfile,
+  profileIsUsable,
+  hasFlatModifier,
+} = require('../combat-stats');
 
 // ---------------------------------------------------------------------------
 // Core math helpers
@@ -25,7 +33,14 @@ function getSaveMod(combatant, ability) {
 }
 
 /** Spell Save DC: 8 + proficiency + spellcasting ability modifier. */
-function getSpellSaveDC(caster) {
+function getSpellSaveDC(caster, spell = null) {
+  if (spell) {
+    const profile = findAttackProfile(caster, 'spell', spell.name);
+    if (profile && profileIsUsable(profile) && Number.isFinite(Number(profile.saveDC))) {
+      return Number(profile.saveDC);
+    }
+    if (Number.isFinite(Number(spell.saveDC))) return Number(spell.saveDC);
+  }
   const ability = caster.spellcastingAbility;
   const abilities = caster.abilities || {};
   const mod = ability ? getAbilityMod(abilities[ability]) : 0;
@@ -34,10 +49,7 @@ function getSpellSaveDC(caster) {
 
 /** Attack modifier: ability modifier + proficiency bonus. */
 function getAttackMod(combatant, weapon) {
-  const ability = weapon.attackMod || 'str';
-  const abilities = combatant.abilities || {};
-  const prof = combatant.proficiencyBonus || 2;
-  return getAbilityMod(abilities[ability]) + prof;
+  return getAttackBonus(combatant, weapon, 'weapon');
 }
 
 /** Roll initiative: d20 + DEX modifier. */
@@ -119,7 +131,8 @@ function _getAdvantageState(attacker, target, weapon, conditions = []) {
  * @returns {object} attack result
  */
 function resolveAttack(attacker, target, weapon, conditions = [], activeEffects = []) {
-  const modifier = getAttackMod(attacker, weapon);
+  const attackSource = weapon.source === 'spell' ? 'spell' : 'weapon';
+  const modifier = getAttackBonus(attacker, weapon, attackSource);
   const advState = _getAdvantageState(attacker, target, weapon, conditions);
 
   // Roll d20 (with adv/disadv)
@@ -144,7 +157,7 @@ function resolveAttack(attacker, target, weapon, conditions = [], activeEffects 
     e => e.type === 'bless' && Array.isArray(e.targets) && e.targets.includes(attacker.id)
   );
   if (bless) {
-    effectBonus = roll('1d4').total;
+    effectBonus = rollDamageFormula('1d4').total;
   }
 
   const total = rollResult + modifier + effectBonus;
@@ -158,18 +171,15 @@ function resolveAttack(attacker, target, weapon, conditions = [], activeEffects 
   // Damage
   let damageRoll = 0;
   let totalDamage = 0;
+  let damageFormula = getDamageFormula(attacker, weapon, attackSource);
+  let damageDiceTotal = 0;
+  let damageModifier = 0;
 
   if (hit) {
-    const abilityMod = getAbilityMod((attacker.abilities || {})[weapon.attackMod || 'str']);
-    if (critical) {
-      // Double the dice, add modifier once
-      const r1 = roll(weapon.damage);
-      const r2 = roll(weapon.damage);
-      damageRoll = r1.total + r2.total + abilityMod;
-    } else {
-      const r = roll(weapon.damage);
-      damageRoll = r.total + abilityMod;
-    }
+    const damage = rollDamageFormula(damageFormula, critical);
+    damageDiceTotal = damage.diceTotal;
+    damageModifier = damage.modifier;
+    damageRoll = damage.total;
     totalDamage = Math.max(1, damageRoll);
   }
 
@@ -189,6 +199,9 @@ function resolveAttack(attacker, target, weapon, conditions = [], activeEffects 
     critical,
     fumble,
     damageRoll,
+    damageDiceTotal,
+    damageModifier,
+    damageFormula,
     totalDamage,
     damageType: weapon.damageType || 'bludgeoning',
   };
@@ -198,6 +211,37 @@ function resolveAttack(attacker, target, weapon, conditions = [], activeEffects 
   }
 
   return result;
+}
+
+function rollDamageFormula(formula, critical = false) {
+  const notation = typeof formula === 'string' && formula.trim() ? formula.trim() : '1d4';
+  const tokens = notation.match(/([+-]?(?:\d*d\d+|\d+))/gi);
+  if (!tokens) {
+    throw new SyntaxError(`Invalid dice notation: "${notation}"`);
+  }
+
+  const rolls = [];
+  let modifier = 0;
+  for (const token of tokens) {
+    const sign = token.startsWith('-') ? -1 : 1;
+    const raw = token.replace(/^[+-]/, '');
+    const diceMatch = raw.match(/^(\d*)d(\d+)$/i);
+    if (diceMatch) {
+      const count = diceMatch[1] === '' ? 1 : parseInt(diceMatch[1], 10);
+      const faces = parseInt(diceMatch[2], 10);
+      const rollCount = count * (critical ? 2 : 1);
+      for (let i = 0; i < rollCount; i++) {
+        rolls.push(sign * rollDie(faces));
+      }
+    } else {
+      const flat = parseInt(raw, 10);
+      if (isNaN(flat)) throw new SyntaxError(`Unrecognised token in dice notation: "${token}"`);
+      modifier += sign * flat;
+    }
+  }
+
+  const diceTotal = rolls.reduce((sum, value) => sum + value, 0);
+  return { rolls, diceTotal, modifier, total: diceTotal + modifier };
 }
 
 // ---------------------------------------------------------------------------
@@ -214,9 +258,9 @@ function resolveSpell(caster, spell, targets, conditions = [], activeEffects = [
 
   // --- Healing ---
   if (spell.healing || spell.effect === 'heal') {
-    const notation = spell.healing || '1d4';
-    const healRoll = roll(notation);
-    const totalHealing = Math.max(1, healRoll.total + spellMod);
+    const notation = getDamageFormula(caster, spell, 'spell') || spell.healing || '1d4';
+    const healRoll = rollDamageFormula(notation);
+    const totalHealing = Math.max(1, healRoll.total + (hasFlatModifier(notation) ? 0 : spellMod));
     return {
       type: 'heal',
       caster: caster.id,
@@ -231,8 +275,9 @@ function resolveSpell(caster, spell, targets, conditions = [], activeEffects = [
 
   // --- Save-based ---
   if (spell.save) {
-    const saveDC = getSpellSaveDC(caster);
-    const damageRoll = roll(spell.damage || '1d6');
+    const saveDC = getSpellSaveDC(caster, spell);
+    const damageFormula = getDamageFormula(caster, spell, 'spell');
+    const damageRoll = rollDamageFormula(damageFormula);
     const fullDamage = damageRoll.total;
 
     const resolvedTargets = targets.map(target => {
@@ -261,6 +306,8 @@ function resolveSpell(caster, spell, targets, conditions = [], activeEffects = [
       spell: spell.name,
       saveDC,
       damageRoll: fullDamage,
+      damageFormula,
+      damageType: spell.damageType || 'force',
       targets: resolvedTargets,
     };
   }
@@ -269,10 +316,13 @@ function resolveSpell(caster, spell, targets, conditions = [], activeEffects = [
   if (spell.attack) {
     const attackWeapon = {
       name: spell.name,
-      attackMod: spellAbility || 'int',
-      damage: spell.damage || '1d6',
+      attackMod: Number.isFinite(Number(findAttackProfile(caster, 'spell', spell.name)?.attackBonus))
+        ? Number(findAttackProfile(caster, 'spell', spell.name).attackBonus)
+        : (spell.attackMod || spellAbility || 'int'),
+      damage: getDamageFormula(caster, spell, 'spell'),
       damageType: spell.damageType || 'force',
       properties: spell.properties || [],
+      source: 'spell',
     };
     const results = targets.map(t => resolveAttack(caster, t, attackWeapon, conditions, activeEffects));
     return {
@@ -439,21 +489,29 @@ function getAvailableActions(combatant) {
 
   // Weapon attacks
   for (const weapon of (combatant.weapons || [])) {
-    actions.push({ type: 'weapon', name: weapon.name, weapon });
+    const profile = findAttackProfile(combatant, 'weapon', weapon.name);
+    if (!profileIsUsable(profile)) continue;
+    actions.push({
+      type: 'weapon',
+      name: weapon.name,
+      label: `Attack with ${weapon.name}`,
+      weapon,
+      attacksPerAction: getAttacksPerAction(combatant, weapon, 'weapon'),
+    });
   }
 
-  // Spells — only if combatant has spells AND has at least one non-zero slot
+  // Spells — cantrips are always available; leveled spells require slots.
   const hasSlots = Object.values(combatant.spellSlots || {}).some(v => v > 0);
-  if (hasSlots && (combatant.spells || []).length > 0) {
-    for (const spell of combatant.spells) {
-      // Only include if there's a slot of the required level
-      const requiredLevel = spell.level || 1;
-      const availableAtLevel = Object.entries(combatant.spellSlots || {}).some(
-        ([lvl, count]) => parseInt(lvl, 10) >= requiredLevel && count > 0
-      );
-      if (availableAtLevel) {
-        actions.push({ type: 'spell', name: spell.name, spell });
-      }
+  for (const spell of (combatant.spells || [])) {
+    const profile = findAttackProfile(combatant, 'spell', spell.name);
+    if (!profileIsUsable(profile)) continue;
+    const isFreeCantrip = spell.level === 0 || (spell.properties || []).includes('cantrip') || profile?.cantrip;
+    const requiredLevel = spell.level || 1;
+    const availableAtLevel = Object.entries(combatant.spellSlots || {}).some(
+      ([lvl, count]) => parseInt(lvl, 10) >= requiredLevel && count > 0
+    );
+    if (isFreeCantrip || (hasSlots && availableAtLevel)) {
+      actions.push({ type: 'spell', name: spell.name, label: `Cast ${spell.name}`, spell });
     }
   }
 
@@ -483,4 +541,5 @@ module.exports = {
   _resolveDeathSaveWithRoll,
   resolveConcentrationCheck,
   getAvailableActions,
+  getAttacksPerAction,
 };

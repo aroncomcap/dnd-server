@@ -1,6 +1,7 @@
 'use strict';
 
 const llm = require('./llm');
+const { normalizeDnd5eCombatStats } = require('./combat-stats');
 
 // ---------------------------------------------------------------------------
 // Schemas — describe the expected shape of combatStats for each system
@@ -193,6 +194,9 @@ async function parseStatsText(statsText, system, options = {}) {
   // Apply defaults for missing fields
   const defaults = system === 'runequest' ? RUNEQUEST_DEFAULTS : DND5E_DEFAULTS;
   applyDefaults(parsed, defaults);
+  if (system === 'dnd5e') {
+    parsed = normalizeDnd5eCombatStats(parsed);
+  }
 
   return parsed;
 }

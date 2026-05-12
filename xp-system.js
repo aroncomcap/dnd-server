@@ -1,3 +1,5 @@
+const { normalizeDnd5eCombatStats } = require('./combat-stats');
+
 /**
  * XP and Leveling System
  * Awards XP for encounters and handles character leveling
@@ -120,6 +122,9 @@ function syncCharacterLevelFields(charData, level) {
   charData.level = level;
   if (charData.combatStats) {
     charData.combatStats.level = level;
+    if (!charData.combatStats.system || charData.combatStats.system === 'dnd5e') {
+      charData.combatStats = normalizeDnd5eCombatStats(charData.combatStats);
+    }
   }
   if (typeof charData.statsText === 'string') {
     if (/level\s+\d+/i.test(charData.statsText)) {

@@ -2,6 +2,7 @@
 
 const dnd5e = require('./resolvers/dnd5e-resolver');
 const runequest = require('./resolvers/runequest-resolver');
+const { getAttacksPerAction } = require('./combat-stats');
 
 // ---------------------------------------------------------------------------
 // CombatEngine
@@ -174,13 +175,36 @@ class CombatEngine {
             this.state.combatants[action.targetId] = target;
           }
         } else {
-          result = resolver.resolveAttack(attacker, target, weapon, [], this.state.activeEffects);
-          if (result.hit) {
-            const hpBefore = target.hp;
-            const dmgResult = resolver.applyDamage(target, result.totalDamage, result.damageType, this.state.activeEffects);
-            result.hpBefore = hpBefore;
-            result.hpAfter  = dmgResult.hp;
-            this.state.combatants[action.targetId].hp = dmgResult.hp;
+          const attackCount = getAttacksPerAction(attacker, weapon, 'weapon');
+          const attacks = [];
+          for (let i = 0; i < attackCount; i++) {
+            if (resolver.checkDeath(target).status === 'dead') break;
+            const attackResult = resolver.resolveAttack(attacker, target, weapon, [], this.state.activeEffects);
+            attackResult.attackNumber = i + 1;
+            attackResult.attackCount = attackCount;
+            if (attackResult.hit) {
+              const hpBefore = target.hp;
+              const dmgResult = resolver.applyDamage(target, attackResult.totalDamage, attackResult.damageType, this.state.activeEffects);
+              attackResult.hpBefore = hpBefore;
+              attackResult.hpAfter  = dmgResult.hp;
+              this.state.combatants[action.targetId].hp = dmgResult.hp;
+              target.hp = dmgResult.hp;
+            }
+            attacks.push(attackResult);
+          }
+
+          if (attacks.length === 1) {
+            result = attacks[0];
+          } else {
+            result = {
+              type: 'multiattack',
+              attacker: attacker.id,
+              attackerName: attacker.name,
+              target: target.id,
+              targetName: target.name,
+              weapon: weapon.name,
+              attacks,
+            };
           }
         }
         break;
@@ -508,6 +532,18 @@ class CombatEngine {
           break;
         }
 
+        case 'multiattack': {
+          for (const attack of entry.attacks || []) {
+            if (attack.hit && attack.totalDamage > 0) {
+              const attId = attack.attacker;
+              const tgtId = attack.target;
+              if (attId) { ensure(attId); characters[attId].damageDealt += attack.totalDamage; }
+              if (tgtId) { ensure(tgtId); characters[tgtId].damageTaken += attack.totalDamage; }
+            }
+          }
+          break;
+        }
+
         case 'spell-save': {
           const casterId = entry.caster;
           for (const t of entry.targets || []) {
@@ -585,6 +621,13 @@ class CombatEngine {
           return this._formatRQAttack(result);
         }
         return this._formatDnDAttack(result);
+      }
+      case 'multiattack': {
+        const lines = [`${result.attackerName} makes ${result.attacks?.length || 0} attacks with ${result.weapon}.`];
+        for (const attack of result.attacks || []) {
+          lines.push(this._formatDnDAttack(attack));
+        }
+        return lines.join('\n');
       }
       case 'spell-save': {
         const lines = [`${result.casterName} casts ${result.spell} (DC ${result.saveDC} save).`];

@@ -319,6 +319,43 @@ describe('CombatEngine', () => {
         assert.ok(engine.state.combatants['goblin'].hp < goblinBefore);
       }
     });
+
+    it('resolves Extra Attack profiles as multiple weapon attacks in one Attack action', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({
+        abilities: { str: 30, dex: 12, con: 14, int: 10, wis: 13, cha: 8 },
+        proficiencyBonus: 10,
+        features: ['Extra Attack'],
+        weapons: [
+          { name: 'longsword', attackMod: 'str', damage: '1d8', damageType: 'slashing', properties: [] },
+        ],
+        attackProfiles: [
+          {
+            id: 'weapon-longsword',
+            source: 'weapon',
+            name: 'longsword',
+            enabled: true,
+            carried: true,
+            attackBonus: 20,
+            damageFormula: '1d8+10',
+            attacksPerAction: 2,
+          },
+        ],
+      });
+      engine.initCombat([pc], [makeDnDEnemy({ ac: 1, hp: 50, maxHp: 50 })], 'dnd5e');
+
+      const result = engine.resolveAction({
+        type: 'attack',
+        attackerId: 'kael',
+        targetId: 'goblin',
+        weaponName: 'longsword',
+      });
+
+      assert.equal(result.type, 'multiattack');
+      assert.equal(result.attacks.length, 2);
+      assert.ok(result.attacks.every(attack => attack.type === 'attack'), 'each profile attack should be a normal attack result');
+      assert.ok(engine.state.combatants.goblin.hp < 50, 'enemy should take damage from the attack sequence');
+    });
   });
 
   describe('resolveAction (spell)', () => {

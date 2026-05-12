@@ -30,6 +30,7 @@ const gameEngine = require('./game-engine');
 const { awardCombatXP } = require('./xp-system');
 const { sanitizeOptionsForPlayer } = require('./turn-options');
 const { cleanInvalidCombatNarration } = require('./narration-sanitizer');
+const { normalizeDnd5eCombatStats, applyCombatProfileEdits } = require('./combat-stats');
 const USE_SPLIT_PIPELINE = process.env.SPLIT_PIPELINE === 'true';
 const TEST_MODE = process.env.TEST_MODE === 'true';
 
@@ -100,7 +101,7 @@ function parseStatsLocal(statsText) {
 
   if (!hp && !ac) return null; // Not enough data to be useful
 
-  return {
+  return normalizeDnd5eCombatStats({
     system: 'dnd5e', level, ac: ac || 10, hp: hp || 10, maxHp: hp || 10, speed,
     abilities, proficiencyBonus, saveProficiencies: [],
     weapons: weapons.length ? weapons : [{ name: 'unarmed', attackMod: 'str', damage: '1d4', damageType: 'bludgeoning', properties: [] }],
@@ -108,11 +109,11 @@ function parseStatsLocal(statsText) {
     features, conditions: [], concentrating: null,
     deathSaves: { successes: 0, failures: 0 }, inspiration: false,
     resistances: [], vulnerabilities: [], immunities: [],
-  };
+  });
 }
 
 function createFallbackCombatStats({ ac, hp, abilities, weapons, spells = [], spellSlots = {}, spellcastingAbility = null, features = [], saveProficiencies = [] }) {
-  return {
+  return normalizeDnd5eCombatStats({
     system: 'dnd5e',
     level: 1,
     ac,
@@ -134,7 +135,7 @@ function createFallbackCombatStats({ ac, hp, abilities, weapons, spells = [], sp
     resistances: [],
     vulnerabilities: [],
     immunities: [],
-  };
+  });
 }
 
 function createFallbackParty(system = 'dnd5e') {
@@ -734,6 +735,11 @@ async function initiateCombat(gameId, gameConfig, enemies) {
         continue;
       }
     }
+    if (system === 'dnd5e') {
+      combatStats = normalizeDnd5eCombatStats(combatStats);
+      char.combatStats = combatStats;
+      db.upsertCharacter(gameId, name, char).catch(() => {});
+    }
     const id = name.toLowerCase().replace(/\s+/g, '-');
     pcCombatants.push({ ...combatStats, id, name, type: 'PC' });
   }
@@ -800,7 +806,7 @@ ${personality ? 'Personality: ' + personality : ''}
 ${tactics ? 'Tactics: ' + tactics : ''}
 ${moraleAction}
 HP: ${current.hp ?? current.totalHp}/${current.maxHp ?? current.totalHp}
-Can: ${availableActions.slice(0, 6).map(a => a.label).join(', ')}
+Can: ${availableActions.slice(0, 6).map(a => a.label || a.name || a.type).join(', ')}
 Targets: ${pcs.map(p => `${p.name}(${p.id},${p.hp ?? p.totalHp}HP${p.concentrating ? ',conc:' + p.concentrating : ''})`).join(', ')}
 Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
 
@@ -854,13 +860,14 @@ Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
 
     // Find this enemy's pre-computed decision
     const decision = decisions.find(d => d.enemyId === current.id);
-    const actionType = decision?.actionType || 'attack';
+    const actionType = normalizeEnemyActionType(decision?.actionType || 'attack');
     const targetId = decision?.targetId || pcs[0]?.id;
     const weaponName = decision?.weaponName;
 
     const result = engine.resolveAction({
-      type: actionType.startsWith('attack') ? 'attack' : actionType,
+      type: actionType,
       attackerId: current.id,
+      actorId: current.id,
       targetId,
       weapon: weaponName,
     });
@@ -871,6 +878,15 @@ Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
   }
 
   return results;
+}
+
+function normalizeEnemyActionType(actionType) {
+  const text = String(actionType || '').toLowerCase();
+  if (/^(attack|weapon|melee|ranged|shoot|strike|slash|stab|bite|claw)/.test(text)) return 'attack';
+  if (text.startsWith('dodge')) return 'dodge';
+  if (text.startsWith('disengage')) return 'disengage';
+  if (text.startsWith('dash') || text.startsWith('flee')) return 'dash';
+  return 'attack';
 }
 
 function emitCombatUpdate(gameId) {
@@ -3216,8 +3232,21 @@ io.on('connection', (socket) => {
       personality: truncate(data.personality, MAX_CHAR_FIELD) || 'Brave and curious',
       standardActions: truncate(data.standardActions, MAX_CHAR_FIELD) || '',
       backstory: truncate(data.backstory, MAX_CHAR_FIELD) || '',
+      combatStats: existing?.combatStats || null,
       token: data.token === null ? null : (data.token || (existing && existing.token) || null),
     };
+    const parsedLocalStats = parseStatsLocal(charData.statsText);
+    if (parsedLocalStats) {
+      charData.combatStats = normalizeDnd5eCombatStats({
+        ...parsedLocalStats,
+        spells: existing?.combatStats?.spells?.length ? existing.combatStats.spells : parsedLocalStats.spells,
+        spellSlots: existing?.combatStats?.spellSlots || parsedLocalStats.spellSlots,
+        spellcastingAbility: existing?.combatStats?.spellcastingAbility || parsedLocalStats.spellcastingAbility,
+        attackProfiles: existing?.combatStats?.attackProfiles || parsedLocalStats.attackProfiles,
+      });
+    } else if (charData.combatStats?.system === 'dnd5e') {
+      charData.combatStats = normalizeDnd5eCombatStats(charData.combatStats);
+    }
 
     gs.data.characters[data.name] = charData;
     if (!gs.data.turnOrder.includes(data.name)) {
@@ -3655,6 +3684,21 @@ io.on('connection', (socket) => {
     if (data.personality !== undefined) char.personality = truncate(data.personality, MAX_CHAR_FIELD);
     if (data.standardActions !== undefined) char.standardActions = truncate(data.standardActions, MAX_CHAR_FIELD);
     if (data.backstory !== undefined) char.backstory = truncate(data.backstory, MAX_CHAR_FIELD);
+    const parsedLocalStats = parseStatsLocal(char.statsText || '');
+    if (parsedLocalStats) {
+      char.combatStats = normalizeDnd5eCombatStats({
+        ...parsedLocalStats,
+        spells: char.combatStats?.spells?.length ? char.combatStats.spells : parsedLocalStats.spells,
+        spellSlots: char.combatStats?.spellSlots || parsedLocalStats.spellSlots,
+        spellcastingAbility: char.combatStats?.spellcastingAbility || parsedLocalStats.spellcastingAbility,
+        attackProfiles: char.combatStats?.attackProfiles || parsedLocalStats.attackProfiles,
+      });
+    } else if (char.combatStats?.system === 'dnd5e') {
+      char.combatStats = normalizeDnd5eCombatStats(char.combatStats);
+    }
+    if (char.combatStats?.system === 'dnd5e' && Array.isArray(data.combatProfiles)) {
+      char.combatStats = applyCombatProfileEdits(char.combatStats, data.combatProfiles);
+    }
     await db.upsertCharacter(gameId, data.name, char);
     socket.emit('system', { text: `✅ ${data.name}'s character sheet saved.` });
     io.to(gameId).emit('character_updated', { name: data.name, character: char });
@@ -4269,6 +4313,7 @@ Now generate the characters. Remember: check the PLAYER DIRECTION first to see h
           if (!combatStats.resistances) combatStats.resistances = [];
           if (!combatStats.vulnerabilities) combatStats.vulnerabilities = [];
           if (!combatStats.immunities) combatStats.immunities = [];
+          if (system === 'dnd5e') combatStats = normalizeDnd5eCombatStats(combatStats);
         } catch (e) {
           console.error(`Failed to parse COMBAT_JSON for ${nameMatch[1].trim()}: ${e.message}`);
         }

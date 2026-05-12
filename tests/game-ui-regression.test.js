@@ -131,3 +131,18 @@ test('combat narration strips impossible roll placeholders', () => {
   assert.match(serverJs, /cleanInvalidCombatNarration/, 'server should sanitize impossible combat placeholder text before emitting DM narration');
   assert.match(serverJs, /Do NOT add HIT\/MISS to non-damage/, 'combat prompt should forbid HIT/MISS formatting for non-damage results');
 });
+
+test('character sheet exposes editable persisted combat math profiles', () => {
+  assert.match(gameHtml, /id="c-combat-math"/, 'character sheet should include combat math profile editor');
+  assert.match(gameHtml, /function renderCombatMathProfiles/, 'client should render derived attack profiles');
+  assert.match(gameHtml, /function collectCombatMathProfiles/, 'client should collect profile edits on save');
+  assert.match(gameHtml, /combatProfiles: collectCombatMathProfiles\(\)/, 'character save should send edited combat profiles');
+  assert.match(serverJs, /normalizeDnd5eCombatStats/, 'server should normalize and persist combat math profiles');
+  assert.match(serverJs, /applyCombatProfileEdits/, 'server should merge player-edited attack math into combatStats');
+});
+
+test('enemy turns normalize decisions into executable combat engine actions', () => {
+  assert.match(serverJs, /map\(a => a\.label \|\| a\.name \|\| a\.type\)/, 'enemy tactics prompt should list real action labels');
+  assert.match(serverJs, /function normalizeEnemyActionType/, 'enemy tactic action words should be normalized before engine resolution');
+  assert.match(serverJs, /actorId: current\.id/, 'non-attack enemy actions should include actorId for the combat engine');
+});
