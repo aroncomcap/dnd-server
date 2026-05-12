@@ -3138,13 +3138,16 @@ io.on('connection', (socket) => {
 
     const gs = getGameState(gameId);
     gs.rulesCorrections = await db.getRulesCorrections(gameId);
+    const joinedTurnOrder = gs.data.turnOrder?.length
+      ? gs.data.turnOrder
+      : Object.keys(gs.data.characters || {});
 
     socket.emit('game_joined', {
       game,
       chatHistory: gs.data.chatHistory,
       characters: gs.data.characters,
-      turnOrder: gs.data.turnOrder,
-      currentPlayer: getCurrentPlayer(gameId),
+      turnOrder: joinedTurnOrder,
+      currentPlayer: getCurrentPlayer(gameId) || joinedTurnOrder[0] || null,
       imageUrl: gs.imageUrl,
       imageLabel: gs.imageLabel || null,
       turnDuration: gs.turnDuration,

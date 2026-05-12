@@ -120,6 +120,10 @@ test('dm options are scoped to the player receiving the next turn', () => {
 test('rejoin restores turn order and the last scene image', () => {
   assert.match(serverJs, /last_image_url/, 'server should load the persisted image URL on game rejoin');
   assert.match(gameHtml, /currentTurnOrder\.map\(name => \[name, \{\}\]\)/, 'party turn order should fall back to saved turnOrder when character data is missing');
+  assert.match(gameHtml, /Object\.keys\(state\.characters \|\| \{\}\)\.length > 0 \|\| currentTurnOrder\.length > 0/, 'party turn order should render when either characters or saved turnOrder are present');
+  assert.match(gameHtml, /if \(!turnOrderData \|\| !turnOrderData\.length\) \{[\s\S]*?showPartyTurnOrder\(\);[\s\S]*?return;/, 'empty world turnOrder should not hide the saved party turn order');
+  assert.match(serverJs, /const joinedTurnOrder = gs\.data\.turnOrder\?\.length[\s\S]*?Object\.keys\(gs\.data\.characters \|\| \{\}\);/, 'server should send a turn order fallback on rejoin when persisted turnOrder is missing');
+  assert.match(serverJs, /turnOrder: joinedTurnOrder/, 'game_joined should use the normalized rejoin turn order');
   assert.match(gameHtml, /sceneImg\.onerror/, 'scene image failures should hide the broken image instead of showing an empty panel');
 });
 

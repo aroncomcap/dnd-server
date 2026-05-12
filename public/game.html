@@ -2475,15 +2475,19 @@ socket.on('reaction_prompt', (data) => {
 function showPartyTurnOrder() {
   const overlay = document.getElementById('turn-order-overlay');
   const list = document.getElementById('turn-order-list');
-  overlay.style.display = 'block';
-  list.innerHTML = '';
   const chars = currentCharacters || {};
   const entries = Object.keys(chars).length
     ? Object.entries(chars)
     : currentTurnOrder.map(name => [name, {}]);
+  if (!entries.length) {
+    overlay.style.display = 'none';
+    return;
+  }
+  overlay.style.display = 'block';
+  list.innerHTML = '';
   for (const [name, c] of entries) {
     const div = document.createElement('div');
-    div.className = 'turn-order-item';
+    div.className = 'turn-order-item' + (name === currentPlayer ? ' active' : '');
     const classLabel = c.class || c.system_class || '';
     div.innerHTML = `<span class="turn-num">—</span><span class="turn-name">${escapeHtml(name)}</span><span class="turn-value" style="font-size:0.7rem;opacity:0.6">${escapeHtml(classLabel)}</span>`;
     list.appendChild(div);
@@ -2646,7 +2650,11 @@ function updateTurnOrder(turnOrderData) {
   const overlay = document.getElementById('turn-order-overlay');
   const list = document.getElementById('turn-order-list');
   if (!turnOrderData || !turnOrderData.length) {
-    overlay.style.display = 'none';
+    if (currentTurnOrder.length || Object.keys(currentCharacters || {}).length) {
+      showPartyTurnOrder();
+    } else {
+      overlay.style.display = 'none';
+    }
     return;
   }
   overlay.style.display = 'block';
@@ -2760,10 +2768,10 @@ socket.on('game_joined', (state) => {
   // Cache state
   currentTurnOrder = state.turnOrder || [];
   currentCharacters = state.characters || {};
-  debugEvent('game_joined', Object.keys(state.characters).join(','));
+  debugEvent('game_joined', Object.keys(state.characters || {}).join(','));
   // Show party in turn order overlay (always visible)
-  if (Object.keys(state.characters).length > 0) showPartyTurnOrder();
-  Object.entries(state.characters).forEach(([name, c]) => {
+  if (Object.keys(state.characters || {}).length > 0 || currentTurnOrder.length > 0) showPartyTurnOrder();
+  Object.entries(state.characters || {}).forEach(([name, c]) => {
     if (c.token) tokenCache[name] = c.token;
   });
   if (state.turnDuration) {
