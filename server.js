@@ -29,6 +29,7 @@ const imageEngine = require('./image-engine');
 const gameEngine = require('./game-engine');
 const { awardCombatXP } = require('./xp-system');
 const { sanitizeOptionsForPlayer } = require('./turn-options');
+const { cleanInvalidCombatNarration } = require('./narration-sanitizer');
 const USE_SPLIT_PIPELINE = process.env.SPLIT_PIPELINE === 'true';
 const TEST_MODE = process.env.TEST_MODE === 'true';
 
@@ -409,8 +410,16 @@ function emitDmMessage(gameId, data) {
   // Save last options for reconnects
   const gs = games[gameId];
   let messageData = data;
+  if (messageData?.text) {
+    const cleanText = cleanInvalidCombatNarration(messageData.text);
+    if (cleanText !== messageData.text) {
+      messageData = { ...messageData, text: cleanText, narrationSanitized: true };
+    }
+  }
   if (gs && data?.forPlayer && data.options?.length) {
-    const scoped = sanitizeOptionsForPlayer(data.options, data.forPlayer, Object.keys(gs.data.characters || {}));
+    const scoped = sanitizeOptionsForPlayer(data.options, data.forPlayer, Object.keys(gs.data.characters || {}), {
+      previousPlayer: data.previousPlayer || data.player || null,
+    });
     if (scoped.retargeted) {
       gs.preTaggedOptions = null;
       console.warn(`[options-retarget] ${gameId}: options for ${data.forPlayer} mentioned ${scoped.mismatchedNames.join(', ')}`);
@@ -1405,6 +1414,7 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
 DO NOT: roll dice, invent attack results, change HP, ask for initiative rolls, or resolve combat yourself.
 DO: Narrate EVERY result from RESOLVED THIS ROUND as a bold dice line, then 1 sentence of flavor. That's it.
 Format each result: **🎲 [who] [action] — rolls [total]. HIT/MISS! [damage]. [target] ([HP])**
+Do NOT add HIT/MISS to non-damage, heal, buff, movement, dodge, dash, disengage, or death-save results. If a resolved line has no roll, damage, or target HP, do not invent one.
 ENEMY ATTACKS ON PCs are the most dramatic part — describe the PC getting hurt, bleeding, staggering.
 KILLSHOT: [scene] when a target reaches 0 HP.
 Keep narration SHORT — this is tactical combat, not a novel.` : '';
@@ -1490,7 +1500,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   } catch (streamErr) {
     console.error('[stream-error] gameId=${gameId} Error during streaming:', streamErr.message, 'Status:', streamErr.status, 'Type:', streamErr.type);
     console.error('[stream-error-full] Stack:', streamErr.stack?.split('\n').slice(0, 10).join(' | '));
-    io.to(gameId).emit('dm_stream_end', { narration: narrationText.trim(), llmRunId: streamErr.llmRunId || null });
+    io.to(gameId).emit('dm_stream_end', { narration: cleanInvalidCombatNarration(narrationText.trim()), llmRunId: streamErr.llmRunId || null });
     throw streamErr;
   }
 
@@ -1498,7 +1508,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   const reply = accumulatedText;
 
   // Emit stream end with final narration for re-rendering
-  io.to(gameId).emit('dm_stream_end', { narration: narrationText.trim(), llmRunId: finalMessage.llmRunId || null });
+  io.to(gameId).emit('dm_stream_end', { narration: cleanInvalidCombatNarration(narrationText.trim()), llmRunId: finalMessage.llmRunId || null });
 
   // Log cost
   const inputTokens = finalMessage.usage?.inputTokens || 0;
@@ -1508,6 +1518,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   console.log(`LLM call: ${finalMessage.model} | ${inputTokens}in/${outputTokens}out | $${cost.toFixed(4)} | ${elapsed}ms | ${actingAs ? 'auto' : 'human'}`);
 
   const parsed = parseResponse(reply);
+  parsed.narration = cleanInvalidCombatNarration(parsed.narration);
   parsed.llmRunId = finalMessage.llmRunId || null;
   console.log(`[stream-debug] state=${state} narration=${narrationText.length}ch structured=${structuredBuffer.length}ch options=${parsed.options.length} scene=${!!parsed.scene} world=${!!parsed.world}`);
 
@@ -1813,7 +1824,7 @@ function startTurnTimer(gameId, gameConfig, playerName) {
       const nextIdx = (gs2.data.currentTurnIndex + 1) % (gs2.data.turnOrder.length || 1);
       const nextPlayer = gs2.data.turnOrder[nextIdx] || null;
       await advanceTurn(gameId, gameConfig, false);
-      emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName, forPlayer: nextPlayer, world, llmRunId });
+      emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName, previousPlayer: playerName, forPlayer: nextPlayer, world, llmRunId });
       io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
       maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
         .catch(err => console.error('[scene-gen-after-auto-action]', err.message));
@@ -3110,7 +3121,9 @@ io.on('connection', (socket) => {
       gs.verbosity = await db.getState(gameId, 'verbosity', 'verbose');
       gs.pillars = await db.getState(gameId, 'pillars', { exploration: 33, combat: 33, social: 34 });
       gs.dmPersona = await db.getState(gameId, 'dmPersona', 'epic');
-      gs.imageStyle = (await db.getGame(gameId))?.image_style || 'oil-painting';
+      gs.imageStyle = game?.image_style || 'oil-painting';
+      gs.imageUrl = game?.last_image_url || null;
+      gs.imageLabel = await db.getState(gameId, 'imageLabel', null);
       gs.storySummary = await db.getState(gameId, 'storySummary', null);
       gs.combatHistory = await db.getState(gameId, 'combatHistory', {});
       gs.difficultyCorrection = await db.getState(gameId, 'difficultyCorrection', 1.0);
@@ -3417,7 +3430,7 @@ io.on('connection', (socket) => {
       const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
       const nextPlayer = gs.data.turnOrder[nextIdx] || null;
       await advanceTurn(gameId, gameConfig, true);
-      emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world, llmRunId });
+      emitDmMessage(gameId, { text: narration, options, auto: false, previousPlayer: playerName, forPlayer: nextPlayer, world, llmRunId });
       io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
       maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
         .catch(err => console.error('[scene-gen-after-player-action]', err.message));
@@ -3869,7 +3882,7 @@ const discordGameEngine = {
     const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
     const nextPlayer = gs.data.turnOrder[nextIdx] || null;
     await advanceTurn(gameId, gameConfig, true);
-    emitDmMessage(gameId, { text: narration, options, auto: false, forPlayer: nextPlayer, world, llmRunId });
+    emitDmMessage(gameId, { text: narration, options, auto: false, previousPlayer: playerName, forPlayer: nextPlayer, world, llmRunId });
     io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
     const playerToken = gs.data.characters[playerName]?.token || null;
     io.to(gameId).emit('player_message', { player: playerName, text: action, token: playerToken });

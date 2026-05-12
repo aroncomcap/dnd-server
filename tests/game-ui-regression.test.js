@@ -116,3 +116,14 @@ test('dm options are scoped to the player receiving the next turn', () => {
   assert.match(serverJs, /optionsRetargeted/, 'retargeted options should be visible in the dm_message payload for diagnostics');
   assert.match(gameHtml, /pendingForPlayer && currentPlayer && pendingForPlayer !== currentPlayer/, 'client should clear options that belong to a different turn owner');
 });
+
+test('rejoin restores turn order and the last scene image', () => {
+  assert.match(serverJs, /last_image_url/, 'server should load the persisted image URL on game rejoin');
+  assert.match(gameHtml, /currentTurnOrder\.map\(name => \[name, \{\}\]\)/, 'party turn order should fall back to saved turnOrder when character data is missing');
+  assert.match(gameHtml, /sceneImg\.onerror/, 'scene image failures should hide the broken image instead of showing an empty panel');
+});
+
+test('combat narration strips impossible roll placeholders', () => {
+  assert.match(serverJs, /cleanInvalidCombatNarration/, 'server should sanitize impossible combat placeholder text before emitting DM narration');
+  assert.match(serverJs, /Do NOT add HIT\/MISS to non-damage/, 'combat prompt should forbid HIT/MISS formatting for non-damage results');
+});

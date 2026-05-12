@@ -24,6 +24,12 @@ function getNameAliases(name) {
   return [...aliases];
 }
 
+function getPreferredName(name) {
+  const titleWords = new Set(['brother', 'lady', 'lord', 'sister', 'sir']);
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  return parts.find(part => !titleWords.has(part.toLowerCase())) || parts[0] || 'The next hero';
+}
+
 function mentionsAlias(text, alias) {
   const pattern = new RegExp(`(^|[^a-z0-9])${escapeRegex(alias)}([^a-z0-9]|$)`, 'i');
   return pattern.test(String(text || '').toLowerCase());
@@ -53,7 +59,7 @@ function findMismatchedNames(options, targetPlayer, partyNames) {
 
 function buildFallbackOptionsForPlayer(targetPlayer) {
   const name = String(targetPlayer || 'The next hero').trim() || 'The next hero';
-  const firstName = name.split(/\s+/)[0] || name;
+  const firstName = getPreferredName(name);
 
   return [
     `🗡️ ${firstName} takes point and checks the immediate danger.`,
@@ -62,7 +68,7 @@ function buildFallbackOptionsForPlayer(targetPlayer) {
   ];
 }
 
-function sanitizeOptionsForPlayer(options, targetPlayer, partyNames) {
+function sanitizeOptionsForPlayer(options, targetPlayer, partyNames, context = {}) {
   const cleanOptions = Array.isArray(options)
     ? options.filter(option => typeof option === 'string' && option.trim()).slice(0, 3)
     : [];
@@ -72,19 +78,29 @@ function sanitizeOptionsForPlayer(options, targetPlayer, partyNames) {
   }
 
   const mismatchedNames = findMismatchedNames(cleanOptions, targetPlayer, partyNames);
-  if (mismatchedNames.length === 0) {
+  const previousPlayer = normalizeName(context.previousPlayer);
+  const target = normalizeName(targetPlayer);
+  const targetAliases = getNameAliases(targetPlayer);
+  const mentionsTarget = cleanOptions.some(option =>
+    targetAliases.some(alias => mentionsAlias(option, alias))
+  );
+  const carriesPreviousActor = previousPlayer && previousPlayer !== target && !mentionsTarget &&
+    cleanOptions.some(option => /\b(?:you|your|yours)\b/i.test(option));
+
+  if (mismatchedNames.length === 0 && !carriesPreviousActor) {
     return { options: cleanOptions, retargeted: false, mismatchedNames: [] };
   }
 
   return {
     options: buildFallbackOptionsForPlayer(targetPlayer),
     retargeted: true,
-    mismatchedNames,
+    mismatchedNames: mismatchedNames.length ? mismatchedNames : [context.previousPlayer].filter(Boolean),
   };
 }
 
 module.exports = {
   buildFallbackOptionsForPlayer,
   findMismatchedNames,
+  getPreferredName,
   sanitizeOptionsForPlayer,
 };

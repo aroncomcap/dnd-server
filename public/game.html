@@ -2174,6 +2174,12 @@ function showSceneImage(url, label) {
   sceneImg = document.getElementById('scene-img') || sceneImg;
   if (!sceneImg) return;
   sceneImg.style.opacity = '0';
+  sceneImg.onerror = () => {
+    sceneImg.style.opacity = '0';
+    sceneImg.removeAttribute('src');
+    const labelEl = document.getElementById('scene-label');
+    if (labelEl) labelEl.style.display = 'none';
+  };
   sceneImg.src = url;
   const labelEl = document.getElementById('scene-label');
   if (labelEl) {
@@ -2472,7 +2478,10 @@ function showPartyTurnOrder() {
   overlay.style.display = 'block';
   list.innerHTML = '';
   const chars = currentCharacters || {};
-  for (const [name, c] of Object.entries(chars)) {
+  const entries = Object.keys(chars).length
+    ? Object.entries(chars)
+    : currentTurnOrder.map(name => [name, {}]);
+  for (const [name, c] of entries) {
     const div = document.createElement('div');
     div.className = 'turn-order-item';
     const classLabel = c.class || c.system_class || '';

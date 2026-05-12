@@ -40,3 +40,25 @@ test('keeps options that are already generic or targeted to the current player',
   assert.equal(result.retargeted, false);
   assert.deepEqual(result.options, options);
 });
+
+test('retargets unnamed second-person options after a different actor just moved', () => {
+  assert.ok(fs.existsSync(modulePath), 'turn-options.js should exist');
+  const { sanitizeOptionsForPlayer } = require(modulePath);
+  const partyNames = ['Sir Aldren Vale', 'Vesper Quill'];
+  const staleOptions = [
+    '🗡️ Follow the blue-footprint claw through the frost trail, striking with Hex’s lingering spite.',
+    '🛡️ Brace and steady your footing, keeping your cursed shadow in sight.',
+    '🔥 Tear at the hex’s misbound curse and bait the blue presence back toward you.',
+  ];
+
+  const result = sanitizeOptionsForPlayer(staleOptions, 'Sir Aldren Vale', partyNames, {
+    previousPlayer: 'Vesper Quill',
+  });
+
+  assert.equal(result.retargeted, true);
+  assert.equal(result.options.length, 3);
+  for (const option of result.options) {
+    assert.match(option, /Aldren/i);
+    assert.doesNotMatch(option, /Vesper|Hex|cursed shadow/i);
+  }
+});
