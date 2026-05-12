@@ -146,3 +146,15 @@ test('enemy turns normalize decisions into executable combat engine actions', ()
   assert.match(serverJs, /function normalizeEnemyActionType/, 'enemy tactic action words should be normalized before engine resolution');
   assert.match(serverJs, /actorId: current\.id/, 'non-attack enemy actions should include actorId for the combat engine');
 });
+
+test('encounter planner is host-only and supports queued adventuring days', () => {
+  assert.match(gameHtml, /data-host-only="planner"/, 'planner panel should be tagged host-only');
+  assert.match(gameHtml, /id="btn-plan-next-day"/, 'host should have a control to queue the next adventuring day');
+  assert.match(gameHtml, /function setHostVisibility\(isHost\)/, 'client should hide host-only planner UI for non-host players');
+  assert.match(serverJs, /function hostRoom\(gameId\)/, 'server should define a private host room for planner updates');
+  assert.match(serverJs, /socket\.join\(hostRoom\(gameId\)\)/, 'host sockets should join the host-only room');
+  assert.match(serverJs, /function ensureHostSocket/, 'server should centralize host authorization for planner events');
+  assert.match(serverJs, /socket\.on\('planner:plan_next_day'/, 'server should support queueing the next adventuring day');
+  assert.match(serverJs, /db\.setState\(gameId, 'encounterPlan'/, 'planner state should be persisted');
+  assert.match(serverJs, /io\.to\(hostRoom\(gameId\)\)\.emit\('encounter_plan_updated'/, 'planner updates should not be broadcast to all players');
+});

@@ -1153,6 +1153,7 @@
   #loading-tip, #waiting-tip, #thinking-tip, #spectator-tip {
     transition: opacity 0.3s ease;
   }
+  [data-host-only] { display: none; }
   .enc-item {
     display: flex; align-items: center; justify-content: center;
     width: 36px; height: 36px; border-radius: 6px; font-size: 1rem;
@@ -1163,8 +1164,10 @@
   .enc-item.social { background: rgba(60,120,200,0.2); }
   .enc-item.exploration { background: rgba(60,180,100,0.2); }
   .enc-item.rest { background: rgba(200,146,42,0.15); }
+  .enc-item.boss { background: rgba(139,32,32,0.32); }
   .enc-item.current { border-color: var(--gold); box-shadow: 0 0 8px rgba(200,146,42,0.4); }
   .enc-item.completed { opacity: 0.4; }
+  .enc-item.skipped { opacity: 0.35; filter: grayscale(0.8); }
   .enc-item .enc-tooltip {
     display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
     background: rgba(13,6,0,0.95); border: 1px solid var(--gold); border-radius: 6px;
@@ -1172,6 +1175,38 @@
     z-index: 100; margin-bottom: 4px; pointer-events: none;
   }
   .enc-item:hover .enc-tooltip { display: block; }
+  .planner-head {
+    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .planner-status-pill {
+    border: 1px solid rgba(200,146,42,0.45); border-radius: 999px;
+    padding: 3px 8px; color: var(--gold); font-size: 0.72rem; white-space: nowrap;
+    background: rgba(255,255,255,0.25);
+  }
+  .planner-source {
+    font-size: 0.78rem; color: var(--ink-light); margin: 5px 0 8px;
+  }
+  .planner-days {
+    display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 8px;
+  }
+  .planner-day-chip {
+    border: 1px solid rgba(92,61,30,0.2); border-radius: 999px;
+    padding: 3px 8px; font-size: 0.72rem; color: var(--ink-light);
+    background: rgba(255,255,255,0.3);
+  }
+  .planner-day-chip.active {
+    color: #0d0600; background: var(--gold-light); border-color: var(--gold);
+  }
+  .planner-controls {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px;
+  }
+  .planner-controls .btn {
+    font-size: 0.68rem; padding: 7px 8px; min-height: 34px;
+  }
+  #planner-status {
+    min-height: 1.2em;
+  }
 </style>
 </head>
 <body>
@@ -1557,8 +1592,13 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
   </div>
 
   <!-- Panel 2b: Encounter Planner -->
-  <div class="panel" style="margin-top:12px;">
-    <div class="panel-title">⚔️ Encounter Planner</div>
+  <div class="panel" id="planner-panel" data-host-only="planner" style="margin-top:12px;">
+    <div class="planner-head">
+      <div class="panel-title" style="border-bottom:0;margin-bottom:0;padding-bottom:0;">⚔️ Encounter Planner</div>
+      <div id="planner-mode" class="planner-status-pill">No Plan</div>
+    </div>
+    <div id="planner-source" class="planner-source">Plan one adventuring day at a time. Queue the next day when the party is ready.</div>
+    <div id="planner-days" class="planner-days"></div>
 
     <!-- Day Timeline -->
     <div id="encounter-timeline" style="display:flex;gap:4px;flex-wrap:wrap;margin:8px 0;min-height:40px;">
@@ -1570,13 +1610,15 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     </div>
 
     <!-- Controls -->
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
-      <button class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;" onclick="socket.emit('adjust_difficulty', {harder:true})">⬆️ Harder</button>
-      <button class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;" onclick="socket.emit('adjust_difficulty', {harder:false})">⬇️ Easier</button>
-      <button class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;" onclick="socket.emit('insert_rest')">☕ Insert Rest</button>
-      <button class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;" onclick="socket.emit('force_boss')">💀 Skip to Boss</button>
-      <button class="btn btn-ghost" style="font-size:0.75rem;padding:4px 10px;" onclick="socket.emit('regenerate_plan', {})">🔄 Regenerate</button>
+    <div class="planner-controls">
+      <button class="btn btn-primary" id="btn-generate-day">Plan Day</button>
+      <button class="btn btn-ghost" id="btn-plan-next-day">Queue Next Day</button>
+      <button class="btn btn-ghost" id="btn-harder">⬆️ Harder</button>
+      <button class="btn btn-ghost" id="btn-easier">⬇️ Easier</button>
+      <button class="btn btn-ghost" id="btn-insert-rest">☕ Rest</button>
+      <button class="btn btn-ghost" id="btn-boss-next">💀 Boss Next</button>
     </div>
+    <p class="host-note" id="planner-status"></p>
   </div>
 
   <!-- Panel 3: Map & Timing -->
@@ -1943,6 +1985,7 @@ let playerName = localStorage.getItem('playerName_' + gameId) || '';
 let currentPlayer = null;
 let gameConfig = null;
 let gameState = null;  // Global state from game_joined event
+let isHost = false;
 let currentTurnOrder = [];
 let currentCharacters = {};
 const tokenCache = {};
@@ -1952,6 +1995,12 @@ let gameJoinReady = false;
 let actionInFlight = false;
 let actionFallbackTimer = null;
 const ACTION_ACK_TIMEOUT_MS = 8000;
+
+function setHostVisibility(isHost) {
+  document.querySelectorAll('[data-host-only]').forEach(el => {
+    el.style.display = isHost ? 'block' : 'none';
+  });
+}
 
 function resetSendButton() {
   actionInFlight = false;
@@ -2762,6 +2811,8 @@ socket.on('game_joined', (state) => {
   window._gameJoinReady = true;
   gameState = state;  // Save global state reference
   gameConfig = state.game;
+  isHost = !!state.isHost;
+  setHostVisibility(isHost);
   // Hide session setup if adventure already started
   const preStart = document.getElementById('setup-pre-start');
   if (preStart) preStart.style.display = state.chatHistory.length > 0 ? 'none' : 'block';
@@ -2804,7 +2855,7 @@ if (state.ferocity != null) {
   if (state.world) updateWorldPanel(state.world);
   if (state.world?.turnOrder) updateTurnOrder(state.world.turnOrder);
   if (state.pdfUploads) renderPdfList(state.pdfUploads);
-  if (state.encounterPlan) renderEncounterPlan(state.encounterPlan);
+  if (isHost) renderEncounterPlan(state.encounterPlan);
   loadRules();
 
   chatLog.innerHTML = '';
@@ -4952,31 +5003,80 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── Encounter Plan UI ──────────────────────────────────────────
 socket.on('encounter_plan_updated', (plan) => {
+  if (!isHost) return;
   renderEncounterPlan(plan);
 });
 
+function plannerModeLabel(plan) {
+  if (!plan) return 'No Plan';
+  if (plan.sourceMode === 'adaptive-module') return 'Module Track';
+  return 'Sandbox Track';
+}
+
+function setPlannerStatus(text, isError = false) {
+  const el = document.getElementById('planner-status');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.color = isError ? 'var(--red)' : 'var(--ink-light)';
+}
+
+function updatePlannerButtons(hasPlan) {
+  ['btn-harder', 'btn-easier', 'btn-insert-rest', 'btn-boss-next', 'btn-plan-next-day'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = !hasPlan;
+  });
+}
+
 function renderEncounterPlan(plan) {
-  if (!plan || !plan.encounters) return;
+  const mode = document.getElementById('planner-mode');
+  const source = document.getElementById('planner-source');
+  const daysDiv = document.getElementById('planner-days');
   const timeline = document.getElementById('encounter-timeline');
   const statsDiv = document.getElementById('party-dpr-stats');
+  if (!timeline || !statsDiv) return;
+
+  if (!plan || !plan.encounters) {
+    if (mode) mode.textContent = 'No Plan';
+    if (source) source.textContent = 'No plan yet. Plan one adventuring day, then queue the next day when needed.';
+    if (daysDiv) daysDiv.innerHTML = '';
+    timeline.innerHTML = '<div style="color:var(--parchment-dark);font-size:0.8rem;opacity:0.5;">No plan yet — use Plan Day</div>';
+    statsDiv.style.display = 'none';
+    updatePlannerButtons(false);
+    return;
+  }
+
+  gameState = { ...(gameState || {}), encounterPlan: plan };
+  if (mode) mode.textContent = plannerModeLabel(plan);
+  if (source) {
+    source.textContent = plan.sourceMaterialCount
+      ? `Module-guided from ${plan.sourceMaterialCount} PDF${plan.sourceMaterialCount === 1 ? '' : 's'}: ${(plan.sourceMaterialNames || []).join(', ')}`
+      : 'Sandbox plan from party combat stats, ferocity, pillars, and recent combat history.';
+  }
+  if (daysDiv) {
+    daysDiv.innerHTML = (plan.days || []).map(day =>
+      `<span class="planner-day-chip ${day.status === 'active' ? 'active' : ''}">Day ${escapeHtml(day.dayNumber)} · ${escapeHtml(day.status)} · ${escapeHtml(day.encounterCount)} beats</span>`
+    ).join('');
+  }
   timeline.innerHTML = '';
 
-  const icons = { combat: '⚔️', social: '💬', exploration: '🗺️', short: '☕', long: '🛏️' };
+  const icons = { combat: '⚔️', social: '💬', exploration: '🗺️', short: '☕', long: '🛏️', boss: '💀' };
   let encNum = 0;
 
   for (let i = 0; i < plan.encounters.length; i++) {
     const enc = plan.encounters[i];
     const item = document.createElement('div');
+    const statusClass = enc.status === 'skipped' ? ' skipped' : enc.completed || enc.status === 'resolved' ? ' completed' : '';
 
     if (enc.rest) {
-      item.className = 'enc-item rest' + (enc.completed ? ' completed' : '');
+      item.className = 'enc-item rest' + statusClass + (i === (plan._currentIndex || 0) ? ' current' : '');
       item.textContent = icons[enc.rest] || '☕';
-      item.innerHTML += '<div class="enc-tooltip">' + (enc.rest === 'short' ? 'Short Rest' : 'Long Rest') + '</div>';
+      item.innerHTML += '<div class="enc-tooltip">' + escapeHtml(enc.rest === 'short' ? 'Short Rest' : 'Long Rest') + '</div>';
     } else {
       encNum++;
-      const isCurrent = encNum - 1 === (plan._currentIndex || 0);
-      item.className = 'enc-item ' + (enc.pillar || '') + (enc.completed ? ' completed' : '') + (isCurrent ? ' current' : '');
-      item.textContent = icons[enc.pillar] || '❓';
+      const isCurrent = i === (plan._currentIndex || 0);
+      const typeClass = enc.position === 'boss' ? 'boss' : (enc.pillar || '');
+      item.className = 'enc-item ' + typeClass + statusClass + (isCurrent ? ' current' : '');
+      item.textContent = enc.position === 'boss' ? icons.boss : (icons[enc.pillar] || '❓');
 
       let tooltip = '#' + encNum + ' ' + (enc.pillar || '').charAt(0).toUpperCase() + (enc.pillar || '').slice(1);
       if (enc.monsters) {
@@ -4984,8 +5084,9 @@ function renderEncounterPlan(plan) {
         tooltip += ' (' + enc.totalHP + ' HP, ~' + enc.estimatedRounds + ' rounds)';
       }
       if (enc.dc) tooltip += ' DC ' + enc.dc;
+      if (enc.status) tooltip += ' · ' + enc.status;
       tooltip += ' [' + (enc.difficultyRating || 'medium') + ']';
-      item.innerHTML += '<div class="enc-tooltip">' + tooltip + '</div>';
+      item.innerHTML += '<div class="enc-tooltip">' + escapeHtml(tooltip) + '</div>';
     }
 
     timeline.appendChild(item);
@@ -4995,13 +5096,44 @@ function renderEncounterPlan(plan) {
   if (plan.summary) {
     statsDiv.style.display = 'block';
     statsDiv.innerHTML =
-      '<strong>Day Plan:</strong> ' + plan.summary.totalEncounters + ' encounters (' +
-      'C:' + plan.summary.combatEncounters + ' S:' + plan.summary.socialEncounters + ' E:' + plan.summary.explorationEncounters + ') | ' +
-      'Rests: ' + plan.summary.shortRests + 'S/' + plan.summary.longRests + 'L | ' +
-      'Monster HP: ' + plan.summary.totalMonsterHP + ' | ' +
-      'Est. Drain: ' + plan.summary.estimatedPartyHPDrain;
+      '<strong>Day ' + escapeHtml(plan.activeDayNumber || 1) + ':</strong> ' + escapeHtml(plan.summary.totalEncounters || plan.summary.totalEncounterCount || encNum) + ' encounters (' +
+      'C:' + escapeHtml(plan.summary.combatCount || plan.summary.combatEncounters || 0) + ' S:' + escapeHtml(plan.summary.socialCount || plan.summary.socialEncounters || 0) + ' E:' + escapeHtml(plan.summary.explorationCount || plan.summary.explorationEncounters || 0) + ') | ' +
+      'Queued days: ' + escapeHtml(plan.dayCount || 1);
   }
+  updatePlannerButtons(true);
 }
+
+function sendPlannerCommand(event, payload, pendingText) {
+  if (!isHost) return;
+  setPlannerStatus(pendingText || 'Updating planner...');
+  socket.timeout(ACTION_ACK_TIMEOUT_MS).emit(event, payload || {}, (err, ack) => {
+    if (err || !ack?.ok) {
+      setPlannerStatus(ack?.error || 'Planner command failed.', true);
+      return;
+    }
+    if (ack.plan) renderEncounterPlan(ack.plan);
+    setPlannerStatus(ack.message || 'Planner updated.');
+  });
+}
+
+document.getElementById('btn-generate-day')?.addEventListener('click', () => {
+  sendPlannerCommand('planner:generate_day', {}, 'Planning the adventuring day...');
+});
+document.getElementById('btn-plan-next-day')?.addEventListener('click', () => {
+  sendPlannerCommand('planner:plan_next_day', {}, 'Queueing the next adventuring day...');
+});
+document.getElementById('btn-harder')?.addEventListener('click', () => {
+  sendPlannerCommand('planner:adjust_difficulty', { harder: true }, 'Hardening pending encounters...');
+});
+document.getElementById('btn-easier')?.addEventListener('click', () => {
+  sendPlannerCommand('planner:adjust_difficulty', { harder: false }, 'Easing pending encounters...');
+});
+document.getElementById('btn-insert-rest')?.addEventListener('click', () => {
+  sendPlannerCommand('planner:insert_rest', {}, 'Inserting a short rest...');
+});
+document.getElementById('btn-boss-next')?.addEventListener('click', () => {
+  sendPlannerCommand('planner:set_boss_next', {}, 'Setting the boss as next...');
+});
 </script>
 <div id="debug-panel" style="position:fixed;bottom:50px;right:8px;background:rgba(0,0,0,0.85);color:#0f0;font-family:monospace;font-size:0.75rem;padding:6px 10px;border-radius:6px;border:1px solid #333;z-index:300;max-width:320px;display:none;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">

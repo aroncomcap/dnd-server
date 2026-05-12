@@ -31,6 +31,7 @@ const { awardCombatXP } = require('./xp-system');
 const { sanitizeOptionsForPlayer } = require('./turn-options');
 const { cleanInvalidCombatNarration } = require('./narration-sanitizer');
 const { normalizeDnd5eCombatStats, applyCombatProfileEdits } = require('./combat-stats');
+const plannerState = require('./planner-state');
 const USE_SPLIT_PIPELINE = process.env.SPLIT_PIPELINE === 'true';
 const TEST_MODE = process.env.TEST_MODE === 'true';
 
@@ -376,6 +377,89 @@ function getGameState(gameId) {
     };
   }
   return games[gameId];
+}
+
+function hostRoom(gameId) {
+  return `${gameId}:hosts`;
+}
+
+function socketIsHost(socket, game) {
+  if (!game) return false;
+  if (socket.isAdmin) return true;
+  if (TEST_MODE && !game.host_user_id) return true;
+  return Boolean(socket.userId && game.host_user_id && socket.userId === game.host_user_id);
+}
+
+async function ensureHostSocket(socket, ack) {
+  const gameId = socket.gameId;
+  const deny = (error) => {
+    if (typeof ack === 'function') ack({ ok: false, error });
+    socket.emit('error_msg', { text: error });
+    return null;
+  };
+
+  if (!gameId) return deny('Join a game before using planner controls.');
+  const game = await db.getGame(gameId);
+  if (!game) return deny('Game not found.');
+  if (!socketIsHost(socket, game)) return deny('Only the host can use the encounter planner.');
+  return { gameId, game, gs: getGameState(gameId) };
+}
+
+function plannerMetadataFromUploads(uploads) {
+  const sourceMaterialNames = (uploads || [])
+    .map(u => u.filename)
+    .filter(Boolean)
+    .slice(0, 6);
+  return {
+    sourceMode: sourceMaterialNames.length ? 'adaptive-module' : 'sandbox',
+    sourceMaterialCount: sourceMaterialNames.length,
+    sourceMaterialNames,
+  };
+}
+
+async function buildPlannerDay(gameId, gameConfig, gs, hostOverrides = {}) {
+  const partyStats = Object.values(gs.data.characters || {})
+    .map(c => c.combatStats)
+    .filter(Boolean);
+  if (partyStats.length === 0) {
+    return { ok: false, error: 'Add characters with combat stats before planning encounters.' };
+  }
+
+  const monsterDB = require('./monster-lookup').loadDefaultMonsters(gameConfig.system || 'dnd5e');
+  const uploads = await db.getState(gameId, 'pdf_uploads', []);
+  const metadata = plannerMetadataFromUploads(uploads);
+  const day = ed.designAdventuringDay(partyStats, gs.ferocity, gs.pillars, monsterDB, {
+    correction: gs.difficultyCorrection || 1.0,
+    hostOverrides,
+    sourceMaterialNames: metadata.sourceMaterialNames,
+  });
+  return { ok: true, day, metadata };
+}
+
+async function persistEncounterPlan(gameId) {
+  const gs = getGameState(gameId);
+  if (!gs.encounterPlan) return null;
+  gs.encounterPlan = plannerState.normalizeEncounterPlan(gs.encounterPlan);
+  gs.encounterPlanIndex = gs.encounterPlan._currentIndex || 0;
+  await db.setState(gameId, 'encounterPlan', gs.encounterPlan);
+  return gs.encounterPlan;
+}
+
+function emitPlannerUpdate(gameId) {
+  const gs = getGameState(gameId);
+  const hostPlan = plannerState.toHostPlan(gs.encounterPlan);
+  io.to(hostRoom(gameId)).emit('encounter_plan_updated', hostPlan);
+  return hostPlan;
+}
+
+async function persistAndEmitPlannerProgress(gameId) {
+  const gs = getGameState(gameId);
+  if (!gs.encounterPlan) return null;
+  const activeDay = plannerState.getActiveDay(gs.encounterPlan);
+  if (activeDay) activeDay.currentIndex = gs.encounterPlanIndex || 0;
+  gs.encounterPlan = plannerState.advanceCompletedDays(gs.encounterPlan);
+  await persistEncounterPlan(gameId);
+  return emitPlannerUpdate(gameId);
 }
 
 // ── Streaming queue helper (ensures one stream per game at a time) ──────────────
@@ -1367,15 +1451,17 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
             // Difficulty correction
             if (gs.encounterPlan) {
               const encounters = gs.encounterPlan.encounters || [];
-              const currentEnc = encounters.find(e => e.pillar === 'combat' && !e.completed && !e.rest);
+              const currentEnc = encounters.find(e => e.pillar === 'combat' && !e.completed && !e.rest && e.status !== 'skipped');
               if (currentEnc) {
                 gs.difficultyCorrection = ed.applyDifficultyCorrection(
                   gs.difficultyCorrection || 1.0,
                   { predictedRounds: currentEnc.estimatedRounds || 4, actualRounds: combatSummary.rounds }
                 );
                 currentEnc.completed = true;
+                currentEnc.status = 'resolved';
                 gs.encounterPlanIndex = (gs.encounterPlanIndex || 0) + 1;
                 db.setState(gameId, 'difficultyCorrection', gs.difficultyCorrection).catch(() => {});
+                persistAndEmitPlannerProgress(gameId).catch(() => {});
               }
             }
           }
@@ -1684,7 +1770,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
       let enemies = null;
       if (gs.encounterPlan) {
         const nextCombat = gs.encounterPlan.encounters.find(
-          (e, i) => i >= (gs.encounterPlanIndex || 0) && e.pillar === 'combat' && !e.completed && !e.rest
+          (e, i) => i >= (gs.encounterPlanIndex || 0) && e.pillar === 'combat' && !e.completed && !e.rest && e.status !== 'skipped'
         );
         if (nextCombat?.monsters?.length > 0) {
           enemies = nextCombat.monsters.map(m => ({
@@ -1738,7 +1824,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     gs._turnsSinceLastEncounter++;
 
     const nextEnc = gs.encounterPlan.encounters.find(
-      (e, i) => i >= (gs.encounterPlanIndex || 0) && !e.completed && !e.rest
+      (e, i) => i >= (gs.encounterPlanIndex || 0) && !e.completed && !e.rest && e.status !== 'skipped'
     );
 
     // After 3 turns of exploration, force the next planned encounter
@@ -1751,13 +1837,17 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
         initiateCombat(gameId, gameConfig, enemies).catch(e => console.error('Forced combat init error:', e));
         gs._turnsSinceLastEncounter = 0;
         nextEnc.completed = true;
+        nextEnc.status = 'resolved';
         gs.encounterPlanIndex = (gs.encounterPlanIndex || 0) + 1;
+        persistAndEmitPlannerProgress(gameId).catch(() => {});
       } else if (nextEnc.pillar === 'social' || nextEnc.pillar === 'exploration') {
         // Inject challenge guidance into next prompt via game state
         gs._pendingChallenge = nextEnc;
         gs._turnsSinceLastEncounter = 0;
         nextEnc.completed = true;
+        nextEnc.status = 'resolved';
         gs.encounterPlanIndex = (gs.encounterPlanIndex || 0) + 1;
+        persistAndEmitPlannerProgress(gameId).catch(() => {});
       }
     }
   }
@@ -3042,6 +3132,7 @@ io.use((socket, next) => {
         } else {
           socket.userId = decoded.userId;
           socket.userEmail = decoded.email;
+          socket.isAdmin = !!decoded.isAdmin;
           socket.anonId = null;
         }
       } catch (e) {
@@ -3148,11 +3239,15 @@ io.on('connection', (socket) => {
       gs.currentCombatId = await db.getState(gameId, 'currentCombatId', null);
       gs.combatXpAwardedForCombatId = await db.getState(gameId, 'combatXpAwardedForCombatId', null);
       gs.lastCombatXpAward = await db.getState(gameId, 'lastCombatXpAward', null);
+      gs.encounterPlan = plannerState.normalizeEncounterPlan(await db.getState(gameId, 'encounterPlan', null));
+      gs.encounterPlanIndex = gs.encounterPlan?._currentIndex || 0;
       const savedCombat = await db.getState(gameId, 'combatState', null);
       if (savedCombat) gs.combatEngine.loadState(savedCombat);
     }
 
     const gs = getGameState(gameId);
+    const isHost = socketIsHost(socket, game);
+    if (isHost) socket.join(hostRoom(gameId));
     gs.rulesCorrections = await db.getRulesCorrections(gameId);
     const joinedTurnOrder = gs.data.turnOrder?.length
       ? gs.data.turnOrder
@@ -3177,7 +3272,9 @@ io.on('connection', (socket) => {
       dmPersona: gs.dmPersona,
       imageStyle: gs.imageStyle,
       pdfUploads: await db.getState(gameId, 'pdf_uploads', []),
-      encounterPlan: gs.encounterPlan || null,
+      encounterPlan: isHost ? plannerState.toHostPlan(gs.encounterPlan) : null,
+      isHost,
+      currentUserId: socket.userId || null,
     });
 
     // If combat is active, send current state to the joining client
@@ -3568,14 +3665,12 @@ io.on('connection', (socket) => {
         startTurnTimer(gameId, gameConfig, first);
       }
       // Generate encounter plan for the adventuring day
-      const partyStats = Object.values(gs.data.characters).map(c => c.combatStats).filter(Boolean);
-      if (partyStats.length > 0) {
-        const monsterDB = require('./monster-lookup').loadDefaultMonsters(gameConfig.system || 'dnd5e');
-        gs.encounterPlan = ed.designAdventuringDay(partyStats, gs.ferocity, gs.pillars, monsterDB, {
-          correction: gs.difficultyCorrection || 1.0,
-        });
+      const plannerDay = await buildPlannerDay(gameId, gameConfig, gs);
+      if (plannerDay.ok) {
+        gs.encounterPlan = plannerState.createEncounterPlan(plannerDay.day, plannerDay.metadata);
         gs.encounterPlanIndex = 0;
-        io.to(gameId).emit('encounter_plan_updated', gs.encounterPlan);
+        await persistEncounterPlan(gameId);
+        emitPlannerUpdate(gameId);
       }
       // Start billing ticker for this game
       billingTicker.startForGame(gameId, gameConfig.host_user_id, gs);
@@ -3827,66 +3922,87 @@ io.on('connection', (socket) => {
     emitCombatUpdate(gameId);
   });
 
-  socket.on('adjust_difficulty', (data) => {
-    const gameId = socket.gameId;
-    if (!gameId) return;
-
-    // Validate input data
-    if (!validateSocketData(data, { harder: 'boolean' })) {
-      socket.emit('error_msg', { text: 'Invalid data format' });
+  async function handlePlannerGenerate(data = {}, ack, append = false) {
+    const ctx = await ensureHostSocket(socket, ack);
+    if (!ctx) return;
+    const { gameId, game, gs } = ctx;
+    const plannerDay = await buildPlannerDay(gameId, game, gs, data || {});
+    if (!plannerDay.ok) {
+      if (typeof ack === 'function') ack({ ok: false, error: plannerDay.error });
+      socket.emit('error_msg', { text: plannerDay.error });
       return;
     }
 
-    const gs = getGameState(gameId);
-    if (!gs.encounterPlan) return;
-    const modifier = data.harder ? 1.2 : 0.8;
-    for (const enc of gs.encounterPlan.encounters) {
-      if (enc.completed || enc.rest) continue;
-      if (enc.totalHP) enc.totalHP = Math.round(enc.totalHP * modifier);
-      if (enc.estimatedDPR) enc.estimatedDPR = Math.round(enc.estimatedDPR * modifier);
-    }
-    io.to(gameId).emit('encounter_plan_updated', gs.encounterPlan);
-  });
+    gs.encounterPlan = append && gs.encounterPlan
+      ? plannerState.appendAdventuringDay(gs.encounterPlan, plannerDay.day, plannerDay.metadata)
+      : plannerState.createEncounterPlan(plannerDay.day, plannerDay.metadata);
+    gs.encounterPlanIndex = gs.encounterPlan._currentIndex || 0;
+    await persistEncounterPlan(gameId);
+    const hostPlan = emitPlannerUpdate(gameId);
+    if (typeof ack === 'function') ack({
+      ok: true,
+      plan: hostPlan,
+      message: append ? 'Queued the next adventuring day.' : 'Planned the adventuring day.',
+    });
+  }
 
-  socket.on('regenerate_plan', async (data) => {
-    const gameId = socket.gameId;
-    if (!gameId) return;
-    const gs = getGameState(gameId);
-    const gameConfig = await db.getGame(gameId);
-    const monsterDB = require('./monster-lookup').loadDefaultMonsters(gameConfig.system || 'dnd5e');
-    const partyStats = Object.values(gs.data.characters).map(c => c.combatStats).filter(Boolean);
-    if (partyStats.length > 0) {
-      gs.encounterPlan = ed.designAdventuringDay(partyStats, gs.ferocity, gs.pillars, monsterDB, {
-        correction: gs.difficultyCorrection || 1.0,
-        hostOverrides: data,
-      });
-      gs.encounterPlanIndex = 0;
-      io.to(gameId).emit('encounter_plan_updated', gs.encounterPlan);
+  async function handlePlannerDifficulty(data = {}, ack) {
+    const ctx = await ensureHostSocket(socket, ack);
+    if (!ctx) return;
+    if (!validateSocketData(data, { harder: 'boolean' })) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Invalid data format' });
+      socket.emit('error_msg', { text: 'Invalid data format' });
+      return;
     }
-  });
-
-  socket.on('force_boss', () => {
-    const gameId = socket.gameId;
-    if (!gameId) return;
-    const gs = getGameState(gameId);
-    if (!gs.encounterPlan) return;
-    for (const enc of gs.encounterPlan.encounters) {
-      if (!enc.rest && !enc.completed) enc.completed = true;
+    if (!ctx.gs.encounterPlan) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Generate a day plan first.' });
+      return;
     }
-    const bossIdx = gs.encounterPlan.encounters.findIndex(e => e.position === 'boss');
-    if (bossIdx >= 0) gs.encounterPlanIndex = bossIdx;
-    io.to(gameId).emit('encounter_plan_updated', gs.encounterPlan);
-  });
 
-  socket.on('insert_rest', () => {
-    const gameId = socket.gameId;
-    if (!gameId) return;
-    const gs = getGameState(gameId);
-    if (!gs.encounterPlan) return;
-    const idx = gs.encounterPlanIndex || 0;
-    gs.encounterPlan.encounters.splice(idx, 0, { rest: 'short', reason: 'Host inserted rest' });
-    io.to(gameId).emit('encounter_plan_updated', gs.encounterPlan);
-  });
+    ctx.gs.encounterPlan = plannerState.scalePendingDifficulty(ctx.gs.encounterPlan, data.harder ? 1.2 : 0.8);
+    ctx.gs.encounterPlanIndex = ctx.gs.encounterPlan._currentIndex || 0;
+    await persistEncounterPlan(ctx.gameId);
+    const hostPlan = emitPlannerUpdate(ctx.gameId);
+    if (typeof ack === 'function') ack({ ok: true, plan: hostPlan, message: data.harder ? 'Pending encounters hardened.' : 'Pending encounters eased.' });
+  }
+
+  async function handlePlannerBoss(ack) {
+    const ctx = await ensureHostSocket(socket, ack);
+    if (!ctx) return;
+    if (!ctx.gs.encounterPlan) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Generate a day plan first.' });
+      return;
+    }
+    ctx.gs.encounterPlan = plannerState.setBossAsNext(ctx.gs.encounterPlan);
+    ctx.gs.encounterPlanIndex = ctx.gs.encounterPlan._currentIndex || 0;
+    await persistEncounterPlan(ctx.gameId);
+    const hostPlan = emitPlannerUpdate(ctx.gameId);
+    if (typeof ack === 'function') ack({ ok: true, plan: hostPlan, message: 'Boss set as the next planned encounter.' });
+  }
+
+  async function handlePlannerRest(ack) {
+    const ctx = await ensureHostSocket(socket, ack);
+    if (!ctx) return;
+    if (!ctx.gs.encounterPlan) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Generate a day plan first.' });
+      return;
+    }
+    ctx.gs.encounterPlan = plannerState.insertRestAtCurrent(ctx.gs.encounterPlan, 'short');
+    ctx.gs.encounterPlanIndex = ctx.gs.encounterPlan._currentIndex || 0;
+    await persistEncounterPlan(ctx.gameId);
+    const hostPlan = emitPlannerUpdate(ctx.gameId);
+    if (typeof ack === 'function') ack({ ok: true, plan: hostPlan, message: 'Short rest inserted before the next encounter.' });
+  }
+
+  socket.on('adjust_difficulty', (data, ack) => handlePlannerDifficulty(data, ack));
+  socket.on('planner:adjust_difficulty', (data, ack) => handlePlannerDifficulty(data, ack));
+  socket.on('regenerate_plan', (data, ack) => handlePlannerGenerate(data, ack, false));
+  socket.on('planner:generate_day', (data, ack) => handlePlannerGenerate(data, ack, false));
+  socket.on('planner:plan_next_day', (data, ack) => handlePlannerGenerate(data, ack, true));
+  socket.on('force_boss', (_data, ack) => handlePlannerBoss(ack));
+  socket.on('planner:set_boss_next', (_data, ack) => handlePlannerBoss(ack));
+  socket.on('insert_rest', (_data, ack) => handlePlannerRest(ack));
+  socket.on('planner:insert_rest', (_data, ack) => handlePlannerRest(ack));
 
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
