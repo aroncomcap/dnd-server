@@ -3,6 +3,7 @@
 const { describe, it, afterEach } = require('node:test');
 const assert = require('node:assert');
 const llm = require('../llm');
+const { createEncounterPlan } = require('../planner-state');
 
 const {
   buildNarrationPrompt,
@@ -226,6 +227,22 @@ describe('buildNarrationPrompt', () => {
       prompt.includes('3') || prompt.includes('option') || prompt.includes('Option'),
       'Should include options format rule'
     );
+  });
+
+  it('uses encounterPlanIndex when injecting encounter guidance', () => {
+    const gs = makeGameState();
+    gs.encounterPlan = createEncounterPlan({
+      encounters: [
+        { pillar: 'combat', position: 'early', monsters: [{ name: 'Goblin', count: 2, slug: 'goblin' }] },
+        { pillar: 'social', type: 'parley', dc: 14, successesNeeded: 2, maxFailures: 2 },
+      ],
+      summary: { totalEncounters: 2, combatCount: 1, socialCount: 1, explorationCount: 0 },
+    });
+    gs.encounterPlanIndex = 1;
+
+    const prompt = buildNarrationPrompt('game-1', makeGameConfig(), gs);
+
+    assert.match(prompt, /ENCOUNTER PLAN: Encounter 2 of 2/);
   });
 
   it('handles missing optional fields gracefully', () => {

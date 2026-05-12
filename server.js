@@ -32,6 +32,7 @@ const { sanitizeOptionsForPlayer } = require('./turn-options');
 const { cleanInvalidCombatNarration } = require('./narration-sanitizer');
 const { normalizeDnd5eCombatStats, applyCombatProfileEdits } = require('./combat-stats');
 const plannerState = require('./planner-state');
+const encounterDirector = require('./encounter-director');
 const USE_SPLIT_PIPELINE = process.env.SPLIT_PIPELINE === 'true';
 const TEST_MODE = process.env.TEST_MODE === 'true';
 
@@ -434,6 +435,72 @@ async function buildPlannerDay(gameId, gameConfig, gs, hostOverrides = {}) {
     sourceMaterialNames: metadata.sourceMaterialNames,
   });
   return { ok: true, day, metadata };
+}
+
+async function ensureActiveEncounterPlan(gameId, gameConfig, gs) {
+  if (gs.encounterPlan) {
+    gs.encounterPlan = plannerState.advanceCompletedDays(gs.encounterPlan);
+    gs.encounterPlanIndex = gs.encounterPlan._currentIndex || 0;
+  }
+  if (!encounterDirector.planNeedsAdventuringDay(gs.encounterPlan)) {
+    return { ok: true, created: false, plan: gs.encounterPlan };
+  }
+
+  const plannerDay = await buildPlannerDay(gameId, gameConfig, gs);
+  if (!plannerDay.ok) return plannerDay;
+
+  gs.encounterPlan = plannerState.createEncounterPlan(plannerDay.day, plannerDay.metadata);
+  gs.encounterPlanIndex = 0;
+  gs._turnsSinceLastEncounter = 0;
+  await persistEncounterPlan(gameId);
+  emitPlannerUpdate(gameId);
+  return { ok: true, created: true, plan: gs.encounterPlan };
+}
+
+function plannedEncounterEnemies(encounter) {
+  return (encounter?.monsters || []).map(m => ({
+    displayName: m.name || m.displayName,
+    count: m.count || 1,
+    slug: m.slug,
+    hint: null,
+  })).filter(e => e.displayName);
+}
+
+function markPlannedEncounterResolved(gs, index) {
+  if (!gs.encounterPlan) return;
+  const activeDay = plannerState.getActiveDay(gs.encounterPlan);
+  const encounter = activeDay?.encounters?.[index];
+  if (!encounter) return;
+  encounter.completed = true;
+  encounter.status = 'resolved';
+  activeDay.currentIndex = index + 1;
+  gs.encounterPlanIndex = index + 1;
+}
+
+async function resolvePendingPlannedChallenge(gameId, gameConfig, gs) {
+  const pending = gs._pendingChallenge;
+  if (!pending) return;
+  const pendingIndex = Number.isInteger(gs._pendingChallengeIndex)
+    ? gs._pendingChallengeIndex
+    : (gs.encounterPlanIndex || 0);
+
+  if (pending.pillar === 'combat') {
+    if (!gs.combatEngine?.state?.active) {
+      const enemies = plannedEncounterEnemies(pending);
+      if (enemies.length > 0) {
+        console.log(`[encounter-plan] Forcing planned combat after pacing limit: ${enemies.map(e => `${e.count}x ${e.displayName}`).join(', ')}`);
+        await initiateCombat(gameId, gameConfig, enemies).catch(e => console.error('Planned combat init error:', e));
+      }
+    }
+    encounterDirector.clearPacingDirective(gs);
+    return;
+  }
+
+  if (pending.pillar === 'social' || pending.pillar === 'exploration') {
+    markPlannedEncounterResolved(gs, pendingIndex);
+    encounterDirector.clearPacingDirective(gs);
+    await persistAndEmitPlannerProgress(gameId);
+  }
 }
 
 async function persistEncounterPlan(gameId) {
@@ -1186,10 +1253,20 @@ async function callGameLLM(gameId, gameConfig, userMessage, actingAs = null) {
   const prefix = actingAs ? `[AUTO-ACTION for ${actingAs}]\n` : '';
 
   try {
+    await ensureActiveEncounterPlan(gameId, gameConfig, gs).catch(err => {
+      console.error('[encounter-plan] Auto-plan failed:', err.message);
+    });
+    const pacing = encounterDirector.prepareEncounterPacing(gs);
+    const storyFlags = pacing.shouldAdvance
+      ? { story: true, [pacing.encounter?.pillar || 'exploration']: true }
+      : undefined;
+
     const result = await narrationPipeline.handlePlayerAction(
       gameId, gameConfig, gs, characterName, prefix + actionText, io,
-      { initiateCombat, parseAction, resolveEnemyTurns, persistCombatState, emitCombatUpdate }
+      { initiateCombat, parseAction, resolveEnemyTurns, persistCombatState, emitCombatUpdate },
+      storyFlags
     );
+    await resolvePendingPlannedChallenge(gameId, gameConfig, gs);
 
     // Save to chat history (same format as legacy)
     const gd = gs.data;
@@ -1307,12 +1384,20 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
     { role: 'user', content: prefix + userMessage },
   ];
 
+  await ensureActiveEncounterPlan(gameId, gameConfig, gs).catch(err => {
+    console.error('[encounter-plan] Auto-plan failed:', err.message);
+  });
+  const pacing = encounterDirector.prepareEncounterPacing(gs);
+
   // Determine which prompt to use based on game context
   let isStoryMoment = false;
   if (gs.turn?.flags?.story || gs.turn?.flags?.npc || gs.turn?.flags?.exploration) {
     isStoryMoment = true;
   }
   if (gs._pendingChallenge) {
+    isStoryMoment = true;
+  }
+  if (pacing.shouldAdvance) {
     isStoryMoment = true;
   }
   // Game start is always a story moment (needs full context for opening narration)
@@ -1818,39 +1903,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     }
   }
 
-  // Path 3: Encounter plan enforcement — if plan says next encounter should happen, force it
-  if (!gs.combatEngine.state.active && gs.encounterPlan) {
-    if (!gs._turnsSinceLastEncounter) gs._turnsSinceLastEncounter = 0;
-    gs._turnsSinceLastEncounter++;
-
-    const nextEnc = gs.encounterPlan.encounters.find(
-      (e, i) => i >= (gs.encounterPlanIndex || 0) && !e.completed && !e.rest && e.status !== 'skipped'
-    );
-
-    // After 3 turns of exploration, force the next planned encounter
-    if (nextEnc && gs._turnsSinceLastEncounter >= 3) {
-      if (nextEnc.pillar === 'combat' && nextEnc.monsters?.length > 0) {
-        console.log(`[encounter-plan] Forcing combat encounter after ${gs._turnsSinceLastEncounter} exploration turns`);
-        const enemies = nextEnc.monsters.map(m => ({
-          displayName: m.name || m.displayName, count: m.count, slug: m.slug, hint: null,
-        }));
-        initiateCombat(gameId, gameConfig, enemies).catch(e => console.error('Forced combat init error:', e));
-        gs._turnsSinceLastEncounter = 0;
-        nextEnc.completed = true;
-        nextEnc.status = 'resolved';
-        gs.encounterPlanIndex = (gs.encounterPlanIndex || 0) + 1;
-        persistAndEmitPlannerProgress(gameId).catch(() => {});
-      } else if (nextEnc.pillar === 'social' || nextEnc.pillar === 'exploration') {
-        // Inject challenge guidance into next prompt via game state
-        gs._pendingChallenge = nextEnc;
-        gs._turnsSinceLastEncounter = 0;
-        nextEnc.completed = true;
-        nextEnc.status = 'resolved';
-        gs.encounterPlanIndex = (gs.encounterPlanIndex || 0) + 1;
-        persistAndEmitPlannerProgress(gameId).catch(() => {});
-      }
-    }
-  }
+  await resolvePendingPlannedChallenge(gameId, gameConfig, gs);
 
   // Reset encounter counter when combat starts or ends
   if (gs.combatEngine.state.active) {

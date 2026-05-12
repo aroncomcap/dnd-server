@@ -148,10 +148,13 @@ function buildNarrationPrompt(gameId, gameConfig, gs) {
   let encounterGuidance = '';
   if (gs.encounterPlan) {
     try {
-      encounterGuidance = formatPlanForPrompt(gs.encounterPlan, gs.encounterIndex || 0);
+      encounterGuidance = formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0);
     } catch (err) {
       encounterGuidance = '';
     }
+  }
+  if (gs._encounterPacingDirective) {
+    encounterGuidance += `${encounterGuidance ? '\n' : ''}${gs._encounterPacingDirective}`;
   }
 
   // Ferocity
@@ -481,12 +484,13 @@ function shouldCallModelForFlavor(combatState) {
  */
 async function callModelNarration(gameId, gameConfig, gs, characterName, actionText, io, storyFlags) {
   const { buildFullPrompt, buildMinimalPrompt } = require('./prompt-builder');
+  const encounterDesigner = require('./encounter-designer');
 
   // Select prompt based on story flags and pending challenges
   // Use full prompt for story moments (NPC interactions, exploration, encounter plans)
   const isStoryMoment = storyFlags?.story || gs._pendingChallenge;
   const systemPrompt = isStoryMoment
-    ? buildFullPrompt(gameConfig, gs)
+    ? buildFullPrompt(gameId, gameConfig, () => gs, encounterDesigner)
     : buildMinimalPrompt(gameConfig, gs);
   const userMessage = buildUserMessage(gs, characterName, actionText);
 

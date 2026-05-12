@@ -576,6 +576,17 @@ describe('designAdventuringDay()', () => {
       'Expected all encounters to be combat');
   });
 
+  it('orders the day toward the dominant pillar weighting', () => {
+    const day = designAdventuringDay(party, 3, { combat: 10, social: 80, exploration: 10 }, MINI_DB);
+    const playable = day.encounters.filter(e => e.pillar !== 'rest');
+
+    assert.equal(playable[0].pillar, 'social');
+    assert.ok(
+      playable.filter(e => e.pillar === 'social').length > playable.filter(e => e.pillar === 'combat').length,
+      'social-heavy weighting should create more social beats than combat beats'
+    );
+  });
+
   it('summary ferocityLabel matches FEROCITY table', () => {
     for (let f = 1; f <= 5; f++) {
       const day = designAdventuringDay(party, f, pillars, MINI_DB);

@@ -633,6 +633,38 @@ function designExplorationEncounter(ferocity, position) {
 // Adventuring day designer
 // ---------------------------------------------------------------------------
 
+function buildWeightedPillarSequence(counts, weights) {
+  const pillars = ['combat', 'social', 'exploration'];
+  const remaining = { ...counts };
+  const placed = { combat: 0, social: 0, exploration: 0 };
+  const total = pillars.reduce((sum, pillar) => sum + (remaining[pillar] || 0), 0);
+  const weightSum = pillars.reduce((sum, pillar) => sum + (weights[pillar] || 0), 0) || 1;
+  const sequence = [];
+
+  for (let slot = 0; slot < total; slot++) {
+    let best = null;
+    let bestScore = -Infinity;
+
+    for (const pillar of pillars) {
+      if ((remaining[pillar] || 0) <= 0) continue;
+      const targetShare = (weights[pillar] || 0) / weightSum;
+      const deficit = targetShare * (slot + 1) - placed[pillar];
+      const tieBreaker = targetShare + (remaining[pillar] / total) * 0.01;
+      const score = deficit + tieBreaker * 0.001;
+      if (score > bestScore) {
+        best = pillar;
+        bestScore = score;
+      }
+    }
+
+    sequence.push(best);
+    remaining[best]--;
+    placed[best]++;
+  }
+
+  return sequence;
+}
+
 /**
  * Design a full adventuring day.
  *
@@ -661,23 +693,22 @@ function designAdventuringDay(partyStats, ferocity, pillars, monsterDB, options 
   const socialCount = Math.max(0, Math.round(totalEncounters * p.social / pSum));
   const exploCount  = Math.max(0, totalEncounters - combatCount - socialCount);
 
-  // Build a pool of encounter "types" and shuffle them
-  const pool = [
-    ...Array(combatCount).fill('combat'),
-    ...Array(socialCount).fill('social'),
-    ...Array(exploCount).fill('exploration'),
-  ];
+  const pool = buildWeightedPillarSequence(
+    { combat: combatCount, social: socialCount, exploration: exploCount },
+    p
+  );
 
   // Assign positions (first ~30% = early, middle ~40% = mid, next ~20% = late, last = boss)
   const n = pool.length;
   const encounters = [];
   const shortRestEvery = Math.max(1, Math.round(n / (f.shortRests + 1)));
   const usedMonsters = []; // Track slugs used in this day's encounters
+  const lastCombatSlot = pool.lastIndexOf('combat');
 
   for (let i = 0; i < n; i++) {
     const ratio = i / n;
     let position;
-    if (i === n - 1 && pool[i] === 'combat') {
+    if (i === lastCombatSlot && pool[i] === 'combat') {
       position = 'boss';
     } else if (ratio < 0.3) {
       position = 'early';

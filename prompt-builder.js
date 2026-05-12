@@ -1,6 +1,7 @@
 // ── Prompt Builder for Game Narration ─────────────────────────────────────────
 
 const MAX_CONTEXT_CHARS = 50000;
+const defaultEncounterDesigner = require('./encounter-designer');
 
 // ── Art Styles ───────────────────────────────────────────────────────────────
 const ART_STYLES = {
@@ -93,6 +94,34 @@ function formatResolvedCombatState(lastCombatConclusion) {
   ].filter(Boolean).join('\n');
 }
 
+function buildEncounterPlanLine(gs, designer = defaultEncounterDesigner) {
+  let encounterPlanLine = gs?._formattedEncounterPlan || '';
+  if (!encounterPlanLine && gs?.encounterPlan && designer?.formatPlanForPrompt) {
+    try {
+      encounterPlanLine = designer.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0);
+    } catch (_err) {
+      encounterPlanLine = '';
+    }
+  }
+
+  if (gs?._encounterPacingDirective) {
+    encounterPlanLine += `${encounterPlanLine ? '\n' : ''}${gs._encounterPacingDirective}`;
+  }
+
+  if (gs?._pendingChallenge) {
+    const ch = gs._pendingChallenge;
+    if (ch.pillar === 'combat') {
+      encounterPlanLine += `${encounterPlanLine ? '\n' : ''}URGENT: The next planned combat must enter the scene NOW. Include the planned ENEMIES block in ---WORLD--- so the server starts combat.`;
+    } else if (ch.pillar === 'social') {
+      encounterPlanLine += `${encounterPlanLine ? '\n' : ''}URGENT: Present a social challenge NOW (DC ${ch.dc}).`;
+    } else if (ch.pillar === 'exploration') {
+      encounterPlanLine += `${encounterPlanLine ? '\n' : ''}URGENT: Present a trap, puzzle, or exploration challenge NOW (DC ${ch.dc}).`;
+    }
+  }
+
+  return encounterPlanLine;
+}
+
 // ── Minimal Prompt for Standard Gameplay (Combat + Simple Encounters) ──────
 function buildMinimalPrompt_DnD(gameState) {
   // Guard against null/undefined gameState
@@ -125,6 +154,8 @@ You are a wildly entertaining DM who lives for the chaos. Channel the energy of 
     : `DM PERSONA: EPIC
 You are a master storyteller in the tradition of great fantasy literature. Your narration is dramatic, atmospheric, and emotionally resonant. Prose is tight and evocative. NPCs feel real and grounded. Combat is visceral and consequential. The world has weight and history. Humor emerges naturally from character and situation, never forced. You take the world seriously even when players don't.`;
 
+  const encounterPlanLine = buildEncounterPlanLine(gs);
+
   return `You are the Dungeon Master for a live multiplayer Dungeons & Dragons 5th Edition game.
 
 ⚠️ CRITICAL OVERRIDE (MANDATORY - READ FIRST):
@@ -144,6 +175,7 @@ CHARACTERS IN THIS CAMPAIGN:
 ${characterBlock || 'No characters registered yet.'}
 
 ${formatResolvedCombatState(gs.lastCombatConclusion)}
+${encounterPlanLine ? `\nENCOUNTER PLAN DIRECTOR:\n${encounterPlanLine}\n` : ''}
 
 FEROCITY: ${gs.ferocity ?? 5}/5
 ${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, numerous, and tactically smart. Death is likely without clever play. However, treasure rewards are VERY generous — rare magic items, large gold hoards, and powerful artifacts appear frequently.' :
@@ -239,16 +271,7 @@ You are a master storyteller in the tradition of great fantasy literature. Your 
   const summary = gs.storySummary ? `\nSTORY SO FAR:\n${gs.storySummary}\n` : '';
   const resolvedCombatState = formatResolvedCombatState(gs.lastCombatConclusion);
 
-  let encounterPlanLineFull = gs._formattedEncounterPlan || '';
-  if (gs._pendingChallenge) {
-    const ch = gs._pendingChallenge;
-    if (ch.pillar === 'social') {
-      encounterPlanLineFull += ` URGENT: Present a social challenge NOW (DC ${ch.dc}).`;
-    } else if (ch.pillar === 'exploration') {
-      encounterPlanLineFull += ` URGENT: Present a trap/puzzle NOW (DC ${ch.dc}).`;
-    }
-  }
-  const encounterPlanLine = encounterPlanLineFull;
+  const encounterPlanLine = buildEncounterPlanLine(gs, ed);
 
   const npcMemoryLines = Object.values(gs.npcMemory || {})
     .filter(npc => npc.encounters?.length > 0)

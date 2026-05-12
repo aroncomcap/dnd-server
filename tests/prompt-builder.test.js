@@ -3,7 +3,8 @@
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 
-const { buildMinimalPrompt } = require('../prompt-builder');
+const { buildFullPrompt, buildMinimalPrompt } = require('../prompt-builder');
+const { createEncounterPlan } = require('../planner-state');
 
 function makeGameState() {
   return {
@@ -22,6 +23,8 @@ function makeGameState() {
     verbosity: 'brief',
     ferocity: 3,
     pillars: { exploration: 33, combat: 33, social: 34 },
+    encounterPlan: null,
+    encounterPlanIndex: 0,
     lastCombatConclusion: {
       reason: 'enemies_defeated',
       defeated: ['Ashenvale Beast'],
@@ -30,11 +33,43 @@ function makeGameState() {
   };
 }
 
+function makeEncounterPlan() {
+  return createEncounterPlan({
+    encounters: [
+      { pillar: 'combat', position: 'early', monsters: [{ name: 'Goblin', count: 2, slug: 'goblin' }] },
+      { pillar: 'social', type: 'parley', dc: 14, successesNeeded: 2, maxFailures: 2 },
+    ],
+    summary: { totalEncounters: 2, combatCount: 1, socialCount: 1, explorationCount: 0 },
+  });
+}
+
 describe('prompt-builder resolved combat state', () => {
   it('includes permanent resolved combat state in minimal prompts', () => {
     const prompt = buildMinimalPrompt({ system: 'dnd5e' }, makeGameState());
     assert.ok(prompt.includes('RESOLVED COMBAT STATE'));
     assert.ok(prompt.includes('Ashenvale Beast'));
     assert.ok(prompt.includes('Do not revive') || prompt.includes('do not revive'));
+  });
+
+  it('includes encounter plan guidance in minimal prompts at the current planner index', () => {
+    const gs = makeGameState();
+    gs.encounterPlan = makeEncounterPlan();
+    gs.encounterPlanIndex = 1;
+    gs._encounterPacingDirective = 'DIRECTOR: advance now.';
+
+    const prompt = buildMinimalPrompt({ system: 'dnd5e' }, gs);
+
+    assert.match(prompt, /ENCOUNTER PLAN: Encounter 2 of 2/);
+    assert.match(prompt, /DIRECTOR: advance now\./);
+  });
+
+  it('includes encounter plan guidance in full story prompts', () => {
+    const gs = makeGameState();
+    gs.encounterPlan = makeEncounterPlan();
+    gs.encounterPlanIndex = 1;
+
+    const prompt = buildFullPrompt('game-1', { system: 'dnd5e' }, () => gs, require('../encounter-designer'));
+
+    assert.match(prompt, /ENCOUNTER PLAN: Encounter 2 of 2/);
   });
 });
