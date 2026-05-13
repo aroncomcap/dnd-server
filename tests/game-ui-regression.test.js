@@ -5,6 +5,7 @@ const test = require('node:test');
 
 const gameHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'game.html'), 'utf8');
 const serverJs = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+const gameEngineJs = fs.readFileSync(path.join(__dirname, '..', 'game-engine.js'), 'utf8');
 const narrationPipelineJs = fs.readFileSync(path.join(__dirname, '..', 'narration-pipeline.js'), 'utf8');
 const gameActionTs = fs.readFileSync(path.join(__dirname, 'e2e', 'game-action.ts'), 'utf8');
 const campaignVerboseTs = fs.readFileSync(path.join(__dirname, 'e2e', 'campaign-verbose.spec.ts'), 'utf8');
@@ -145,6 +146,11 @@ test('enemy turns normalize decisions into executable combat engine actions', ()
   assert.match(serverJs, /map\(a => a\.label \|\| a\.name \|\| a\.type\)/, 'enemy tactics prompt should list real action labels');
   assert.match(serverJs, /function normalizeEnemyActionType/, 'enemy tactic action words should be normalized before engine resolution');
   assert.match(serverJs, /actorId: current\.id/, 'non-attack enemy actions should include actorId for the combat engine');
+});
+
+test('combat freeform actions are not silently converted into weapon attacks', () => {
+  assert.doesNotMatch(serverJs, /Default:\s*attack the first living enemy with primary weapon/, 'server combat path should not coerce unknown player actions into attacks');
+  assert.doesNotMatch(gameEngineJs, /Default:\s*attack the first living enemy with primary weapon/, 'game-engine combat path should not coerce unknown player actions into attacks');
 });
 
 test('encounter planner is host-only and supports queued adventuring days', () => {

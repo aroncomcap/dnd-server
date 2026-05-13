@@ -636,6 +636,39 @@ describe('CombatEngine', () => {
       assert.ok(text.toLowerCase().includes('hit') || text.includes('HIT'));
     });
 
+    it('formats D&D attack rolls with d20, bonus, total, damage dice, bonus, and damage total', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const result = {
+        type: 'attack',
+        attackerName: 'Sable Vey',
+        targetName: 'Lingering Hostile Will',
+        weapon: 'rapier',
+        roll: 11,
+        modifier: 6,
+        effectBonus: 0,
+        total: 17,
+        targetAC: 13,
+        hit: true,
+        critical: false,
+        fumble: false,
+        damageRoll: 5,
+        damageDiceTotal: 2,
+        damageModifier: 3,
+        damageFormula: '1d8+3',
+        totalDamage: 5,
+        damageType: 'piercing',
+        hpBefore: 45,
+        hpAfter: 40,
+      };
+
+      const text = engine.formatResultForPrompt(result);
+
+      assert.match(text, /To hit: d20 11 \+ 6 = 17 vs AC 13/i);
+      assert.match(text, /Damage: 1d8\+3 \(2 \+ 3 = 5\) piercing/i);
+      assert.doesNotMatch(text, /rolls 17\. HIT! 5 piercing damage/i);
+    });
+
     it('formats a D&D attack miss', () => {
       const engine = new CombatEngine();
       engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
@@ -657,6 +690,36 @@ describe('CombatEngine', () => {
       };
       const text = engine.formatResultForPrompt(result);
       assert.ok(text.toLowerCase().includes('miss') || text.includes('MISS'));
+    });
+
+    it('formats save spell damage with dice, bonus, total, and target save math', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const result = {
+        type: 'spell-save',
+        casterName: 'Mirelle',
+        spell: 'Sacred Flame',
+        saveDC: 14,
+        damageRoll: 7,
+        damageDiceTotal: 7,
+        damageModifier: 0,
+        damageFormula: '1d8',
+        damageType: 'radiant',
+        targets: [{
+          id: 'will',
+          name: 'Lingering Hostile Will',
+          saveRoll: 9,
+          saveMod: 2,
+          saveTotal: 11,
+          saved: false,
+          damage: 7,
+        }],
+      };
+
+      const text = engine.formatResultForPrompt(result);
+
+      assert.match(text, /Damage: 1d8 \(7 \+ 0 = 7\) radiant/i);
+      assert.match(text, /save d20 9 \+ 2 = 11 vs DC 14/i);
     });
 
     it('formats a heal result', () => {

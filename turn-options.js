@@ -30,6 +30,83 @@ function getPreferredName(name) {
   return parts.find(part => !titleWords.has(part.toLowerCase())) || parts[0] || 'The next hero';
 }
 
+function splitStandardActions(value) {
+  if (Array.isArray(value)) return value.map(String).map(s => s.trim()).filter(Boolean);
+  if (typeof value !== 'string') return [];
+  return value.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function findNearestEnemy(context = {}) {
+  if (context.nearestEnemy?.name) return context.nearestEnemy;
+  const combatants = context.combatants || context.combatEngine?.state?.combatants || {};
+  return Object.values(combatants).find(c => {
+    const hp = c.hp ?? c.totalHp ?? c.maxHp;
+    return c.type === 'Enemy' && (hp === undefined || hp > 0);
+  }) || null;
+}
+
+function isOffensiveStandardAction(action) {
+  return /\b(?:attack|strike|shoot|sacred flame|fire bolt|eldritch blast|dissonant whispers|vicious mockery|toll the dead|ray of frost|fireball|burning hands|guiding bolt|inflict wounds|magic missile|spirit guardians|moonbeam|heat metal|shatter|turn undead)\b/i.test(action || '');
+}
+
+function scoreStandardAction(action, context = {}) {
+  const lower = String(action || '').toLowerCase();
+  const inCombat = !!findNearestEnemy(context);
+  if (inCombat && /\b(?:attack|strike|shoot|sacred flame|fire bolt|eldritch blast|dissonant whispers|vicious mockery|toll the dead|ray of frost|fireball|burning hands|guiding bolt|inflict wounds|magic missile|spirit guardians|moonbeam|heat metal|shatter|turn undead|channel divinity)\b/.test(lower)) return 100;
+  if (inCombat && /\b(?:dodge|help|protect|shield)\b/.test(lower)) return 85;
+  if (/\b(?:bless|cure|heal|healing word|silence)\b/.test(lower)) return 75;
+  if (!inCombat && /\b(?:search|inspect|check|sneak|scout|pass without trace|investigate)\b/.test(lower)) return 95;
+  return 50;
+}
+
+function iconForStandardAction(action) {
+  const lower = String(action || '').toLowerCase();
+  if (/\b(?:dodge|shield|protect|defend)\b/.test(lower)) return '🛡️';
+  if (/\b(?:cast|spell|channel divinity|turn undead|bless|cure|heal|sacred flame|spirit guardians)\b/.test(lower)) return '✨';
+  if (/\b(?:help|aid)\b/.test(lower)) return '🤝';
+  if (/\b(?:search|check|inspect|investigate|sneak|scout)\b/.test(lower)) return '🔎';
+  return '🗡️';
+}
+
+function decorateStandardAction(action, targetPlayer, context = {}) {
+  const preferred = getPreferredName(targetPlayer);
+  const enemy = findNearestEnemy(context);
+  const includeActorLabel = context.includeActorLabel !== false;
+  let text = String(action || '').trim().replace(/\s+/g, ' ').replace(/[.]+$/, '');
+
+  const attackWith = text.match(/^attack\s+with\s+(.+)$/i);
+  if (attackWith && enemy?.name) {
+    text = `Attack ${enemy.name} with ${attackWith[1].trim()}`;
+  }
+
+  const shootWith = text.match(/^shoot\s+(.+)$/i);
+  if (shootWith && enemy?.name) {
+    text = `Shoot ${enemy.name} with ${shootWith[1].trim()}`;
+  }
+
+  const cast = text.match(/^cast\s+(.+)$/i);
+  if (cast && enemy?.name && isOffensiveStandardAction(text) && !/\b(?:on|at|against|toward|towards)\b/i.test(text)) {
+    text = `Cast ${cast[1].trim()} at ${enemy.name}`;
+  }
+
+  if (includeActorLabel && preferred && !mentionsAlias(text, normalizeName(targetPlayer))) {
+    text = `${preferred}: ${text}`;
+  }
+
+  return `${iconForStandardAction(action)} ${text}.`;
+}
+
+function buildStandardActionOptions(standardActions, context = {}) {
+  const actions = splitStandardActions(standardActions);
+  if (!actions.length) return [];
+  const targetPlayer = context.targetPlayer || context.playerName || context.characterName || '';
+  return actions
+    .map((action, index) => ({ action, index, score: scoreStandardAction(action, context) }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, 3)
+    .map(({ action }) => decorateStandardAction(action, targetPlayer, context));
+}
+
 function mentionsAlias(text, alias) {
   const pattern = new RegExp(`(^|[^a-z0-9])${escapeRegex(alias)}([^a-z0-9]|$)`, 'i');
   return pattern.test(String(text || '').toLowerCase());
@@ -57,9 +134,15 @@ function findMismatchedNames(options, targetPlayer, partyNames) {
   return [...mismatches];
 }
 
-function buildFallbackOptionsForPlayer(targetPlayer) {
+function buildFallbackOptionsForPlayer(targetPlayer, context = {}) {
   const name = String(targetPlayer || 'The next hero').trim() || 'The next hero';
   const firstName = getPreferredName(name);
+  const standardActions = context.standardActions || context.character?.standardActions || context.character?.data?.standardActions;
+  const standardOptions = buildStandardActionOptions(standardActions, {
+    ...context,
+    targetPlayer: name,
+  });
+  if (standardOptions.length >= 3) return standardOptions;
 
   return [
     `🗡️ ${firstName} takes point and checks the immediate danger.`,
@@ -92,13 +175,14 @@ function sanitizeOptionsForPlayer(options, targetPlayer, partyNames, context = {
   }
 
   return {
-    options: buildFallbackOptionsForPlayer(targetPlayer),
+    options: buildFallbackOptionsForPlayer(targetPlayer, context),
     retargeted: true,
     mismatchedNames: mismatchedNames.length ? mismatchedNames : [context.previousPlayer].filter(Boolean),
   };
 }
 
 module.exports = {
+  buildStandardActionOptions,
   buildFallbackOptionsForPlayer,
   findMismatchedNames,
   getPreferredName,

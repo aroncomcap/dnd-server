@@ -62,3 +62,19 @@ test('retargets unnamed second-person options after a different actor just moved
     assert.doesNotMatch(option, /Vesper|Hex|cursed shadow/i);
   }
 });
+
+test('fallback options prefer character standard actions over generic prompts', () => {
+  assert.ok(fs.existsSync(modulePath), 'turn-options.js should exist');
+  const { buildFallbackOptionsForPlayer } = require(modulePath);
+
+  const options = buildFallbackOptionsForPlayer('Sister Elowen Vale', {
+    character: {
+      standardActions: 'Cast bless, Cast cure wounds, Cast pass without trace, Cast silence, Cast spirit guardians, Attack with mace, Use Channel Divinity: Invoke Duplicity, Use Channel Divinity: Turn Undead, Dodge, Help ally',
+    },
+  });
+
+  assert.equal(options.length, 3);
+  assert.match(options.join('\n'), /Elowen/i);
+  assert.match(options.join('\n'), /Cast bless|Cast cure wounds|Cast pass without trace|Cast silence|Cast spirit guardians|Attack with mace|Channel Divinity|Dodge|Help ally/);
+  assert.doesNotMatch(options.join('\n'), /scene's strange details|immediate danger|takes point/i);
+});

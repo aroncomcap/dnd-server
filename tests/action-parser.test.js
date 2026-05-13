@@ -14,7 +14,13 @@ const COMBATANTS = {
     name: 'Kael',
     type: 'Player',
     weapons: [{ name: 'Longsword' }, { name: 'Dagger' }],
-    spells: [{ name: 'Fireball' }, { name: 'Shield' }, { name: 'Cure Wounds' }],
+    spells: [
+      { name: 'Fireball', damage: '8d6', save: 'dex' },
+      { name: 'Shield' },
+      { name: 'Cure Wounds', healing: '1d8' },
+      { name: 'Sacred Flame', damage: '1d8', save: 'dex' },
+      { name: 'Dissonant Whispers', damage: '3d6', save: 'wis' },
+    ],
   },
   'gob-1': {
     id: 'gob-1',
@@ -197,6 +203,22 @@ describe('parseAction — cast spell on target', () => {
     assert.equal(result.spell, 'Shield');
     assert.equal(result.targetId, 'kael');
   });
+
+  it('untargeted offensive cantrips target the first enemy, not the caster', () => {
+    const result = parseAction('cast sacred flame', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'spell');
+    assert.equal(result.spell, 'Sacred Flame');
+    assert.equal(result.targetId, 'gob-1');
+  });
+
+  it('freeform offensive spell intent targets the enemy instead of becoming an attack', () => {
+    const result = parseAction('cast dissonant whispers to drive it back', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'spell');
+    assert.equal(result.spell, 'Dissonant Whispers');
+    assert.equal(result.targetId, 'gob-1');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -238,6 +260,28 @@ describe('parseAction — unparseable returns null', () => {
 
   it('random word returns null', () => {
     assert.equal(parseAction('xyzzy', 'kael', BASE_CTX), null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Exploration / interaction actions
+// ---------------------------------------------------------------------------
+
+describe('parseAction — non-attack combat actions', () => {
+  it('checking an object is parsed as a check, not an attack fallback', () => {
+    const result = parseAction('check the sarcophagus', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'check');
+    assert.equal(result.actorId, 'kael');
+    assert.equal(result.attackerId, 'kael');
+    assert.equal(result.targetId, null);
+    assert.equal(result.description, 'check the sarcophagus');
+  });
+
+  it('inspecting the scene is parsed as a check', () => {
+    const result = parseAction('I inspect the silver chain for magic', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'check');
   });
 });
 
@@ -292,6 +336,21 @@ describe('parseOptions — typical AI option strings', () => {
     assert.equal(results[1].type, 'dodge');
     assert.ok(results[2]);
     assert.equal(results[2].type, 'spell');
+  });
+
+  it('parses exploratory options as checks instead of leaving them for AI attack fallback', () => {
+    const options = [
+      'Kael checks the sarcophagus for danger',
+      'Inspect the blue residue before moving',
+      'Search the chamber for the hidden route',
+    ];
+    const results = parseOptions(options, 'kael', BASE_CTX);
+    assert.equal(results.length, 3);
+    for (const result of results) {
+      assert.ok(result);
+      assert.equal(result.type, 'check');
+      assert.equal(result.actorId, 'kael');
+    }
   });
 });
 

@@ -220,7 +220,12 @@ class CombatEngine {
         const spell   = (caster.spells || []).find(s => s.name === spellName || s.name?.toLowerCase() === spellName?.toLowerCase());
 
         if (!spell) {
-          result = { type: 'error', message: `Spell "${spellName}" not found on ${caster?.name}` };
+          result = {
+            type: 'feature',
+            actorId: casterId,
+            actorName: caster.name,
+            description: `${caster.name} attempts ${spellName ? `to cast ${spellName}` : 'a spell'}, but no spell math is configured for it.`,
+          };
           break;
         }
 
@@ -321,6 +326,25 @@ class CombatEngine {
           actorId: action.actorId,
           actorName: actor ? actor.name : action.actorId,
           description: `${actor ? actor.name : action.actorId} takes the Dash action.`,
+        };
+        break;
+      }
+
+      case 'help':
+      case 'check':
+      case 'feature': {
+        const actorId = action.actorId || action.attackerId;
+        const actor = this.state.combatants[actorId];
+        const label = action.type === 'help'
+          ? 'helps an ally'
+          : action.type === 'feature'
+            ? 'uses a class feature'
+            : 'checks the situation';
+        result = {
+          type: action.type,
+          actorId,
+          actorName: actor ? actor.name : actorId,
+          description: action.description || action.notes || `${actor ? actor.name : actorId} ${label}.`,
         };
         break;
       }
@@ -630,10 +654,18 @@ class CombatEngine {
         return lines.join('\n');
       }
       case 'spell-save': {
-        const lines = [`${result.casterName} casts ${result.spell} (DC ${result.saveDC} save).`];
+        const damageDice = Number.isFinite(Number(result.damageDiceTotal))
+          ? Number(result.damageDiceTotal)
+          : Number(result.damageRoll || 0);
+        const damageMod = Number.isFinite(Number(result.damageModifier)) ? Number(result.damageModifier) : 0;
+        const damageModStr = damageMod >= 0 ? `+ ${damageMod}` : `- ${Math.abs(damageMod)}`;
+        const damageFormula = result.damageFormula || 'damage';
+        const lines = [`${result.casterName} casts ${result.spell} (DC ${result.saveDC} save). Damage: ${damageFormula} (${damageDice} ${damageModStr} = ${result.damageRoll}) ${result.damageType || ''}.`];
         for (const t of result.targets || []) {
           const outcome = t.saved ? 'SAVED' : 'FAILED';
-          lines.push(`  ${t.name}: rolled ${t.saveTotal} vs DC ${result.saveDC} — ${outcome}. ${t.damage} ${result.damageType || ''} damage.`);
+          const saveMod = Number(t.saveMod) || 0;
+          const saveModStr = saveMod >= 0 ? `+ ${saveMod}` : `- ${Math.abs(saveMod)}`;
+          lines.push(`  ${t.name}: save d20 ${t.saveRoll} ${saveModStr} = ${t.saveTotal} vs DC ${result.saveDC} — ${outcome}. ${t.damage} ${result.damageType || ''} damage.`);
         }
         return lines.join('\n');
       }
@@ -663,6 +695,10 @@ class CombatEngine {
         return result.description || `${result.actorName} takes the Disengage action.`;
       case 'dash':
         return result.description || `${result.actorName} takes the Dash action.`;
+      case 'help':
+      case 'check':
+      case 'feature':
+        return result.description || `${result.actorName} ${result.type}.`;
       case 'death_save': {
         const name = result.actorName || result.combatantName || 'Unknown';
         const roll = result.roll || '?';
@@ -679,24 +715,36 @@ class CombatEngine {
 
   /** Format a D&D 5e attack result. */
   _formatDnDAttack(result) {
-    const modStr  = result.modifier >= 0 ? `+${result.modifier}` : `${result.modifier}`;
-    const rollStr = `d20${modStr}=${result.total}`;
+    const modifier = Number(result.modifier) || 0;
+    const effectBonus = Number(result.effectBonus) || 0;
+    const attackBonus = modifier + effectBonus;
+    const attackBonusStr = attackBonus >= 0 ? `+ ${attackBonus}` : `- ${Math.abs(attackBonus)}`;
+    const total = result.total ?? ((Number(result.roll) || 0) + attackBonus);
+    const rollStr = `To hit: d20 ${result.roll} ${attackBonusStr} = ${total}`;
     const acStr   = `vs AC ${result.targetAC}`;
 
     if (result.fumble) {
-      return `${result.attackerName} attacks ${result.targetName} with ${result.weapon}: ${rollStr} ${acStr}. FUMBLE!`;
+      return `${result.attackerName} attacks ${result.targetName} with ${result.weapon}. ${rollStr} ${acStr}. FUMBLE!`;
     }
 
     if (!result.hit) {
-      return `${result.attackerName} attacks ${result.targetName} with ${result.weapon}: ${rollStr} ${acStr}. MISS.`;
+      return `${result.attackerName} attacks ${result.targetName} with ${result.weapon}. ${rollStr} ${acStr}. MISS.`;
     }
 
     const critStr = result.critical ? ' (CRITICAL)' : '';
     const hpStr   = (result.hpBefore !== undefined && result.hpAfter !== undefined)
       ? ` ${result.targetName} HP: ${result.hpBefore}→${result.hpAfter}.`
       : '';
+    const damageFormula = result.damageFormula || 'damage';
+    const damageDice = Number.isFinite(Number(result.damageDiceTotal))
+      ? Number(result.damageDiceTotal)
+      : Number(result.damageRoll ?? result.totalDamage ?? 0);
+    const damageMod = Number.isFinite(Number(result.damageModifier)) ? Number(result.damageModifier) : 0;
+    const damageModStr = damageMod >= 0 ? `+ ${damageMod}` : `- ${Math.abs(damageMod)}`;
+    const damageTotal = result.totalDamage ?? Math.max(1, damageDice + damageMod);
+    const damageStr = `Damage: ${damageFormula} (${damageDice} ${damageModStr} = ${damageTotal}) ${result.damageType}`;
 
-    return `${result.attackerName} attacks ${result.targetName} with ${result.weapon}: ${rollStr} ${acStr}. HIT${critStr}! ${result.totalDamage} ${result.damageType}.${hpStr}`;
+    return `${result.attackerName} attacks ${result.targetName} with ${result.weapon}. ${rollStr} ${acStr}. HIT${critStr}! ${damageStr}.${hpStr}`;
   }
 
   /** Format a RuneQuest attack result. */

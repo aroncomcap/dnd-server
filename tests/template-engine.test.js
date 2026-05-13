@@ -204,4 +204,31 @@ describe('generateCombatOptions', () => {
     assert.strictEqual(options.length, 3);
     assert.ok(options[2].includes('reckless'));
   });
+
+  it('prefers character standard actions over generic combat fillers', () => {
+    const engine = {
+      state: {
+        combatants: {
+          'player-elowen': {
+            type: 'PC',
+            name: 'Sister Elowen Vale',
+            hp: 24,
+            maxHp: 24,
+            weapons: [{ name: 'Mace' }],
+            spells: [{ name: 'Sacred Flame', level: 0, damage: '1d8', save: 'dex' }],
+            spellSlots: {},
+            features: [],
+            standardActions: 'Cast bless, Cast cure wounds, Cast spirit guardians, Attack with mace, Use Channel Divinity: Turn Undead, Dodge, Help ally',
+          },
+          'mummy-1': { type: 'Enemy', name: 'Tomb Presence', hp: 25, maxHp: 45 },
+        },
+      },
+    };
+
+    const options = generateCombatOptions(engine, 'Sister Elowen Vale');
+
+    assert.strictEqual(options.length, 3);
+    assert.match(options.join('\n'), /Cast bless|Cast cure wounds|Cast spirit guardians|Attack with mace|Channel Divinity|Dodge|Help ally/);
+    assert.doesNotMatch(options.join('\n'), /reckless|scene's strange details|immediate danger/i);
+  });
 });

@@ -1,6 +1,7 @@
 // ── Game Engine: Claude Orchestration & Game Loop ────────────────────────────
 
 const db = require('./db');
+const templateEngine = require('./template-engine');
 
 let anthropic; // Initialized by module caller
 let io; // Initialized by module caller
@@ -296,6 +297,7 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
     maxTokens = gs.verbosity === 'terse' ? 400 : gs.verbosity === 'brief' ? 600 : 2500;
   }
   let combatContext = '';
+  let combatResolvedLines = [];
 
   if (combatActive) {
     try {
@@ -320,17 +322,13 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
       } else {
         parsedAction = parseAction(actionText, playerId, combatCtx);
         if (!parsedAction) {
-          // Default: attack the first living enemy with primary weapon
-          const enemies = Object.values(gs.combatEngine.state.combatants).filter(c => c.type === 'Enemy' && (c.hp > 0 || (c.totalHp && c.totalHp > 0)));
-          const attacker = gs.combatEngine.state.combatants[playerId];
-          if (enemies.length > 0 && attacker) {
-            parsedAction = {
-              type: 'attack',
-              attackerId: playerId,
-              targetId: enemies[0].id,
-              weapon: attacker.weapons?.[0]?.name,
-            };
-          }
+          parsedAction = {
+            type: 'check',
+            actorId: playerId,
+            attackerId: playerId,
+            targetId: null,
+            description: actionText,
+          };
         }
       }
 
@@ -366,6 +364,7 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
         persistCombatState(gameId);
         const allResults = [playerResult, ...deathSaveResults, ...enemyResults].filter(Boolean);
         const resultLines = allResults.map(r => gs.combatEngine.formatResultForPrompt(r));
+        combatResolvedLines = resultLines;
 
         combatContext = `\n\n${gs.combatEngine.getCombatStateForPrompt()}\n\nRESOLVED THIS ROUND:\n${resultLines.join('\n')}\n\nNarrate these results in your DM persona. It is now ${gs.combatEngine.getCurrentTurn()?.name || 'the next player'}'s turn.`;
 
@@ -465,7 +464,7 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
   const combatPromptInjection = combatActive ? `\n\nCOMBAT MODE ACTIVE — Server controls all combat.
 DO NOT: roll dice, invent attack results, change HP, ask for initiative rolls, or resolve combat yourself.
 DO: Narrate EVERY result from RESOLVED THIS ROUND as a bold dice line, then 1 sentence of flavor. That's it.
-Format each result: **🎲 [who] [action] — rolls [total]. HIT/MISS! [damage]. [target] ([HP])**
+Preserve the combat engine math exactly. Show to-hit as "To hit: d20 [roll] + [bonus] = [total] vs AC [AC]" and damage as "Damage: [formula] ([dice] + [bonus] = [total]) [type]".
 ENEMY ATTACKS ON PCs are the most dramatic part — describe the PC getting hurt, bleeding, staggering.
 KILLSHOT: [scene] when a target reaches 0 HP.
 Keep narration SHORT — this is tactical combat, not a novel.` : '';
@@ -564,6 +563,16 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   console.log(`API call: ${model} | ${inputTokens}in/${outputTokens}out | $${cost.toFixed(4)} | ${elapsed}ms | ${actingAs ? 'auto' : 'human'}`);
 
   const parsed = parseResponse(reply);
+  if (combatResolvedLines.length > 0 && !combatResolvedLines.every(line => parsed.narration.includes(line))) {
+    parsed.narration = `${combatResolvedLines.map(line => `🎲 ${line}`).join('\n')}\n\n${parsed.narration}`.trim();
+  }
+  if (combatActive && gs.combatEngine?.state?.active) {
+    const nextCombatTurn = gs.combatEngine.getCurrentTurn();
+    if (nextCombatTurn?.type === 'PC') {
+      const tacticalOptions = templateEngine.generateCombatOptions(gs.combatEngine, nextCombatTurn.name);
+      if (tacticalOptions.length) parsed.options = tacticalOptions;
+    }
+  }
   console.log(`[stream-debug] state=${state} narration=${narrationText.length}ch structured=${structuredBuffer.length}ch options=${parsed.options.length} scene=${!!parsed.scene} world=${!!parsed.world}`);
 
   // Include a minimal structured block in history so the AI sees the output format pattern

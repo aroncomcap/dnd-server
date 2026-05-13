@@ -2,6 +2,7 @@
 
 const db = require('./db');
 const GENERIC_TEMPLATES = require('./templates/generic-templates.json');
+const { buildStandardActionOptions } = require('./turn-options');
 
 // In-memory cache: Map<"slug:event:persona", string[]>
 const templateCache = new Map();
@@ -306,6 +307,15 @@ function generateCombatOptions(combatEngine, characterName) {
     c => c.type === 'Enemy' && c.hp > 0
   );
   const nearestEnemy = livingEnemies[0];
+
+  const standardOptions = buildStandardActionOptions(player.standardActions, {
+    targetPlayer: player.name,
+    character: player,
+    nearestEnemy,
+    combatants,
+    includeActorLabel: false,
+  });
+  if (standardOptions.length >= 3) return standardOptions;
 
   // Option 1: Attack with primary weapon
   const weapon = player.weapons?.[0]?.name || 'weapon';

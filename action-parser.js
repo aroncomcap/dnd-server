@@ -72,7 +72,17 @@ function findCombatantId(query, combatants, typeFilter = null) {
  */
 function firstEnemyId(combatants) {
   for (const [id, c] of Object.entries(combatants)) {
-    if (c.type === 'Enemy') return id;
+    const hp = c.hp ?? c.totalHp ?? c.maxHp;
+    if (c.type === 'Enemy' && (hp === undefined || hp > 0)) return id;
+  }
+  return null;
+}
+
+function resolveTargetQuery(query, combatants, typeFilter = 'Enemy') {
+  const targetId = findCombatantId(query, combatants, typeFilter);
+  if (targetId) return targetId;
+  if (/\b(?:it|them|enemy|foe|monster|creature|presence|thing|undead|threat)\b/i.test(query || '')) {
+    return firstEnemyId(combatants);
   }
   return null;
 }
@@ -127,6 +137,48 @@ function findHealingSpell(spells) {
   return null;
 }
 
+function isHealingSpell(spell) {
+  if (!spell) return false;
+  const n = String(spell.name || '').toLowerCase();
+  return !!(spell.healing || spell.effect === 'heal' || spell.type === 'heal' || /\b(?:heal|cure|mend|restore|healing word|lay on hands)\b/.test(n));
+}
+
+function isOffensiveSpell(spell, query = '') {
+  if (!spell) return false;
+  const text = `${spell.name || ''} ${query || ''}`.toLowerCase();
+  return !!(
+    spell.damage ||
+    spell.attack ||
+    spell.save ||
+    spell.type === 'damage' ||
+    /\b(?:acid splash|burning hands|chill touch|chromatic orb|dissonant whispers|eldritch blast|fire bolt|fireball|guiding bolt|heat metal|inflict wounds|lightning bolt|magic missile|moonbeam|ray of frost|sacred flame|scorching ray|shatter|spirit guardians|toll the dead|vicious mockery)\b/.test(text)
+  );
+}
+
+function defaultSpellTarget(spell, spellQuery, combatants, playerId) {
+  if (isHealingSpell(spell)) return playerId;
+  if (isOffensiveSpell(spell, spellQuery)) return firstEnemyId(combatants);
+  return playerId;
+}
+
+function isFeatureAction(text) {
+  return /\b(?:channel divinity|second wind|action surge|rage|reckless attack|wild shape|lay on hands|flurry of blows|stunning strike|bardic inspiration|turn undead|invoke duplicity)\b/i.test(text || '');
+}
+
+function isCheckAction(text) {
+  return /\b(?:check|checks|checking|inspect|inspects|inspecting|investigate|investigates|investigating|search|searches|searching|examine|examines|examining|study|studies|studying|observe|observes|observing|look|looks|looking|listen|listens|listening|scan|scans|scanning|open|opens|opening|touch|touches|touching|test|tests|testing|secure|secures|securing|disarm|disarms|disarming|track|tracks|tracking|follow|follows|following)\b/i.test(text || '');
+}
+
+function makeCheckAction(raw, playerId) {
+  return {
+    type: 'check',
+    actorId: playerId,
+    attackerId: playerId,
+    targetId: null,
+    description: raw,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Strip emoji prefix from option strings
 // ---------------------------------------------------------------------------
@@ -162,7 +214,7 @@ function parseAction(input, playerId, ctx) {
     const idx = parseInt(raw, 10) - 1;
     const option = preTaggedOptions[idx];
     if (option) {
-      return { ...option, attackerId: playerId };
+      return { ...option, attackerId: playerId, actorId: option.actorId || option.attackerId || playerId };
     }
   }
 
@@ -170,27 +222,40 @@ function parseAction(input, playerId, ctx) {
   const simpleActions = ['dodge', 'disengage', 'dash', 'help'];
   for (const action of simpleActions) {
     if (lower === action || lower.startsWith(action + ' ')) {
-      return { type: action, attackerId: playerId };
+      return { type: action, actorId: playerId, attackerId: playerId };
     }
   }
 
+  if (isFeatureAction(raw)) {
+    return { type: 'feature', actorId: playerId, attackerId: playerId, targetId: firstEnemyId(combatants), description: raw };
+  }
+
   // --- 3. Attack with weapon: "attack/strike/hit/slash/stab <target> with <weapon>" ---
-  const attackWithWeaponRe = /^(?:attack|strike|hit|slash|stab)\s+(.+?)\s+with\s+(.+)$/i;
+  const attackWithWeaponOnlyRe = /^(?:attack|strike|hit|slash|stab|shoot)\s+with\s+(.+)$/i;
+  const awom = raw.match(attackWithWeaponOnlyRe);
+  if (awom) {
+    const weaponQuery = awom[1].trim();
+    const targetId = firstEnemyId(combatants);
+    const weapon = findWeapon(weaponQuery, weapons) || findWeapon(null, weapons);
+    return { type: 'attack', attackerId: playerId, targetId, weapon };
+  }
+
+  const attackWithWeaponRe = /^(?:attack|strike|hit|slash|stab|shoot)\s+(.+?)\s+with\s+(.+)$/i;
   const awm = raw.match(attackWithWeaponRe);
   if (awm) {
     const targetQuery = awm[1].trim();
     const weaponQuery = awm[2].trim();
-    const targetId = findCombatantId(targetQuery, combatants, 'Enemy');
+    const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy');
     const weapon = findWeapon(weaponQuery, weapons) || findWeapon(null, weapons);
     return { type: 'attack', attackerId: playerId, targetId, weapon };
   }
 
   // --- 4. Attack (no weapon): "attack/strike/hit/slash/stab <target>" ---
-  const attackRe = /^(?:attack|strike|hit|slash|stab)\s+(.+)$/i;
+  const attackRe = /^(?:attack|strike|hit|slash|stab|shoot)\s+(.+)$/i;
   const am = raw.match(attackRe);
   if (am) {
     const targetQuery = am[1].trim();
-    const targetId = findCombatantId(targetQuery, combatants, 'Enemy');
+    const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy');
     const weapon = weapons.length > 0 ? weapons[0].name : null;
     return { type: 'attack', attackerId: playerId, targetId, weapon };
   }
@@ -202,7 +267,7 @@ function parseAction(input, playerId, ctx) {
     const spellQuery = com[1].trim();
     const targetQuery = com[2].trim();
     const spell = findSpell(spellQuery, spells);
-    const targetId = findCombatantId(targetQuery, combatants, 'Enemy');
+    const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy') || defaultSpellTarget(spells.find(s => s.name === spell), spellQuery, combatants, playerId);
     return { type: 'spell', attackerId: playerId, spell, targetId };
   }
 
@@ -212,7 +277,8 @@ function parseAction(input, playerId, ctx) {
   if (cm) {
     const spellQuery = cm[1].trim();
     const spell = findSpell(spellQuery, spells);
-    return { type: 'spell', attackerId: playerId, spell, targetId: playerId };
+    const spellObj = (spells || []).find(s => s.name === spell);
+    return { type: 'spell', attackerId: playerId, spell, targetId: defaultSpellTarget(spellObj, spellQuery, combatants, playerId) };
   }
 
   // --- 7. Heal: "heal <target>" ---
@@ -225,7 +291,12 @@ function parseAction(input, playerId, ctx) {
     return { type: 'spell', attackerId: playerId, spell, targetId };
   }
 
-  // --- 8. Unparseable ---
+  // --- 8. Exploration / interaction in combat ---
+  if (isCheckAction(raw)) {
+    return makeCheckAction(raw, playerId);
+  }
+
+  // --- 9. Unparseable ---
   return null;
 }
 
@@ -259,7 +330,13 @@ function parseOptions(options, playerId, ctx) {
     const lower = clean.toLowerCase();
 
     if (/dodge|defend|shield/.test(lower)) {
-      return { type: 'dodge', attackerId: playerId };
+      return { type: 'dodge', actorId: playerId, attackerId: playerId };
+    }
+    if (isFeatureAction(clean)) {
+      return { type: 'feature', actorId: playerId, attackerId: playerId, targetId: firstEnemyId(combatants), description: clean };
+    }
+    if (isCheckAction(clean)) {
+      return makeCheckAction(clean, playerId);
     }
     if (/attack|strike|slash/.test(lower)) {
       const targetId = firstEnemyId(combatants);
@@ -268,7 +345,8 @@ function parseOptions(options, playerId, ctx) {
     }
     if (/cast|spell|magic/.test(lower)) {
       const spell = spells.length > 0 ? spells[0].name : null;
-      const targetId = firstEnemyId(combatants) || playerId;
+      const spellObj = (spells || []).find(s => s.name === spell);
+      const targetId = defaultSpellTarget(spellObj, clean, combatants, playerId);
       return { type: 'spell', attackerId: playerId, spell, targetId };
     }
 
@@ -300,6 +378,9 @@ async function parseActionWithAI(input, playerId, ctx, _legacyClient) {
     .filter(c => c.id !== playerId && c.type !== 'Enemy')
     .map(c => ({ id: c.id, name: c.name }));
 
+  const tier1 = parseAction(input, playerId, ctx);
+  if (tier1) return tier1;
+
   const prompt = `You are a D&D combat assistant. Parse the player's action into JSON.
 
 Player "${playerId}" wants to: "${input}"
@@ -310,7 +391,7 @@ Enemies: ${enemies.map(e => `${e.name} (id: ${e.id})`).join(', ') || 'none'}
 Allies: ${allies.map(a => `${a.name} (id: ${a.id})`).join(', ') || 'none'}
 
 Respond with ONLY valid JSON (no markdown, no explanation):
-{"type":"attack"|"spell"|"dodge"|"disengage"|"dash"|"help","targetId":"id or null","weapon":"name or null","spell":"name or null","notes":"brief description"}`;
+{"type":"attack"|"spell"|"dodge"|"disengage"|"dash"|"help"|"check"|"feature","targetId":"id or null","weapon":"name or null","spell":"name or null","notes":"brief description"}`;
 
   try {
     const response = await llm.completeText({
@@ -327,22 +408,21 @@ Respond with ONLY valid JSON (no markdown, no explanation):
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
       return {
-        type: parsed.type || 'attack',
+        type: parsed.type || 'check',
         attackerId: playerId,
+        actorId: playerId,
         targetId: parsed.targetId || null,
         weapon: parsed.weapon || null,
         spell: parsed.spell || null,
         notes: parsed.notes || null,
+        description: parsed.notes || input,
       };
     }
   } catch (_err) {
     // Fall through to default
   }
 
-  // Fallback: attack first enemy with first weapon
-  const targetId = firstEnemyId(combatants);
-  const weapon = (player.weapons || [])[0]?.name || null;
-  return { type: 'attack', attackerId: playerId, targetId, weapon, spell: null };
+  return makeCheckAction(input, playerId);
 }
 
 // ---------------------------------------------------------------------------
@@ -385,7 +465,7 @@ Allies: ${allies.map(a => `${a.name} (id: ${a.id})`).join(', ') || 'none'}
 
 Respond with ONLY a JSON array of 3 objects (no markdown, no explanation):
 [
-  {"type":"attack"|"spell"|"dodge"|"disengage"|"dash"|"help","targetId":"id or null","weapon":"name or null","spell":"name or null"},
+  {"type":"attack"|"spell"|"dodge"|"disengage"|"dash"|"help"|"check"|"feature","targetId":"id or null","weapon":"name or null","spell":"name or null"},
   {"type":...},
   {"type":...}
 ]`;
@@ -405,11 +485,13 @@ Respond with ONLY a JSON array of 3 objects (no markdown, no explanation):
       const parsed = JSON.parse(jsonMatch[0]);
       if (Array.isArray(parsed) && parsed.length === 3) {
         return parsed.map(p => ({
-          type: p.type || 'attack',
+          type: p.type || 'check',
           attackerId: playerId,
+          actorId: playerId,
           targetId: p.targetId || null,
           weapon: p.weapon || null,
           spell: p.spell || null,
+          description: p.notes || null,
         }));
       }
     }
@@ -417,11 +499,11 @@ Respond with ONLY a JSON array of 3 objects (no markdown, no explanation):
     // Fall through to fallback
   }
 
-  // Fallback: parse each option individually
+  // Fallback: parse each option individually; never coerce unclear options into attacks.
   return options.map(opt => {
     const clean = stripEmoji(opt || '');
     return parseAction(clean, playerId, { ...ctx, preTaggedOptions: null }) ||
-      { type: 'attack', attackerId: playerId, targetId: firstEnemyId(combatants), weapon: (player.weapons || [])[0]?.name || null, spell: null };
+      makeCheckAction(clean || 'assess the situation', playerId);
   });
 }
 
