@@ -46,6 +46,10 @@ const ANON_JWT_EXPIRY = '24h';
 const MAX_ANON_SESSIONS_PER_IP = 3;
 
 const JWT_EXPIRY = '7d';
+const PERSISTENT_LOGIN_MAX_AGE_MS = parseInt(
+  process.env.LOGIN_COOKIE_MAX_AGE_MS || String(10 * 365 * 24 * 60 * 60 * 1000),
+  10
+);
 const BCRYPT_ROUNDS = 12;
 const WELCOME_BONUS_MINUTES = 600;
 
@@ -82,13 +86,90 @@ function generateToken(user) {
   );
 }
 
-function setTokenCookie(res, token) {
-  res.cookie('tt_token', token, {
+function shouldUseSecureCookie() {
+  if (process.env.COOKIE_SECURE === 'false') return false;
+  if (process.env.COOKIE_SECURE === 'true') return true;
+  return process.env.NODE_ENV === 'production' ||
+    Boolean(process.env.RAILWAY_ENVIRONMENT) ||
+    (process.env.BASE_URL || '').startsWith('https://');
+}
+
+function getTokenCookieOptions({ includeMaxAge = true } = {}) {
+  const options = {
     httpOnly: true,
-    secure: true,  // Always secure on HTTPS (Railway enforces HTTPS)
+    secure: shouldUseSecureCookie(),
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    path: '/',
+  };
+  if (includeMaxAge) options.maxAge = PERSISTENT_LOGIN_MAX_AGE_MS;
+  return options;
+}
+
+function setTokenCookie(res, token) {
+  res.cookie('tt_token', token, getTokenCookieOptions());
+}
+
+function createPersistentSessionToken() {
+  return crypto.randomBytes(48).toString('base64url');
+}
+
+function hashAuthSessionToken(token) {
+  return crypto.createHash('sha256').update(String(token)).digest('hex');
+}
+
+async function issuePersistentLogin(res, user) {
+  const token = createPersistentSessionToken();
+  await db.createAuthSession({
+    id: crypto.randomUUID(),
+    userId: user.id,
+    tokenHash: hashAuthSessionToken(token),
   });
+  setTokenCookie(res, token);
+  return token;
+}
+
+async function resolveAuthToken(token) {
+  if (!token) return { user: null, anonSession: null };
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.anonymous) {
+      return {
+        user: null,
+        anonSession: await db.getAnonSession(decoded.anonId),
+        decoded,
+      };
+    }
+    return {
+      user: await db.getUserById(decoded.userId),
+      anonSession: null,
+      decoded,
+    };
+  } catch {
+    // Fall through to persistent opaque sessions.
+  }
+
+  const tokenHash = hashAuthSessionToken(token);
+  const session = await db.getAuthSessionByHash(tokenHash);
+  if (!session) return { user: null, anonSession: null };
+
+  const user = await db.getUserById(session.user_id);
+  if (!user) return { user: null, anonSession: null };
+  await db.touchAuthSession(tokenHash);
+  return { user, anonSession: null, session };
+}
+
+async function logout(req, res) {
+  const token = req.cookies?.tt_token;
+  if (token) {
+    try {
+      await db.revokeAuthSession(hashAuthSessionToken(token));
+    } catch (err) {
+      console.warn('Failed to revoke auth session during logout:', err.message);
+    }
+  }
+  res.clearCookie('tt_token', getTokenCookieOptions({ includeMaxAge: false }));
+  res.json({ ok: true });
 }
 
 // ── Middleware: attach user to request from JWT cookie (non-blocking) ────────
@@ -101,14 +182,9 @@ async function authMiddleware(req, res, next) {
     return next();
   }
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.anonymous) {
-      req.user = null;
-      req.anonSession = await db.getAnonSession(decoded.anonId);
-    } else {
-      req.user = await db.getUserById(decoded.userId);
-      req.anonSession = null;
-    }
+    const resolved = await resolveAuthToken(token);
+    req.user = resolved.user;
+    req.anonSession = resolved.anonSession;
     next();
   } catch {
     req.user = null;
@@ -256,8 +332,7 @@ router.post('/auth/register', registerLimiter, async (req, res) => {
     // Merge anonymous session if one exists
     await mergeAnonymousSession(req, id);
 
-    const token = generateToken(user);
-    setTokenCookie(res, token);
+    await issuePersistentLogin(res, user);
     res.json({ user: { id: user.id, email: user.email, displayName: user.display_name, isAdmin: user.is_admin } });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -265,19 +340,19 @@ router.post('/auth/register', registerLimiter, async (req, res) => {
 });
 
 router.post('/auth/login', loginLimiter, (req, res, next) => {
-  passport.authenticate('local', { session: false }, (err, user, info) => {
-    if (err) return res.status(500).json({ error: err.message });
-    if (!user) return res.status(401).json({ error: info?.message || 'Invalid credentials' });
-    const token = generateToken(user);
-    setTokenCookie(res, token);
-    res.json({ user: { id: user.id, email: user.email, displayName: user.display_name, isAdmin: user.is_admin } });
+  passport.authenticate('local', { session: false }, async (err, user, info) => {
+    try {
+      if (err) return res.status(500).json({ error: err.message });
+      if (!user) return res.status(401).json({ error: info?.message || 'Invalid credentials' });
+      await issuePersistentLogin(res, user);
+      res.json({ user: { id: user.id, email: user.email, displayName: user.display_name, isAdmin: user.is_admin } });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
   })(req, res, next);
 });
 
-router.post('/auth/logout', (req, res) => {
-  res.clearCookie('tt_token');
-  res.json({ ok: true });
-});
+router.post('/auth/logout', logout);
 
 router.get('/auth/me', authMiddleware, (req, res) => {
   if (!req.user) return res.json({ user: null });
@@ -344,8 +419,7 @@ router.get('/auth/magic-link/:token', async (req, res) => {
 
     await db.clearMagicLinkNonce(user.id);
 
-    const sessionToken = generateToken(user);
-    setTokenCookie(res, sessionToken);
+    await issuePersistentLogin(res, user);
     res.redirect('/lobby');
   } catch (err) {
     if (err.name === 'TokenExpiredError') return res.redirect('/lobby?error=link_expired');
@@ -428,14 +502,14 @@ router.post('/auth/set-password', async (req, res) => {
   if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.anonymous || !decoded.userId) return res.status(401).json({ error: 'Not authenticated' });
+    const { user } = await resolveAuthToken(token);
+    if (!user) return res.status(401).json({ error: 'Not authenticated' });
 
     const { password } = req.body;
     if (!password || password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' });
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-    await db.setUserPassword(decoded.userId, passwordHash);
+    await db.setUserPassword(user.id, passwordHash);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -449,8 +523,7 @@ router.get('/auth/google/callback', (req, res, next) => {
   passport.authenticate('google', { session: false }, async (err, user) => {
     try {
       if (err || !user) return res.redirect('/login.html?error=google_failed');
-      const token = generateToken(user);
-      setTokenCookie(res, token);
+      await issuePersistentLogin(res, user);
       // Merge anonymous session
       await mergeAnonymousSession(req, user.id);
       res.redirect('/lobby');
@@ -468,8 +541,7 @@ router.get('/auth/discord/callback', (req, res, next) => {
   passport.authenticate('discord', { session: false }, async (err, user) => {
     try {
       if (err || !user) return res.redirect('/login.html?error=discord_failed');
-      const token = generateToken(user);
-      setTokenCookie(res, token);
+      await issuePersistentLogin(res, user);
       // Merge anonymous session
       await mergeAnonymousSession(req, user.id);
       res.redirect('/lobby');
@@ -483,5 +555,7 @@ router.get('/auth/discord/callback', (req, res, next) => {
 module.exports = {
   router, authMiddleware, requireAuth, requireAdmin,
   generateToken, setTokenCookie, jwtSecret: JWT_SECRET,
+  issuePersistentLogin, resolveAuthToken, logout, hashAuthSessionToken,
+  getTokenCookieOptions,
   createAnonymousSession, generateAnonToken,
 };

@@ -4,6 +4,8 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const auth = require('../auth');
+const db = require('../db');
 
 // Test constants matching auth.js
 const JWT_SECRET = 'test-secret';
@@ -48,7 +50,7 @@ describe('Auth Middleware', () => {
       assert.equal(decoded.isAdmin, true);
     });
 
-    it('generated token has 7-day expiry', () => {
+    it('legacy JWT token has 7-day expiry for backward compatibility', () => {
       const user = { id: 'user-789', email: 'test@example.com', is_admin: false };
       const token = generateToken(user);
 
@@ -254,17 +256,16 @@ describe('Auth Middleware', () => {
       const token = 'test-token-123';
       const cookies = {};
 
-      // Mock setTokenCookie logic
-      const cookieConfig = {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      };
+      auth.setTokenCookie({
+        cookie(name, value, options) {
+          cookies[name] = { value, options };
+        },
+      }, token);
 
-      assert.equal(cookieConfig.httpOnly, true);
-      assert.equal(cookieConfig.sameSite, 'lax');
-      assert.equal(cookieConfig.maxAge, 604800000); // 7 days in ms
+      assert.equal(cookies.tt_token.value, token);
+      assert.equal(cookies.tt_token.options.httpOnly, true);
+      assert.equal(cookies.tt_token.options.sameSite, 'lax');
+      assert.ok(cookies.tt_token.options.maxAge >= 10 * 365 * 24 * 60 * 60 * 1000);
     });
 
     it('secure flag depends on NODE_ENV', () => {
@@ -274,6 +275,111 @@ describe('Auth Middleware', () => {
 
       assert.equal(isProduction, true);
       assert.equal(isDevelopment, false);
+    });
+  });
+
+  describe('Persistent Login Sessions', () => {
+    it('issues a long-lived opaque session cookie backed by the database', async () => {
+      const originalCreateAuthSession = db.createAuthSession;
+      let storedSession = null;
+      db.createAuthSession = async ({ id, userId, tokenHash }) => {
+        storedSession = { id, userId, tokenHash };
+      };
+
+      try {
+        let cookie = null;
+        const res = {
+          cookie(name, value, options) {
+            cookie = { name, value, options };
+          },
+        };
+
+        await auth.issuePersistentLogin(res, {
+          id: 'user-persist',
+          email: 'persist@example.com',
+          is_admin: false,
+        });
+
+        assert.equal(cookie.name, 'tt_token');
+        assert.ok(cookie.value.length >= 48);
+        assert.doesNotThrow(() => Buffer.from(cookie.value, 'base64url'));
+        assert.equal(jwt.decode(cookie.value), null);
+        assert.equal(storedSession.userId, 'user-persist');
+        assert.equal(storedSession.tokenHash, auth.hashAuthSessionToken(cookie.value));
+        assert.ok(cookie.options.maxAge >= 10 * 365 * 24 * 60 * 60 * 1000);
+      } finally {
+        db.createAuthSession = originalCreateAuthSession;
+      }
+    });
+
+    it('authMiddleware resolves persistent session cookies after a restart', async () => {
+      const originalGetAuthSessionByHash = db.getAuthSessionByHash;
+      const originalTouchAuthSession = db.touchAuthSession;
+      const originalGetUserById = db.getUserById;
+      const token = 'persist-token-after-restart';
+      const tokenHash = auth.hashAuthSessionToken(token);
+      let touchedHash = null;
+
+      db.getAuthSessionByHash = async (hash) => (
+        hash === tokenHash ? { user_id: 'user-persist' } : null
+      );
+      db.touchAuthSession = async (hash) => {
+        touchedHash = hash;
+      };
+      db.getUserById = async (id) => ({
+        id,
+        email: 'persist@example.com',
+        display_name: 'Persistent User',
+        is_admin: true,
+      });
+
+      try {
+        const req = { cookies: { tt_token: token } };
+        await auth.authMiddleware(req, {}, () => {});
+
+        assert.equal(req.user.id, 'user-persist');
+        assert.equal(req.user.email, 'persist@example.com');
+        assert.equal(req.user.is_admin, true);
+        assert.equal(touchedHash, tokenHash);
+      } finally {
+        db.getAuthSessionByHash = originalGetAuthSessionByHash;
+        db.touchAuthSession = originalTouchAuthSession;
+        db.getUserById = originalGetUserById;
+      }
+    });
+
+    it('logout clears the persistent cookie and revokes the current session', async () => {
+      const originalRevokeAuthSession = db.revokeAuthSession;
+      const token = 'persist-token-to-revoke';
+      const tokenHash = auth.hashAuthSessionToken(token);
+      let revokedHash = null;
+      db.revokeAuthSession = async (hash) => {
+        revokedHash = hash;
+      };
+
+      try {
+        const req = { cookies: { tt_token: token } };
+        let cleared = null;
+        let body = null;
+        const res = {
+          clearCookie(name, options) {
+            cleared = { name, options };
+          },
+          json(payload) {
+            body = payload;
+          },
+        };
+
+        await auth.logout(req, res);
+
+        assert.equal(revokedHash, tokenHash);
+        assert.equal(cleared.name, 'tt_token');
+        assert.equal(cleared.options.httpOnly, true);
+        assert.equal(cleared.options.sameSite, 'lax');
+        assert.deepEqual(body, { ok: true });
+      } finally {
+        db.revokeAuthSession = originalRevokeAuthSession;
+      }
     });
   });
 

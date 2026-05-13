@@ -11,7 +11,7 @@ const passport = require('passport');
 const db = require('./db');
 const discord = require('./discord-bot');
 const { MapGraph, processMapHint } = require('./map-engine');
-const { router: authRouter, authMiddleware, requireAuth, requireAdmin } = require('./auth');
+const { router: authRouter, authMiddleware, requireAuth, requireAdmin, resolveAuthToken } = require('./auth');
 const { BillingTicker } = require('./billing');
 const payments = require('./payments');
 const CombatEngine = require('./combat-engine');
@@ -3166,7 +3166,7 @@ setInterval(() => {
 }, 600000);
 
 // ── Socket.io Authentication Middleware ────────────────────────────────────────
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   const cookieHeader = socket.handshake.headers.cookie;
   if (cookieHeader) {
     const cookies = cookieHeader.split(';').reduce((acc, c) => {
@@ -3177,15 +3177,14 @@ io.use((socket, next) => {
     const token = cookies['tt_token'];
     if (token) {
       try {
-        const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || require('./auth').jwtSecret);
-        if (decoded.anonymous) {
-          socket.anonId = decoded.anonId;
+        const resolved = await resolveAuthToken(token);
+        if (resolved.decoded?.anonymous) {
+          socket.anonId = resolved.decoded.anonId;
           socket.userId = null;
-        } else {
-          socket.userId = decoded.userId;
-          socket.userEmail = decoded.email;
-          socket.isAdmin = !!decoded.isAdmin;
+        } else if (resolved.user) {
+          socket.userId = resolved.user.id;
+          socket.userEmail = resolved.user.email;
+          socket.isAdmin = !!resolved.user.is_admin;
           socket.anonId = null;
         }
       } catch (e) {

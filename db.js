@@ -199,6 +199,17 @@ async function initDB() {
     ALTER TABLE users ADD COLUMN IF NOT EXISTS has_password BOOLEAN DEFAULT FALSE;
     ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_nonce TEXT;
 
+    CREATE TABLE IF NOT EXISTS auth_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      token_hash TEXT UNIQUE NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      last_used_at TIMESTAMPTZ DEFAULT NOW(),
+      revoked_at TIMESTAMPTZ
+    );
+    CREATE INDEX IF NOT EXISTS idx_auth_sessions_token_hash ON auth_sessions(token_hash);
+    CREATE INDEX IF NOT EXISTS idx_auth_sessions_user_id ON auth_sessions(user_id);
+
     CREATE TABLE IF NOT EXISTS user_balances (
       user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       free_minutes_remaining INT DEFAULT 600,
@@ -599,6 +610,39 @@ async function getUserByEmail(email) {
 async function getUserById(id) {
   const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
   return rows[0] || null;
+}
+
+async function createAuthSession({ id, userId, tokenHash }) {
+  await pool.query(
+    `INSERT INTO auth_sessions (id, user_id, token_hash)
+     VALUES ($1, $2, $3)`,
+    [id, userId, tokenHash]
+  );
+}
+
+async function getAuthSessionByHash(tokenHash) {
+  const { rows } = await pool.query(
+    `SELECT * FROM auth_sessions
+     WHERE token_hash = $1 AND revoked_at IS NULL`,
+    [tokenHash]
+  );
+  return rows[0] || null;
+}
+
+async function touchAuthSession(tokenHash) {
+  await pool.query(
+    `UPDATE auth_sessions SET last_used_at = NOW()
+     WHERE token_hash = $1 AND revoked_at IS NULL`,
+    [tokenHash]
+  );
+}
+
+async function revokeAuthSession(tokenHash) {
+  await pool.query(
+    `UPDATE auth_sessions SET revoked_at = COALESCE(revoked_at, NOW())
+     WHERE token_hash = $1`,
+    [tokenHash]
+  );
 }
 
 async function findOrCreateUserByEmail(email) {
@@ -1198,6 +1242,10 @@ module.exports = {
   createUser,
   getUserByEmail,
   getUserById,
+  createAuthSession,
+  getAuthSessionByHash,
+  touchAuthSession,
+  revokeAuthSession,
   findOrCreateUserByEmail,
   setMagicLinkNonce,
   clearMagicLinkNonce,
