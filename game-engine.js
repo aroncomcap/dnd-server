@@ -333,22 +333,24 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
       }
 
       if (parsedAction) {
+        const resolvedCombatResults = [];
         const playerResult = gs.combatEngine.resolveAction(parsedAction);
-        gs.combatEngine.advanceTurn();
+        resolvedCombatResults.push(playerResult);
+        resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
 
         // Auto-resolve death saves for any other downed PCs whose turns come up
-        const deathSaveResults = [];
         while (true) {
           const nextTurn = gs.combatEngine.getCurrentTurn();
           if (!nextTurn || nextTurn.type !== 'PC') break;
           const deathCheck = resolver.checkDeath(nextTurn);
           if (deathCheck.status !== 'unconscious') break;
           const dsResult = gs.combatEngine.resolveAction({ type: 'death_save', actorId: nextTurn.id });
-          deathSaveResults.push(dsResult);
-          gs.combatEngine.advanceTurn();
+          resolvedCombatResults.push(dsResult);
+          resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
         }
 
         const enemyResults = await resolveEnemyTurns(gameId, gameConfig);
+        resolvedCombatResults.push(...enemyResults);
 
         // Auto-resolve death saves for downed PCs after enemy turns
         while (true) {
@@ -357,12 +359,12 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
           const deathCheck = resolver.checkDeath(nextTurn);
           if (deathCheck.status !== 'unconscious') break;
           const dsResult = gs.combatEngine.resolveAction({ type: 'death_save', actorId: nextTurn.id });
-          deathSaveResults.push(dsResult);
-          gs.combatEngine.advanceTurn();
+          resolvedCombatResults.push(dsResult);
+          resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
         }
 
         persistCombatState(gameId);
-        const allResults = [playerResult, ...deathSaveResults, ...enemyResults].filter(Boolean);
+        const allResults = resolvedCombatResults.filter(Boolean);
         const resultLines = allResults.map(r => gs.combatEngine.formatResultForPrompt(r));
         combatResolvedLines = resultLines;
 
@@ -624,8 +626,12 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     };
   }
 
-  // Process map hint (synchronous graph update)
-  const mapResult = processMapHint(gs.mapGraph, parsed.worldRaw, parsed.world?.locations);
+  // Process map hint (synchronous graph update). Combat stays in the current
+  // battlefield unless combat has ended and normal exploration resumes.
+  const combatMapLocked = combatActive && gs.combatEngine?.state?.active;
+  const mapResult = combatMapLocked
+    ? { moved: false, isNew: false, location: null }
+    : processMapHint(gs.mapGraph, parsed.worldRaw, parsed.world?.locations);
 
   // Apply character sheet updates in memory first
   if (parsed.world) {

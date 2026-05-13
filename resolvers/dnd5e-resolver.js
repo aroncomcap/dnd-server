@@ -315,6 +315,36 @@ function resolveSpell(caster, spell, targets, conditions = [], activeEffects = [
     };
   }
 
+  // --- Auto-hit / fixed-target damage spell ---
+  // Magic Missile and similar configured spells deal damage without an attack
+  // roll or saving throw. The combat engine applies the resulting target damage.
+  if (spell.damage && (spell.autoHit || (!spell.save && !spell.attack))) {
+    const damageFormula = getDamageFormula(caster, spell, 'spell');
+    const damageRoll = rollDamageFormula(damageFormula);
+    const fullDamage = Math.max(1, damageRoll.total);
+    const damageType = spell.damageType || 'force';
+
+    return {
+      type: 'spell-damage',
+      caster: caster.id,
+      casterName: caster.name,
+      spell: spell.name,
+      damageRoll: fullDamage,
+      damageDiceTotal: damageRoll.diceTotal,
+      damageModifier: damageRoll.modifier,
+      damageRolls: damageRoll.rolls,
+      damageFormula,
+      damageType,
+      targets: targets.map(t => ({
+        id: t.id,
+        name: t.name,
+        fullDamage,
+        damage: fullDamage,
+        damageType,
+      })),
+    };
+  }
+
   // --- Attack-roll spell ---
   if (spell.attack) {
     const attackWeapon = {

@@ -388,6 +388,215 @@ describe('CombatEngine', () => {
       });
       assert.equal(engine.state.combatants['kael'].spellSlots[1], slotsBefore - 1);
     });
+
+    it('applies direct damage spells to target HP', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({
+        spells: [
+          { name: 'Magic Missile', level: 1, damage: '3d4+3', damageType: 'force', autoHit: true },
+        ],
+      });
+      const enemy = makeDnDEnemy({ hp: 30, maxHp: 30 });
+      engine.initCombat([pc], [enemy], 'dnd5e');
+
+      const result = engine.resolveAction({
+        type: 'spell',
+        casterId: 'kael',
+        targetIds: ['goblin'],
+        spellName: 'Magic Missile',
+      });
+
+      assert.equal(result.type, 'spell-damage');
+      assert.ok(result.targets[0].damage > 0);
+      assert.equal(result.targets[0].hpBefore, 30);
+      assert.equal(engine.state.combatants.goblin.hp, result.targets[0].hpAfter);
+      assert.ok(engine.state.combatants.goblin.hp < 30);
+    });
+
+    it('casting Spirit Guardians marks the caster concentrating and stores an ongoing effect', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({
+        spells: [
+          { name: 'Spirit Guardians', level: 3, damage: '3d8', damageType: 'radiant', concentration: true, aoe: true, save: 'wis', saveDC: 15 },
+        ],
+      });
+      const enemy = makeDnDEnemy({ hp: 40, maxHp: 40 });
+      engine.initCombat([pc], [enemy], 'dnd5e');
+
+      const result = engine.resolveAction({
+        type: 'spell',
+        attackerId: 'kael',
+        spell: 'Spirit Guardians',
+        targetId: 'goblin',
+      });
+
+      assert.equal(result.type, 'buff');
+      assert.equal(engine.state.combatants.kael.concentrating.name, 'Spirit Guardians');
+      assert.ok(engine.state.combatants.kael.conditions.includes('concentrating'));
+      assert.equal(engine.state.activeEffects.length, 1);
+      assert.equal(engine.state.activeEffects[0].name, 'Spirit Guardians');
+      assert.equal(engine.state.activeEffects[0].caster, 'kael');
+      assert.equal(engine.state.combatants.goblin.hp, 40, 'ongoing area spell should tick on turn timing, not immediately on cast');
+    });
+
+    it('applies Spirit Guardians when an enemy starts its turn', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({
+        spells: [
+          { name: 'Spirit Guardians', level: 3, damage: '3d8', damageType: 'radiant', concentration: true, aoe: true, save: 'wis', saveDC: 15 },
+        ],
+      });
+      const enemy = makeDnDEnemy({ hp: 40, maxHp: 40 });
+      engine.initCombat([pc], [enemy], 'dnd5e');
+      engine.state.initiativeOrder = [
+        { id: 'kael', name: 'Kael', init: 20, type: 'PC' },
+        { id: 'goblin', name: 'Goblin', init: 10, type: 'Enemy' },
+      ];
+      engine.state.turnIndex = 0;
+
+      engine.resolveAction({
+        type: 'spell',
+        attackerId: 'kael',
+        spell: 'Spirit Guardians',
+        targetId: 'goblin',
+      });
+
+      const effects = engine.advanceTurn();
+
+      assert.ok(Array.isArray(effects));
+      assert.equal(effects.length, 1);
+      assert.equal(effects[0].type, 'spell-save');
+      assert.equal(effects[0].spell, 'Spirit Guardians');
+      assert.equal(effects[0].ongoing, true);
+      assert.equal(effects[0].trigger, 'startOfTurn');
+      assert.ok(engine.state.combatants.goblin.hp < 40, 'enemy should take damage from the start-of-turn aura');
+    });
+
+    it('applies targeted ongoing spell effects at end of turn when configured', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({
+        spells: [
+          { name: 'End Thorn', level: 2, damage: '2d6', damageType: 'necrotic', concentration: true, save: 'con', saveDC: 15, trigger: 'endOfTurn' },
+        ],
+      });
+      const enemy = makeDnDEnemy({ hp: 40, maxHp: 40 });
+      engine.initCombat([pc], [enemy], 'dnd5e');
+      engine.state.initiativeOrder = [
+        { id: 'kael', name: 'Kael', init: 20, type: 'PC' },
+        { id: 'goblin', name: 'Goblin', init: 10, type: 'Enemy' },
+      ];
+      engine.state.turnIndex = 0;
+
+      engine.resolveAction({
+        type: 'spell',
+        attackerId: 'kael',
+        spell: 'End Thorn',
+        targetId: 'goblin',
+      });
+      const startEffects = engine.advanceTurn();
+      const endEffects = engine.advanceTurn();
+
+      assert.equal(startEffects.length, 0);
+      assert.equal(endEffects.length, 1);
+      assert.equal(endEffects[0].spell, 'End Thorn');
+      assert.equal(endEffects[0].trigger, 'endOfTurn');
+      assert.ok(engine.state.combatants.goblin.hp < 40, 'target should take configured end-of-turn damage');
+    });
+
+    it('breaking concentration removes the condition and stops ongoing ticks', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({
+        spells: [
+          { name: 'Spirit Guardians', level: 3, damage: '3d8', damageType: 'radiant', concentration: true, aoe: true, save: 'wis', saveDC: 15 },
+        ],
+      });
+      const enemy = makeDnDEnemy({ hp: 40, maxHp: 40 });
+      engine.initCombat([pc], [enemy], 'dnd5e');
+      engine.state.initiativeOrder = [
+        { id: 'kael', name: 'Kael', init: 20, type: 'PC' },
+        { id: 'goblin', name: 'Goblin', init: 10, type: 'Enemy' },
+      ];
+      engine.state.turnIndex = 0;
+
+      engine.resolveAction({
+        type: 'spell',
+        attackerId: 'kael',
+        spell: 'Spirit Guardians',
+        targetId: 'goblin',
+      });
+      engine.breakConcentration('kael');
+      const effects = engine.advanceTurn();
+
+      assert.equal(engine.state.combatants.kael.concentrating, null);
+      assert.ok(!engine.state.combatants.kael.conditions.includes('concentrating'));
+      assert.equal(effects.length, 0);
+      assert.equal(engine.state.combatants.goblin.hp, 40);
+    });
+
+    it('shows concentration spells with duration immediately after the caster in display initiative', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({
+        spells: [
+          { name: 'Bless', level: 1, concentration: true, duration: '1 minute', effect: 'buff' },
+        ],
+      });
+      const enemy = makeDnDEnemy();
+      engine.initCombat([pc], [enemy], 'dnd5e');
+      engine.state.initiativeOrder = [
+        { id: 'kael', name: 'Kael', init: 20, type: 'PC' },
+        { id: 'goblin', name: 'Goblin', init: 10, type: 'Enemy' },
+      ];
+
+      engine.resolveAction({
+        type: 'spell',
+        casterId: 'kael',
+        targetIds: ['kael'],
+        spellName: 'Bless',
+      });
+
+      const order = engine.getDisplayInitiativeOrder();
+
+      assert.deepEqual(order.map(entry => entry.type), ['PC', 'Effect', 'Enemy']);
+      assert.equal(order[1].name, 'Bless');
+      assert.equal(order[1].casterId, 'kael');
+      assert.equal(order[1].remainingTurns, 10);
+    });
+
+    it('counts down and expires timed concentration spells by round', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({
+        spells: [
+          { name: 'Short Ward', level: 1, concentration: true, duration: '2 rounds', effect: 'buff' },
+        ],
+      });
+      const enemy = makeDnDEnemy();
+      engine.initCombat([pc], [enemy], 'dnd5e');
+      engine.state.initiativeOrder = [
+        { id: 'kael', name: 'Kael', init: 20, type: 'PC' },
+        { id: 'goblin', name: 'Goblin', init: 10, type: 'Enemy' },
+      ];
+
+      engine.resolveAction({
+        type: 'spell',
+        casterId: 'kael',
+        targetIds: ['kael'],
+        spellName: 'Short Ward',
+      });
+      assert.equal(engine.getDisplayInitiativeOrder()[1].remainingTurns, 2);
+
+      engine.advanceTurn();
+      engine.advanceTurn();
+      assert.equal(engine.state.round, 2);
+      assert.equal(engine.getDisplayInitiativeOrder()[1].remainingTurns, 1);
+
+      engine.advanceTurn();
+      engine.advanceTurn();
+      assert.equal(engine.state.round, 3);
+      assert.equal(engine.state.activeEffects.length, 0);
+      assert.equal(engine.state.combatants.kael.concentrating, null);
+      assert.ok(!engine.state.combatants.kael.conditions.includes('concentrating'));
+      assert.deepEqual(engine.getDisplayInitiativeOrder().map(entry => entry.type), ['PC', 'Enemy']);
+    });
   });
 
   describe('resolveAction (dodge / disengage / dash)', () => {
@@ -720,6 +929,34 @@ describe('CombatEngine', () => {
 
       assert.match(text, /Damage: 1d8 \(7 \+ 0 = 7\) radiant/i);
       assert.match(text, /save d20 9 \+ 2 = 11 vs DC 14/i);
+    });
+
+    it('formats direct spell damage with dice, bonus, total, and target damage', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const result = {
+        type: 'spell-damage',
+        casterName: 'Orrin',
+        spell: 'Magic Missile',
+        damageRoll: 10,
+        damageDiceTotal: 7,
+        damageModifier: 3,
+        damageFormula: '3d4+3',
+        damageType: 'force',
+        targets: [{
+          id: 'sunborn',
+          name: 'Sunborn',
+          damage: 10,
+          hpBefore: 30,
+          hpAfter: 20,
+        }],
+      };
+
+      const text = engine.formatResultForPrompt(result);
+
+      assert.match(text, /Damage: 3d4\+3 \(7 \+ 3 = 10\) force/i);
+      assert.match(text, /Sunborn: 10 force damage/i);
+      assert.match(text, /Sunborn HP: 30→20/i);
     });
 
     it('formats a heal result', () => {

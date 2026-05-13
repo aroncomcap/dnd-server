@@ -413,6 +413,27 @@ describe('resolveSpell (save-based)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// resolveSpell — direct damage
+// ---------------------------------------------------------------------------
+
+describe('resolveSpell (direct damage)', () => {
+  it('resolves damage-only spells without treating them as buffs', () => {
+    const caster = makePC();
+    const target = makeEnemy({ hp: 20, maxHp: 20 });
+    const spell = { name: 'magic missile', level: 1, damage: '3d4+3', damageType: 'force', autoHit: true };
+
+    const result = resolveSpell(caster, spell, [target], [], []);
+
+    assert.equal(result.type, 'spell-damage');
+    assert.equal(result.spell, 'magic missile');
+    assert.equal(result.damageType, 'force');
+    assert.ok(result.damageRoll >= 6 && result.damageRoll <= 15);
+    assert.equal(result.targets[0].damage, result.damageRoll);
+    assert.equal(result.damageFormula, '3d4+3');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // resolveSpell — healing
 // ---------------------------------------------------------------------------
 

@@ -467,6 +467,66 @@ function plannedEncounterEnemies(encounter) {
   })).filter(e => e.displayName);
 }
 
+function monsterSlugFromName(name) {
+  return String(name || 'hostile-creature')
+    .toLowerCase()
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'hostile-creature';
+}
+
+function normalizeEnemyEntry(entry = {}) {
+  const displayName = String(entry.displayName || entry.name || entry.slug || 'Hostile creature').trim();
+  const customSlug = monsterSlugFromName(displayName);
+  const rawSlug = String(entry.slug || '').trim();
+  const slug = rawSlug && rawSlug !== 'custom' ? rawSlug : customSlug;
+  return {
+    displayName,
+    count: Math.max(1, Number(entry.count) || 1),
+    slug,
+    hint: entry.hint || (rawSlug === 'custom' ? displayName : null),
+  };
+}
+
+function extractNamedCombatTarget(text, partyNames = []) {
+  const source = String(text || '').replace(/\([^)]*\)/g, ' ');
+  const partyAliases = new Set(
+    (partyNames || []).flatMap(name => String(name || '').toLowerCase().split(/\s+/).filter(part => part.length >= 4))
+  );
+  const patterns = [
+    /\b(?:attack|attacks|strike|strikes|hit|hits|stab|stabs|slash|slashes|shoot|shoots|blast|blasts)\s+(?:at\s+)?(?:the\s+)?([a-z][a-z'’ -]{2,60}?)(?=\s+(?:with|using|and|but|before|while|as|again|back|to\b)|[.,;!]|$)/i,
+    /\bcast\s+[-a-z'’ ]+\s+(?:at|against|on|toward|towards)\s+(?:the\s+)?([a-z][a-z'’ -]{2,60}?)(?=\s+(?:with|using|and|but|before|while|as|again|back|to\b)|[.,;!]|$)/i,
+  ];
+
+  for (const pattern of patterns) {
+    const match = source.match(pattern);
+    if (!match) continue;
+    const raw = match[1]
+      .replace(/\b(?:with|using|and|but|before|while|again|back|contained|the|a|an)\b.*$/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (!raw || raw.length < 3) continue;
+    const lower = raw.toLowerCase();
+    if (/^(?:you|yourself|ally|allies|party|door|room|area|danger|threat|it|them|self)$/.test(lower)) continue;
+    if (partyAliases.has(lower)) continue;
+    return raw.replace(/\b\w/g, c => c.toUpperCase());
+  }
+  return null;
+}
+
+async function maybeStartCombatFromOffensiveAction(gameId, gameConfig, userMessage, gs = getGameState(gameId)) {
+  if (gs.combatEngine?.state?.active) return false;
+  const targetName = extractNamedCombatTarget(userMessage, Object.keys(gs.data.characters || {}));
+  if (!targetName) return false;
+  await initiateCombat(gameId, gameConfig, [normalizeEnemyEntry({
+    displayName: targetName,
+    count: 1,
+    slug: 'custom',
+    hint: targetName,
+  })]);
+  return !!gs.combatEngine?.state?.active;
+}
+
 function markPlannedEncounterResolved(gs, index) {
   if (!gs.encounterPlan) return;
   const activeDay = plannerState.getActiveDay(gs.encounterPlan);
@@ -804,17 +864,18 @@ function parseResponse(text) {
 async function initiateCombat(gameId, gameConfig, enemies) {
   const gs = getGameState(gameId);
   const system = gameConfig.system || 'dnd5e';
+  const normalizedEnemies = (enemies || []).map(normalizeEnemyEntry);
 
   // Gate: signal clients that combat is initializing (OOC-only mode)
   gs.combatInitializing = true;
   io.to(gameId).emit('combat_initializing', {
     message: 'Rolling initiative... preparing for combat.',
-    enemies: enemies.map(e => `${e.count}x ${e.displayName}`),
+    enemies: normalizedEnemies.map(e => `${e.count}x ${e.displayName}`),
   });
 
   const enemyCombatants = [];
 
-  for (const entry of enemies) {
+  for (const entry of normalizedEnemies) {
     for (let i = 0; i < entry.count; i++) {
       const stats = await getMonsterStats(gameId, system, entry.slug, {
         db, hint: entry.hint,
@@ -908,7 +969,7 @@ async function initiateCombat(gameId, gameConfig, enemies) {
   db.setState(gameId, 'combatXpAwardedForCombatId', null).catch(() => {});
   db.setState(gameId, 'lastCombatXpAward', null).catch(() => {});
   io.to(gameId).emit('combat_started', {
-    initiativeOrder: state.initiativeOrder,
+    initiativeOrder: gs.combatEngine.getDisplayInitiativeOrder(),
     combatants: Object.fromEntries(
       Object.entries(state.combatants).map(([id, c]) => [id, {
         id, name: c.name, type: c.type,
@@ -935,12 +996,19 @@ async function resolveEnemyTurns(gameId, gameConfig) {
   // OPTIMIZATION: Parallelize enemy API calls
   // Step 1: Collect all active enemy combatants and their decision prompts
   const enemyDecisions = [];
-  const tempEngine = { ...engine.state, turnIndex: engine.state.turnIndex }; // Snapshot current position
+  const tempEngine = {
+    turnIndex: engine.state.turnIndex,
+    round: engine.state.round,
+    activeEffects: JSON.parse(JSON.stringify(engine.state.activeEffects || [])),
+  }; // Snapshot current position without preserving speculative initiative movement
 
   while (true) {
     const current = engine.getCurrentTurn();
     if (!current || current.type !== 'Enemy') break;
-    if (resolver.checkDeath(current).status === 'dead') { engine.advanceTurn(); continue; }
+    if (resolver.checkDeath(current).status === 'dead') {
+      engine.advanceTurn({ processStart: false, processEnd: false });
+      continue;
+    }
 
     const availableActions = resolver.getAvailableActions(current);
     const pcs = Object.values(engine.state.combatants).filter(c => c.type === 'PC' && (c.hp > 0 || (c.totalHp && c.totalHp > 0)));
@@ -963,7 +1031,7 @@ ${tactics ? 'Tactics: ' + tactics : ''}
 ${moraleAction}
 HP: ${current.hp ?? current.totalHp}/${current.maxHp ?? current.totalHp}
 Can: ${availableActions.slice(0, 6).map(a => a.label || a.name || a.type).join(', ')}
-Targets: ${pcs.map(p => `${p.name}(${p.id},${p.hp ?? p.totalHp}HP${p.concentrating ? ',conc:' + p.concentrating : ''})`).join(', ')}
+Targets: ${pcs.map(p => `${p.name}(${p.id},${p.hp ?? p.totalHp}HP${p.concentrating ? ',conc:' + (p.concentrating.name || p.concentrating) : ''})`).join(', ')}
 Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
 
     // Queue up API call without awaiting
@@ -975,7 +1043,7 @@ Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
     });
 
     if (engine.isCombatOver().over) break;
-    engine.advanceTurn();
+    engine.advanceTurn({ processStart: false, processEnd: false });
   }
 
   // Step 2: Fetch ALL tactical decisions in parallel
@@ -1005,11 +1073,17 @@ Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
 
   // Step 3: Reset engine to initial position and apply decisions sequentially (deterministic)
   engine.state.turnIndex = tempEngine.turnIndex;
+  engine.state.round = tempEngine.round;
+  engine.state.activeEffects = tempEngine.activeEffects;
 
   while (true) {
     const current = engine.getCurrentTurn();
     if (!current || current.type !== 'Enemy') break;
-    if (resolver.checkDeath(current).status === 'dead') { engine.advanceTurn(); continue; }
+    if (resolver.checkDeath(current).status === 'dead') {
+      const turnEffects = engine.advanceTurn();
+      if (turnEffects.length) results.push(...turnEffects);
+      continue;
+    }
 
     const pcs = Object.values(engine.state.combatants).filter(c => c.type === 'PC' && (c.hp > 0 || (c.totalHp && c.totalHp > 0)));
     if (pcs.length === 0) break;
@@ -1030,7 +1104,8 @@ Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
     if (result && !result.error) results.push(result);
 
     if (engine.isCombatOver().over) break;
-    engine.advanceTurn();
+    const turnEffects = engine.advanceTurn();
+    if (turnEffects.length) results.push(...turnEffects);
   }
 
   return results;
@@ -1050,6 +1125,7 @@ function emitCombatUpdate(gameId) {
   const engine = gs.combatEngine;
   if (!engine.state.active) return;
   io.to(gameId).emit('combat_update', {
+    initiativeOrder: engine.getDisplayInitiativeOrder(),
     round: engine.state.round,
     turnIndex: engine.state.turnIndex,
     currentTurn: engine.getCurrentTurn()?.id,
@@ -1239,6 +1315,11 @@ async function callGameLLM(gameId, gameConfig, userMessage, actingAs = null) {
 
   // Combat turns use legacy path — combat engine integration has special handling.
   const gs0 = getGameState(gameId);
+  if (!gs0.combatEngine?.state?.active) {
+    await maybeStartCombatFromOffensiveAction(gameId, gameConfig, userMessage, gs0).catch(err => {
+      console.error('[auto-combat-action] failed:', err.message);
+    });
+  }
   if (gs0.combatEngine?.state?.active) {
     return legacyCallLLM(gameId, gameConfig, userMessage, actingAs);
   }
@@ -1272,6 +1353,14 @@ async function callGameLLM(gameId, gameConfig, userMessage, actingAs = null) {
       storyFlags
     );
     await resolvePendingPlannedChallenge(gameId, gameConfig, gs);
+    if (gs.combatEngine?.state?.active) {
+      const nextCombatTurn = gs.combatEngine.getCurrentTurn();
+      if (nextCombatTurn?.type === 'PC') {
+        const tacticalOptions = templateEngine.generateCombatOptions(gs.combatEngine, nextCombatTurn.name);
+        if (tacticalOptions.length) result.options = tacticalOptions;
+      }
+      emitCombatUpdate(gameId);
+    }
 
     // Save to chat history (same format as legacy)
     const gd = gs.data;
@@ -1370,6 +1459,14 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
   const gs = getGameState(gameId);
   const gd = gs.data;
 
+  if (!gs.combatEngine?.state?.active) {
+    const started = await maybeStartCombatFromOffensiveAction(gameId, gameConfig, userMessage, gs).catch(err => {
+      console.error('[auto-combat-action] failed:', err.message);
+      return false;
+    });
+    if (started) return legacyCallLLM(gameId, gameConfig, userMessage, actingAs);
+  }
+
   const prefix = actingAs
     ? `[AUTO-ACTION for ${actingAs} — timer expired]\n`
     : '';
@@ -1463,22 +1560,24 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
       }
 
       if (parsedAction) {
+        const resolvedCombatResults = [];
         const playerResult = gs.combatEngine.resolveAction(parsedAction);
-        gs.combatEngine.advanceTurn();
+        resolvedCombatResults.push(playerResult);
+        resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
 
         // Auto-resolve death saves for any other downed PCs whose turns come up
-        const deathSaveResults = [];
         while (true) {
           const nextTurn = gs.combatEngine.getCurrentTurn();
           if (!nextTurn || nextTurn.type !== 'PC') break;
           const deathCheck = resolver.checkDeath(nextTurn);
           if (deathCheck.status !== 'unconscious') break;
           const dsResult = gs.combatEngine.resolveAction({ type: 'death_save', actorId: nextTurn.id });
-          deathSaveResults.push(dsResult);
-          gs.combatEngine.advanceTurn();
+          resolvedCombatResults.push(dsResult);
+          resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
         }
 
         const enemyResults = await resolveEnemyTurns(gameId, gameConfig);
+        resolvedCombatResults.push(...enemyResults);
 
         // Auto-resolve death saves for downed PCs after enemy turns
         while (true) {
@@ -1487,12 +1586,12 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
           const deathCheck = resolver.checkDeath(nextTurn);
           if (deathCheck.status !== 'unconscious') break;
           const dsResult = gs.combatEngine.resolveAction({ type: 'death_save', actorId: nextTurn.id });
-          deathSaveResults.push(dsResult);
-          gs.combatEngine.advanceTurn();
+          resolvedCombatResults.push(dsResult);
+          resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
         }
 
         persistCombatState(gameId);
-        const allResults = [playerResult, ...deathSaveResults, ...enemyResults].filter(Boolean);
+        const allResults = resolvedCombatResults.filter(Boolean);
         const resultLines = allResults.map(r => gs.combatEngine.formatResultForPrompt(r));
         combatResolvedLines = resultLines;
 
@@ -1737,7 +1836,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   // If no options were extracted and this isn't an auto-action, make a cheap follow-up call
   if (parsed.options.length === 0 && !actingAs) {
     try {
-      const nextPlayer = getCurrentPlayer(gameId);
+      const nextPlayer = getVisiblePlayerForOptions(gameId);
       const optionsResponse = await llm.completeText({
         task: 'options-fallback',
         gameId,
@@ -1770,8 +1869,12 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     };
   }
 
-  // Process map hint (synchronous graph update)
-  const mapResult = processMapHint(gs.mapGraph, parsed.worldRaw, parsed.world?.locations);
+  // Process map hint (synchronous graph update). Combat is locked to the
+  // current battlefield; the DM may describe positions, but not relocate the map.
+  const combatMapLocked = combatActive && gs.combatEngine?.state?.active;
+  const mapResult = combatMapLocked
+    ? { moved: false, isNew: false, location: null }
+    : processMapHint(gs.mapGraph, parsed.worldRaw, parsed.world?.locations);
 
   // Apply character sheet updates in memory first
   if (parsed.world) {
@@ -1857,7 +1960,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   // Initiate combat — two paths:
   // Path 1: AI outputs formal ENEMIES: block (ideal)
   if (parsed.world?.enemies?.length > 0 && !gs.combatEngine.state.active) {
-    initiateCombat(gameId, gameConfig, parsed.world.enemies).catch(e => console.error('Combat init error:', e));
+    await initiateCombat(gameId, gameConfig, parsed.world.enemies).catch(e => console.error('Combat init error:', e));
   }
   // Path 2: AI narrates combat without ENEMIES: block — server takes over
   // Only trigger on strong combat signals (actual attacks/charges, not just monster mentions)
@@ -1894,7 +1997,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
 
       if (enemies?.length > 0) {
         console.log(`[auto-combat] Server taking over combat: ${enemies.map(e => `${e.count}x ${e.displayName}`).join(', ')}`);
-        initiateCombat(gameId, gameConfig, enemies).catch(e => console.error('Auto-combat init error:', e));
+        await initiateCombat(gameId, gameConfig, enemies).catch(e => console.error('Auto-combat init error:', e));
       }
     }
   }
@@ -1917,6 +2020,13 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   }
 
   await resolvePendingPlannedChallenge(gameId, gameConfig, gs);
+  if (!combatActive && gs.combatEngine.state.active) {
+    const nextCombatTurn = gs.combatEngine.getCurrentTurn();
+    if (nextCombatTurn?.type === 'PC') {
+      const tacticalOptions = templateEngine.generateCombatOptions(gs.combatEngine, nextCombatTurn.name);
+      if (tacticalOptions.length) parsed.options = tacticalOptions;
+    }
+  }
 
   // Reset encounter counter when combat starts or ends
   if (gs.combatEngine.state.active) {
@@ -1958,6 +2068,58 @@ function getCurrentPlayer(gameId) {
   return turnOrder[currentTurnIndex % turnOrder.length];
 }
 
+function slugCharacterName(name) {
+  return String(name || '').toLowerCase().replace(/\s+/g, '-');
+}
+
+function getCombatPlayerNameForCurrentTurn(gs) {
+  const current = gs.combatEngine?.state?.active ? gs.combatEngine.getCurrentTurn() : null;
+  if (!current || current.type !== 'PC') return null;
+  return Object.keys(gs.data.characters || {}).find(name => slugCharacterName(name) === current.id) || current.name;
+}
+
+function getVisiblePlayerForOptions(gameId) {
+  const gs = getGameState(gameId);
+  return getCombatPlayerNameForCurrentTurn(gs) || getCurrentPlayer(gameId);
+}
+
+function splitActionList(text) {
+  return String(text || '')
+    .split(/[,;\n]/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function getFirstLivingEnemy(combatants = {}) {
+  return Object.values(combatants).find(c => c.type === 'Enemy' && ((c.hp ?? c.totalHp ?? c.maxHp ?? 1) > 0)) || null;
+}
+
+function chooseCombatAutoAction(gameId, playerName) {
+  const gs = getGameState(gameId);
+  const engine = gs.combatEngine;
+  const current = engine?.state?.active ? engine.getCurrentTurn() : null;
+  const actorId = current?.id || slugCharacterName(playerName);
+  const combatants = engine?.state?.combatants || {};
+  const actor = combatants[actorId] || {};
+  const enemy = getFirstLivingEnemy(combatants);
+  const char = gs.data.characters?.[playerName] || {};
+  const ctx = { combatants, preTaggedOptions: null, gameId };
+
+  for (const action of splitActionList(char.standardActions)) {
+    const parsed = parseAction(action, actorId, ctx);
+    if (parsed?.type === 'attack' && parsed.targetId) return action;
+    if (parsed?.type === 'spell' && parsed.spell) {
+      const spell = (actor.spells || []).find(s => s.name === parsed.spell || s.name?.toLowerCase() === parsed.spell?.toLowerCase());
+      if (spell?.damage || spell?.attack || spell?.save || spell?.healing || spell?.effect === 'heal') return action;
+    }
+  }
+
+  const weaponName = actor.weapons?.[0]?.name;
+  if (enemy && weaponName) return `Attack ${enemy.name} with ${weaponName}`;
+  if (enemy) return `Attack ${enemy.name}`;
+  return 'Dodge';
+}
+
 function getConnectedClients(gameId) {
   const room = io.sockets.adapter.rooms.get(gameId);
   return room ? room.size : 0;
@@ -1980,22 +2142,24 @@ function startTurnTimer(gameId, gameConfig, playerName) {
       return;
     }
 
-    const char = gs.data.characters[playerName];
-    const autoPrompt = char
-      ? `It is ${playerName}'s turn but they did not respond. Act on their behalf as their character (${char.class}, personality: ${char.personality}). Choose the most fitting action given the current situation and their standard actions: ${char.standardActions || 'none'}. Narrate what they do.`
-      : `It is ${playerName}'s turn but they did not respond. Have them take a cautious, sensible action.`;
+    const autoAction = gs.combatEngine?.state?.active
+      ? chooseCombatAutoAction(gameId, playerName)
+      : (() => {
+          const char = gs.data.characters[playerName];
+          return char
+            ? `It is ${playerName}'s turn but they did not respond. Act on their behalf as their character (${char.class}, personality: ${char.personality}). Choose the most fitting action given the current situation and their standard actions: ${char.standardActions || 'none'}. Narrate what they do.`
+            : `It is ${playerName}'s turn but they did not respond. Have them take a cautious, sensible action.`;
+        })();
 
     emitSystem(gameId, { text: `⏰ ${playerName} ran out of time. The GM is acting for them...` });
 
     try {
       // ✅ FIX: Serialize narration streaming per game
       const { narration, options, scene, world, isKillshot, mapMoved, llmRunId } = await withStreamingLock(gameId, () =>
-        callGameLLM(gameId, gameConfig, autoPrompt, playerName)
+        callGameLLM(gameId, gameConfig, gs.combatEngine?.state?.active ? `${playerName}: ${autoAction}` : autoAction, playerName)
       );
-      const gs2 = getGameState(gameId);
-      const nextIdx = (gs2.data.currentTurnIndex + 1) % (gs2.data.turnOrder.length || 1);
-      const nextPlayer = gs2.data.turnOrder[nextIdx] || null;
       await advanceTurn(gameId, gameConfig, false);
+      const nextPlayer = getVisiblePlayerForOptions(gameId);
       emitDmMessage(gameId, { text: narration, options, auto: true, player: playerName, previousPlayer: playerName, forPlayer: nextPlayer, world, llmRunId });
       io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
       maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
@@ -2028,11 +2192,14 @@ async function advanceTurn(gameId, gameConfig, wasHumanAction = false) {
 
   // During combat, use the combat engine's current turn instead of normal rotation
   if (gs.combatEngine?.state?.active) {
+    if (gs.combatEngine.getCurrentTurn()?.type === 'Enemy') {
+      await resolveEnemyTurns(gameId, gameConfig);
+      persistCombatState(gameId);
+      emitCombatUpdate(gameId);
+    }
     const engineNext = gs.combatEngine.getCurrentTurn();
     if (engineNext && engineNext.type === 'PC') {
-      const enginePlayerName = Object.keys(gd.characters).find(
-        name => name.toLowerCase().replace(/\s+/g, '-') === engineNext.id
-      ) || engineNext.name;
+      const enginePlayerName = getCombatPlayerNameForCurrentTurn(gs) || engineNext.name;
       const token = gd.characters[enginePlayerName]?.token || null;
       // Sync normal turn index to match
       const idx = gd.turnOrder.indexOf(enginePlayerName);
@@ -3242,7 +3409,7 @@ io.on('connection', (socket) => {
     }
     const allowedTags = new Set([
       'great_moment', 'funny', 'vivid', 'useful_options',
-      'confusing', 'boring', 'too_long', 'rules_wrong', 'forgot_context',
+      'confusing', 'boring', 'too_long', 'rules_wrong', 'forgot_context', 'review',
     ]);
     const tags = Array.isArray(data.tags)
       ? data.tags.filter(tag => allowedTags.has(tag)).slice(0, 6)
@@ -3257,7 +3424,29 @@ io.on('connection', (socket) => {
       tags,
       note,
     });
-    if (ack) ack({ ok: true, feedbackId: saved.id });
+    let reviewBug = null;
+    if (tags.includes('review')) {
+      const gs = getGameState(gameId);
+      const game = await db.getGame(gameId);
+      const recent = (gs.data.chatHistory || []).slice(-8)
+        .map(entry => `${entry.role.toUpperCase()}: ${truncate(entry.content, 1200)}`)
+        .join('\n\n');
+      const combatState = gs.combatEngine?.state?.active
+        ? `\n\nCOMBAT STATE:\n${gs.combatEngine.getCombatStateForPrompt()}`
+        : '';
+      const description = [
+        `Narration marked for review from Tune GM feedback.`,
+        `LLM run: ${llmRunId}`,
+        `Rating: ${rating}/5`,
+        `Tags: ${tags.join(', ') || 'none'}`,
+        note ? `Note: ${note}` : '',
+        combatState,
+        `\nRECENT TABLE CONTEXT:\n${recent || 'No recent chat history available.'}`,
+      ].filter(Boolean).join('\n');
+      reviewBug = await db.saveBugReport(gameId, game?.name || gameId, socket.userId || null, description, null);
+      io.to(hostRoom(gameId)).emit('bug_report_created', { bug: reviewBug, source: 'narration_feedback' });
+    }
+    if (ack) ack({ ok: true, feedbackId: saved.id, reviewBugId: reviewBug?.id || null });
   }));
 
   // Join a game room
@@ -3345,7 +3534,7 @@ io.on('connection', (socket) => {
     // If combat is active, send current state to the joining client
     if (gs.combatEngine.state.active) {
       socket.emit('combat_started', {
-        initiativeOrder: gs.combatEngine.state.initiativeOrder,
+        initiativeOrder: gs.combatEngine.getDisplayInitiativeOrder(),
         combatants: Object.fromEntries(
           Object.entries(gs.combatEngine.state.combatants).map(([id, c]) => [id, {
             id, name: c.name, type: c.type,
@@ -3357,6 +3546,7 @@ io.on('connection', (socket) => {
       });
       const engine = gs.combatEngine;
       socket.emit('combat_update', {
+        initiativeOrder: engine.getDisplayInitiativeOrder(),
         round: engine.state.round,
         turnIndex: engine.state.turnIndex,
         currentTurn: engine.getCurrentTurn()?.id,
@@ -3621,9 +3811,8 @@ io.on('connection', (socket) => {
       const { narration, options, scene, world, isKillshot, mapMoved, llmRunId } = await withStreamingLock(gameId, () =>
         callGameLLM(gameId, gameConfig, `${playerName}: ${action}`)
       );
-      const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
-      const nextPlayer = gs.data.turnOrder[nextIdx] || null;
       await advanceTurn(gameId, gameConfig, true);
+      const nextPlayer = getVisiblePlayerForOptions(gameId);
       emitDmMessage(gameId, { text: narration, options, auto: false, previousPlayer: playerName, forPlayer: nextPlayer, world, llmRunId });
       io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
       maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
@@ -4107,9 +4296,8 @@ const discordGameEngine = {
     const { narration, options, scene, world, isKillshot, mapMoved, llmRunId } = await withStreamingLock(gameId, () =>
       callGameLLM(gameId, gameConfig, `${playerName}: ${action}`)
     );
-    const nextIdx = (gs.data.currentTurnIndex + 1) % (gs.data.turnOrder.length || 1);
-    const nextPlayer = gs.data.turnOrder[nextIdx] || null;
     await advanceTurn(gameId, gameConfig, true);
+    const nextPlayer = getVisiblePlayerForOptions(gameId);
     emitDmMessage(gameId, { text: narration, options, auto: false, previousPlayer: playerName, forPlayer: nextPlayer, world, llmRunId });
     io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
     const playerToken = gs.data.characters[playerName]?.token || null;

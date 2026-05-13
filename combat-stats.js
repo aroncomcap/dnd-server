@@ -133,6 +133,31 @@ function scaleCantripDamageFormula(formula, level) {
   });
 }
 
+const SPELL_MATH_DEFAULTS = {
+  'acid splash': { level: 0, save: 'dex', damage: '1d6', damageType: 'acid', properties: ['cantrip'] },
+  'chill touch': { level: 0, attack: true, damage: '1d8', damageType: 'necrotic', properties: ['cantrip'] },
+  'dissonant whispers': { level: 1, save: 'wis', damage: '3d6', damageType: 'psychic' },
+  'eldritch blast': { level: 0, attack: true, damage: '1d10', damageType: 'force', properties: ['cantrip'] },
+  'fire bolt': { level: 0, attack: true, damage: '1d10', damageType: 'fire', properties: ['cantrip'] },
+  'guiding bolt': { level: 1, attack: true, damage: '4d6', damageType: 'radiant' },
+  'inflict wounds': { level: 1, attack: true, damage: '3d10', damageType: 'necrotic' },
+  'magic missile': { level: 1, damage: '3d4+3', damageType: 'force', autoHit: true },
+  'moonbeam': { level: 2, save: 'con', damage: '2d10', damageType: 'radiant', concentration: true, aoe: true, duration: '1 minute', trigger: 'start of turn' },
+  'ray of frost': { level: 0, attack: true, damage: '1d8', damageType: 'cold', properties: ['cantrip'] },
+  'sacred flame': { level: 0, save: 'dex', damage: '1d8', damageType: 'radiant', properties: ['cantrip'] },
+  'shatter': { level: 2, save: 'con', damage: '3d8', damageType: 'thunder' },
+  'spirit guardians': { level: 3, save: 'wis', damage: '3d8', damageType: 'radiant', concentration: true, aoe: true, duration: '10 minutes', trigger: 'start of turn' },
+  'spiritual weapon': { level: 2, attack: true, damage: '1d8', damageType: 'force' },
+  'toll the dead': { level: 0, save: 'wis', damage: '1d8', damageType: 'necrotic', properties: ['cantrip'] },
+  'vicious mockery': { level: 0, save: 'wis', damage: '1d4', damageType: 'psychic', properties: ['cantrip'] },
+};
+
+function normalizeSpellMath(spell = {}) {
+  const name = String(spell.name || '').trim();
+  const defaults = SPELL_MATH_DEFAULTS[name.toLowerCase()];
+  return defaults ? { ...defaults, ...spell, name } : { ...spell };
+}
+
 function findAttackProfile(combatant = {}, sourceOrWeapon, nameArg) {
   const source = typeof sourceOrWeapon === 'string' ? sourceOrWeapon : 'weapon';
   const name = typeof sourceOrWeapon === 'string' ? nameArg : sourceOrWeapon?.name;
@@ -192,7 +217,7 @@ function normalizeDnd5eCombatStats(stats) {
 
   const normalized = { ...stats, system: 'dnd5e' };
   normalized.weapons = Array.isArray(stats.weapons) ? stats.weapons.map(w => ({ ...w })) : [];
-  normalized.spells = Array.isArray(stats.spells) ? stats.spells.map(s => ({ ...s })) : [];
+  normalized.spells = Array.isArray(stats.spells) ? stats.spells.map(normalizeSpellMath) : [];
   normalized.features = Array.isArray(stats.features) ? [...stats.features] : [];
   normalized.abilities = { ...(stats.abilities || {}) };
   normalized.proficiencyBonus = Number(stats.proficiencyBonus) || (normalized.level >= 17 ? 6 : normalized.level >= 13 ? 5 : normalized.level >= 9 ? 4 : normalized.level >= 5 ? 3 : 2);
@@ -307,6 +332,7 @@ module.exports = {
   scaleCantripDamageFormula,
   findAttackProfile,
   profileIsUsable,
+  normalizeSpellMath,
   normalizeDnd5eCombatStats,
   getAttackBonus,
   getDamageFormula,

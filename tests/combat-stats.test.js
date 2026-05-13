@@ -106,6 +106,35 @@ test('scales cantrip damage at D&D level breakpoints', () => {
   assert.equal(scaleCantripDamageFormula('2d10', 11), '3d10');
 });
 
+test('fills common spell math defaults before building spell profiles', () => {
+  const stats = normalizeDnd5eCombatStats({
+    system: 'dnd5e',
+    level: 5,
+    abilities: { str: 10, dex: 10, con: 14, int: 10, wis: 18, cha: 10 },
+    proficiencyBonus: 3,
+    weapons: [],
+    spells: [
+      { name: 'Magic Missile' },
+      { name: 'Spiritual Weapon' },
+      { name: 'Sacred Flame' },
+    ],
+  });
+
+  const magicMissile = stats.spells.find(s => s.name === 'Magic Missile');
+  const spiritualWeapon = stats.spells.find(s => s.name === 'Spiritual Weapon');
+  const sacredFlame = stats.spells.find(s => s.name === 'Sacred Flame');
+
+  assert.equal(magicMissile.damage, '3d4+3');
+  assert.equal(magicMissile.autoHit, true);
+  assert.equal(spiritualWeapon.attack, true);
+  assert.equal(spiritualWeapon.damage, '1d8');
+  assert.equal(sacredFlame.save, 'dex');
+  assert.equal(sacredFlame.damage, '1d8');
+  assert.ok(stats.attackProfiles.some(profile => profile.id === 'spell-magic-missile'));
+  assert.ok(stats.attackProfiles.some(profile => profile.id === 'spell-spiritual-weapon'));
+  assert.ok(stats.attackProfiles.some(profile => profile.id === 'spell-sacred-flame'));
+});
+
 test('getAttacksPerAction honors carried and enabled attack profile toggles', () => {
   const combatant = normalizeDnd5eCombatStats({
     system: 'dnd5e',

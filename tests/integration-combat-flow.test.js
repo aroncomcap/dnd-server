@@ -172,7 +172,8 @@ describe('Integration: Combat Flow with State Persistence and Reload', () => {
     if (hitResult && hitResult.hit) {
       const finalHp = engine.state.combatants['kael'].hp;
       assert.ok(finalHp < initialHp, 'PC HP should decrease when hit');
-      assert.ok(finalHp >= initialHp - 10, 'damage should be reasonable (d6 max 6 + mod)');
+      const maxExpectedDamage = hitResult.critical ? 14 : 8; // crit doubles 1d6 dice, then adds DEX mod
+      assert.ok(finalHp >= initialHp - maxExpectedDamage, 'damage should be reasonable for hit type');
     }
   });
 

@@ -230,6 +230,13 @@ function parseAction(input, playerId, ctx) {
     return { type: 'feature', actorId: playerId, attackerId: playerId, targetId: firstEnemyId(combatants), description: raw };
   }
 
+  // --- 3. Bare attack: "attack" ---
+  if (/^(?:attack|strike|hit|slash|stab|shoot)$/i.test(raw)) {
+    const targetId = firstEnemyId(combatants);
+    const weapon = findWeapon(null, weapons);
+    return { type: 'attack', attackerId: playerId, targetId, weapon };
+  }
+
   // --- 3. Attack with weapon: "attack/strike/hit/slash/stab <target> with <weapon>" ---
   const attackWithWeaponOnlyRe = /^(?:attack|strike|hit|slash|stab|shoot)\s+with\s+(.+)$/i;
   const awom = raw.match(attackWithWeaponOnlyRe);
@@ -245,7 +252,7 @@ function parseAction(input, playerId, ctx) {
   if (awm) {
     const targetQuery = awm[1].trim();
     const weaponQuery = awm[2].trim();
-    const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy');
+    const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy') || firstEnemyId(combatants);
     const weapon = findWeapon(weaponQuery, weapons) || findWeapon(null, weapons);
     return { type: 'attack', attackerId: playerId, targetId, weapon };
   }
@@ -255,7 +262,7 @@ function parseAction(input, playerId, ctx) {
   const am = raw.match(attackRe);
   if (am) {
     const targetQuery = am[1].trim();
-    const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy');
+    const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy') || firstEnemyId(combatants);
     const weapon = weapons.length > 0 ? weapons[0].name : null;
     return { type: 'attack', attackerId: playerId, targetId, weapon };
   }

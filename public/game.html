@@ -343,6 +343,42 @@
     color: var(--gold);
   }
 
+  .character-action-chips {
+    display: none;
+    gap: 4px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+  }
+  .character-action-chips.visible {
+    display: flex;
+    flex-wrap: nowrap;
+    max-height: 30px;
+  }
+  .character-action-chip {
+    flex: 0 0 auto;
+    border: 1px solid rgba(110, 74, 28, 0.28);
+    background: rgba(255, 249, 235, 0.62);
+    color: var(--ink);
+    border-radius: 999px;
+    font-family: 'Crimson Pro', serif;
+    font-size: 0.78rem;
+    line-height: 1;
+    min-height: 26px;
+    padding: 5px 9px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .character-action-chip.spell {
+    border-color: rgba(200,146,42,0.48);
+    color: #6e4a1c;
+  }
+  .character-action-chip:hover {
+    background: rgba(232, 213, 176, 0.82);
+    border-color: var(--gold);
+  }
+
   .msg-player {
     background: var(--parchment-dark);
     align-self: flex-end;
@@ -827,9 +863,18 @@
   }
   .turn-order-item.active { background: rgba(200,146,42,0.2); color: var(--gold-light); font-weight: bold; }
   .turn-order-item.enemy { color: #cc6666; }
+  .turn-order-item.missing { color: var(--parchment); opacity: 0.85; }
+  .turn-order-item.effect {
+    color: var(--gold-light);
+    opacity: 0.86;
+    padding-left: 14px;
+    font-style: italic;
+  }
   .turn-order-item .turn-num { width: 16px; text-align: center; font-size: 0.75rem; color: var(--gold); opacity: 0.7; }
   .turn-order-item .turn-name { flex: 1; }
   .turn-order-item .turn-value { font-size: 0.75rem; opacity: 0.7; }
+  .turn-order-item.effect .turn-num { font-size: 0.62rem; }
+  .turn-order-item.effect .turn-value { color: var(--gold); opacity: 0.95; white-space: nowrap; }
 
   /* Combat HP bars */
   .turn-order-item .hp-bar {
@@ -949,6 +994,12 @@
     #action-area { padding: 16px; }
     #action-area textarea { min-height: 70px; font-size: 1.05rem; }
     .action-row .btn { padding: 12px; font-size: 0.75rem; }
+    .character-action-chips.visible {
+      flex-wrap: wrap;
+      max-height: 60px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
 
     /* Option buttons in 2-col grid */
     #options-area {
@@ -1049,6 +1100,9 @@
     #action-area textarea {
       min-height: 80px;
       font-size: 1.05rem;
+    }
+    .character-action-chips.visible {
+      max-height: 64px;
     }
     .action-row .btn {
       padding: 14px 20px;
@@ -1289,6 +1343,7 @@
       <div id="waiting-tip" style="margin-top:12px;font-size:0.85rem;line-height:1.5;opacity:0.6;max-width:400px;"></div>
     </div>
     <div id="my-turn-controls">
+      <div id="character-action-chips" class="character-action-chips" aria-label="Character actions and spells"></div>
       <div id="options-area"></div>
       <div class="or-divider" id="or-divider" style="display:none;">— or describe your own action —</div>
       <textarea id="action-input" placeholder="Describe what your character does…" rows="2"></textarea>
@@ -2379,6 +2434,76 @@ function isMyTurnCheck() {
   return me && current === me;
 }
 
+function splitActionList(text) {
+  return String(text || '')
+    .split(/[,;\n]/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function getVisibleTurnCharacter() {
+  const name = currentPlayer || getMyName();
+  return currentCharacters[name] || currentCharacters[getMyName()] || null;
+}
+
+function buildCharacterActionChips(char) {
+  if (!char) return [];
+  const chips = [];
+  const seen = new Set();
+  const addChip = (label, type = 'action') => {
+    const clean = String(label || '').trim();
+    if (!clean) return;
+    const key = clean.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    chips.push({ label: clean, type });
+  };
+
+  splitActionList(char.standardActions).forEach(action => addChip(action, 'action'));
+
+  const spells = char.combatStats?.spells || char.spells || [];
+  for (const spell of spells) {
+    const name = typeof spell === 'string' ? spell : spell?.name;
+    if (!name) continue;
+    const label = /^cast\b/i.test(name) ? name : `Cast ${name}`;
+    addChip(label, 'spell');
+  }
+
+  return chips;
+}
+
+function renderCharacterActionChips() {
+  const rail = document.getElementById('character-action-chips');
+  if (!rail) return;
+  rail.innerHTML = '';
+
+  if (!isMyTurnCheck()) {
+    rail.classList.remove('visible');
+    return;
+  }
+
+  const chips = buildCharacterActionChips(getVisibleTurnCharacter());
+  if (!chips.length) {
+    rail.classList.remove('visible');
+    return;
+  }
+
+  for (const chip of chips) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `character-action-chip ${chip.type === 'spell' ? 'spell' : ''}`.trim();
+    btn.textContent = chip.label;
+    btn.title = chip.label;
+    btn.addEventListener('click', () => {
+      const input = document.getElementById('action-input');
+      input.value = chip.label;
+      input.focus();
+    });
+    rail.appendChild(btn);
+  }
+  rail.classList.add('visible');
+}
+
 function ensureWaitingMessageStructure() {
   const waitingMsg = document.getElementById('waiting-msg');
   if (!waitingMsg) return null;
@@ -2404,6 +2529,7 @@ function updateActionArea() {
 
   if (!socket.connected || !gameJoinReady) {
     myTurnControls.style.display = 'none';
+    renderCharacterActionChips();
     waitingMsg.style.display = 'block';
     waitingName.textContent = 'Reconnecting to the table...';
     startWaitingTips();
@@ -2414,6 +2540,7 @@ function updateActionArea() {
     // No turn set — show controls (pre-game)
     myTurnControls.style.display = 'block';
     waitingMsg.style.display = 'none';
+    renderCharacterActionChips();
     stopWaitingTips();
     return;
   }
@@ -2421,6 +2548,7 @@ function updateActionArea() {
   if (!myName) {
     // Player hasn't selected a character — show prompt to select
     myTurnControls.style.display = 'none';
+    renderCharacterActionChips();
     waitingMsg.style.display = 'block';
     waitingName.innerHTML = '<strong>' + escapeHtml(currentPlayer) + '</strong> — <a href="#" onclick="document.querySelector(\'[data-screen=party]\').click(); return false;" style="color:var(--gold);">Select your character</a> to play';
     startWaitingTips();
@@ -2430,9 +2558,11 @@ function updateActionArea() {
   if (isMyTurnCheck()) {
     myTurnControls.style.display = 'block';
     waitingMsg.style.display = 'none';
+    renderCharacterActionChips();
     stopWaitingTips();
   } else {
     myTurnControls.style.display = 'none';
+    renderCharacterActionChips();
     waitingMsg.style.display = 'block';
     if (Object.keys(currentCharacters).includes(currentPlayer)) {
       waitingName.innerHTML = `<strong>${escapeHtml(currentPlayer)}</strong>'s turn — <button onclick="selectCharacter('${escapeHtml(currentPlayer)}', currentCharacters['${escapeHtml(currentPlayer)}'])" style="background:var(--gold);color:#0d0600;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-family:'Cinzel Decorative',cursive;font-size:0.75rem;margin-left:6px;">Play as ${escapeHtml(currentPlayer)}</button>`;
@@ -2480,7 +2610,7 @@ socket.on('combat_init_failed', () => {
 
 socket.on('combat_started', (data) => {
   combatActive = true;
-  combatState = data;
+  combatState = { ...(combatState || {}), ...data };
   // Restore full action input
   const myTurn = document.getElementById('my-turn-controls');
   const waiting = ensureWaitingMessageStructure();
@@ -2498,7 +2628,12 @@ socket.on('combat_started', (data) => {
 
 socket.on('combat_update', (data) => {
   combatActive = true;
-  combatState = data;
+  combatState = {
+    ...(combatState || {}),
+    ...data,
+    initiativeOrder: data.initiativeOrder || combatState?.initiativeOrder || [],
+    combatants: data.combatants || combatState?.combatants || {},
+  };
   const waiting = ensureWaitingMessageStructure();
   if (waiting?.waitingMsg) waiting.waitingMsg.style.display = 'none';
   if (waiting?.waitingTip) waiting.waitingTip.style.display = '';
@@ -2557,12 +2692,28 @@ function updateCombatTurnOrder(data) {
   const order = data.initiativeOrder || combatState?.initiativeOrder || [];
   const combatants = data.combatants || combatState?.combatants || {};
   const currentTurn = data.currentTurn || combatState?.currentTurn;
+  let rendered = 0;
 
-  for (const entry of order) {
-    const c = combatants[entry.id];
+  for (const rawEntry of order) {
+    const entry = typeof rawEntry === 'string' ? { id: rawEntry, name: rawEntry, init: '' } : (rawEntry || {});
+    const div = document.createElement('div');
+    if (entry.type === 'Effect') {
+      const remainingTurns = Number(entry.remainingTurns);
+      const value = Number.isFinite(remainingTurns)
+        ? `${remainingTurns} turn${remainingTurns === 1 ? '' : 's'}`
+        : (entry.value || '');
+      div.className = 'turn-order-item effect';
+      div.innerHTML = `<span class="turn-num">fx</span><span class="turn-name">${escapeHtml(entry.name || 'Effect')}</span><span class="turn-value">${escapeHtml(value)}</span>`;
+      list.appendChild(div);
+      rendered++;
+      continue;
+    }
+
+    const c = combatants[entry.id] || entry;
     if (!c) continue;
     const hp = c.hp ?? 0;
     const maxHp = c.maxHp ?? 1;
+    const hasHp = Number.isFinite(Number(c.hp)) && Number.isFinite(Number(c.maxHp));
     const pct = Math.max(0, Math.min(100, (hp / maxHp) * 100));
     const isDead = hp <= 0 && c.type === 'Enemy';
     const isActive = entry.id === currentTurn;
@@ -2573,10 +2724,17 @@ function updateCombatTurnOrder(data) {
       return icons[cond] || '';
     }).join('');
 
-    const div = document.createElement('div');
-    div.className = 'turn-order-item' + (isActive ? ' active' : '') + (c.type === 'Enemy' ? ' enemy' : '') + (isDead ? ' dead' : '');
-    div.innerHTML = `<span class="turn-num">${escapeHtml(String(entry.init ?? ''))}</span><span class="turn-name">${escapeHtml(c.name)}</span><div class="hp-bar"><div class="hp-bar-fill ${hpClass}" style="width:${pct}%"></div></div><span class="turn-value">${hp}/${maxHp}</span>${condIcons ? '<span class="condition-icons">' + condIcons + '</span>' : ''}`;
+    div.className = 'turn-order-item' + (isActive ? ' active' : '') + (c.type === 'Enemy' ? ' enemy' : '') + (isDead ? ' dead' : '') + (!hasHp ? ' missing' : '');
+    const hpHtml = hasHp
+      ? `<div class="hp-bar"><div class="hp-bar-fill ${hpClass}" style="width:${pct}%"></div></div><span class="turn-value">${hp}/${maxHp}</span>`
+      : `<span class="turn-value">${escapeHtml(c.type || '')}</span>`;
+    div.innerHTML = `<span class="turn-num">${escapeHtml(String(entry.init ?? ''))}</span><span class="turn-name">${escapeHtml(c.name || entry.name || entry.id || 'Unknown')}</span>${hpHtml}${condIcons ? '<span class="condition-icons">' + condIcons + '</span>' : ''}`;
     list.appendChild(div);
+    rendered++;
+  }
+
+  if (!rendered) {
+    showPartyTurnOrder();
   }
 }
 
@@ -3073,6 +3231,7 @@ const feedbackTags = [
   ['too_long', 'Long'],
   ['rules_wrong', 'Rules'],
   ['forgot_context', 'Context'],
+  ['review', 'Review'],
 ];
 
 function attachNarrationFeedback(wrap, llmRunId) {
@@ -4782,6 +4941,10 @@ document.getElementById('btn-submit-bug')?.addEventListener('click', () => {
 
 // Load bug reports when switching to world tab
 document.querySelector('[data-screen="world"]')?.addEventListener('click', () => {
+  loadBugReports();
+});
+
+socket.on('bug_report_created', () => {
   loadBugReports();
 });
 

@@ -4,6 +4,26 @@ const dnd5e = require('./resolvers/dnd5e-resolver');
 const runequest = require('./resolvers/runequest-resolver');
 const { getAttacksPerAction } = require('./combat-stats');
 
+const DEFAULT_CONCENTRATION_DURATION_TURNS = {
+  'bane': 10,
+  'bless': 10,
+  'cloudkill': 100,
+  'entangle': 10,
+  'faerie fire': 10,
+  'hex': 600,
+  'hold person': 10,
+  'hunger of hadar': 10,
+  'hypnotic pattern': 10,
+  'moonbeam': 10,
+  'protection from evil and good': 10,
+  'shield of faith': 100,
+  'sickening radiance': 100,
+  'silence': 100,
+  'spirit guardians': 100,
+  'wall of fire': 10,
+  'web': 10,
+};
+
 // ---------------------------------------------------------------------------
 // CombatEngine
 // ---------------------------------------------------------------------------
@@ -100,6 +120,47 @@ class CombatEngine {
     return this.state.combatants[entry.id];
   }
 
+  /**
+   * Initiative order plus visible timed concentration effects.
+   * Effects are display-only rows and never become the current turn owner.
+   */
+  getDisplayInitiativeOrder() {
+    const effectsByCaster = new Map();
+    for (const effect of this.state.activeEffects || []) {
+      if (effect.duration?.type !== 'concentration') continue;
+      const remainingTurns = this.getEffectRemainingTurns(effect);
+      if (!Number.isFinite(remainingTurns) || remainingTurns <= 0) continue;
+
+      const entries = effectsByCaster.get(effect.caster) || [];
+      const name = effect.name || effect.spell?.name || 'Concentration';
+      entries.push({
+        id: `effect:${effect.caster}:${this._slug(name)}`,
+        name,
+        init: null,
+        type: 'Effect',
+        casterId: effect.caster,
+        remainingTurns,
+        value: `${remainingTurns} turn${remainingTurns === 1 ? '' : 's'}`,
+      });
+      effectsByCaster.set(effect.caster, entries);
+    }
+
+    const displayOrder = [];
+    for (const entry of this.state.initiativeOrder || []) {
+      displayOrder.push(entry);
+      const effects = effectsByCaster.get(entry.id) || [];
+      displayOrder.push(...effects);
+    }
+    return displayOrder;
+  }
+
+  getEffectRemainingTurns(effect) {
+    const count = Number(effect?.duration?.count);
+    if (!Number.isFinite(count) || count <= 0) return null;
+    const roundApplied = Number(effect.roundApplied) || this.state.round || 1;
+    return Math.max(0, count - ((this.state.round || 1) - roundApplied));
+  }
+
   // -------------------------------------------------------------------------
   // advanceTurn
   // -------------------------------------------------------------------------
@@ -108,13 +169,21 @@ class CombatEngine {
    * Advance to the next living combatant.
    * Increments round on wrap; calls expireEffects() on round wrap.
    */
-  advanceTurn() {
+  advanceTurn(options = {}) {
+    const processEnd = options.processEnd !== false;
+    const processStart = options.processStart !== false;
+    const triggeredEffects = [];
     const order = this.state.initiativeOrder;
     const total = order.length;
-    if (total === 0) return;
+    if (total === 0) return triggeredEffects;
 
     const resolver = this.getResolver();
     let attempts = 0;
+
+    if (processEnd) {
+      const current = this.getCurrentTurn();
+      if (current) triggeredEffects.push(...this.processTurnEffects(current.id, 'endOfTurn'));
+    }
 
     do {
       this.state.turnIndex++;
@@ -129,8 +198,14 @@ class CombatEngine {
       const current = this.state.combatants[order[this.state.turnIndex].id];
       if (!current) continue;
       const deathStatus = resolver.checkDeath(current);
-      if (deathStatus.status !== 'dead') break;
+      if (deathStatus.status !== 'dead' && processStart) {
+        triggeredEffects.push(...this.processTurnEffects(current.id, 'startOfTurn'));
+      }
+      const postEffectDeathStatus = resolver.checkDeath(current);
+      if (postEffectDeathStatus.status !== 'dead') break;
     } while (true);
+
+    return triggeredEffects;
   }
 
   // -------------------------------------------------------------------------
@@ -229,67 +304,40 @@ class CombatEngine {
           break;
         }
 
-        result = resolver.resolveSpell(caster, spell, targets, [], this.state.activeEffects);
+        const ongoing = this._isOngoingSpell(spell);
+        if (ongoing) {
+          result = {
+            type: 'buff',
+            caster: caster.id,
+            casterName: caster.name,
+            spell: spell.name,
+            targets: targets.map(t => ({ id: t.id, name: t.name })),
+            description: `${caster.name} begins concentrating on ${spell.name}.`,
+          };
+        } else {
+          result = resolver.resolveSpell(caster, spell, targets, [], this.state.activeEffects);
+          this._applySpellResult(result, resolver);
+        }
 
         // Deduct spell slot
-        const level = action.slotLevel || spell.level || 1;
-        if (caster.spellSlots && caster.spellSlots[level] > 0) {
+        const level = action.slotLevel ?? spell.level ?? 1;
+        if (level > 0 && caster.spellSlots && caster.spellSlots[level] > 0) {
           this.state.combatants[casterId].spellSlots[level]--;
           result.slotUsed = true;
-        }
-
-        // Apply healing
-        if (result.type === 'heal') {
-          for (const t of result.targets) {
-            const combatant = this.state.combatants[t.id];
-            if (combatant) {
-              const hpBefore = combatant.hp;
-              combatant.hp = Math.min(combatant.maxHp, combatant.hp + t.healing);
-              t.hpBefore = hpBefore;
-              t.hpAfter  = combatant.hp;
-            }
-          }
-        }
-
-        // Apply save-based damage
-        if (result.type === 'spell-save') {
-          for (const t of result.targets) {
-            const combatant = this.state.combatants[t.id];
-            if (combatant && t.damage > 0) {
-              const hpBefore = combatant.hp;
-              combatant.hp = Math.max(0, combatant.hp - t.damage);
-              t.hpBefore = hpBefore;
-              t.hpAfter  = combatant.hp;
-            }
-          }
-        }
-
-        // Apply spell-attack damage (attack-roll spells)
-        if (result.type === 'spell-attack') {
-          for (const atk of result.attacks || []) {
-            if (atk.hit) {
-              const combatant = this.state.combatants[atk.target];
-              if (combatant) {
-                const hpBefore = combatant.hp;
-                const dmgResult = resolver.applyDamage(combatant, atk.totalDamage, atk.damageType, this.state.activeEffects);
-                atk.hpBefore = hpBefore;
-                atk.hpAfter  = dmgResult.hp;
-                combatant.hp = dmgResult.hp;
-              }
-            }
-          }
         }
 
         // Handle concentration — mark caster and add effect if spell requires it
         if (spell.concentration) {
           this.breakConcentration(casterId);
-          this.state.combatants[casterId].concentrating = { name: spell.name };
+          this._markConcentrating(casterId, spell.name);
           this.addActiveEffect({
             name: spell.name,
             caster: casterId,
             targets: targetIds,
             effect: result,
-            duration: { type: 'concentration' },
+            spell: { ...spell },
+            triggers: this._getOngoingSpellTriggers(spell),
+            duration: this._getConcentrationDuration(spell),
           });
         }
 
@@ -381,22 +429,63 @@ class CombatEngine {
     this.state.activeEffects.push({
       ...effect,
       roundApplied: this.state.round,
+      appliedTriggers: effect.appliedTriggers || {},
     });
+  }
+
+  processTurnEffects(combatantId, trigger) {
+    if (this.state.system !== 'dnd5e') return [];
+    const combatant = this.state.combatants[combatantId];
+    if (!combatant) return [];
+
+    const resolver = this.getResolver();
+    if (resolver.checkDeath(combatant).status === 'dead') return [];
+
+    const results = [];
+    for (const effect of this.state.activeEffects) {
+      if (!this._effectAppliesOnTrigger(effect, combatant, trigger)) continue;
+
+      const key = `${this.state.round}:${combatantId}:${trigger}`;
+      if (effect.appliedTriggers?.[key]) continue;
+      effect.appliedTriggers[key] = true;
+
+      const result = this._resolveOngoingSpellEffect(effect, combatant, trigger, resolver);
+      if (result) {
+        results.push(result);
+        this.state.log.push(result);
+      }
+    }
+    return results;
   }
 
   /**
    * Remove expired effects (round-based duration).
-   * concentration and permanent effects are NOT removed here.
+   * untimed concentration and permanent effects are NOT removed here.
    */
   expireEffects() {
+    const expiredConcentrationCasters = new Set();
     this.state.activeEffects = this.state.activeEffects.filter(e => {
       const d = e.duration;
-      if (!d || d.type === 'permanent' || d.type === 'concentration') return true;
+      if (!d || d.type === 'permanent') return true;
+      if (d.type === 'concentration') {
+        const remainingTurns = this.getEffectRemainingTurns(e);
+        if (remainingTurns === null) return true;
+        const keep = remainingTurns > 0;
+        if (!keep && e.caster) expiredConcentrationCasters.add(e.caster);
+        return keep;
+      }
       if (d.type === 'rounds') {
         return (this.state.round - e.roundApplied) < d.count;
       }
       return true;
     });
+
+    for (const casterId of expiredConcentrationCasters) {
+      const stillConcentrating = this.state.activeEffects.some(e =>
+        e.caster === casterId && e.duration?.type === 'concentration'
+      );
+      if (!stillConcentrating) this._clearConcentrationMarker(casterId);
+    }
   }
 
   /**
@@ -409,7 +498,174 @@ class CombatEngine {
       e => !(e.caster === casterId && e.duration && e.duration.type === 'concentration')
     );
     const caster = this.state.combatants[casterId];
-    if (caster) caster.concentrating = null;
+    if (caster) this._clearConcentrationMarker(casterId);
+  }
+
+  _markConcentrating(casterId, spellName) {
+    const caster = this.state.combatants[casterId];
+    if (!caster) return;
+    caster.concentrating = { name: spellName };
+    const conditions = new Set(caster.conditions || []);
+    conditions.add('concentrating');
+    caster.conditions = [...conditions];
+  }
+
+  _clearConcentrationMarker(casterId) {
+    const caster = this.state.combatants[casterId];
+    if (!caster) return;
+    caster.concentrating = null;
+    caster.conditions = (caster.conditions || []).filter(cond => cond !== 'concentrating');
+  }
+
+  _getConcentrationDuration(spell = {}) {
+    const count = this._spellDurationToTurns(spell);
+    if (Number.isFinite(count) && count > 0) return { type: 'concentration', count };
+    return { type: 'concentration' };
+  }
+
+  _spellDurationToTurns(spell = {}) {
+    const explicitTurns = Number(spell.durationTurns);
+    if (Number.isFinite(explicitTurns) && explicitTurns > 0) return Math.floor(explicitTurns);
+
+    const explicitRounds = Number(spell.durationRounds);
+    if (Number.isFinite(explicitRounds) && explicitRounds > 0) return Math.floor(explicitRounds);
+
+    if (spell.duration && typeof spell.duration === 'object') {
+      const count = Number(spell.duration.count ?? spell.duration.value);
+      const unit = String(spell.duration.unit || spell.duration.type || '').toLowerCase();
+      const parsed = this._durationPartsToTurns(count, unit);
+      if (parsed) return parsed;
+    }
+
+    const durationText = String(spell.duration || spell.durationText || '').toLowerCase();
+    const match = durationText.match(/(?:(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+)?(round|minute|hour)s?/);
+    if (match) {
+      const count = this._durationNumber(match[1] || '1');
+      const parsed = this._durationPartsToTurns(count, match[2]);
+      if (parsed) return parsed;
+    }
+
+    const defaultTurns = DEFAULT_CONCENTRATION_DURATION_TURNS[String(spell.name || '').toLowerCase()];
+    if (Number.isFinite(defaultTurns)) return defaultTurns;
+    return null;
+  }
+
+  _durationNumber(value) {
+    const words = {
+      one: 1,
+      two: 2,
+      three: 3,
+      four: 4,
+      five: 5,
+      six: 6,
+      seven: 7,
+      eight: 8,
+      nine: 9,
+      ten: 10,
+    };
+    const text = String(value || '').toLowerCase();
+    return words[text] || Number(text);
+  }
+
+  _durationPartsToTurns(count, unit) {
+    if (!Number.isFinite(count) || count <= 0) return null;
+    if (/round|turn/.test(unit)) return Math.floor(count);
+    if (/minute/.test(unit)) return Math.floor(count * 10);
+    if (/hour/.test(unit)) return Math.floor(count * 600);
+    return null;
+  }
+
+  _isOngoingSpell(spell = {}) {
+    if (!spell.concentration) return false;
+    const text = `${spell.name || ''} ${spell.effect || ''} ${spell.trigger || ''}`.toLowerCase();
+    return !!(
+      spell.aoe ||
+      spell.trigger ||
+      /spirit guardians|moonbeam|hunger of hadar|cloudkill|sickening radiance|wall of fire|end of turn|start of turn|beginning of turn|per turn/.test(text)
+    );
+  }
+
+  _getOngoingSpellTriggers(spell = {}) {
+    const trigger = String(spell.trigger || '').toLowerCase();
+    const text = `${spell.name || ''} ${spell.effect || ''}`.toLowerCase();
+    const triggers = new Set();
+
+    if (/end/.test(trigger) || /end of (?:its |their |the )?turn/.test(text)) triggers.add('endOfTurn');
+    if (/start|begin/.test(trigger) || /start of (?:its |their |the )?turn|beginning of (?:its |their |the )?turn|per turn/.test(text)) triggers.add('startOfTurn');
+    if (/spirit guardians|moonbeam|cloudkill|sickening radiance|hunger of hadar|wall of fire/.test(text) || spell.aoe) triggers.add('startOfTurn');
+
+    return [...triggers];
+  }
+
+  _effectAppliesOnTrigger(effect, combatant, trigger) {
+    if (!effect.spell || !effect.triggers?.includes(trigger)) return false;
+    const caster = this.state.combatants[effect.caster];
+    if (!caster || caster.id === combatant.id) return false;
+
+    if (effect.spell.aoe) {
+      return caster.type !== combatant.type;
+    }
+
+    return (effect.targets || []).includes(combatant.id);
+  }
+
+  _resolveOngoingSpellEffect(effect, combatant, trigger, resolver) {
+    const caster = this.state.combatants[effect.caster];
+    if (!caster || !effect.spell) return null;
+
+    const result = resolver.resolveSpell(caster, effect.spell, [combatant], [], this.state.activeEffects);
+    result.ongoing = true;
+    result.trigger = trigger;
+    result.effectName = effect.name;
+    this._applySpellResult(result, resolver);
+    return result;
+  }
+
+  _applySpellResult(result, resolver = this.getResolver()) {
+    if (!result) return;
+
+    if (result.type === 'heal') {
+      for (const t of result.targets || []) {
+        const combatant = this.state.combatants[t.id];
+        if (combatant) {
+          const hpBefore = combatant.hp;
+          combatant.hp = Math.min(combatant.maxHp, combatant.hp + t.healing);
+          t.hpBefore = hpBefore;
+          t.hpAfter  = combatant.hp;
+        }
+      }
+    }
+
+    if (result.type === 'spell-save' || result.type === 'spell-damage') {
+      for (const t of result.targets || []) {
+        const combatant = this.state.combatants[t.id];
+        if (combatant && t.damage > 0) {
+          const hpBefore = combatant.hp;
+          combatant.hp = Math.max(0, combatant.hp - t.damage);
+          t.hpBefore = hpBefore;
+          t.hpAfter  = combatant.hp;
+        }
+      }
+    }
+
+    if (result.type === 'spell-attack') {
+      for (const atk of result.attacks || []) {
+        if (atk.hit) {
+          const combatant = this.state.combatants[atk.target];
+          if (combatant) {
+            const hpBefore = combatant.hp;
+            const dmgResult = resolver.applyDamage(combatant, atk.totalDamage, atk.damageType, this.state.activeEffects);
+            atk.hpBefore = hpBefore;
+            atk.hpAfter  = dmgResult.hp;
+            combatant.hp = dmgResult.hp;
+          }
+        }
+      }
+    }
+  }
+
+  _slug(text) {
+    return String(text || 'effect').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'effect';
   }
 
   // -------------------------------------------------------------------------
@@ -568,7 +824,8 @@ class CombatEngine {
           break;
         }
 
-        case 'spell-save': {
+        case 'spell-save':
+        case 'spell-damage': {
           const casterId = entry.caster;
           for (const t of entry.targets || []) {
             if (t.damage > 0) {
@@ -666,6 +923,22 @@ class CombatEngine {
           const saveMod = Number(t.saveMod) || 0;
           const saveModStr = saveMod >= 0 ? `+ ${saveMod}` : `- ${Math.abs(saveMod)}`;
           lines.push(`  ${t.name}: save d20 ${t.saveRoll} ${saveModStr} = ${t.saveTotal} vs DC ${result.saveDC} — ${outcome}. ${t.damage} ${result.damageType || ''} damage.`);
+        }
+        return lines.join('\n');
+      }
+      case 'spell-damage': {
+        const damageDice = Number.isFinite(Number(result.damageDiceTotal))
+          ? Number(result.damageDiceTotal)
+          : Number(result.damageRoll || 0);
+        const damageMod = Number.isFinite(Number(result.damageModifier)) ? Number(result.damageModifier) : 0;
+        const damageModStr = damageMod >= 0 ? `+ ${damageMod}` : `- ${Math.abs(damageMod)}`;
+        const damageFormula = result.damageFormula || 'damage';
+        const lines = [`${result.casterName} casts ${result.spell}. Damage: ${damageFormula} (${damageDice} ${damageModStr} = ${result.damageRoll}) ${result.damageType || ''}.`];
+        for (const t of result.targets || []) {
+          const hpStr = (t.hpBefore !== undefined && t.hpAfter !== undefined)
+            ? ` ${t.name} HP: ${t.hpBefore}→${t.hpAfter}.`
+            : '';
+          lines.push(`  ${t.name}: ${t.damage} ${result.damageType || ''} damage.${hpStr}`);
         }
         return lines.join('\n');
       }
@@ -789,8 +1062,10 @@ class CombatEngine {
     lines.push(`ACTIVE COMBAT — Round ${s.round}`);
 
     // Initiative order
-    const initStr = s.initiativeOrder
-      .map(e => `${e.name} (${e.init})`)
+    const initStr = this.getDisplayInitiativeOrder()
+      .map(e => e.type === 'Effect'
+        ? `${e.name} (${e.remainingTurns} turn${e.remainingTurns === 1 ? '' : 's'} remaining)`
+        : `${e.name} (${e.init})`)
       .join(' → ');
     lines.push(`Initiative: ${initStr}`);
 
@@ -838,7 +1113,10 @@ class CombatEngine {
         const targets = Array.isArray(e.targets) ? e.targets.join(', ') : String(e.targets);
         let durStr;
         if (e.duration.type === 'concentration') {
-          durStr = 'concentration';
+          const remaining = this.getEffectRemainingTurns(e);
+          durStr = remaining === null
+            ? 'concentration'
+            : `concentration, ${remaining} turn${remaining !== 1 ? 's' : ''} remaining`;
         } else if (e.duration.type === 'permanent') {
           durStr = 'permanent';
         } else {

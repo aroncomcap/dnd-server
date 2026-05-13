@@ -268,6 +268,15 @@ describe('parseAction — unparseable returns null', () => {
 // ---------------------------------------------------------------------------
 
 describe('parseAction — non-attack combat actions', () => {
+  it('bare attack resolves to the first living enemy with the primary weapon', () => {
+    const result = parseAction('attack', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'attack');
+    assert.equal(result.attackerId, 'kael');
+    assert.equal(result.targetId, 'gob-1');
+    assert.equal(result.weapon, 'Longsword');
+  });
+
   it('checking an object is parsed as a check, not an attack fallback', () => {
     const result = parseAction('check the sarcophagus', 'kael', BASE_CTX);
     assert.ok(result);

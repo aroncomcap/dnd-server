@@ -148,9 +148,64 @@ test('enemy turns normalize decisions into executable combat engine actions', ()
   assert.match(serverJs, /actorId: current\.id/, 'non-attack enemy actions should include actorId for the combat engine');
 });
 
+test('combat turn order shows timed concentration effects', () => {
+  assert.match(serverJs, /getDisplayInitiativeOrder\(\)/, 'server should publish display initiative including concentration effect rows');
+  assert.match(gameHtml, /entry\.type === 'Effect'/, 'turn order renderer should handle effect rows without combatant HP');
+  assert.match(gameHtml, /remainingTurns/, 'effect rows should show remaining turn count');
+  assert.match(gameHtml, /typeof rawEntry === 'string'/, 'turn order renderer should tolerate older string initiative rows');
+  assert.match(gameHtml, /combatants\[entry\.id\] \|\| entry/, 'turn order renderer should still show rows when HP data is missing');
+  assert.match(serverJs, /processStart: false, processEnd: false/, 'enemy decision planning should not fire ongoing effects speculatively');
+  assert.match(serverJs, /activeEffects: JSON\.parse\(JSON\.stringify/, 'enemy decision planning should restore active effect timers before execution');
+  assert.match(gameHtml, /combatState = \{[\s\S]*initiativeOrder: data\.initiativeOrder \|\| combatState\?\.initiativeOrder/, 'combat updates should preserve the last valid initiative order');
+  assert.match(gameHtml, /if \(!rendered\) \{[\s\S]*showPartyTurnOrder\(\);/, 'empty combat order should visibly fall back instead of showing a blank panel');
+});
+
 test('combat freeform actions are not silently converted into weapon attacks', () => {
   assert.doesNotMatch(serverJs, /Default:\s*attack the first living enemy with primary weapon/, 'server combat path should not coerce unknown player actions into attacks');
   assert.doesNotMatch(gameEngineJs, /Default:\s*attack the first living enemy with primary weapon/, 'game-engine combat path should not coerce unknown player actions into attacks');
+});
+
+test('combat turn options stay scoped to the engine turn after actions and auto-actions', () => {
+  assert.match(serverJs, /function getVisiblePlayerForOptions/, 'server should compute option owner from active combat engine turn');
+  assert.match(serverJs, /const nextPlayer = getVisiblePlayerForOptions\(gameId\);[\s\S]*emitDmMessage\(gameId, \{ text: narration, options, auto: false/, 'human combat actions should emit options for the resolved engine turn');
+  assert.match(serverJs, /const nextPlayer = getVisiblePlayerForOptions\(gameId\);[\s\S]*emitDmMessage\(gameId, \{ text: narration, options, auto: true/, 'auto combat actions should emit options for the resolved engine turn');
+});
+
+test('combat auto-actions are resolved by the combat engine', () => {
+  assert.match(serverJs, /function chooseCombatAutoAction/, 'server should choose a concrete combat action for timed-out PCs');
+  assert.match(serverJs, /callGameLLM\(gameId, gameConfig, gs\.combatEngine\?\.state\?\.active \? `\$\{playerName\}: \$\{autoAction\}` : autoAction/, 'combat auto-actions should be sent as parseable player actions');
+  assert.match(serverJs, /gs\.combatEngine\.getCurrentTurn\(\)\?\.type === 'Enemy'[\s\S]*await resolveEnemyTurns/, 'turn advancement should not skip an enemy if combat is parked on an enemy turn');
+});
+
+test('offensive actions against named threats start engine combat before narration resolution', () => {
+  assert.match(serverJs, /function maybeStartCombatFromOffensiveAction/, 'server should detect attacks against named threats when combat is not active');
+  assert.match(serverJs, /extractNamedCombatTarget\(userMessage/, 'pre-combat detection should use the submitted player action');
+  assert.match(serverJs, /if \(started\) return legacyCallLLM\(gameId, gameConfig, userMessage, actingAs\);/, 'legacy path should restart in combat mode after creating a custom threat');
+  assert.match(serverJs, /await initiateCombat\(gameId, gameConfig, parsed\.world\.enemies\)/, 'formal enemy blocks should be awaited before the turn advances');
+  assert.match(serverJs, /slug: 'custom'[\s\S]*hint: targetName/, 'named targets should become custom enemies with generation hints');
+});
+
+test('combat narration cannot move the map to a new chamber', () => {
+  assert.match(serverJs, /const combatMapLocked = combatActive && gs\.combatEngine\?\.state\?\.active;/, 'server should detect active combat before map processing');
+  assert.match(serverJs, /combatMapLocked\s*\?\s*\{ moved: false/, 'server should suppress map movement while combat is active');
+  assert.match(gameEngineJs, /const combatMapLocked = combatActive && gs\.combatEngine\?\.state\?\.active;/, 'game engine should detect active combat before map processing');
+  assert.match(gameEngineJs, /combatMapLocked\s*\?\s*\{ moved: false/, 'game engine should suppress map movement while combat is active');
+});
+
+test('character action and spell chips are compact on action controls', () => {
+  assert.match(gameHtml, /id="character-action-chips"/, 'action controls should include a character action chip rail');
+  assert.match(gameHtml, /function buildCharacterActionChips/, 'client should build chips from standard actions and spells');
+  assert.match(gameHtml, /splitActionList\(char\.standardActions\)/, 'standardActions should feed action chips');
+  assert.match(gameHtml, /char\.combatStats\?\.spells/, 'configured spells should feed spell chips');
+  assert.match(gameHtml, /max-height: 30px;/, 'mobile chip rail should show one row');
+  assert.match(gameHtml, /max-height: 60px;|max-height: 64px;/, 'larger screens should allow two rows');
+});
+
+test('Tune GM Review feedback creates a reviewable bug report', () => {
+  assert.match(gameHtml, /\['review', 'Review'\]/, 'Tune GM should expose a Review tag');
+  assert.match(serverJs, /'forgot_context', 'review'/, 'server should accept Review feedback tag');
+  assert.match(serverJs, /Narration marked for review from Tune GM feedback/, 'Review feedback should create a bug report context snapshot');
+  assert.match(serverJs, /db\.saveBugReport\(gameId, game\?\.name \|\| gameId/, 'Review feedback should push into the bug report flow');
 });
 
 test('encounter planner is host-only and supports queued adventuring days', () => {
