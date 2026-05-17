@@ -15,7 +15,16 @@ const { router: authRouter, authMiddleware, requireAuth, requireAdmin, resolveAu
 const { BillingTicker } = require('./billing');
 const payments = require('./payments');
 const CombatEngine = require('./combat-engine');
-const { parseAction, parseOptions, parseActionWithAI, parseOptionsWithAI } = require('./action-parser');
+const {
+  parseAction,
+  parseOptions,
+  parseActionWithAI,
+  parseOptionsWithAI,
+  isDialogueAction,
+  makeDialogueAction,
+  isAdvanceAction,
+  makeAdvanceAction,
+} = require('./action-parser');
 const { parseStatsText } = require('./stat-parser');
 const { getMonsterStats } = require('./monster-lookup');
 const ed = require('./encounter-designer');
@@ -254,6 +263,51 @@ const WELCOME_BONUS_MINUTES = 600;
 const GAME_EVICTION_MINUTES = 60;
 
 function truncate(str, max) { return str ? String(str).slice(0, max) : ''; }
+
+function extractSubmittedActionText(userMessage) {
+  return String(userMessage || '').replace(/^.*?:\s*/, '').trim();
+}
+
+function hasNonHostileProgressIntent(userMessage) {
+  const actionText = extractSubmittedActionText(userMessage);
+  return isDialogueAction(actionText) || isAdvanceAction(actionText);
+}
+
+function hasHardCombatSignal(text) {
+  return /(?:roll(?:s|ing)?\s+(?:for\s+)?initiative|initiative.*(?:order|roll)|combat\s+(?:begins|starts|erupts|breaks out)|(?:goblin|orc|skeleton|zombie|wolf|rat|bandit|dragon|spider|kobold|gnoll|bugbear|hobgoblin|cultist|thug|guard|knight|wraith|ghoul|ghast|wight|vampire|demon|devil|elemental|giant|minotaur|owlbear|manticore|hydra|chimera|basilisk|beholder|lich|golem|treant|werewolf)s?\s+(?:attack|attacks|lunge|lunges|charge|charges|rush|rushes|swing|swings|slash|slashes|stab|stabs|strike|strikes|pounce|pounces|ambush|ambushes)\b|(?:attacks?\s+(?:you|the party|with)|charges?\s+(?:at|toward|into)|ambush(?:ed|es)?!?|lunges?\s+(?:at|toward)|strikes?\s+(?:at|with)|draws?\s+(?:its |their )?(?:sword|weapon|blade|axe|bow)|weapons?\s+drawn|swords?\s+(?:raised|drawn|flashing)|prepare(?:s)?\s+to\s+(?:fight|attack|strike)|openly\s+hostile|turns?\s+hostile|ready\s+(?:their|your)\s+weapons?))/i.test(text || '');
+}
+
+function extractNumberedOptions(text) {
+  return String(text || '').split('\n')
+    .filter(l => /^[1-3](?:\uFE0F?\u20E3|[.)])\s*/.test(l.trim()))
+    .map(l => l.replace(/^[1-3](?:\uFE0F?\u20E3|[.)])\s*/, '').trim())
+    .filter(Boolean)
+    .slice(0, 3);
+}
+
+function extractJsonObject(text) {
+  const match = String(text || '').match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]);
+  } catch (_err) {
+    return null;
+  }
+}
+
+function sanitizeBugSlug(value, fallback = 'gameplay_behavior_review') {
+  const slug = String(value || fallback)
+    .toLowerCase()
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 96);
+  return slug || fallback;
+}
+
+function looksLikeBehaviorReview(message) {
+  return /\b(?:why\s+did|should\s+(?:not|have)|should've|bug|broken|wrong|mistake|issue|problem|parser|classified|classification|intent|behavior|behaviour|decision|derail|combat|retcon|rules?|context|forgot|improvement|fix|slug)\b/i.test(message || '');
+}
 
 const app = express();
 app.set('trust proxy', 1); // Railway runs behind a reverse proxy
@@ -1549,13 +1603,9 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
       } else {
         parsedAction = parseAction(actionText, playerId, combatCtx);
         if (!parsedAction) {
-          parsedAction = {
-            type: 'check',
-            actorId: playerId,
-            attackerId: playerId,
-            targetId: null,
-            description: actionText,
-          };
+          parsedAction = isAdvanceAction(actionText)
+            ? makeAdvanceAction(actionText, playerId)
+            : makeDialogueAction(actionText || 'speak cautiously', playerId);
         }
       }
 
@@ -1842,13 +1892,9 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
         gameId,
         maxTokens: 200,
         temperature: 0.3,
-        prompt: `Given this narration from a ${gameConfig.system || 'D&D 5e'} game, suggest exactly 3 action options for ${nextPlayer || 'the next player'}. Output ONLY this format with number emojis, nothing else:\n\n1️⃣ 🗡️ [combat/practical action]\n2️⃣ 🛡️ [defensive/cautious action]\n3️⃣ 🔥 [wild/reckless/creative move]\n\nNarration: ${parsed.narration.slice(-500)}`,
+        prompt: `Given this narration from a ${gameConfig.system || 'D&D 5e'} game, suggest exactly 3 scene-specific action options for ${nextPlayer || 'the next player'}. Avoid generic attack/defend/wild defaults; match the current scene and player intent. Output ONLY this format with number emojis, nothing else:\n\n1️⃣ [specific option]\n2️⃣ [distinct alternative]\n3️⃣ [bold but context-aware option]\n\nNarration: ${parsed.narration.slice(-500)}`,
       });
-      const optLines = optionsResponse.text.split('\n')
-        .filter(l => /^[1-3](?:\uFE0F?\u20E3|[.)])\s*/.test(l.trim()))
-        .map(l => l.replace(/^[1-3](?:\uFE0F?\u20E3|[.)])\s*/, '').trim())
-        .filter(Boolean)
-        .slice(0, 3);
+      const optLines = extractNumberedOptions(optionsResponse.text);
       if (optLines.length >= 2) parsed.options = optLines;
     } catch (e) {
       console.warn('[options-fallback] failed:', e.message);
@@ -1959,14 +2005,20 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
 
   // Initiate combat — two paths:
   // Path 1: AI outputs formal ENEMIES: block (ideal)
+  const nonHostileProgressIntent = hasNonHostileProgressIntent(userMessage);
+  const hardCombatSignal = hasHardCombatSignal(parsed.narration || '');
   if (parsed.world?.enemies?.length > 0 && !gs.combatEngine.state.active) {
-    await initiateCombat(gameId, gameConfig, parsed.world.enemies).catch(e => console.error('Combat init error:', e));
+    if (nonHostileProgressIntent && !hardCombatSignal) {
+      console.log(`[intent-guard] Suppressed ENEMIES block after non-hostile/progress input: ${extractSubmittedActionText(userMessage)}`);
+      parsed.world.enemies = [];
+    } else {
+      await initiateCombat(gameId, gameConfig, parsed.world.enemies).catch(e => console.error('Combat init error:', e));
+    }
   }
   // Path 2: AI narrates combat without ENEMIES: block — server takes over
   // Only trigger on strong combat signals (actual attacks/charges, not just monster mentions)
   if (!gs.combatEngine.state.active && !parsed.world?.enemies?.length) {
-    const strongCombatSignal = /(?:roll(?:s|ing)?\s+(?:for\s+)?initiative|initiative.*(?:order|roll)|combat\s+(?:begins|starts|erupts|breaks out)|(?:goblin|orc|skeleton|zombie|wolf|rat|bandit|dragon|troll|ogre|spider|kobold|gnoll|bugbear|hobgoblin|cultist|thug|guard|knight|wraith|ghoul|ghast|wight|vampire|demon|devil|elemental|giant|minotaur|owlbear|manticore|hydra|chimera|basilisk|beholder|lich|golem|treant|werewolf)s?\s+(?:attack|lunge|charge|burst|leap|rush|swing|slash|stab|strike|pounce|ambush|emerge|appear|surround|block|engage)s?\b|(?:attacks?\s+(?:you|the party|with)|charges?\s+(?:at|toward|into)|ambush(?:ed|es)?!?|lunges?\s+(?:at|toward)|strikes?\s+(?:at|with)|draws?\s+(?:its |their )?(?:sword|weapon|blade|axe|bow)|weapons?\s+drawn|swords?\s+(?:raised|drawn|flashing)|prepare(?:s)?\s+to\s+(?:fight|attack|strike)|hostile|ready\s+(?:their|your)\s+weapons?))/i;
-    if (strongCombatSignal.test(parsed.narration || '')) {
+    if (hardCombatSignal && !nonHostileProgressIntent) {
       // Try encounter plan first
       let enemies = null;
       if (gs.encounterPlan) {
@@ -3395,6 +3447,137 @@ function safeSocketHandler(handler) {
   };
 }
 
+function buildGameplayDecisionTrace({ gs, playerName, message, source, llmRunId, rating, tags, note, llmRun }) {
+  const combatActive = !!gs.combatEngine?.state?.active;
+  const currentCombatant = combatActive ? gs.combatEngine.getCurrentTurn() : null;
+  return {
+    source,
+    playerName,
+    message: truncate(message, 1200),
+    llmRunId: llmRunId || null,
+    rating: rating || null,
+    tags: tags || [],
+    note: note || '',
+    turnCount: gs.turnCount || 0,
+    currentPlayer: gs.data?.turnOrder?.[gs.data?.currentTurnIndex || 0] || null,
+    combatActive,
+    combatRound: gs.combatEngine?.state?.round || null,
+    combatTurn: currentCombatant ? { id: currentCombatant.id, name: currentCombatant.name, type: currentCombatant.type } : null,
+    recentHistory: (gs.data?.chatHistory || []).slice(-8).map(entry => ({
+      role: entry.role,
+      content: truncate(entry.content, 1400),
+    })),
+    llmRun: llmRun ? {
+      task: llmRun.task,
+      model: llmRun.model,
+      prompt: truncate(llmRun.prompt_text, 1800),
+      output: truncate(llmRun.output_text, 1800),
+      createdAt: llmRun.created_at,
+    } : null,
+  };
+}
+
+async function selfAssessAndMaybeLogBug({ gameId, game, gs, playerName, message, source, llmRunId = null, rating = null, tags = [], note = '', reporterUserId = null, force = false }) {
+  if (!force && !looksLikeBehaviorReview(message)) return { bug: null, assessment: null };
+
+  const llmRun = llmRunId ? await db.getLlmRun(llmRunId).catch(() => null) : null;
+  const trace = buildGameplayDecisionTrace({ gs, playerName, message, source, llmRunId, rating, tags, note, llmRun });
+  const prompt = `You are a QA triage assistant for an AI tabletop RPG server.
+
+Decide whether this player feedback points to a programming improvement, not just a taste preference.
+
+Log a bug when parser intent, combat routing, state preservation, prompt instructions, turn flow, rules handling, or context memory should be improved in code or prompts.
+Do not log a bug for pure praise, tone preference, or one-off fiction preference with no actionable programming change.
+
+Return ONLY JSON:
+{
+  "shouldLog": true,
+  "slug": "lower_snake_case_short_codex_slug",
+  "summary": "one sentence",
+  "programmingImprovement": "specific code/prompt behavior to improve",
+  "decisionTrace": ["brief evidence item", "brief evidence item"],
+  "severity": "low|medium|high"
+}
+
+Feedback source: ${source}
+Player: ${playerName || 'unknown'}
+Feedback/OOC: ${message || '(none)'}
+Rating: ${rating || 'n/a'}
+Tags: ${(tags || []).join(', ') || 'none'}
+Note: ${note || 'none'}
+
+Decision context:
+${JSON.stringify(trace, null, 2)}`;
+
+  let assessment = null;
+  try {
+    const response = await llm.completeText({
+      task: 'summary',
+      gameId,
+      maxTokens: 450,
+      temperature: 0.1,
+      prompt,
+    });
+    assessment = extractJsonObject(response.text) || {
+      shouldLog: false,
+      summary: truncate(response.text, 500),
+      decisionTrace: [],
+    };
+    trace.selfAssessmentRunId = response.llmRunId || null;
+    trace.selfAssessmentModel = response.model || null;
+  } catch (err) {
+    console.warn('[self-assess] failed:', err.message);
+    return { bug: null, assessment: null };
+  }
+
+  if (!assessment?.shouldLog && !force) return { bug: null, assessment };
+  if (!assessment?.shouldLog && force) {
+    assessment.shouldLog = true;
+    assessment.slug = assessment.slug || `${source}_needs_review`;
+    assessment.summary = assessment.summary || 'Player requested an actionable review of this behavior.';
+    assessment.programmingImprovement = assessment.programmingImprovement || 'Inspect the recorded decision trace and improve the related parser, option generation, prompt, or state-routing behavior.';
+    assessment.decisionTrace = Array.isArray(assessment.decisionTrace) && assessment.decisionTrace.length
+      ? assessment.decisionTrace
+      : ['Player used an actionable feedback control that should produce a code-reviewable trace.'];
+    assessment.severity = assessment.severity || 'medium';
+  }
+
+  const slug = sanitizeBugSlug(assessment.slug || assessment.summary || message);
+  const decisionTrace = {
+    ...trace,
+    assessment: {
+      ...assessment,
+      slug,
+    },
+  };
+  const description = [
+    `Auto-logged gameplay programming issue from ${source}.`,
+    `Slug: ${slug}`,
+    `Severity: ${assessment.severity || 'medium'}`,
+    `Summary: ${assessment.summary || 'No summary provided.'}`,
+    `Programming improvement: ${assessment.programmingImprovement || 'Review decision trace.'}`,
+    ``,
+    `Decision trace:`,
+    ...(Array.isArray(assessment.decisionTrace) && assessment.decisionTrace.length
+      ? assessment.decisionTrace.map(item => `- ${item}`)
+      : ['- See structured decision_trace metadata.']),
+    ``,
+    `Player feedback/OOC: ${message || '(none)'}`,
+    llmRunId ? `LLM run: ${llmRunId}` : '',
+  ].filter(line => line !== '').join('\n');
+
+  const bug = await db.saveBugReport(
+    gameId,
+    game?.name || gameId,
+    reporterUserId,
+    description,
+    null,
+    { slug, decisionTrace, source }
+  );
+  io.to(hostRoom(gameId)).emit('bug_report_created', { bug, source });
+  return { bug, assessment };
+}
+
 // ── Socket Events ─────────────────────────────────────────────────────────────
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
@@ -3402,14 +3585,13 @@ io.on('connection', (socket) => {
   socket.on('narration_feedback', safeSocketHandler(async (data, ack) => {
     const gameId = socket.gameId;
     const llmRunId = data?.llmRunId;
-    const rating = Number(data?.rating);
+    const rating = Number(data?.rating || 1);
     if (!gameId || !llmRunId || !Number.isInteger(rating) || rating < 1 || rating > 5) {
       if (ack) ack({ error: 'Invalid feedback' });
       return;
     }
     const allowedTags = new Set([
-      'great_moment', 'funny', 'vivid', 'useful_options',
-      'confusing', 'boring', 'too_long', 'rules_wrong', 'forgot_context', 'review',
+      'rules_wrong', 'forgot_context', 'review', 'retcon', 'redo_options',
     ]);
     const tags = Array.isArray(data.tags)
       ? data.tags.filter(tag => allowedTags.has(tag)).slice(0, 6)
@@ -3425,28 +3607,111 @@ io.on('connection', (socket) => {
       note,
     });
     let reviewBug = null;
-    if (tags.includes('review')) {
+    if (tags.some(tag => ['review', 'retcon', 'redo_options', 'rules_wrong', 'forgot_context'].includes(tag))) {
       const gs = getGameState(gameId);
       const game = await db.getGame(gameId);
-      const recent = (gs.data.chatHistory || []).slice(-8)
-        .map(entry => `${entry.role.toUpperCase()}: ${truncate(entry.content, 1200)}`)
-        .join('\n\n');
-      const combatState = gs.combatEngine?.state?.active
-        ? `\n\nCOMBAT STATE:\n${gs.combatEngine.getCombatStateForPrompt()}`
-        : '';
-      const description = [
-        `Narration marked for review from Tune GM feedback.`,
-        `LLM run: ${llmRunId}`,
-        `Rating: ${rating}/5`,
-        `Tags: ${tags.join(', ') || 'none'}`,
-        note ? `Note: ${note}` : '',
-        combatState,
-        `\nRECENT TABLE CONTEXT:\n${recent || 'No recent chat history available.'}`,
-      ].filter(Boolean).join('\n');
-      reviewBug = await db.saveBugReport(gameId, game?.name || gameId, socket.userId || null, description, null);
-      io.to(hostRoom(gameId)).emit('bug_report_created', { bug: reviewBug, source: 'narration_feedback' });
+      const source = tags.includes('redo_options') ? 'redo_options_feedback'
+        : tags.includes('retcon') ? 'retcon_feedback'
+          : 'narration_feedback';
+      const message = note || `Tune GM feedback: ${tags.join(', ')}`;
+      const result = await selfAssessAndMaybeLogBug({
+        gameId,
+        game,
+        gs,
+        playerName: data.playerName || socket.userName || null,
+        message,
+        source,
+        llmRunId,
+        rating,
+        tags,
+        note,
+        reporterUserId: socket.userId || null,
+        force: tags.includes('review') || tags.includes('retcon') || tags.includes('redo_options'),
+      });
+      reviewBug = result.bug;
     }
     if (ack) ack({ ok: true, feedbackId: saved.id, reviewBugId: reviewBug?.id || null });
+  }));
+
+  socket.on('redo_options', safeSocketHandler(async (data, ack) => {
+    const gameId = socket.gameId;
+    const llmRunId = data?.llmRunId || null;
+    if (!gameId) {
+      if (ack) ack({ ok: false, error: 'No game joined' });
+      return;
+    }
+
+    const gs = getGameState(gameId);
+    const game = await db.getGame(gameId);
+    const targetPlayer = getVisiblePlayerForOptions(gameId) || getCurrentPlayer(gameId);
+    const character = targetPlayer ? gs.data.characters?.[targetPlayer] : null;
+    const llmRun = llmRunId ? await db.getLlmRun(llmRunId).catch(() => null) : null;
+    const sourceNarration = truncate(
+      (llmRun?.output_text ? parseResponse(llmRun.output_text).narration : '') ||
+      (gs.data.chatHistory || []).slice(-1)[0]?.content ||
+      '',
+      1800
+    );
+
+    await selfAssessAndMaybeLogBug({
+      gameId,
+      game,
+      gs,
+      playerName: data?.playerName || targetPlayer || null,
+      message: 'Player requested Redo Options because the current suggested actions were off, generic, or not scene-suited.',
+      source: 'redo_options',
+      llmRunId,
+      rating: 1,
+      tags: ['redo_options'],
+      note: '',
+      reporterUserId: socket.userId || null,
+      force: true,
+    });
+
+    const response = await llm.completeText({
+      task: 'options-fallback',
+      gameId,
+      maxTokens: 220,
+      temperature: 0.4,
+      prompt: `Regenerate exactly 3 scene-specific player options for ${targetPlayer || 'the current player'} in this ${game?.system || 'D&D 5e'} game.
+
+Avoid generic "attack / defend / wild move" defaults. Use concrete details from the current scene. Do not duplicate spell/skill button basics unless the scene specifically calls for them.
+If the scene is social or travel-focused, include social, investigative, or advancement options rather than combat.
+
+Character standard actions and capabilities:
+${character?.standardActions || 'unknown'}
+
+Current narration:
+${sourceNarration || 'No narration available.'}
+
+Output ONLY this format:
+1️⃣ [specific option]
+2️⃣ [specific option]
+3️⃣ [specific option]`,
+    });
+
+    const options = extractNumberedOptions(response.text);
+    if (options.length < 2) {
+      if (ack) ack({ ok: false, error: 'Could not regenerate useful options' });
+      return;
+    }
+
+    gs.lastOptions = options;
+    if (targetPlayer) gs.lastOptionsForPlayer = targetPlayer;
+    if (gs.combatEngine.state.active && targetPlayer) {
+      const nextPlayer = gs.combatEngine.getCurrentTurn();
+      if (nextPlayer) {
+        const combatCtx = { combatants: gs.combatEngine.state.combatants, gameId };
+        const tier1 = parseOptions(options, nextPlayer.id, combatCtx);
+        gs.preTaggedOptions = tier1.some(r => r === null)
+          ? await parseOptionsWithAI(options, nextPlayer.id, combatCtx).catch(() => tier1)
+          : tier1;
+      }
+    }
+
+    const payload = { options, forPlayer: targetPlayer, llmRunId: response.llmRunId || null, sourceRunId: llmRunId };
+    socket.emit('options_redone', payload);
+    if (ack) ack({ ok: true, ...payload });
   }));
 
   // Join a game room
@@ -3844,7 +4109,19 @@ io.on('connection', (socket) => {
         messages: [...gs.data.chatHistory, { role: 'user', content: oocPrompt }],
       });
 
-      const reply = response.text;
+      let reply = response.text;
+      const reviewResult = await selfAssessAndMaybeLogBug({
+        gameId,
+        game: gameConfig,
+        gs,
+        playerName,
+        message,
+        source: 'ooc_self_assessment',
+        reporterUserId: socket.userId || null,
+      });
+      if (reviewResult.bug?.slug) {
+        reply = `${reply}\n\nProgramming review logged for Codex: ${reviewResult.bug.slug}`;
+      }
 
       // Save OOC exchanges in history so the GM remembers.
       gs.data.chatHistory.push(
@@ -4510,7 +4787,19 @@ const discordGameEngine = {
       messages: [...gs.data.chatHistory, { role: 'user', content: oocPrompt }],
     });
 
-    const reply = response.text;
+    let reply = response.text;
+    const reviewResult = await selfAssessAndMaybeLogBug({
+      gameId,
+      game: gameConfig,
+      gs,
+      playerName,
+      message,
+      source: 'discord_ooc_self_assessment',
+      reporterUserId: null,
+    });
+    if (reviewResult.bug?.slug) {
+      reply = `${reply}\n\nProgramming review logged for Codex: ${reviewResult.bug.slug}`;
+    }
 
     gs.data.chatHistory.push(
       { role: 'user', content: `[OOC: ${message}]` },

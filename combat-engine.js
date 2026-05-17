@@ -379,12 +379,18 @@ class CombatEngine {
       }
 
       case 'help':
+      case 'advance':
+      case 'dialogue':
       case 'check':
       case 'feature': {
         const actorId = action.actorId || action.attackerId;
         const actor = this.state.combatants[actorId];
         const label = action.type === 'help'
           ? 'helps an ally'
+          : action.type === 'advance'
+            ? 'moves the scene forward'
+          : action.type === 'dialogue'
+            ? 'speaks'
           : action.type === 'feature'
             ? 'uses a class feature'
             : 'checks the situation';
@@ -969,6 +975,8 @@ class CombatEngine {
       case 'dash':
         return result.description || `${result.actorName} takes the Dash action.`;
       case 'help':
+      case 'advance':
+      case 'dialogue':
       case 'check':
       case 'feature':
         return result.description || `${result.actorName} ${result.type}.`;

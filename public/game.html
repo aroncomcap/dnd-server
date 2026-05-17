@@ -321,7 +321,6 @@
     font-size: 0.68rem;
     color: var(--parchment-dark);
   }
-  .feedback-score,
   .feedback-tag {
     border: 1px solid rgba(201, 166, 107, 0.3);
     background: transparent;
@@ -332,15 +331,33 @@
     padding: 3px 6px;
     cursor: pointer;
   }
-  .feedback-score:hover,
   .feedback-tag:hover,
   .feedback-tag.selected {
     color: var(--gold);
     border-color: rgba(201, 166, 107, 0.75);
   }
+  .feedback-tag.primary {
+    border-color: rgba(201, 146, 42, 0.6);
+    color: var(--gold);
+  }
   .feedback-thanks {
     font-size: 0.68rem;
     color: var(--gold);
+  }
+  .ooc-mode-indicator {
+    display: none;
+    margin-bottom: 6px;
+    border: 1px solid rgba(201, 146, 42, 0.65);
+    background: rgba(201, 146, 42, 0.12);
+    color: var(--gold-light);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    line-height: 1.25;
+  }
+  #action-input.ooc-armed {
+    border-color: var(--gold);
+    background: rgba(201, 146, 42, 0.08);
   }
 
   .character-action-chips {
@@ -1346,6 +1363,7 @@
       <div id="character-action-chips" class="character-action-chips" aria-label="Character actions and spells"></div>
       <div id="options-area"></div>
       <div class="or-divider" id="or-divider" style="display:none;">— or describe your own action —</div>
+      <div id="ooc-mode-indicator" class="ooc-mode-indicator"></div>
       <textarea id="action-input" placeholder="Describe what your character does…" rows="2"></textarea>
       <div class="action-row">
         <button class="btn btn-ghost" id="btn-skip" style="flex:0.3;">⏭️ Skip</button>
@@ -2065,8 +2083,9 @@ function resetSendButton() {
     actionFallbackTimer = null;
   }
   const sendBtn = document.getElementById('btn-send');
+  const input = document.getElementById('action-input');
   if (sendBtn) {
-    sendBtn.textContent = 'Send Action';
+    sendBtn.textContent = input?.dataset.oocMode === 'true' ? 'Send OOC' : 'Send Action';
     sendBtn.disabled = false;
   }
 }
@@ -2758,6 +2777,15 @@ function appendCombatLog(logEntries) {
       div.textContent = `${entry.casterName} heals for ${entry.healing} HP`;
     } else if (entry.type === 'dodge' || entry.type === 'disengage' || entry.type === 'dash') {
       div.textContent = `${entry.combatantName || ''} uses ${entry.type}`;
+    } else if (entry.type === 'dialogue') {
+      div.textContent = `${entry.actorName || 'Someone'} speaks: ${entry.description || 'opens a dialogue'}`;
+    } else if (entry.type === 'advance') {
+      div.textContent = `${entry.actorName || 'Someone'} advances: ${entry.description || 'moves the scene forward'}`;
+    } else if (entry.type === 'check' || entry.type === 'help' || entry.type === 'feature') {
+      div.textContent = `${entry.actorName || 'Someone'}: ${entry.description || entry.type}`;
+    } else if (entry.type === 'error') {
+      div.className = 'log-miss';
+      div.textContent = entry.message || 'Combat action could not resolve';
     } else {
       div.textContent = `[${entry.type || 'action'}]`;
     }
@@ -3222,15 +3250,10 @@ socket.on('error_msg', (data) => {
 let lastMessageWasStreamed = false;
 
 const feedbackTags = [
-  ['great_moment', 'Great'],
-  ['funny', 'Funny'],
-  ['vivid', 'Vivid'],
-  ['useful_options', 'Useful'],
-  ['confusing', 'Confusing'],
-  ['boring', 'Boring'],
-  ['too_long', 'Long'],
   ['rules_wrong', 'Rules'],
   ['forgot_context', 'Context'],
+  ['redo_options', 'Redo Options'],
+  ['retcon', 'Retcon'],
   ['review', 'Review'],
 ];
 
@@ -3246,50 +3269,41 @@ function attachNarrationFeedback(wrap, llmRunId) {
   label.textContent = 'Tune GM';
   bar.appendChild(label);
 
-  const selectedTags = new Set();
-  let selectedRating = null;
-
-  function submitFeedback() {
-    if (!selectedRating) return;
+  function submitFeedback(tag) {
     socket.emit('narration_feedback', {
       llmRunId,
-      rating: selectedRating,
-      tags: Array.from(selectedTags),
+      rating: 1,
+      tags: [tag],
+      playerName: getMyName(),
     }, (res) => {
       if (res?.ok) {
         bar.classList.add('submitted');
-        bar.innerHTML = '<span class="feedback-thanks">Thanks</span>';
+        const label = tag === 'retcon' ? 'Retcon armed'
+          : tag === 'redo_options' ? 'Options requested'
+            : 'Review queued';
+        bar.innerHTML = `<span class="feedback-thanks">${label}</span>`;
       }
     });
   }
 
-  [1, 2, 3, 4, 5].forEach(score => {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'feedback-score';
-    btn.title = `${score}/5`;
-    btn.textContent = '★'.repeat(score);
-    btn.addEventListener('click', () => {
-      selectedRating = score;
-      submitFeedback();
-    });
-    bar.appendChild(btn);
-  });
-
   feedbackTags.forEach(([tag, text]) => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'feedback-tag';
+    btn.className = tag === 'review' || tag === 'retcon' || tag === 'redo_options'
+      ? 'feedback-tag primary'
+      : 'feedback-tag';
     btn.textContent = text;
     btn.addEventListener('click', () => {
-      if (selectedTags.has(tag)) {
-        selectedTags.delete(tag);
-        btn.classList.remove('selected');
-      } else {
-        selectedTags.add(tag);
-        btn.classList.add('selected');
+      btn.classList.add('selected');
+      submitFeedback(tag);
+      if (tag === 'retcon') {
+        setOocMode(true, 'Retcon armed. Your next send will go to the GM as an OOC correction.');
       }
-      if (selectedRating) submitFeedback();
+      if (tag === 'redo_options') {
+        socket.emit('redo_options', { llmRunId, playerName: getMyName() }, (res) => {
+          if (res?.ok && Array.isArray(res.options)) showOptions(res.options);
+        });
+      }
     });
     bar.appendChild(btn);
   });
@@ -3421,6 +3435,15 @@ socket.on('dm_message', (data) => {
   if (data.world) updateWorldPanel(data.world);
   if (data.world?.turnOrder) updateTurnOrder(data.world.turnOrder);
   updateActionArea();
+});
+
+socket.on('options_redone', (data) => {
+  if (!data?.options?.length) return;
+  pendingOptions = data.options;
+  pendingForPlayer = data.forPlayer || pendingForPlayer;
+  if (!pendingForPlayer || pendingForPlayer === currentPlayer || isMyTurnCheck()) {
+    showOptions(data.options);
+  }
 });
 
 socket.on('action_complete', () => {
@@ -3914,6 +3937,24 @@ document.getElementById('action-input').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAction(); }
 });
 
+function setOocMode(active, message = 'OOC mode armed. Your next send will go to the GM as meta text.') {
+  const input = document.getElementById('action-input');
+  const indicator = document.getElementById('ooc-mode-indicator');
+  const sendBtn = document.getElementById('btn-send');
+  if (!input) return;
+  input.dataset.oocMode = active ? 'true' : '';
+  input.classList.toggle('ooc-armed', !!active);
+  input.placeholder = active ? 'Type OOC correction, clarification, or retcon...' : 'Describe what your character does…';
+  input.style.borderColor = active ? '#c8922a' : '';
+  if (indicator) {
+    indicator.textContent = active ? message : '';
+    indicator.style.display = active ? 'block' : 'none';
+  }
+  if (sendBtn && !actionInFlight) {
+    sendBtn.textContent = active ? 'Send OOC' : 'Send Action';
+  }
+}
+
 function sendAction() {
   if (actionInFlight) return;
   if (!socket.connected || !gameJoinReady) {
@@ -3931,9 +3972,7 @@ function sendAction() {
     const msg = action.startsWith('/ooc ') ? action.slice(5) : action;
     sendOOC(msg);
     input.value = '';
-    input.dataset.oocMode = '';
-    input.placeholder = 'Describe what your character does…';
-    input.style.borderColor = '';
+    setOocMode(false);
     return;
   }
 
@@ -3979,15 +4018,12 @@ socket.on('catch_up_result', (data) => {
 document.getElementById('btn-ooc').addEventListener('click', () => {
   const input = document.getElementById('action-input');
   if (!input.value.trim()) {
-    input.placeholder = 'Type OOC message (rules, instructions, meta)...';
-    input.dataset.oocMode = 'true';
-    input.style.borderColor = '#c8922a';
+    setOocMode(true, 'OOC mode armed. Your next send will go to the GM as meta text.');
+    input.focus();
   } else {
     sendOOC(input.value.trim());
     input.value = '';
-    input.dataset.oocMode = '';
-    input.placeholder = 'Describe what your character does…';
-    input.style.borderColor = '';
+    setOocMode(false);
   }
 });
 

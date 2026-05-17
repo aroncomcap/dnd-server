@@ -396,10 +396,19 @@ async function initDB() {
       status TEXT DEFAULT 'open',
       ai_analysis TEXT,
       ai_fixes_applied JSONB DEFAULT '[]',
+      slug TEXT,
+      decision_trace JSONB DEFAULT '{}',
+      source TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
     CREATE INDEX IF NOT EXISTS idx_bug_reports_game ON bug_reports(game_id, created_at DESC);
+  `);
+  await pool.query(`
+    ALTER TABLE bug_reports ADD COLUMN IF NOT EXISTS slug TEXT;
+    ALTER TABLE bug_reports ADD COLUMN IF NOT EXISTS decision_trace JSONB DEFAULT '{}';
+    ALTER TABLE bug_reports ADD COLUMN IF NOT EXISTS source TEXT;
+    CREATE INDEX IF NOT EXISTS idx_bug_reports_slug ON bug_reports(slug);
   `);
 
   // ── LLM Model Lab ──────────────────────────────────────────────
@@ -1048,12 +1057,12 @@ async function attachDefaultMonsterSource(gameId, system) {
 }
 
 // ── Bug Reports ────────────────────────────────────────────────────
-async function saveBugReport(gameId, gameName, reporterUserId, description, imageUrl) {
+async function saveBugReport(gameId, gameName, reporterUserId, description, imageUrl, meta = {}) {
   const { rows } = await pool.query(
-    `INSERT INTO bug_reports (game_id, game_name, reporter_user_id, description, image_url, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+    `INSERT INTO bug_reports (game_id, game_name, reporter_user_id, description, image_url, slug, decision_trace, source, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
      RETURNING *`,
-    [gameId, gameName, reporterUserId, description, imageUrl]
+    [gameId, gameName, reporterUserId, description, imageUrl, meta.slug || null, JSON.stringify(meta.decisionTrace || {}), meta.source || null]
   );
   return rows[0];
 }
@@ -1157,6 +1166,14 @@ async function saveLlmRun(run) {
     ]
   );
   return rows[0];
+}
+
+async function getLlmRun(id) {
+  const { rows } = await pool.query(
+    `SELECT * FROM llm_runs WHERE id = $1`,
+    [id]
+  );
+  return rows[0] || null;
 }
 
 async function saveNarrationFeedback({ id, llmRunId, gameId, userId, rating, tags = [], note = '' }) {
@@ -1290,6 +1307,7 @@ module.exports = {
   getLlmExperimentAssignment,
   saveLlmExperimentAssignment,
   saveLlmRun,
+  getLlmRun,
   saveNarrationFeedback,
   cleanupOldLlmRunText,
   getLlmExperimentSummary,

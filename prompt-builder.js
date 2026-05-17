@@ -111,7 +111,7 @@ function buildEncounterPlanLine(gs, designer = defaultEncounterDesigner) {
   if (gs?._pendingChallenge) {
     const ch = gs._pendingChallenge;
     if (ch.pillar === 'combat') {
-      encounterPlanLine += `${encounterPlanLine ? '\n' : ''}URGENT: The next planned combat must enter the scene NOW. Include the planned ENEMIES block in ---WORLD--- so the server starts combat.`;
+      encounterPlanLine += `${encounterPlanLine ? '\n' : ''}URGENT: The next planned combat must enter the scene NOW only if the player is engaging that threat or violence is unavoidable. Include the planned ENEMIES block in ---WORLD--- only when initiative should truly start.`;
     } else if (ch.pillar === 'social') {
       encounterPlanLine += `${encounterPlanLine ? '\n' : ''}URGENT: Present a social challenge NOW (DC ${ch.dc}).`;
     } else if (ch.pillar === 'exploration') {
@@ -186,6 +186,8 @@ ${gs.ferocity <= 1 ? '- Encounters are EXTREMELY deadly. Enemies are powerful, n
 
 THREE PILLARS OF PLAY (target weighting):
 - Exploration: ${gs.pillars?.exploration ?? 33}% | Combat: ${gs.pillars?.combat ?? 33}% | Social: ${gs.pillars?.social ?? 34}%
+- Preserve the party's stated quest objective. Merchant, guard, watch, checkpoint, and passerby encounters are brief routing/social scenes unless the player clearly chooses violence or a hard failure forces initiative.
+- If the player signals travel, acknowledgement, progression, or moving on, advance the current story beat. If intent is ambiguous, default to non-hostile progress or dialogue, not combat.
 
 WRITING STYLE:
 - Write narration as flowing prose PARAGRAPHS. Multiple sentences per paragraph. Do NOT put each sentence on its own line.
@@ -198,9 +200,9 @@ WRITING STYLE:
 OUTPUT FORMAT (use this EXACT order at the end of every response):
 
 ---OPTIONS---
-1️⃣ [a combat or practical action]
-2️⃣ [a defensive or cautious action]
-3️⃣ [a wild, reckless, or creative move]
+1️⃣ [a concrete scene-specific action]
+2️⃣ [a distinct social/exploration/tactical alternative]
+3️⃣ [a bold but context-aware option]
 
 ---SCENE---
 ACTION: [what's physically happening right now - 5-10 words]
@@ -377,7 +379,7 @@ SKILL TEST PACING:
 - CRITICAL: Include a skill test, ability check, or game mechanic roll with MOST character actions — at minimum every other action.
 - If two consecutive turns pass without any dice roll or skill check, the pace is too slow. Introduce a challenge, obstacle, or situation that demands a roll.
 - Skill tests drive advancement. Without them, characters don't grow. Make tests feel natural and consequential.
-- If characters are wandering or stalling, gently push the action forward: an NPC interrupts, a sound is heard, a danger emerges, a clue appears.
+- If characters are wandering or stalling, gently push the action forward with a route, clue, NPC prompt, or explicit choice. Do not introduce random combat unless the quest, hostile action, or a hard failure truly warrants it.
 
 RULES:
 - Track HP, conditions, spells, powers, and resources accurately. Apply game rules correctly.
@@ -423,14 +425,14 @@ LEVEL-UP CHOICES:
 
 COMBAT — CRITICAL RULES:
 - The SERVER runs all combat mechanics. You do NOT roll dice, track HP, or resolve attacks.
-- When enemies appear, you MUST output an ENEMIES block in ---WORLD--- so the server can start combat.
+	- Output an ENEMIES block only when hostile creatures are actively attacking, forcing initiative, or the player clearly chooses violence.
 - Once combat starts, the server gives you RESOLVED THIS ROUND results. Narrate those results ONLY.
 - Do NOT invent initiative rolls, attack rolls, damage, or HP changes. The server handles all of that.
 - Do NOT ask players to "roll initiative" — the server does this automatically.
-- Enemies ATTACK PCs every round. Describe enemy attacks with impact — PCs bleed, stagger, fear for their lives.
+	- Once combat has truly started, enemies ATTACK PCs every round. Describe enemy attacks with impact — PCs bleed, stagger, fear for their lives.
 - KILLSHOT: [scene] when a significant enemy dies — triggers dramatic illustration.
 
-ENEMIES block (MANDATORY when hostile creatures appear):
+	ENEMIES block (ONLY when initiative should start):
 Put this in ---WORLD--- when combat starts. The server reads it to initialize the combat engine.
 ENEMIES:
 - [Display Name] | [count] | [monster-db-slug]
@@ -453,9 +455,9 @@ ACTION OPTIONS:
 - Use this EXACT format with NUMBER EMOJIS (1️⃣ 2️⃣ 3️⃣) as delimiters:
 
 ---OPTIONS---
-1️⃣ 🗡️ [a combat or practical action]
-2️⃣ 🛡️ [a defensive or cautious action]
-3️⃣ 🔥 [a wild, reckless, or creative move]
+1️⃣ [a concrete scene-specific action]
+2️⃣ [a distinct social/exploration/tactical alternative]
+3️⃣ [a bold but context-aware option]
 
 TRAVEL & MOVEMENT:
 - Narrate journeys realistically with distance, terrain, mode of travel.
@@ -464,9 +466,9 @@ TRAVEL & MOVEMENT:
 OUTPUT FORMAT (use this EXACT order at the end of every response):
 
 ---OPTIONS---
-1. 🗡️ [a combat or practical action]
-2. 🛡️ [a defensive or cautious action]
-3. 🔥 [a wild, reckless, or creative move]
+1. [a concrete scene-specific action]
+2. [a distinct social/exploration/tactical alternative]
+3. [a bold but context-aware option]
 4. 💬 [a witty comment, taunt, or clever social move]
 
 ---SCENE---
@@ -611,7 +613,7 @@ ${catchphrases}
       }).join(', ')}`
     : '';
 
-  const pacingLine = `Track spell slots, HP. ${gs.ferocity <= 2 ? 'Encounters escalate.' : 'Moderate difficulty.'} Ask player for level-up choices.`;
+  const pacingLine = `Track spell slots, HP. ${gs.ferocity <= 2 ? 'Encounters escalate.' : 'Moderate difficulty.'} Ask player for level-up choices. Preserve quest beats: travel/progress/social intent advances or opens dialogue; only start combat on explicit violence or unavoidable hostility.`;
 
   return `${basePrompt}
 

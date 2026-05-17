@@ -17,7 +17,7 @@ Requirements for the Production Stabilization milestone.
 
 - [x] **E2E-01**: Campaign browser test waits only for new completed DM messages, not stale/tip/idle states.
 - [x] **E2E-02**: Campaign browser test clicks only visible/enabled action controls.
-- [ ] **E2E-03**: Fresh post-deploy campaign run either reaches its target or records the exact remaining product failure. Current production run recorded a turn-stall; local fix is pending deploy/rerun.
+- [ ] **E2E-03**: Fresh post-deploy campaign run either reaches its target or records the exact remaining product failure. Current production run recorded a stale deployment; current intent/review stabilization batch is pending commit, deploy, and rerun.
 
 ### Narration Reliability
 
@@ -30,6 +30,13 @@ Requirements for the Production Stabilization milestone.
 - [x] **TEST-01**: Focused parser/UI regression tests pass locally.
 - [x] **TEST-02**: Source syntax checks pass for touched server/client pipeline modules.
 - [x] **TEST-03**: `npm test` is fully green, or the remaining Node test-runner deserialization failure is documented/quarantined with a narrow remediation plan.
+
+### Intent And Feedback Stabilization
+
+- [x] **INTENT-01**: Encounter parsing preserves non-hostile player intent. Speak, parley, negotiate, ask, offer peace, travel, acknowledgement, and scene-transition phrasing route to dialogue or progress unless the player explicitly chooses violence.
+- [x] **INTENT-02**: Merchant, watch, checkpoint, routing, and social scenes stay brief and non-combat unless a hostile action or unavoidable hard failure requires initiative.
+- [x] **FEEDBACK-01**: OOC/review self-assessment can log a bug with slug, source, and decision trace when the game identifies a programming improvement.
+- [x] **FEEDBACK-02**: Player-visible GM feedback controls are actionable only, with Retcon arming OOC mode and Redo Options regenerating scene-specific options while logging a decision trace.
 
 ### Repo Hygiene
 
@@ -85,6 +92,10 @@ Deferred beyond this stabilization pass.
 | E2E-01 | Phase 5 | Done |
 | E2E-02 | Phase 5 | Done |
 | E2E-03 | Phase 5 | Pending |
+| INTENT-01 | Phase 5 | Done |
+| INTENT-02 | Phase 5 | Done |
+| FEEDBACK-01 | Phase 5 | Done |
+| FEEDBACK-02 | Phase 5 | Done |
 | LLM-01 | Phase 6 | Design ready |
 | LLM-02 | Phase 6 | Design ready |
 | LLM-03 | Phase 6 | Design ready |
@@ -94,12 +105,12 @@ Deferred beyond this stabilization pass.
 | LLM-07 | Phase 6 | Design ready |
 
 **Coverage:**
-- v1.0 requirements: 15 total
-- Mapped to phases: 15
+- v1.0 requirements: 19 total
+- Mapped to phases: 19
 - v1.1 LLM requirements: 7 total
 - Mapped to phases: 7
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-10*
-*Last updated: 2026-05-11 after Phase 6 LLM design contract*
+*Last updated: 2026-05-17 after Phase 5 intent/review stabilization*

@@ -7,6 +7,7 @@ const gameHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'game.html
 const serverJs = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 const gameEngineJs = fs.readFileSync(path.join(__dirname, '..', 'game-engine.js'), 'utf8');
 const narrationPipelineJs = fs.readFileSync(path.join(__dirname, '..', 'narration-pipeline.js'), 'utf8');
+const promptBuilderJs = fs.readFileSync(path.join(__dirname, '..', 'prompt-builder.js'), 'utf8');
 const gameActionTs = fs.readFileSync(path.join(__dirname, 'e2e', 'game-action.ts'), 'utf8');
 const campaignVerboseTs = fs.readFileSync(path.join(__dirname, 'e2e', 'campaign-verbose.spec.ts'), 'utf8');
 
@@ -201,11 +202,39 @@ test('character action and spell chips are compact on action controls', () => {
   assert.match(gameHtml, /max-height: 60px;|max-height: 64px;/, 'larger screens should allow two rows');
 });
 
-test('Tune GM Review feedback creates a reviewable bug report', () => {
+test('Tune GM exposes only actionable feedback and creates traceable bug reports', () => {
   assert.match(gameHtml, /\['review', 'Review'\]/, 'Tune GM should expose a Review tag');
-  assert.match(serverJs, /'forgot_context', 'review'/, 'server should accept Review feedback tag');
-  assert.match(serverJs, /Narration marked for review from Tune GM feedback/, 'Review feedback should create a bug report context snapshot');
-  assert.match(serverJs, /db\.saveBugReport\(gameId, game\?\.name \|\| gameId/, 'Review feedback should push into the bug report flow');
+  assert.match(gameHtml, /\['redo_options', 'Redo Options'\]/, 'Tune GM should expose a Redo Options tag');
+  assert.match(gameHtml, /\['retcon', 'Retcon'\]/, 'Tune GM should expose a Retcon tag');
+  assert.doesNotMatch(gameHtml, /\['great_moment', 'Great'\]/, 'non-actionable praise feedback should be removed');
+  assert.doesNotMatch(gameHtml, /feedback-score/, 'star ratings should not be rendered');
+  assert.match(serverJs, /'rules_wrong', 'forgot_context', 'review', 'retcon', 'redo_options'/, 'server should accept actionable feedback tags');
+  assert.match(serverJs, /function selfAssessAndMaybeLogBug/, 'server should self-assess actionable feedback');
+  assert.match(serverJs, /decisionTrace/, 'review bugs should include a decision trace');
+  assert.match(serverJs, /db\.saveBugReport\([\s\S]*?\{ slug, decisionTrace, source \}/, 'feedback should push trace metadata into bug reports');
+});
+
+test('Retcon feedback arms the next action as OOC', () => {
+  assert.match(gameHtml, /id="ooc-mode-indicator"/, 'action controls should include a visible OOC indicator');
+  assert.match(gameHtml, /function setOocMode\(active/, 'client should centralize OOC mode visuals');
+  assert.match(gameHtml, /tag === 'retcon'[\s\S]*?setOocMode\(true/, 'Retcon should arm OOC mode');
+  assert.match(gameHtml, /input\.dataset\.oocMode === 'true'[\s\S]*?sendOOC/, 'armed OOC mode should send the next text as OOC');
+});
+
+test('Redo Options feedback regenerates options and logs a decision trace', () => {
+  assert.match(gameHtml, /socket\.emit\('redo_options'/, 'Redo Options should ask the server for replacements');
+  assert.match(gameHtml, /socket\.on\('options_redone'/, 'client should render regenerated options');
+  assert.match(serverJs, /socket\.on\('redo_options'/, 'server should handle option regeneration');
+  assert.match(serverJs, /source: 'redo_options'/, 'redo options should force a traceable bug source');
+  assert.match(serverJs, /Regenerate exactly 3 scene-specific player options/, 'replacement options should be scene-specific');
+});
+
+test('non-hostile and progress intent cannot auto-derail into combat', () => {
+  assert.match(serverJs, /function hasNonHostileProgressIntent/, 'server should detect dialogue/progress intent');
+  assert.match(serverJs, /function hasHardCombatSignal/, 'server should centralize hard combat signals');
+  assert.match(serverJs, /intent-guard[\s\S]*?Suppressed ENEMIES block/, 'formal enemy blocks should be suppressible after non-hostile input');
+  assert.doesNotMatch(serverJs, /emerge\|appear\|surround\|block\|engage/, 'soft scene text should not be hard combat signal terms');
+  assert.match(promptBuilderJs, /Merchant, guard, watch, checkpoint/, 'prompt should preserve merchant/checkpoint scenes as social routing beats');
 });
 
 test('encounter planner is host-only and supports queued adventuring days', () => {

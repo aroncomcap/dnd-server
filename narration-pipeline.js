@@ -4,6 +4,7 @@ const templateEngine = require('./template-engine');
 const { formatPlanForPrompt } = require('./encounter-designer');
 const llm = require('./llm');
 const { worldExtractionSchema, validationSchema } = require('./llm/schemas/world-extraction');
+const { isDialogueAction, isAdvanceAction } = require('./action-parser');
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -23,6 +24,10 @@ const FALLBACK_OPTIONS = [
 
 const STRUCTURED_MARKER_PATTERN = String.raw`(?:-{3,}\s*(OPTIONS|SCENE|WORLD)\s*-{3,}?|#{1,3}\s*(OPTIONS?|SCENE|WORLD)\s*(?=\n|$))`;
 const STREAM_MARKER_LOOKAHEAD = 60;
+
+function hasHardCombatSignal(text) {
+  return /(?:roll(?:s|ing)?\s+(?:for\s+)?initiative|initiative.*(?:order|roll)|combat\s+(?:begins|starts|erupts|breaks out)|(?:goblin|orc|skeleton|zombie|wolf|rat|bandit|dragon|spider|kobold|gnoll|bugbear|hobgoblin|cultist|thug|guard|knight|wraith|ghoul|ghast|wight|vampire|demon|devil|elemental|giant|minotaur|owlbear|manticore|hydra|chimera|basilisk|beholder|lich|golem|treant|werewolf)s?\s+(?:attack|attacks|lunge|lunges|charge|charges|rush|rushes|swing|swings|slash|slashes|stab|stabs|strike|strikes|pounce|pounces|ambush|ambushes)\b|(?:attacks?\s+(?:you|the party|with)|charges?\s+(?:at|toward|into)|ambush(?:ed|es)?!?|lunges?\s+(?:at|toward)|strikes?\s+(?:at|with)|draws?\s+(?:its |their )?(?:sword|weapon|blade|axe|bow)|weapons?\s+drawn|swords?\s+(?:raised|drawn|flashing)|prepare(?:s)?\s+to\s+(?:fight|attack|strike)|openly\s+hostile|turns?\s+hostile|ready\s+(?:their|your)\s+weapons?))/i.test(text || '');
+}
 
 function createStructuredMarkerRegex(flags) {
   return new RegExp(STRUCTURED_MARKER_PATTERN, flags);
@@ -288,7 +293,7 @@ Extract changes as JSON with this structure:
 Rules:
 - "isNew" = true ONLY if entity does NOT appear in CURRENT WORLD STATE
 - "img" ONLY for isNew entities
-- "enemies" ONLY if hostile creatures are actively threatening the party
+- "enemies" ONLY if hostile creatures are actively attacking, forcing initiative, or the player clearly chose violence. Do not extract enemies from merchant/watch/checkpoint/social/travel scenes by proximity alone.
 - "slug" must be a plausible monster database key (lowercase, hyphenated). Use "custom" if unsure.
 - Omit empty arrays entirely
 - Return ONLY the JSON object, no explanation`;
@@ -859,12 +864,16 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
 
   // Check for enemies detected → initiate combat
   const enemies = extractionResult.enemies || [];
-  if (enemies.length > 0 && initiateCombat) {
+  const nonHostileIntent = isDialogueAction(actionText) || isAdvanceAction(actionText);
+  if (enemies.length > 0 && initiateCombat && (!nonHostileIntent || hasHardCombatSignal(narration))) {
     try {
       await initiateCombat(gameId, gameConfig, enemies);
     } catch (err) {
       console.error(`[narration-pipeline] initiateCombat failed:`, err.message);
     }
+  } else if (enemies.length > 0 && nonHostileIntent) {
+    extractionResult.enemies = [];
+    console.log(`[narration-pipeline] suppressed enemies after non-hostile/progress input`);
   }
 
   // Process violations

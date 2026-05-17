@@ -165,6 +165,38 @@ function isFeatureAction(text) {
   return /\b(?:channel divinity|second wind|action surge|rage|reckless attack|wild shape|lay on hands|flurry of blows|stunning strike|bardic inspiration|turn undead|invoke duplicity)\b/i.test(text || '');
 }
 
+function isDialogueAction(text) {
+  return /\b(?:speak|speaks|speaking|talk|talks|talking|tell|tells|telling|explain|explains|explaining|request|requests|requesting|parl(?:e|a)y|negotiate|negotiates|negotiating|ask|asks|asking|question|questions|questioning|offer\s+peace|make\s+peace|peacefully|persuade|persuades|persuading|persuasion|diplomacy|diplomatic|reason\s+with|calm\s+(?:down|them|him|her|it)|de-?escalate|surrender|lower\s+(?:my|our|the)\s+weapon|hold\s+up\s+(?:my|our|their)?\s*hands|we\s+seek|seek\s+(?:safe\s+)?passage|can\s+help)\b/i.test(text || '');
+}
+
+function makeDialogueAction(raw, playerId) {
+  return {
+    type: 'dialogue',
+    actorId: playerId,
+    attackerId: playerId,
+    targetId: null,
+    description: raw,
+  };
+}
+
+function isAdvanceAction(text) {
+  const value = String(text || '').trim();
+  if (/^(?:yes|yep|yeah|ok|okay|sure|continue|proceed|advance|next|go on|carry on|press on)$/i.test(value)) {
+    return true;
+  }
+  return /\b(?:travel|travels|traveling|go\s+to|go\s+into|go\s+inside|head\s+(?:to|toward|towards|for|into)|move\s+on|moves\s+on|moving\s+on|move\s+(?:toward|towards|to|into)|continue\s+(?:to|toward|towards|into|on)|proceed\s+(?:to|toward|towards|into|on)|press\s+(?:on|forward|deeper|ahead)|advance\s+(?:to|toward|towards|into|on)|carry\s+on|keep\s+going|leave\s+(?:for|toward|towards|the)?|depart|enter\s+(?:the|into)?|exit|return\s+to|follow\s+(?:the\s+)?(?:road|path|trail|route|passage)|take\s+(?:the\s+)?(?:road|path|trail|route|passage)|set\s+out|onward|walk\s+(?:to|toward|towards|into)|journey\s+(?:to|toward|towards))\b/i.test(value);
+}
+
+function makeAdvanceAction(raw, playerId) {
+  return {
+    type: 'advance',
+    actorId: playerId,
+    attackerId: playerId,
+    targetId: null,
+    description: raw,
+  };
+}
+
 function isCheckAction(text) {
   return /\b(?:check|checks|checking|inspect|inspects|inspecting|investigate|investigates|investigating|search|searches|searching|examine|examines|examining|study|studies|studying|observe|observes|observing|look|looks|looking|listen|listens|listening|scan|scans|scanning|open|opens|opening|touch|touches|touching|test|tests|testing|secure|secures|securing|disarm|disarms|disarming|track|tracks|tracking|follow|follows|following)\b/i.test(text || '');
 }
@@ -184,8 +216,8 @@ function makeCheckAction(raw, playerId) {
 // ---------------------------------------------------------------------------
 
 function stripEmoji(str) {
-  // Remove leading emoji characters and whitespace
-  return str.replace(/^[\p{Emoji}\s]+/u, '').trim();
+  // Remove leading pictographic emoji without eating ordinary numbered choices.
+  return str.replace(/^[\p{Extended_Pictographic}\uFE0F\u20E3\u200D\s]+/u, '').trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -201,7 +233,8 @@ function stripEmoji(str) {
  */
 function parseAction(input, playerId, ctx) {
   if (!input || typeof input !== 'string') return null;
-  const raw = input.trim();
+  const raw = stripEmoji(input.trim());
+  if (!raw) return null;
   const lower = raw.toLowerCase();
   const combatants = ctx.combatants || {};
   const preTaggedOptions = ctx.preTaggedOptions || null;
@@ -298,12 +331,22 @@ function parseAction(input, playerId, ctx) {
     return { type: 'spell', attackerId: playerId, spell, targetId };
   }
 
-  // --- 8. Exploration / interaction in combat ---
+  // --- 8. Story advancement / transition intent ---
+  if (isAdvanceAction(raw)) {
+    return makeAdvanceAction(raw, playerId);
+  }
+
+  // --- 9. Dialogue / social intent ---
+  if (isDialogueAction(raw)) {
+    return makeDialogueAction(raw, playerId);
+  }
+
+  // --- 10. Exploration / interaction in combat ---
   if (isCheckAction(raw)) {
     return makeCheckAction(raw, playerId);
   }
 
-  // --- 9. Unparseable ---
+  // --- 11. Unparseable ---
   return null;
 }
 
@@ -341,6 +384,12 @@ function parseOptions(options, playerId, ctx) {
     }
     if (isFeatureAction(clean)) {
       return { type: 'feature', actorId: playerId, attackerId: playerId, targetId: firstEnemyId(combatants), description: clean };
+    }
+    if (isAdvanceAction(clean)) {
+      return makeAdvanceAction(clean, playerId);
+    }
+    if (isDialogueAction(clean)) {
+      return makeDialogueAction(clean, playerId);
     }
     if (isCheckAction(clean)) {
       return makeCheckAction(clean, playerId);
@@ -388,7 +437,13 @@ async function parseActionWithAI(input, playerId, ctx, _legacyClient) {
   const tier1 = parseAction(input, playerId, ctx);
   if (tier1) return tier1;
 
-  const prompt = `You are a D&D combat assistant. Parse the player's action into JSON.
+  const prompt = `You are a tabletop RPG intent assistant. Parse the player's action into JSON.
+
+Intent rules:
+- Travel, progression, acknowledgement, or scene-transition wording is "advance".
+- Speech, parley, negotiation, questions, or offers of peace are "dialogue".
+- If uncertain, choose "dialogue" or "advance", not attack.
+- Only choose "attack" or a damaging "spell" when the player clearly chooses violence.
 
 Player "${playerId}" wants to: "${input}"
 
@@ -398,7 +453,7 @@ Enemies: ${enemies.map(e => `${e.name} (id: ${e.id})`).join(', ') || 'none'}
 Allies: ${allies.map(a => `${a.name} (id: ${a.id})`).join(', ') || 'none'}
 
 Respond with ONLY valid JSON (no markdown, no explanation):
-{"type":"attack"|"spell"|"dodge"|"disengage"|"dash"|"help"|"check"|"feature","targetId":"id or null","weapon":"name or null","spell":"name or null","notes":"brief description"}`;
+{"type":"attack"|"spell"|"dodge"|"disengage"|"dash"|"help"|"check"|"dialogue"|"advance"|"feature","targetId":"id or null","weapon":"name or null","spell":"name or null","notes":"brief description"}`;
 
   try {
     const response = await llm.completeText({
@@ -429,7 +484,9 @@ Respond with ONLY valid JSON (no markdown, no explanation):
     // Fall through to default
   }
 
-  return makeCheckAction(input, playerId);
+  return isAdvanceAction(input)
+    ? makeAdvanceAction(input, playerId)
+    : makeDialogueAction(input, playerId);
 }
 
 // ---------------------------------------------------------------------------
@@ -460,7 +517,13 @@ async function parseOptionsWithAI(options, playerId, ctx, _legacyClient) {
     .map((o, i) => `${i + 1}. "${stripEmoji(o || '')}"`)
     .join('\n');
 
-  const prompt = `You are a D&D combat assistant. Parse each option into JSON.
+  const prompt = `You are a tabletop RPG intent assistant. Parse each option into JSON.
+
+Intent rules:
+- Travel, progression, acknowledgement, or scene-transition wording is "advance".
+- Speech, parley, negotiation, questions, or offers of peace are "dialogue".
+- If uncertain, choose "dialogue" or "advance", not attack.
+- Only choose "attack" or a damaging "spell" when the option clearly chooses violence.
 
 Player "${playerId}" has these 3 options:
 ${optionsList}
@@ -472,7 +535,7 @@ Allies: ${allies.map(a => `${a.name} (id: ${a.id})`).join(', ') || 'none'}
 
 Respond with ONLY a JSON array of 3 objects (no markdown, no explanation):
 [
-  {"type":"attack"|"spell"|"dodge"|"disengage"|"dash"|"help"|"check"|"feature","targetId":"id or null","weapon":"name or null","spell":"name or null"},
+  {"type":"attack"|"spell"|"dodge"|"disengage"|"dash"|"help"|"check"|"dialogue"|"advance"|"feature","targetId":"id or null","weapon":"name or null","spell":"name or null"},
   {"type":...},
   {"type":...}
 ]`;
@@ -510,7 +573,7 @@ Respond with ONLY a JSON array of 3 objects (no markdown, no explanation):
   return options.map(opt => {
     const clean = stripEmoji(opt || '');
     return parseAction(clean, playerId, { ...ctx, preTaggedOptions: null }) ||
-      makeCheckAction(clean || 'assess the situation', playerId);
+      makeDialogueAction(clean || 'speak cautiously', playerId);
   });
 }
 
@@ -518,4 +581,13 @@ Respond with ONLY a JSON array of 3 objects (no markdown, no explanation):
 // Exports
 // ---------------------------------------------------------------------------
 
-module.exports = { parseAction, parseOptions, parseActionWithAI, parseOptionsWithAI };
+module.exports = {
+  parseAction,
+  parseOptions,
+  parseActionWithAI,
+  parseOptionsWithAI,
+  isDialogueAction,
+  makeDialogueAction,
+  isAdvanceAction,
+  makeAdvanceAction,
+};

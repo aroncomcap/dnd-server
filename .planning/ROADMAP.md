@@ -2,7 +2,7 @@
 
 ## Overview
 
-This milestone turns the existing live app into a verified production baseline. The work starts by stabilizing the planning/repo surface, then locks down narration parsing and targeted tests, resolves the remaining Node test-health issue, and finishes with live smoke plus browser campaign validation against `theystillsing.com`.
+This milestone turns the existing live app into a verified production baseline. The work starts by stabilizing the planning/repo surface, then locks down narration parsing and targeted tests, resolves the remaining Node test-health issue, preserves player intent through encounter interpretation, and finishes with live smoke plus browser campaign validation against `theystillsing.com`.
 
 After the stabilization gate, the next product milestone is a provider-agnostic LLM layer with player-visible narration A/B testing so model quality can be compared against real cost and latency.
 
@@ -83,16 +83,19 @@ Plans:
 ### Phase 5: Browser Campaign Verification
 **Goal**: Validate the browser campaign path with the patched Playwright harness and capture any remaining product failures precisely.
 **Depends on**: Phase 4
-**Requirements**: [E2E-01, E2E-02, E2E-03]
+**Requirements**: [E2E-01, E2E-02, E2E-03, INTENT-01, INTENT-02, FEEDBACK-01, FEEDBACK-02]
 **Success Criteria** (what must be TRUE):
   1. Campaign test uses new completed DM messages as the action-response condition.
   2. Campaign test only clicks enabled visible controls.
   3. A fresh Chromium campaign run either reaches target completion or produces an actionable failure artifact.
   4. Any generated reports remain uncommitted unless explicitly requested.
-**Plans**: 1 plan
+  5. Non-hostile player intent, partial commands, and scene-transition input do not auto-route to combat.
+  6. Review/retcon/redo feedback produces actionable traceable signals for follow-up fixes.
+**Plans**: 2 plans
 
 Plans:
-- [ ] 05-01: Run post-fix campaign E2E and triage result.
+- [x] 05-01: Preserve player intent and actionable GM feedback.
+- [ ] 05-02: Deploy current stabilization batch, rerun production campaign E2E, and triage result.
 
 ### Phase 6: Model Abstraction And Narration A/B Testing
 **Goal**: Replace Anthropic as the runtime LLM dependency with an OpenAI-first model abstraction layer and run sticky, player-visible narration experiments that identify the best quality-per-dollar model.
@@ -120,5 +123,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Narration Regression Baseline | 1/1 | Complete | 2026-05-10 |
 | 3. Node Test Health | 1/1 | Complete | 2026-05-10 |
 | 4. Live Production Smoke | 1/1 | Complete | 2026-05-10 |
-| 5. Browser Campaign Verification | 0/1 | Production run found turn-stall; local fix applied, deploy/rerun pending | - |
+| 5. Browser Campaign Verification | 1/2 | Intent/review stabilization locally verified; deploy/rerun pending | - |
 | 6. Model Abstraction And Narration A/B Testing | 0/0 | Design ready for planning after Phase 5 | - |

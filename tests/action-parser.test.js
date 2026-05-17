@@ -295,6 +295,87 @@ describe('parseAction — non-attack combat actions', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Dialogue / social intent
+// ---------------------------------------------------------------------------
+
+describe('parseAction — dialogue intent', () => {
+  it('parley and persuasion phrasing routes to dialogue, not combat', () => {
+    const result = parseAction('parlay and make peace with a persuasion check', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'dialogue');
+    assert.equal(result.actorId, 'kael');
+    assert.equal(result.attackerId, 'kael');
+    assert.equal(result.targetId, null);
+  });
+
+  it('asking an NPC a question routes to dialogue', () => {
+    const result = parseAction('I ask the Goblin why they are blocking the road', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'dialogue');
+  });
+
+  it('offering peace with an enemy nearby routes to dialogue', () => {
+    const result = parseAction('hold up hands and offer peace: "we came to fight goblins, not you"', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'dialogue');
+  });
+
+  it('negotiate with phrasing does not become an attack target named "with"', () => {
+    const result = parseAction('negotiate with the Goblin', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'dialogue');
+    assert.equal(result.targetId, null);
+  });
+
+  it('explicit attack still wins over nearby social words', () => {
+    const result = parseAction('attack the Goblin with Longsword', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'attack');
+    assert.equal(result.targetId, 'gob-1');
+  });
+
+  it('emoji-prefixed attack options are parsed by intent', () => {
+    const result = parseAction('🗡️ Attack Goblin with Longsword', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'attack');
+    assert.equal(result.targetId, 'gob-1');
+    assert.equal(result.weapon, 'Longsword');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Travel / story advancement intent
+// ---------------------------------------------------------------------------
+
+describe('parseAction — story advancement intent', () => {
+  it('travel phrasing routes to advance, not combat', () => {
+    const result = parseAction('Travel to the Caves of Chaos', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'advance');
+    assert.equal(result.actorId, 'kael');
+    assert.equal(result.targetId, null);
+  });
+
+  it('moving on routes to advance', () => {
+    const result = parseAction('we move on toward the main caves', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'advance');
+  });
+
+  it('acknowledgement routes to advance instead of becoming ambiguous combat', () => {
+    const result = parseAction('yes', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'advance');
+  });
+
+  it('partial continuation command routes to advance', () => {
+    const result = parseAction('continue', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'advance');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // parseOptions
 // ---------------------------------------------------------------------------
 
@@ -359,6 +440,38 @@ describe('parseOptions — typical AI option strings', () => {
       assert.ok(result);
       assert.equal(result.type, 'check');
       assert.equal(result.actorId, 'kael');
+    }
+  });
+
+  it('parses social options as dialogue, not combat fallbacks', () => {
+    const options = [
+      'Speak calmly to the Goblin',
+      'Negotiate safe passage',
+      'Offer peace and lower your weapon',
+    ];
+    const results = parseOptions(options, 'kael', BASE_CTX);
+    assert.equal(results.length, 3);
+    for (const result of results) {
+      assert.ok(result);
+      assert.equal(result.type, 'dialogue');
+      assert.equal(result.actorId, 'kael');
+      assert.equal(result.targetId, null);
+    }
+  });
+
+  it('parses progress options as advance, not combat fallbacks', () => {
+    const options = [
+      'Continue toward the caves',
+      'Travel along the road',
+      'Move on from the merchant watch',
+    ];
+    const results = parseOptions(options, 'kael', BASE_CTX);
+    assert.equal(results.length, 3);
+    for (const result of results) {
+      assert.ok(result);
+      assert.equal(result.type, 'advance');
+      assert.equal(result.actorId, 'kael');
+      assert.equal(result.targetId, null);
     }
   });
 });
