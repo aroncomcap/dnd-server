@@ -14,6 +14,7 @@ const TARGET_LEVEL = Number(process.env.CAMPAIGN_TARGET_LEVEL || 3);
 const TURNS_PER_LEVEL = Number(process.env.CAMPAIGN_TURNS_PER_LEVEL || 30);
 const MAX_SESSIONS = Number(process.env.CAMPAIGN_MAX_SESSIONS || 4);
 const MAX_MISSING_RESPONSES = Number(process.env.CAMPAIGN_MAX_MISSING_RESPONSES || 2);
+const TURN_READY_TIMEOUT_MS = Number(process.env.CAMPAIGN_TURN_READY_TIMEOUT_MS || process.env.CAMPAIGN_RESPONSE_TIMEOUT_MS || 90000);
 const REUSE_CAMPAIGN = process.env.CAMPAIGN_REUSE_CAMPAIGN !== 'false';
 const REUSE_ROTATE_HOURS = Number(process.env.CAMPAIGN_REUSE_ROTATE_HOURS || 24);
 const REUSE_NAME_PREFIX = process.env.CAMPAIGN_REUSE_NAME_PREFIX || 'Verbose-Reusable-DND5E';
@@ -70,7 +71,7 @@ async function waitForKnownTurnOwner(page) {
       const turnName = document.querySelector('#turn-name')?.textContent?.trim() || '';
       return Boolean(turnName && turnName !== '?' && turnName !== '—');
     },
-    { timeout: 20000 }
+    { timeout: TURN_READY_TIMEOUT_MS }
   ).then(() => true).catch(() => false);
 }
 
@@ -218,8 +219,8 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
 
       await page.waitForTimeout(200);
       if (!await hasKnownTurnOwner(page)) {
-        noActionCount++;
-        await page.waitForTimeout(1000);
+        const turnReady = await waitForKnownTurnOwner(page);
+        if (!turnReady) noActionCount++;
         continue;
       }
 
