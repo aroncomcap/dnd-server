@@ -1177,7 +1177,7 @@ function chooseEnemyTargetId(pcs = []) {
     .filter(p => Number(p.hp ?? 0) > 0)
     .map(p => {
       const hp = Number(p.hp ?? 1);
-      const maxHp = Number(p.maxHp ?? hp || 1);
+      const maxHp = Number((p.maxHp ?? hp) || 1);
       const hpRatio = maxHp > 0 ? hp / maxHp : 1;
       return {
         ...p,
