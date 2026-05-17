@@ -368,6 +368,13 @@ describe('parseAction — dialogue intent', () => {
     assert.equal(result.targetId, null);
   });
 
+  it('social pressure and intimidation phrasing routes to dialogue', () => {
+    const result = parseAction('pressure the acolytes to explain who sent them', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'dialogue');
+    assert.equal(result.targetId, null);
+  });
+
   it('explicit attack still wins over nearby social words', () => {
     const result = parseAction('attack the Goblin with Longsword', 'kael', BASE_CTX);
     assert.ok(result);

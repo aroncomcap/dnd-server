@@ -75,6 +75,27 @@ async function waitForKnownTurnOwner(page) {
   ).then(() => true).catch(() => false);
 }
 
+async function isLoadingOverlayActive(page) {
+  return page.evaluate(() => {
+    const overlay = document.getElementById('loading-overlay') as HTMLElement | null;
+    if (!overlay) return false;
+    const style = window.getComputedStyle(overlay);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+  }).catch(() => false);
+}
+
+async function waitForLoadingOverlayToClear(page, timeout = 5000) {
+  return page.waitForFunction(
+    () => {
+      const overlay = document.getElementById('loading-overlay') as HTMLElement | null;
+      if (!overlay) return true;
+      const style = window.getComputedStyle(overlay);
+      return style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0';
+    },
+    { timeout }
+  ).then(() => true).catch(() => false);
+}
+
 async function clickStartIfAvailable(page) {
   const startBtn = page.locator('#btn-start, button:has-text("START"), button:has-text("Begin")').first();
   const isVisible = await startBtn.isVisible({ timeout: 1000 }).catch(() => false);
@@ -86,9 +107,11 @@ async function clickStartIfAvailable(page) {
 }
 
 async function openHostScreen(page) {
+  await waitForLoadingOverlayToClear(page);
+  if (await isLoadingOverlayActive(page)) return false;
   const hostButton = page.locator('nav button[data-screen="host"], button:has-text("HOST")').first();
   if (await hostButton.isVisible({ timeout: 1000 }).catch(() => false)) {
-    await hostButton.click();
+    await hostButton.click({ timeout: 5000 });
     await page.waitForTimeout(250);
     return true;
   }
@@ -99,6 +122,7 @@ async function ensureGameStarted(page) {
   const clickedInitialStart = await clickStartIfAvailable(page);
   if (clickedInitialStart && await waitForKnownTurnOwner(page)) return true;
   if (await hasKnownTurnOwner(page)) return true;
+  if (await isLoadingOverlayActive(page) && await waitForKnownTurnOwner(page)) return true;
   if ((await getCompletedDmMessageCount(page)) > 0) {
     return waitForKnownTurnOwner(page);
   }

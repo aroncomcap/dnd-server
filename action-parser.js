@@ -166,7 +166,7 @@ function isFeatureAction(text) {
 }
 
 function isDialogueAction(text) {
-  return /\b(?:speak|speaks|speaking|talk|talks|talking|tell|tells|telling|explain|explains|explaining|request|requests|requesting|parl(?:e|a)y|negotiate|negotiates|negotiating|ask|asks|asking|question|questions|questioning|offer\s+peace|make\s+peace|peacefully|persuade|persuades|persuading|persuasion|diplomacy|diplomatic|reason\s+with|calm\s+(?:down|them|him|her|it)|de-?escalate|surrender|lower\s+(?:my|our|the)\s+weapon|hold\s+up\s+(?:my|our|their)?\s*hands|we\s+seek|seek\s+(?:safe\s+)?passage|can\s+help)\b/i.test(text || '');
+  return /\b(?:speak|speaks|speaking|talk|talks|talking|tell|tells|telling|explain|explains|explaining|request|requests|requesting|parl(?:e|a)y|negotiate|negotiates|negotiating|ask|asks|asking|question|questions|questioning|offer\s+peace|make\s+peace|peacefully|persuade|persuades|persuading|persuasion|convince|convinces|convincing|diplomacy|diplomatic|reason\s+with|calm\s+(?:down|them|him|her|it)|de-?escalate|surrender|lower\s+(?:my|our|the)\s+weapon|hold\s+up\s+(?:my|our|their)?\s*hands|we\s+seek|seek\s+(?:safe\s+)?passage|can\s+help|pressure|pressures|pressuring|intimidate|intimidates|intimidating|intimidation|demand|demands|demanding|argue|argues|arguing|appeal|appeals|appealing|plead|pleads|pleading|bargain|bargains|bargaining|barter|barters|bartering|haggle|haggles|haggling)\b/i.test(text || '');
 }
 
 function makeDialogueAction(raw, playerId) {

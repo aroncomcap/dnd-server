@@ -531,6 +531,70 @@ describe('buildValidationPrompt', () => {
 // ---------------------------------------------------------------------------
 
 describe('handlePlayerAction fallback behavior', () => {
+  it('suppresses extracted enemies after social pressure intent', async () => {
+    let jsonCalls = 0;
+    let combatStarted = false;
+    llm.setProviderForTesting({
+      streamText: async ({ onToken }) => {
+        const text = 'The acolytes flinch under the pressure and admit the shipment is temple business, not an ambush.';
+        onToken(text);
+        return { text, usage: { inputTokens: 20, outputTokens: 20 } };
+      },
+      completeJson: async () => {
+        jsonCalls++;
+        if (jsonCalls === 1) {
+          return {
+            object: {
+              enemies: [{ displayName: 'Acolyte', count: 5, slug: 'custom', hint: 'temple acolytes' }],
+              scene: { action: 'Acolytes questioned in a tense room', mood: 'tense', npc: 'Acolytes' },
+            },
+            text: '{}',
+            usage: { inputTokens: 20, outputTokens: 10 },
+          };
+        }
+        return { object: { violations: [] }, text: '{}', usage: { inputTokens: 10, outputTokens: 3 } };
+      },
+    });
+
+    const emitted = [];
+    const io = {
+      to: room => ({
+        emit: (event, payload) => emitted.push({ room, event, payload }),
+      }),
+    };
+    const gs = {
+      ...makeGameState(),
+      data: {
+        characters: {
+          Seraphine: {
+            class: 'Rogue',
+            level: 1,
+            personality: 'Sharp and suspicious.',
+            standardActions: 'Question suspects, Search the room, Dodge',
+            backstory: 'A former investigator.',
+            statsText: 'Level 1 rogue',
+          },
+        },
+        chatHistory: [],
+        turnOrder: ['Seraphine'],
+        currentTurnIndex: 0,
+      },
+    };
+
+    const result = await handlePlayerAction(
+      'game-social-pressure',
+      makeGameConfig(),
+      gs,
+      'Seraphine',
+      'pressure the acolytes to explain who sent them',
+      io,
+      { initiateCombat: async () => { combatStarted = true; } }
+    );
+
+    assert.equal(combatStarted, false, 'social pressure should not start combat from extracted NPCs');
+    assert.deepEqual(result.world.enemies, [], 'suppressed enemies should not leak into world output');
+  });
+
   it('stops streaming visible narration before structured metadata', async () => {
     llm.setProviderForTesting({
       streamText: async ({ onToken }) => {
