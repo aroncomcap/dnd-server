@@ -1035,6 +1035,27 @@ describe('CombatEngine', () => {
       assert.match(text, /Sunborn HP: 30→20/i);
     });
 
+    it('cleans duplicated damage type text from spell damage formulas', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const result = {
+        type: 'spell-damage',
+        casterName: 'Seraphine',
+        spell: 'Magic Missile',
+        damageRoll: 8,
+        damageDiceTotal: 5,
+        damageModifier: 3,
+        damageFormula: '3d4+3force',
+        damageType: 'force',
+        targets: [{ id: 'armor', name: 'Animated Armor', damage: 8 }],
+      };
+
+      const text = engine.formatResultForPrompt(result);
+
+      assert.match(text, /Damage: 3d4\+3 \(5 \+ 3 = 8\) force/i);
+      assert.doesNotMatch(text, /3d4\+3force/i);
+    });
+
     it('formats a heal result', () => {
       const engine = new CombatEngine();
       engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');

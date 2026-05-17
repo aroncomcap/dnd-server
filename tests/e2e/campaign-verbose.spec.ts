@@ -304,7 +304,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
           console.log(`\n${lastBody}\n`);
 
           // Extract and highlight rolls and combat
-          const rollMatches = lastBody.match(/(\d+d\d+[+\-\d]*|\broll[s]?\s+\d+|\bHIT|MISS|damage|attack)/gi);
+          const rollMatches = lastBody.match(/(\d+d\d+(?:[+-]\d+)?|\brolls?\s+\d+\b|\b(?:HIT|MISS|damage|attack)\b)/gi);
           if (rollMatches && rollMatches.length > 0) {
             console.log(`🎲 DICE & COMBAT:`);
             rollMatches.forEach(m => console.log(`   • ${m}`));

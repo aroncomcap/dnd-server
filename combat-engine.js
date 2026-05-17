@@ -25,6 +25,23 @@ const DEFAULT_CONCENTRATION_DURATION_TURNS = {
   'web': 10,
 };
 
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function cleanDamageFormulaForPrompt(formula, damageType = '') {
+  const original = String(formula || 'damage').trim();
+  if (!original) return 'damage';
+
+  let cleaned = original;
+  const type = String(damageType || '').trim();
+  if (type) {
+    cleaned = cleaned.replace(new RegExp(`\\s*${escapeRegExp(type)}\\s*$`, 'i'), '').trim();
+  }
+
+  return cleaned.replace(/\s+/g, '') || 'damage';
+}
+
 // ---------------------------------------------------------------------------
 // CombatEngine
 // ---------------------------------------------------------------------------
@@ -932,7 +949,7 @@ class CombatEngine {
           : Number(result.damageRoll || 0);
         const damageMod = Number.isFinite(Number(result.damageModifier)) ? Number(result.damageModifier) : 0;
         const damageModStr = damageMod >= 0 ? `+ ${damageMod}` : `- ${Math.abs(damageMod)}`;
-        const damageFormula = result.damageFormula || 'damage';
+        const damageFormula = cleanDamageFormulaForPrompt(result.damageFormula, result.damageType);
         const lines = [`${result.casterName} casts ${result.spell} (DC ${result.saveDC} save). Damage: ${damageFormula} (${damageDice} ${damageModStr} = ${result.damageRoll}) ${result.damageType || ''}.`];
         for (const t of result.targets || []) {
           const outcome = t.saved ? 'SAVED' : 'FAILED';
@@ -948,7 +965,7 @@ class CombatEngine {
           : Number(result.damageRoll || 0);
         const damageMod = Number.isFinite(Number(result.damageModifier)) ? Number(result.damageModifier) : 0;
         const damageModStr = damageMod >= 0 ? `+ ${damageMod}` : `- ${Math.abs(damageMod)}`;
-        const damageFormula = result.damageFormula || 'damage';
+        const damageFormula = cleanDamageFormulaForPrompt(result.damageFormula, result.damageType);
         const lines = [`${result.casterName} casts ${result.spell}. Damage: ${damageFormula} (${damageDice} ${damageModStr} = ${result.damageRoll}) ${result.damageType || ''}.`];
         for (const t of result.targets || []) {
           const hpStr = (t.hpBefore !== undefined && t.hpAfter !== undefined)
@@ -1028,7 +1045,7 @@ class CombatEngine {
     const hpStr   = (result.hpBefore !== undefined && result.hpAfter !== undefined)
       ? ` ${result.targetName} HP: ${result.hpBefore}→${result.hpAfter}.`
       : '';
-    const damageFormula = result.damageFormula || 'damage';
+    const damageFormula = cleanDamageFormulaForPrompt(result.damageFormula, result.damageType);
     const damageDice = Number.isFinite(Number(result.damageDiceTotal))
       ? Number(result.damageDiceTotal)
       : Number(result.damageRoll ?? result.totalDamage ?? 0);
