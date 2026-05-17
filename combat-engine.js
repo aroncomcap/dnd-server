@@ -3,6 +3,7 @@
 const dnd5e = require('./resolvers/dnd5e-resolver');
 const runequest = require('./resolvers/runequest-resolver');
 const { getAttacksPerAction } = require('./combat-stats');
+const targetAuthority = require('./target-authority');
 
 const DEFAULT_CONCENTRATION_DURATION_TURNS = {
   'bane': 10,
@@ -232,9 +233,11 @@ class CombatEngine {
     switch (action.type) {
       case 'attack': {
         const attacker = this.state.combatants[action.attackerId];
-        const target   = this.state.combatants[action.targetId];
         if (!attacker) { result = { type: 'error', message: `Unknown attacker: ${action.attackerId}` }; break; }
-        if (!target) { result = { type: 'error', message: `Unknown target: ${action.targetId}` }; break; }
+        const validation = targetAuthority.validateActionTarget(action, this.state.combatants, { actorId: action.attackerId });
+        if (!validation.ok) { result = validation.result; break; }
+        const resolvedAction = validation.action;
+        const target = this.state.combatants[resolvedAction.targetId];
         const weaponName = action.weaponName || action.weapon;
         const weapon   = (attacker.weapons || []).find(w => w.name === weaponName || w.name?.toLowerCase() === weaponName?.toLowerCase())
           || (attacker.weapons || [])[0];
@@ -247,7 +250,7 @@ class CombatEngine {
             result.damageApplied = dmgResult;
             result.hpBefore = dmgResult.locationHpBefore;
             // Update stored combatant (already mutated by applyDamage)
-            this.state.combatants[action.targetId] = target;
+            this.state.combatants[resolvedAction.targetId] = target;
           }
         } else {
           const attackCount = getAttacksPerAction(attacker, weapon, 'weapon');
@@ -262,7 +265,7 @@ class CombatEngine {
               const dmgResult = resolver.applyDamage(target, attackResult.totalDamage, attackResult.damageType, this.state.activeEffects);
               attackResult.hpBefore = hpBefore;
               attackResult.hpAfter  = dmgResult.hp;
-              this.state.combatants[action.targetId].hp = dmgResult.hp;
+              this.state.combatants[resolvedAction.targetId].hp = dmgResult.hp;
               target.hp = dmgResult.hp;
             }
             attacks.push(attackResult);
@@ -289,8 +292,6 @@ class CombatEngine {
         const casterId = action.casterId || action.attackerId;
         const caster  = this.state.combatants[casterId];
         if (!caster) { result = { type: 'error', message: `Unknown caster: ${casterId}` }; break; }
-        const targetIds = action.targetIds || (action.targetId ? [action.targetId] : []);
-        const targets = targetIds.map(id => this.state.combatants[id]).filter(Boolean);
         const spellName = action.spellName || action.spell;
         const spell   = (caster.spells || []).find(s => s.name === spellName || s.name?.toLowerCase() === spellName?.toLowerCase());
 
@@ -305,6 +306,15 @@ class CombatEngine {
         }
 
         const ongoing = this._isOngoingSpell(spell);
+        const validation = targetAuthority.validateActionTarget(action, this.state.combatants, {
+          actorId: casterId,
+          spell,
+          ongoing,
+        });
+        if (!validation.ok) { result = validation.result; break; }
+        const resolvedAction = validation.action;
+        const targetIds = resolvedAction.targetIds || (resolvedAction.targetId ? [resolvedAction.targetId] : []);
+        const targets = targetIds.map(id => this.state.combatants[id]).filter(Boolean);
         if (ongoing) {
           result = {
             type: 'buff',
@@ -980,6 +990,8 @@ class CombatEngine {
       case 'check':
       case 'feature':
         return result.description || `${result.actorName} ${result.type}.`;
+      case 'target_required':
+        return result.message || `${result.actorName || 'Actor'} needs a valid target before resolving ${result.actionName || 'the action'}.`;
       case 'death_save': {
         const name = result.actorName || result.combatantName || 'Unknown';
         const roll = result.roll || '?';

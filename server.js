@@ -43,6 +43,7 @@ const { normalizeDnd5eCombatStats, applyCombatProfileEdits } = require('./combat
 const plannerState = require('./planner-state');
 const encounterDirector = require('./encounter-director');
 const templateEngine = require('./template-engine');
+const targetAuthority = require('./target-authority');
 const USE_SPLIT_PIPELINE = process.env.SPLIT_PIPELINE === 'true';
 const TEST_MODE = process.env.TEST_MODE === 'true';
 
@@ -424,6 +425,8 @@ function getGameState(gameId) {
       dmPersona: 'epic',
       combatEngine: new CombatEngine(),
       preTaggedOptions: null,
+      targetPreferences: {},
+      pendingCinematicFinish: null,
       combatHistory: {},
       encounterPlan: null,
       encounterPlanIndex: 0,
@@ -1022,17 +1025,7 @@ async function initiateCombat(gameId, gameConfig, enemies) {
   db.setState(gameId, 'currentCombatId', gs.currentCombatId).catch(() => {});
   db.setState(gameId, 'combatXpAwardedForCombatId', null).catch(() => {});
   db.setState(gameId, 'lastCombatXpAward', null).catch(() => {});
-  io.to(gameId).emit('combat_started', {
-    initiativeOrder: gs.combatEngine.getDisplayInitiativeOrder(),
-    combatants: Object.fromEntries(
-      Object.entries(state.combatants).map(([id, c]) => [id, {
-        id, name: c.name, type: c.type,
-        hp: c.hp ?? c.totalHp, maxHp: c.maxHp ?? c.totalHp, ac: c.ac,
-        conditions: c.conditions || [],
-      }])
-    ),
-    round: state.round,
-  });
+  io.to(gameId).emit('combat_started', combatSocketPayload(gameId));
   gs.combatInitializing = false;
   emitSystem(gameId, { text: '⚔️ Combat begins!' });
   persistCombatState(gameId);
@@ -1094,6 +1087,15 @@ Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
       name: current.name,
       weaponName: current.weapons?.[0]?.name,
       prompt: tacticalPrompt,
+      morale,
+      hpPct,
+      pcs: pcs.map(p => ({
+        id: p.id,
+        name: p.name,
+        hp: p.hp ?? p.totalHp,
+        maxHp: p.maxHp ?? p.totalHp,
+        concentrating: !!p.concentrating,
+      })),
     });
 
     if (engine.isCombatOver().over) break;
@@ -1103,8 +1105,13 @@ Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
   // Step 2: Fetch ALL tactical decisions in parallel
   const decisions = await Promise.all(
     enemyDecisions.map(async (enemy) => {
+      const enemyTacticsLlmEnabled = process.env.ENEMY_TACTICS_LLM === 'true';
+      if (process.env.ENEMY_TACTICS_LLM !== 'true') {
+        return chooseDeterministicEnemyDecision(enemy);
+      }
+
       let actionType = 'attack';
-      let targetId = Object.values(engine.state.combatants).find(c => c.type === 'PC')?.id;
+      let targetId = chooseEnemyTargetId(enemy.pcs) || Object.values(engine.state.combatants).find(c => c.type === 'PC')?.id;
 
       try {
         const response = await llm.completeText({
@@ -1165,6 +1172,41 @@ Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
   return results;
 }
 
+function chooseEnemyTargetId(pcs = []) {
+  const candidates = pcs
+    .filter(p => Number(p.hp ?? 0) > 0)
+    .map(p => {
+      const hp = Number(p.hp ?? 1);
+      const maxHp = Number(p.maxHp ?? hp || 1);
+      const hpRatio = maxHp > 0 ? hp / maxHp : 1;
+      return {
+        ...p,
+        hpRatio,
+        score: (p.concentrating ? 100 : 0) + ((1 - hpRatio) * 50) + (20 - Math.min(hp, 20)),
+      };
+    })
+    .sort((a, b) => b.score - a.score);
+  return candidates[0]?.id || null;
+}
+
+function chooseDeterministicEnemyDecision(enemy) {
+  if ((enemy.morale === 'cowardly' && enemy.hpPct < 0.5) || (enemy.morale === 'normal' && enemy.hpPct < 0.25)) {
+    return {
+      enemyId: enemy.enemyId,
+      actionType: 'disengage',
+      targetId: chooseEnemyTargetId(enemy.pcs),
+      weaponName: enemy.weaponName,
+    };
+  }
+
+  return {
+    enemyId: enemy.enemyId,
+    actionType: 'attack',
+    targetId: chooseEnemyTargetId(enemy.pcs),
+    weaponName: enemy.weaponName,
+  };
+}
+
 function normalizeEnemyActionType(actionType) {
   const text = String(actionType || '').toLowerCase();
   if (/^(attack|weapon|melee|ranged|shoot|strike|slash|stab|bite|claw)/.test(text)) return 'attack';
@@ -1178,21 +1220,7 @@ function emitCombatUpdate(gameId) {
   const gs = getGameState(gameId);
   const engine = gs.combatEngine;
   if (!engine.state.active) return;
-  io.to(gameId).emit('combat_update', {
-    initiativeOrder: engine.getDisplayInitiativeOrder(),
-    round: engine.state.round,
-    turnIndex: engine.state.turnIndex,
-    currentTurn: engine.getCurrentTurn()?.id,
-    combatants: Object.fromEntries(
-      Object.entries(engine.state.combatants).map(([id, c]) => [id, {
-        id, name: c.name, type: c.type,
-        hp: c.hp ?? c.totalHp, maxHp: c.maxHp ?? c.totalHp, ac: c.ac,
-        conditions: c.conditions || [], concentrating: c.concentrating || null,
-      }])
-    ),
-    activeEffects: engine.state.activeEffects,
-    log: engine.state.log.slice(-10),
-  });
+  io.to(gameId).emit('combat_update', combatSocketPayload(gameId));
 }
 
 /** Fire-and-forget save of combat state to DB. */
@@ -1221,6 +1249,282 @@ function recordCombatConclusion(gameId, reason = 'combat_over') {
 
   db.setState(gameId, 'lastCombatConclusion', gs.lastCombatConclusion).catch(() => {});
   return gs.lastCombatConclusion;
+}
+
+function combatantPayload(combatant) {
+  return {
+    id: combatant.id,
+    name: combatant.name,
+    type: combatant.type,
+    hp: combatant.hp ?? combatant.totalHp,
+    maxHp: combatant.maxHp ?? combatant.totalHp,
+    ac: combatant.ac,
+    conditions: combatant.conditions || [],
+    concentrating: combatant.concentrating || null,
+  };
+}
+
+function combatantsPayload(combatants = {}) {
+  return Object.fromEntries(
+    Object.entries(combatants).map(([id, c]) => [id, combatantPayload({ ...c, id: c.id || id })])
+  );
+}
+
+function getTargetPreferencesForPlayer(gs, playerName, actorId = null) {
+  const prefs = gs.targetPreferences || {};
+  return targetAuthority.normalizeTargetPreferences(
+    prefs[playerName] || prefs[actorId] || {}
+  );
+}
+
+function getCurrentTargetSuggestions(gs) {
+  const current = gs.combatEngine?.state?.active ? gs.combatEngine.getCurrentTurn() : null;
+  const actorId = current?.id || null;
+  const playerName = getCombatPlayerNameForCurrentTurn(gs) || current?.name || null;
+  return targetAuthority.buildTargetSuggestions(
+    gs.combatEngine?.state?.combatants || {},
+    actorId,
+    getTargetPreferencesForPlayer(gs, playerName, actorId)
+  );
+}
+
+function combatSocketPayload(gameId) {
+  const gs = getGameState(gameId);
+  const engine = gs.combatEngine;
+  return {
+    initiativeOrder: engine.getDisplayInitiativeOrder(),
+    round: engine.state.round,
+    turnIndex: engine.state.turnIndex,
+    currentTurn: engine.getCurrentTurn()?.id,
+    combatants: combatantsPayload(engine.state.combatants),
+    activeEffects: engine.state.activeEffects,
+    log: engine.state.log.slice(-10),
+    targetPreferences: gs.targetPreferences || {},
+    targetSuggestions: getCurrentTargetSuggestions(gs),
+  };
+}
+
+function appendTacticalHistory(gameId, playerName, actionText, narration) {
+  const gs = getGameState(gameId);
+  const gd = gs.data;
+  gd.chatHistory.push(
+    { role: 'user', content: `${playerName}: ${actionText}` },
+    { role: 'assistant', content: narration }
+  );
+  if (gd.chatHistory.length > MAX_CHAT_HISTORY) {
+    gd.chatHistory = gd.chatHistory.slice(-MAX_CHAT_HISTORY);
+  }
+  db.saveChatHistory(gameId, gd.chatHistory).catch(e => console.error('[tactical-history-save]', e.message));
+}
+
+async function resolveDeathSavesUntilPlayableTurn(engine, results) {
+  const resolver = engine.getResolver();
+  while (true) {
+    const nextTurn = engine.getCurrentTurn();
+    if (!nextTurn || nextTurn.type !== 'PC') break;
+    const deathCheck = resolver.checkDeath(nextTurn);
+    if (deathCheck.status !== 'unconscious') break;
+    const dsResult = engine.resolveAction({ type: 'death_save', actorId: nextTurn.id });
+    results.push(dsResult);
+    results.push(...engine.advanceTurn());
+  }
+}
+
+async function finalizeCombatOverForFastPath(gameId, gameConfig, overCheck) {
+  const gs = getGameState(gameId);
+  let xpAward = null;
+  if (!overCheck?.over) return { xpAward };
+
+  recordCombatConclusion(gameId, overCheck.reason);
+  if (overCheck.reason === 'enemies_defeated') {
+    xpAward = await awardCombatXpForGame(gameId, overCheck.reason);
+  }
+
+  const combatSummary = gs.combatEngine.getCombatSummary();
+  if (combatSummary && combatSummary.rounds > 0) {
+    if (!gs.combatHistory) gs.combatHistory = {};
+    for (const [id, data] of Object.entries(combatSummary.characters)) {
+      if (data.type !== 'PC') continue;
+      if (!gs.combatHistory[id]) gs.combatHistory[id] = { combats: [] };
+      gs.combatHistory[id].combats.push({
+        date: Date.now(),
+        rounds: combatSummary.rounds,
+        damageDealt: data.damageDealt,
+        damageTaken: data.damageTaken,
+        healed: data.healed,
+        spellSlotsUsed: data.spellSlotsUsed,
+      });
+      if (gs.combatHistory[id].combats.length > 5) gs.combatHistory[id].combats.shift();
+      gs.combatHistory[id].rollingDPR = ed.updateRollingDPR(gs.combatHistory[id]);
+    }
+    db.setState(gameId, 'combatHistory', gs.combatHistory).catch(() => {});
+  }
+
+  gs.combatEngine.endCombat();
+  persistCombatState(gameId);
+  io.to(gameId).emit('combat_ended', { reason: overCheck.reason, xp: xpAward });
+  return { xpAward };
+}
+
+function targetRequiredOptions(result) {
+  return (result.availableTargets || []).slice(0, 3).map(target => {
+    if (result.actionType === 'spell') return `Cast ${result.actionName} on ${target.name}`;
+    return `Attack ${target.name}`;
+  });
+}
+
+function formatTacticalCombatText(gs, results, overCheck = null, xpAward = null) {
+  const lines = results
+    .filter(Boolean)
+    .map(r => gs.combatEngine.formatResultForPrompt(r))
+    .filter(Boolean);
+  if (overCheck?.over) {
+    lines.push(overCheck.reason === 'enemies_defeated' ? 'Combat ends: victory.' : 'Combat ends: the party is down.');
+  }
+  if (xpAward) lines.push(formatXpAwardForPrompt(xpAward));
+  return lines.join('\n') || 'The combat state updates.';
+}
+
+async function tryResolveCombatActionFastPath(gameId, gameConfig, playerName, actionText) {
+  const gs = getGameState(gameId);
+  const engine = gs.combatEngine;
+  if (!engine?.state?.active) return null;
+
+  const engineCurrent = engine.getCurrentTurn();
+  if (!engineCurrent || engineCurrent.type !== 'PC') return null;
+
+  const actorId = engineCurrent.id;
+  const resolver = engine.getResolver();
+  const playerCombatant = engine.state.combatants[actorId];
+  const isDown = playerCombatant && resolver.checkDeath(playerCombatant).status === 'unconscious';
+  const ctx = {
+    combatants: engine.state.combatants,
+    preTaggedOptions: gs.preTaggedOptions || null,
+    targetPreferences: getTargetPreferencesForPlayer(gs, playerName, actorId),
+  };
+
+  const parsedAction = isDown
+    ? { type: 'death_save', actorId }
+    : parseAction(actionText, actorId, ctx);
+
+  if (!parsedAction) return null;
+
+  const results = [];
+  const playerResult = engine.resolveAction(parsedAction);
+  results.push(playerResult);
+
+  if (playerResult?.type === 'target_required') {
+    persistCombatState(gameId);
+    emitCombatUpdate(gameId);
+    const text = `Target needed: ${playerResult.message}`;
+    return {
+      handled: true,
+      blocked: true,
+      tactical: true,
+      text,
+      options: targetRequiredOptions(playerResult),
+      llmRunId: null,
+    };
+  }
+
+  results.push(...engine.advanceTurn());
+  await resolveDeathSavesUntilPlayableTurn(engine, results);
+  const enemyResults = await resolveEnemyTurns(gameId, gameConfig);
+  results.push(...enemyResults);
+  await resolveDeathSavesUntilPlayableTurn(engine, results);
+
+  const overCheck = engine.isCombatOver();
+  const { xpAward } = overCheck.over
+    ? await finalizeCombatOverForFastPath(gameId, gameConfig, overCheck)
+    : { xpAward: null };
+
+  persistCombatState(gameId);
+  if (engine.state.active) emitCombatUpdate(gameId);
+
+  const text = formatTacticalCombatText(gs, results, overCheck, xpAward);
+  appendTacticalHistory(gameId, playerName, actionText, text);
+  return {
+    handled: true,
+    blocked: false,
+    tactical: true,
+    text,
+    options: [],
+    scene: null,
+    world: null,
+    isKillshot: false,
+    mapMoved: false,
+    llmRunId: null,
+  };
+}
+
+function clearEphemeralGameStateForNextBeat(gameId, gs) {
+  clearTimeout(gs.turnTimer);
+  const combatWasActive = !!gs.combatEngine?.state?.active;
+  if (combatWasActive) {
+    recordCombatConclusion(gameId, 'move_to_next_beat');
+    gs.combatEngine.endCombat();
+    persistCombatState(gameId);
+    io.to(gameId).emit('combat_ended', { reason: 'move_to_next_beat', xp: null });
+  }
+  gs.combatInitializing = false;
+  gs.preTaggedOptions = null;
+  gs.lastOptions = [];
+  gs.lastForPlayer = null;
+  gs.pendingCinematicFinish = null;
+  gs.paused = false;
+  gs.idleTurns = 0;
+  gs._pendingChallenge = null;
+  gs._encounterPacingDirective = null;
+  gs._turnFlags = {};
+  db.setState(gameId, 'lastOptions', []).catch(() => {});
+  db.setState(gameId, 'lastForPlayer', null).catch(() => {});
+  return { combatWasActive };
+}
+
+async function moveToNextBeat(gameId, gameConfig, actorName = 'Host') {
+  const gs = getGameState(gameId);
+  clearEphemeralGameStateForNextBeat(gameId, gs);
+  const nextPlayer = getVisiblePlayerForOptions(gameId) || getCurrentPlayer(gameId);
+  const recent = (gs.data.chatHistory || []).slice(-6).map(m => `${m.role}: ${m.content}`).join('\n').slice(-2500);
+  let narration = '';
+  let llmRunId = null;
+  try {
+    const response = await llm.completeText({
+      task: 'move-to-next-beat',
+      gameId,
+      maxTokens: 500,
+      temperature: 0.4,
+      prompt: `The host clicked Move to Next Beat to recover from a stuck or buggy scene in this ${gameConfig.system || 'D&D'} campaign.
+
+Preserve durable campaign facts and character state. Clear the immediate blocked scene/combat. Advance to the next main story beat. Do not start combat unless the module/story absolutely requires it. Keep it to 1-2 short paragraphs.
+
+Recent table context:
+${recent}`,
+    });
+    narration = response.text.trim();
+    llmRunId = response.llmRunId || null;
+  } catch (err) {
+    narration = 'The table steps past the stuck moment and returns to the main thread of the adventure. The immediate confusion falls away; the next clear story beat is ready.';
+  }
+
+  appendTacticalHistory(gameId, actorName, 'Move to Next Beat', narration);
+  emitDmMessage(gameId, { text: narration, options: [], auto: false, forPlayer: nextPlayer, llmRunId });
+  io.to(gameId).emit('game_resumed');
+  return { ok: true, narration, llmRunId };
+}
+
+async function finishCombatCinematically(gameId, gameConfig, proposer = 'A player') {
+  const gs = getGameState(gameId);
+  if (!gs.combatEngine?.state?.active) return { ok: false, error: 'No active combat.' };
+  const conclusion = recordCombatConclusion(gameId, 'cinematic_finish');
+  gs.pendingCinematicFinish = null;
+  gs.combatEngine.endCombat();
+  persistCombatState(gameId);
+  const text = `${proposer} proposes a cinematic finish, and the table closes the fight without another blow-by-blow round.\n${conclusion.summary}\nNo automatic HP or spell-slot costs were applied.`;
+  appendTacticalHistory(gameId, proposer, 'Finish Cinematically', text);
+  io.to(gameId).emit('combat_ended', { reason: 'cinematic_finish', xp: null });
+  emitDmMessage(gameId, { text, options: [], auto: false, tactical: true, forPlayer: getCurrentPlayer(gameId), llmRunId: null });
+  return { ok: true };
 }
 
 function formatXpAwardForPrompt(award) {
@@ -3755,6 +4059,7 @@ Output ONLY this format:
       gs.difficultyCorrection = await db.getState(gameId, 'difficultyCorrection', 1.0);
       gs.npcMemory = await db.getState(gameId, 'npcMemory', {});
       gs.lastCombatConclusion = await db.getState(gameId, 'lastCombatConclusion', null);
+      gs.targetPreferences = await db.getState(gameId, 'targetPreferences', {});
       gs.currentCombatId = await db.getState(gameId, 'currentCombatId', null);
       gs.combatXpAwardedForCombatId = await db.getState(gameId, 'combatXpAwardedForCombatId', null);
       gs.lastCombatXpAward = await db.getState(gameId, 'lastCombatXpAward', null);
@@ -3792,39 +4097,15 @@ Output ONLY this format:
       imageStyle: gs.imageStyle,
       pdfUploads: await db.getState(gameId, 'pdf_uploads', []),
       encounterPlan: isHost ? plannerState.toHostPlan(gs.encounterPlan) : null,
+      targetPreferences: gs.targetPreferences || {},
       isHost,
       currentUserId: socket.userId || null,
     });
 
     // If combat is active, send current state to the joining client
     if (gs.combatEngine.state.active) {
-      socket.emit('combat_started', {
-        initiativeOrder: gs.combatEngine.getDisplayInitiativeOrder(),
-        combatants: Object.fromEntries(
-          Object.entries(gs.combatEngine.state.combatants).map(([id, c]) => [id, {
-            id, name: c.name, type: c.type,
-            hp: c.hp ?? c.totalHp, maxHp: c.maxHp ?? c.totalHp, ac: c.ac,
-            conditions: c.conditions || [],
-          }])
-        ),
-        round: gs.combatEngine.state.round,
-      });
-      const engine = gs.combatEngine;
-      socket.emit('combat_update', {
-        initiativeOrder: engine.getDisplayInitiativeOrder(),
-        round: engine.state.round,
-        turnIndex: engine.state.turnIndex,
-        currentTurn: engine.getCurrentTurn()?.id,
-        combatants: Object.fromEntries(
-          Object.entries(engine.state.combatants).map(([id, c]) => [id, {
-            id, name: c.name, type: c.type,
-            hp: c.hp ?? c.totalHp, maxHp: c.maxHp ?? c.totalHp, ac: c.ac,
-            conditions: c.conditions || [], concentrating: c.concentrating || null,
-          }])
-        ),
-        activeEffects: engine.state.activeEffects,
-        log: engine.state.log.slice(-10),
-      });
+      socket.emit('combat_started', combatSocketPayload(gameId));
+      socket.emit('combat_update', combatSocketPayload(gameId));
     }
   });
 
@@ -4056,6 +4337,11 @@ Output ONLY this format:
 
     const gs = getGameState(gameId);
     clearTimeout(gs.turnTimer);
+    if (data?.targetPreferences && typeof data.targetPreferences === 'object') {
+      gs.targetPreferences = gs.targetPreferences || {};
+      gs.targetPreferences[playerName] = targetAuthority.normalizeTargetPreferences(data.targetPreferences);
+      db.setState(gameId, 'targetPreferences', gs.targetPreferences).catch(() => {});
+    }
 
     // Auto-unpause on human action
     if (gs.paused) {
@@ -4072,6 +4358,32 @@ Output ONLY this format:
 
     try {
       const gameConfig = await db.getGame(gameId);
+      const combatFastPath = await tryResolveCombatActionFastPath(gameId, gameConfig, playerName, action);
+      if (combatFastPath?.handled) {
+        if (!combatFastPath.blocked) {
+          await advanceTurn(gameId, gameConfig, true);
+        } else {
+          appendTacticalHistory(gameId, playerName, action, combatFastPath.text);
+        }
+        const nextPlayer = combatFastPath.blocked ? playerName : getVisiblePlayerForOptions(gameId);
+        const fastOptions = combatFastPath.blocked
+          ? combatFastPath.options
+          : (() => {
+              const turn = gs.combatEngine?.state?.active ? gs.combatEngine.getCurrentTurn() : null;
+              return turn?.type === 'PC' ? templateEngine.generateCombatOptions(gs.combatEngine, turn.name) : [];
+            })();
+        emitDmMessage(gameId, {
+          text: combatFastPath.text,
+          options: fastOptions,
+          auto: false,
+          tactical: true,
+          previousPlayer: playerName,
+          forPlayer: nextPlayer,
+          llmRunId: combatFastPath.llmRunId,
+        });
+        io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
+        return;
+      }
       // ✅ FIX: Serialize narration streaming per game to prevent concurrent chunk interleaving
       const { narration, options, scene, world, isKillshot, mapMoved, llmRunId } = await withStreamingLock(gameId, () =>
         callGameLLM(gameId, gameConfig, `${playerName}: ${action}`)
@@ -4086,6 +4398,31 @@ Output ONLY this format:
       console.error('player_action error:', err.message, err.stack?.split('\n').slice(0, 3).join(' | '));
       socket.emit('system', { text: 'Error communicating with the DM. Try again.' });
     }
+  });
+
+  socket.on('set_target_preferences', async (data, ack) => {
+    const gameId = socket.gameId || truncate(data?.gameId, 100);
+    if (!gameId) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Join a game before setting targets.' });
+      return;
+    }
+    const player = truncate(data?.playerName, 50);
+    if (!player) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Choose a character before setting targets.' });
+      return;
+    }
+    const gs = getGameState(gameId);
+    gs.targetPreferences = gs.targetPreferences || {};
+    gs.targetPreferences[player] = targetAuthority.normalizeTargetPreferences(data || {});
+    await db.setState(gameId, 'targetPreferences', gs.targetPreferences);
+    const payload = {
+      playerName: player,
+      targetPreferences: gs.targetPreferences,
+      targetSuggestions: gs.combatEngine?.state?.active ? getCurrentTargetSuggestions(gs) : null,
+    };
+    io.to(gameId).emit('target_preferences_updated', payload);
+    if (gs.combatEngine?.state?.active) emitCombatUpdate(gameId);
+    if (typeof ack === 'function') ack({ ok: true });
   });
 
   // OOC (Out of Character) message
@@ -4228,6 +4565,51 @@ Output ONLY this format:
     await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
     io.to(gameId).emit('game_reset');
     emitSystem(gameId, { text: '🔄 Game has been reset. Characters preserved.' });
+  });
+
+  socket.on('move_to_next_beat', async (data, ack) => {
+    const ctx = await ensureHostSocket(socket, ack);
+    if (!ctx) return;
+    try {
+      const actorName = truncate(data?.playerName, 50) || 'Host';
+      const result = await moveToNextBeat(ctx.gameId, ctx.game, actorName);
+      if (typeof ack === 'function') ack({ ok: true, llmRunId: result.llmRunId || null });
+    } catch (err) {
+      console.error('move_to_next_beat error:', err.message);
+      if (typeof ack === 'function') ack({ ok: false, error: 'Failed to move to the next beat.' });
+      socket.emit('system', { text: 'Failed to move to the next beat.' });
+    }
+  });
+
+  socket.on('finish_cinematic', async (data, ack) => {
+    const gameId = socket.gameId;
+    if (!gameId) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'Join a game before proposing a finish.' });
+      return;
+    }
+    const gs = getGameState(gameId);
+    if (!gs.combatEngine?.state?.active) {
+      if (typeof ack === 'function') ack({ ok: false, error: 'No active combat.' });
+      return;
+    }
+    const gameConfig = await db.getGame(gameId);
+    const proposer = truncate(data?.playerName, 50) || getCombatPlayerNameForCurrentTurn(gs) || 'A player';
+    if (getConnectedClients(gameId) <= 1) {
+      const result = await finishCombatCinematically(gameId, gameConfig, proposer);
+      if (typeof ack === 'function') ack(result);
+      return;
+    }
+    gs.pendingCinematicFinish = { id: crypto.randomUUID(), proposer, createdAt: new Date().toISOString() };
+    io.to(gameId).emit('cinematic_finish_proposed', gs.pendingCinematicFinish);
+    if (typeof ack === 'function') ack({ ok: true, pending: true });
+  });
+
+  socket.on('finish_cinematic_confirm', async (data, ack) => {
+    const ctx = await ensureHostSocket(socket, ack);
+    if (!ctx) return;
+    const proposer = ctx.gs.pendingCinematicFinish?.proposer || truncate(data?.playerName, 50) || 'The table';
+    const result = await finishCombatCinematically(ctx.gameId, ctx.game, proposer);
+    if (typeof ack === 'function') ack(result);
   });
 
   socket.on('add_catchphrase', async (data) => {

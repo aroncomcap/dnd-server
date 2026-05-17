@@ -22,6 +22,7 @@ After the stabilization gate, the next product milestone is a provider-agnostic 
 - [x] **Phase 3: Node Test Health** - Resolve or quarantine the remaining integration deserialization failure.
 - [x] **Phase 4: Live Production Smoke** - Prove the deployed auth/socket/game loop completes.
 - [ ] **Phase 5: Browser Campaign Verification** - Run the long browser campaign with the patched harness and capture any real remaining failures.
+- [ ] **Phase 5.1: Director-First Combat Recovery And Target Authority** - Fix target-required actions, combat trapping, and story recovery controls found by the production campaign gate.
 - [ ] **Phase 6: Model Abstraction And Narration A/B Testing** - Replace Anthropic runtime calls with an OpenAI-first provider abstraction and compare narration models using player-visible feedback, cost, latency, and reliability.
 
 ## Phase Details
@@ -95,7 +96,22 @@ Plans:
 
 Plans:
 - [x] 05-01: Preserve player intent and actionable GM feedback.
-- [ ] 05-02: Deploy current stabilization batch, rerun production campaign E2E, and triage result.
+- [x] 05-02: Deploy current stabilization batch, rerun production campaign E2E, and triage result.
+
+### Phase 5.1: Director-First Combat Recovery And Target Authority
+**Goal**: Restore the solo-DM feel by making the story director authoritative over combat entry/recovery, while giving the combat engine reliable target context before any target-required action resolves.
+**Depends on**: Phase 5
+**Requirements**: [TARGET-01, TARGET-02, RECOVERY-01, COMBAT-01, COMBAT-02]
+**Success Criteria** (what must be TRUE):
+  1. Target-required attacks, spells, features, and support actions validate a real target before resolution or resource spending.
+  2. Each player can persist an attack target and support target; defaults are useful and remain stable until changed.
+  3. `Move to Next Beat` clears ephemeral scene/combat state and advances the story beat without erasing durable campaign state.
+  4. Combat remains round-by-round by default, with optional cinematic finish available by proposal/approval.
+  5. The production campaign no longer falls into accidental targetless combat from social or routing scenes.
+**Plans**: 1 plan
+
+Plans:
+- [x] 05.1-01: Target authority, recovery, and optional combat compression.
 
 ### Phase 6: Model Abstraction And Narration A/B Testing
 **Goal**: Replace Anthropic as the runtime LLM dependency with an OpenAI-first model abstraction layer and run sticky, player-visible narration experiments that identify the best quality-per-dollar model.
@@ -123,5 +139,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Narration Regression Baseline | 1/1 | Complete | 2026-05-10 |
 | 3. Node Test Health | 1/1 | Complete | 2026-05-10 |
 | 4. Live Production Smoke | 1/1 | Complete | 2026-05-10 |
-| 5. Browser Campaign Verification | 1/2 | Intent/review stabilization locally verified; deploy/rerun pending | - |
+| 5. Browser Campaign Verification | 2/2 | Fresh deploy succeeded; campaign found target/combat recovery defects | 2026-05-17 |
+| 5.1. Director-First Combat Recovery And Target Authority | 1/1 | Local verification passed; production campaign rerun pending | - |
 | 6. Model Abstraction And Narration A/B Testing | 0/0 | Design ready for planning after Phase 5 | - |

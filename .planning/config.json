@@ -2,7 +2,9 @@
   "commit_docs": true,
   "workflow": {
     "research": false,
-    "skip_discuss": true,
+    "skip_discuss": false,
+    "discuss_mode": "discuss",
+    "auto_advance": true,
     "code_review": true,
     "ui_phase": true,
     "ui_review": true,

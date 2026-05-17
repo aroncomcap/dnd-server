@@ -1,14 +1,14 @@
 ---
 milestone: v1.0
 milestone_name: Production Stabilization
-status: validating
-current_phase: 5
-current_plan: 05-02
+status: verifying
+current_phase: 5.1
+current_plan: 05.1-01
 progress:
-  phases_total: 5
+  phases_total: 6
   phases_complete: 4
   plans_total: 6
-  plans_complete: 5
+  plans_complete: 6
 updated_at: 2026-05-17
 ---
 
@@ -16,10 +16,10 @@ updated_at: 2026-05-17
 
 ## Current Position
 
-Phase: 5 - Browser Campaign Verification
-Plan: 05-02
-Status: Intent/review stabilization batch is locally verified; commit, deploy, and production campaign rerun are pending
-Last activity: 2026-05-17 - Player intent preservation, actionable GM feedback, Retcon OOC mode, Redo Options regeneration, and traceable OOC/review bug logging were implemented and locally verified.
+Phase: 5.1 - Director-First Combat Recovery And Target Authority
+Plan: context gathering
+Status: Phase 5.1 implemented locally and verified; production deploy/campaign rerun pending
+Last activity: 2026-05-17 - Implemented target authority, deterministic tactical combat fast path, persistent target selectors, `Move to Next Beat`, and optional `Finish Cinematically`. Full `npm test` passed with 866 tests.
 
 ## Project Reference
 
@@ -44,13 +44,20 @@ See: `.planning/PROJECT.md` (updated 2026-05-11)
 - Prompting and narration extraction now preserve quest beats, treat merchant/watch/checkpoint scenes as brief social/routing scenes, and only detour into combat on clear violence or unavoidable hard failure.
 - Tune GM feedback is now actionable: Rules, Context, Redo Options, Retcon, and Review. Review/Retcon/Redo Options can log bug reports with slug, source, and decision trace metadata for later Codex repair.
 - Local verification passed syntax checks, focused parser/UI regression tests, full `npm test`, and `git diff --check`.
-- Railway production still points at deployment `1d9e218d-0120-4d23-a5a2-5417805daac7` from 2026-05-13; no newer build has been deployed yet.
+- Railway production now points at deployment `f38acd5c-4ac1-4d36-862a-435bca5c0c52` from 2026-05-17.
+- The fresh production campaign run reached live play but exposed target authority defects: invalid/placeholder targets, target-required actions resolving instead of prompting, and social scenes being pulled into combat by generic attack controls.
+- The long campaign run was stopped after actionable evidence to avoid additional production AI spend.
+- Phase 5.1 local implementation now routes parseable tactical combat through server-side rules by default, skipping narration LLM calls for low-value combat actions.
+- Enemy turns now use deterministic server tactics by default; `ENEMY_TACTICS_LLM=true` can opt back into model-generated enemy tactics.
+- Target-required actions now return `target_required` before dice, turn advancement, or spell-slot spending when the target is missing or illegal.
+- Combat target preferences are persisted per player and surfaced as attack/support selectors in the action area.
+- `Move to Next Beat` replaces the reset-game affordance for stuck-scene recovery.
 
 ## Blockers / Concerns
 
-- Browser campaign E2E has not been rerun against a deployment containing the current intent/review stabilization batch.
-- Current working tree contains intentional source/test changes that are locally verified but not committed or deployed.
-- Production logs show a separate runtime issue: `Combat engine error (falling back to AI): Invalid dice notation: "none"` during spell resolution.
+- Browser campaign E2E has been rerun against the fresh deployment and produced actionable target/combat defects.
+- Generated Playwright artifacts from the interrupted production campaign remain dirty under `test-results/` and should not be committed casually.
+- `gsd-sdk` is not installed in this Codex shell, so GSD autonomous routing is being followed manually from repo-local `.planning` files.
 
 ## Decisions
 
@@ -59,6 +66,10 @@ See: `.planning/PROJECT.md` (updated 2026-05-11)
 - Preserve existing app architecture and auth/game APIs during stabilization.
 - Phase 6 execution is authorized to run unattended with AI SDK under the local `llm` adapter, `gpt-5.4-mini`/`gpt-5.4` narration split at 70/30, full prompt/output capture during the model lab, periodic raw-text cleanup, subtle player feedback after narrations, and commit/push/deploy/test autonomy.
 - Commit immediately before Phase 6 runtime changes is the final Claude-based baseline.
+- Combat remains round-by-round by default once initiative starts.
+- Cinematic combat finish is optional, visible throughout combat, recommended only when the fight is nearly decided, available for any player to propose, and proceeds immediately when there is only one active player.
+- The recovery button label is `Move to Next Beat`; it is for bugs/logical dead ends and should preserve durable campaign state while clearing ephemeral scene/combat state.
+- Tactical combat should use deterministic server output by default. AI narration is reserved for story/director moments, ambiguous creative actions, meaningful aftermath, and explicit flavor needs.
 
 ## Deferred Ideas
 
@@ -69,10 +80,4 @@ See: `.planning/PROJECT.md` (updated 2026-05-11)
 
 ## Next Recommended Run
 
-Commit, push, and deploy the current intentional source/test batch, then run the final browser validation gate against the new deployment:
-
-1. `git add action-parser.js combat-engine.js db.js narration-pipeline.js prompt-builder.js public/game.html server.js tests/action-parser.test.js tests/game-ui-regression.test.js .planning/STATE.md .planning/ROADMAP.md .planning/REQUIREMENTS.md .planning/phases/05-browser-campaign-verification/05-01-PLAN.md .planning/phases/05-browser-campaign-verification/05-01-SUMMARY.md`
-2. `git commit -m "fix: preserve player intent in encounter flow"`
-3. `git push`
-4. `railway deployment list`
-5. `npx playwright test tests/e2e/campaign-verbose.spec.ts --project=chromium`
+Commit, push, deploy, and rerun the production campaign gate for Phase 5.1. Keep generated Playwright artifacts out of the commit.

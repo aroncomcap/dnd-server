@@ -277,6 +277,36 @@ describe('parseAction — non-attack combat actions', () => {
     assert.equal(result.weapon, 'Longsword');
   });
 
+  it('bare attacks use the persistent attack target when one is set', () => {
+    const result = parseAction('attack', 'kael', {
+      ...BASE_CTX,
+      targetPreferences: { attackTargetId: 'goblin-archer-2' },
+    });
+    assert.ok(result);
+    assert.equal(result.type, 'attack');
+    assert.equal(result.targetId, 'goblin-archer-2');
+  });
+
+  it('offensive spells use the persistent attack target when no target is typed', () => {
+    const result = parseAction('cast sacred flame', 'kael', {
+      ...BASE_CTX,
+      targetPreferences: { attackTargetId: 'goblin-archer-2' },
+    });
+    assert.ok(result);
+    assert.equal(result.type, 'spell');
+    assert.equal(result.targetId, 'goblin-archer-2');
+  });
+
+  it('healing shorthand uses the persistent support target when the typed target is missing', () => {
+    const result = parseAction('heal ally', 'kael', {
+      ...BASE_CTX,
+      targetPreferences: { supportTargetId: 'lyra' },
+    });
+    assert.ok(result);
+    assert.equal(result.type, 'spell');
+    assert.equal(result.targetId, 'lyra');
+  });
+
   it('checking an object is parsed as a check, not an attack fallback', () => {
     const result = parseAction('check the sarcophagus', 'kael', BASE_CTX);
     assert.ok(result);

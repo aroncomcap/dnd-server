@@ -83,7 +83,7 @@ test('player actions survive socket reconnects', () => {
   assert.match(gameHtml, /socket\.on\('connect'[\s\S]*?requestGameJoin\(\);[\s\S]*?updateActionArea\(\);/, 'client should rejoin the room after reconnect');
   assert.match(gameHtml, /socket\.on\('disconnect'[\s\S]*?gameJoinReady = false;[\s\S]*?updateActionArea\(\);/, 'client should mark actions unavailable after disconnect');
   assert.match(gameHtml, /if \(!socket\.connected \|\| !gameJoinReady\)[\s\S]*?return;/, 'sendAction should not locally echo actions before the socket rejoins');
-  assert.match(gameHtml, /socket\.timeout\(ACTION_ACK_TIMEOUT_MS\)\.emit\('player_action', \{ gameId, playerName: name, action \}/, 'player actions should include gameId as a reconnect recovery fallback');
+  assert.match(gameHtml, /socket\.timeout\(ACTION_ACK_TIMEOUT_MS\)\.emit\('player_action', \{ gameId, playerName: name, action, targetPreferences: getSelectedTargetPreferences\(\) \}/, 'player actions should include gameId as a reconnect recovery fallback');
   assert.match(serverJs, /if \(!gameId && typeof data\?\.gameId === 'string'\)[\s\S]*?socket\.join\(requestedGameId\);[\s\S]*?socket\.gameId = requestedGameId;/, 'server should recover buffered actions from sockets that reconnected before join_game');
 });
 
@@ -176,6 +176,39 @@ test('combat auto-actions are resolved by the combat engine', () => {
   assert.match(serverJs, /function chooseCombatAutoAction/, 'server should choose a concrete combat action for timed-out PCs');
   assert.match(serverJs, /callGameLLM\(gameId, gameConfig, gs\.combatEngine\?\.state\?\.active \? `\$\{playerName\}: \$\{autoAction\}` : autoAction/, 'combat auto-actions should be sent as parseable player actions');
   assert.match(serverJs, /gs\.combatEngine\.getCurrentTurn\(\)\?\.type === 'Enemy'[\s\S]*await resolveEnemyTurns/, 'turn advancement should not skip an enemy if combat is parked on an enemy turn');
+});
+
+test('enemy combat turns are deterministic by default', () => {
+  assert.match(serverJs, /function chooseDeterministicEnemyDecision/, 'server should have deterministic enemy tactics');
+  assert.match(serverJs, /process\.env\.ENEMY_TACTICS_LLM === 'true'/, 'enemy tactic LLM calls should be opt-in');
+  assert.match(serverJs, /if \(process\.env\.ENEMY_TACTICS_LLM !== 'true'\)[\s\S]*?chooseDeterministicEnemyDecision/, 'default enemy turns should skip LLM tactics');
+});
+
+test('parseable combat actions use a deterministic tactical fast path', () => {
+  assert.match(serverJs, /async function tryResolveCombatActionFastPath/, 'server should have a deterministic combat action fast path');
+  assert.match(serverJs, /tryResolveCombatActionFastPath\(gameId, gameConfig, playerName, action\)/, 'player_action should try the fast path before calling the narration LLM');
+  assert.match(serverJs, /if \(combatFastPath\?\.handled\)[\s\S]*?tactical: true/, 'fast path should emit tactical DM messages instead of streamed narration');
+  assert.match(serverJs, /if \(!combatFastPath\.blocked\) \{[\s\S]*?await advanceTurn\(gameId, gameConfig, true\);/, 'target prompts should not advance the turn');
+  assert.match(serverJs, /target_required/, 'target-required results should be handled explicitly');
+});
+
+test('combat target preferences have a client/server socket contract', () => {
+  assert.match(gameHtml, /id="target-control-row"/, 'combat controls should include persistent target selectors');
+  assert.match(gameHtml, /id="attack-target-select"/, 'attack target selector should exist');
+  assert.match(gameHtml, /id="support-target-select"/, 'support target selector should exist');
+  assert.match(gameHtml, /socket\.emit\('set_target_preferences'/, 'client should persist target preference changes');
+  assert.match(gameHtml, /targetPreferences: getSelectedTargetPreferences\(\)/, 'player actions should carry selected targets');
+  assert.match(serverJs, /socket\.on\('set_target_preferences'/, 'server should persist target preference changes');
+  assert.match(serverJs, /targetPreferences/, 'combat socket payloads should include target preferences');
+});
+
+test('host recovery and optional combat compression are explicit controls', () => {
+  assert.match(gameHtml, /Move to Next Beat/, 'reset affordance should become Move to Next Beat');
+  assert.match(gameHtml, /socket\.emit\('move_to_next_beat'/, 'client should request story-beat recovery explicitly');
+  assert.match(serverJs, /socket\.on\('move_to_next_beat'/, 'server should handle story-beat recovery');
+  assert.match(gameHtml, /id="btn-finish-cinematic"/, 'combat UI should expose Finish Cinematically');
+  assert.match(gameHtml, /socket\.emit\('finish_cinematic'/, 'client should propose cinematic combat finish');
+  assert.match(serverJs, /socket\.on\('finish_cinematic'/, 'server should handle cinematic finish proposals');
 });
 
 test('offensive actions against named threats start engine combat before narration resolution', () => {

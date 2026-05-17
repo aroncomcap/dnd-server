@@ -391,6 +391,38 @@
     border-color: rgba(200,146,42,0.48);
     color: #6e4a1c;
   }
+  .target-control-row {
+    display: none;
+    gap: 6px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .target-control-row.visible {
+    display: flex;
+  }
+  .target-control {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  .target-control label {
+    margin: 0 0 2px;
+    font-size: 0.68rem;
+    color: var(--ink-light);
+  }
+  .target-control select {
+    min-height: 30px;
+    padding: 5px 7px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+  }
+  #btn-finish-cinematic {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 30px;
+    padding: 5px 9px;
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
   .character-action-chip:hover {
     background: rgba(232, 213, 176, 0.82);
     border-color: var(--gold);
@@ -1361,6 +1393,17 @@
     </div>
     <div id="my-turn-controls">
       <div id="character-action-chips" class="character-action-chips" aria-label="Character actions and spells"></div>
+      <div id="target-control-row" class="target-control-row" aria-label="Combat targets">
+        <div class="target-control">
+          <label for="attack-target-select">Attack</label>
+          <select id="attack-target-select"></select>
+        </div>
+        <div class="target-control">
+          <label for="support-target-select">Support</label>
+          <select id="support-target-select"></select>
+        </div>
+        <button class="btn btn-ghost" id="btn-finish-cinematic" type="button">Finish Cinematically</button>
+      </div>
       <div id="options-area"></div>
       <div class="or-divider" id="or-divider" style="display:none;">— or describe your own action —</div>
       <div id="ooc-mode-indicator" class="ooc-mode-indicator"></div>
@@ -1602,7 +1645,7 @@ RuneQuest: Orlanthi warrior, STR 15 CON 12 SIZ 14 INT 13 POW 11 DEX 14 CHA 10, S
     </div>
 
     <button class="btn btn-danger" id="btn-reset" style="margin-top:10px;">
-      🔄 Reset Game (keeps characters)
+      Move to Next Beat
     </button>
   </div>
 
@@ -2523,6 +2566,73 @@ function renderCharacterActionChips() {
   rail.classList.add('visible');
 }
 
+function livingCombatantsByType(type) {
+  const combatants = combatState?.combatants || {};
+  return Object.values(combatants)
+    .filter(c => c && c.type === type && Number(c.hp ?? c.maxHp ?? 1) > 0)
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+}
+
+function getSelectedTargetPreferences() {
+  return {
+    attackTargetId: document.getElementById('attack-target-select')?.value || null,
+    supportTargetId: document.getElementById('support-target-select')?.value || null,
+  };
+}
+
+function getDefaultAttackTargetId() {
+  const mine = targetPreferences[getMyName()] || {};
+  if (mine.attackTargetId && combatState?.combatants?.[mine.attackTargetId]) return mine.attackTargetId;
+  return combatState?.targetSuggestions?.attackTargetId || livingCombatantsByType('Enemy')[0]?.id || '';
+}
+
+function getDefaultSupportTargetId() {
+  const mine = targetPreferences[getMyName()] || {};
+  if (mine.supportTargetId && combatState?.combatants?.[mine.supportTargetId]) return mine.supportTargetId;
+  return combatState?.targetSuggestions?.supportTargetId || getMyName().toLowerCase().replace(/\s+/g, '-') || '';
+}
+
+function emitTargetPreferences() {
+  const name = getMyName();
+  if (!name || !combatActive) return;
+  const prefs = getSelectedTargetPreferences();
+  targetPreferences[name] = prefs;
+  socket.emit('set_target_preferences', { gameId, playerName: name, ...prefs });
+}
+
+function renderTargetControls() {
+  const row = document.getElementById('target-control-row');
+  const attackSelect = document.getElementById('attack-target-select');
+  const supportSelect = document.getElementById('support-target-select');
+  if (!row || !attackSelect || !supportSelect) return;
+  if (!combatActive || !isMyTurnCheck()) {
+    row.classList.remove('visible');
+    return;
+  }
+
+  const enemies = livingCombatantsByType('Enemy');
+  const allies = livingCombatantsByType('PC').concat(livingCombatantsByType('Player'));
+  if (!enemies.length && !allies.length) {
+    row.classList.remove('visible');
+    return;
+  }
+
+  const attackValue = getDefaultAttackTargetId();
+  const supportValue = getDefaultSupportTargetId();
+  attackSelect.innerHTML = enemies.map(c =>
+    `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)} (${c.hp ?? '?'} HP)</option>`
+  ).join('');
+  supportSelect.innerHTML = allies.map(c =>
+    `<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)} (${c.hp ?? '?'} HP)</option>`
+  ).join('');
+  if (attackValue) attackSelect.value = attackValue;
+  if (supportValue) supportSelect.value = supportValue;
+
+  attackSelect.onchange = emitTargetPreferences;
+  supportSelect.onchange = emitTargetPreferences;
+  row.classList.add('visible');
+}
+
 function ensureWaitingMessageStructure() {
   const waitingMsg = document.getElementById('waiting-msg');
   if (!waitingMsg) return null;
@@ -2549,6 +2659,7 @@ function updateActionArea() {
   if (!socket.connected || !gameJoinReady) {
     myTurnControls.style.display = 'none';
     renderCharacterActionChips();
+    renderTargetControls();
     waitingMsg.style.display = 'block';
     waitingName.textContent = 'Reconnecting to the table...';
     startWaitingTips();
@@ -2568,6 +2679,7 @@ function updateActionArea() {
     // Player hasn't selected a character — show prompt to select
     myTurnControls.style.display = 'none';
     renderCharacterActionChips();
+    renderTargetControls();
     waitingMsg.style.display = 'block';
     waitingName.innerHTML = '<strong>' + escapeHtml(currentPlayer) + '</strong> — <a href="#" onclick="document.querySelector(\'[data-screen=party]\').click(); return false;" style="color:var(--gold);">Select your character</a> to play';
     startWaitingTips();
@@ -2578,10 +2690,12 @@ function updateActionArea() {
     myTurnControls.style.display = 'block';
     waitingMsg.style.display = 'none';
     renderCharacterActionChips();
+    renderTargetControls();
     stopWaitingTips();
   } else {
     myTurnControls.style.display = 'none';
     renderCharacterActionChips();
+    renderTargetControls();
     waitingMsg.style.display = 'block';
     if (Object.keys(currentCharacters).includes(currentPlayer)) {
       waitingName.innerHTML = `<strong>${escapeHtml(currentPlayer)}</strong>'s turn — <button onclick="selectCharacter('${escapeHtml(currentPlayer)}', currentCharacters['${escapeHtml(currentPlayer)}'])" style="background:var(--gold);color:#0d0600;border:none;padding:4px 12px;border-radius:4px;cursor:pointer;font-family:'Cinzel Decorative',cursive;font-size:0.75rem;margin-left:6px;">Play as ${escapeHtml(currentPlayer)}</button>`;
@@ -2595,6 +2709,7 @@ function updateActionArea() {
 // ── Combat UI State ───────────────────────────────────────────────────────
 let combatActive = false;
 let combatState = null;
+let targetPreferences = {};
 let reactionTimeout = null;
 
 socket.on('combat_initializing', (data) => {
@@ -2630,6 +2745,7 @@ socket.on('combat_init_failed', () => {
 socket.on('combat_started', (data) => {
   combatActive = true;
   combatState = { ...(combatState || {}), ...data };
+  targetPreferences = data.targetPreferences || targetPreferences || {};
   // Restore full action input
   const myTurn = document.getElementById('my-turn-controls');
   const waiting = ensureWaitingMessageStructure();
@@ -2642,6 +2758,7 @@ socket.on('combat_started', (data) => {
   document.getElementById('combat-log-toggle').style.display = 'block';
   document.getElementById('combat-log').innerHTML = '<div class="round-header">Combat Begins!</div>';
   updateCombatTurnOrder(data);
+  renderTargetControls();
   updateActionArea();
 });
 
@@ -2653,16 +2770,19 @@ socket.on('combat_update', (data) => {
     initiativeOrder: data.initiativeOrder || combatState?.initiativeOrder || [],
     combatants: data.combatants || combatState?.combatants || {},
   };
+  targetPreferences = data.targetPreferences || targetPreferences || {};
   const waiting = ensureWaitingMessageStructure();
   if (waiting?.waitingMsg) waiting.waitingMsg.style.display = 'none';
   if (waiting?.waitingTip) waiting.waitingTip.style.display = '';
   updateCombatTurnOrder(data);
   if (data.log) appendCombatLog(data.log);
+  renderTargetControls();
   updateActionArea();
 });
 
 socket.on('combat_ended', (data) => {
   combatActive = false;
+  renderTargetControls();
   if (data.reason !== 'error') {
     document.getElementById('combat-log').innerHTML += '<div class="round-header">Combat Ended — ' + (data.reason === 'enemies_defeated' ? 'Victory!' : 'Defeat...') + '</div>';
   }
@@ -2672,6 +2792,22 @@ socket.on('combat_ended', (data) => {
       showPartyTurnOrder();
       document.getElementById('combat-log-toggle').style.display = 'none';
     }, 5000);
+  }
+});
+
+socket.on('target_preferences_updated', (data) => {
+  targetPreferences = data.targetPreferences || targetPreferences || {};
+  if (data.targetSuggestions) {
+    combatState = { ...(combatState || {}), targetSuggestions: data.targetSuggestions };
+  }
+  renderTargetControls();
+});
+
+socket.on('cinematic_finish_proposed', (data) => {
+  const proposer = data?.proposer || 'A player';
+  addMsg('system', `${proposer} proposed finishing this combat cinematically. Host can confirm from their table.`);
+  if (isHost && confirm(`${proposer} proposed finishing this combat cinematically. Confirm?`)) {
+    socket.emit('finish_cinematic_confirm', { gameId, playerName: getMyName() });
   }
 });
 
@@ -3010,6 +3146,7 @@ socket.on('game_joined', (state) => {
   // Cache state
   currentTurnOrder = state.turnOrder || [];
   currentCharacters = state.characters || {};
+  targetPreferences = state.targetPreferences || {};
   debugEvent('game_joined', Object.keys(state.characters || {}).join(','));
   // Show party in turn order overlay (always visible)
   if (Object.keys(state.characters || {}).length > 0 || currentTurnOrder.length > 0) showPartyTurnOrder();
@@ -3936,6 +4073,12 @@ document.getElementById('btn-send').addEventListener('click', sendAction);
 document.getElementById('action-input').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAction(); }
 });
+document.getElementById('btn-finish-cinematic')?.addEventListener('click', () => {
+  if (!combatActive) return;
+  socket.emit('finish_cinematic', { gameId, playerName: getMyName() }, (res) => {
+    if (res && res.ok === false) addMsg('system', res.error || 'Could not finish combat cinematically.');
+  });
+});
 
 function setOocMode(active, message = 'OOC mode armed. Your next send will go to the GM as meta text.') {
   const input = document.getElementById('action-input');
@@ -3977,7 +4120,7 @@ function sendAction() {
   }
 
   markActionSending();
-  socket.timeout(ACTION_ACK_TIMEOUT_MS).emit('player_action', { gameId, playerName: name, action }, (err, ack) => {
+  socket.timeout(ACTION_ACK_TIMEOUT_MS).emit('player_action', { gameId, playerName: name, action, targetPreferences: getSelectedTargetPreferences() }, (err, ack) => {
     if (err || !ack?.ok) {
       resetSendButton();
       input.value = action;
@@ -4227,8 +4370,8 @@ document.getElementById('btn-start').addEventListener('click', () => {
 });
 
 document.getElementById('btn-reset').addEventListener('click', () => {
-  if (confirm('Reset the game? Chat history will be cleared but characters are kept.')) {
-    socket.emit('reset_game');
+  if (confirm('Move to the next story beat? This clears active combat and stuck scene state but keeps characters and campaign history.')) {
+    socket.emit('move_to_next_beat', { gameId, playerName: getMyName() });
   }
 });
 

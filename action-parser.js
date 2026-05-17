@@ -1,6 +1,7 @@
 'use strict';
 
 const llm = require('./llm');
+const targetAuthority = require('./target-authority');
 
 // ---------------------------------------------------------------------------
 // Fuzzy matching helpers
@@ -71,18 +72,14 @@ function findCombatantId(query, combatants, typeFilter = null) {
  * Find the first enemy combatant id.
  */
 function firstEnemyId(combatants) {
-  for (const [id, c] of Object.entries(combatants)) {
-    const hp = c.hp ?? c.totalHp ?? c.maxHp;
-    if (c.type === 'Enemy' && (hp === undefined || hp > 0)) return id;
-  }
-  return null;
+  return targetAuthority.defaultAttackTargetId(combatants);
 }
 
-function resolveTargetQuery(query, combatants, typeFilter = 'Enemy') {
+function resolveTargetQuery(query, combatants, typeFilter = 'Enemy', targetPreferences = {}) {
   const targetId = findCombatantId(query, combatants, typeFilter);
   if (targetId) return targetId;
   if (/\b(?:it|them|enemy|foe|monster|creature|presence|thing|undead|threat)\b/i.test(query || '')) {
-    return firstEnemyId(combatants);
+    return targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
   }
   return null;
 }
@@ -123,6 +120,11 @@ function findSpell(query, spells) {
   return bestScore > 0 ? best : null;
 }
 
+function findSpellObject(spellName, spells) {
+  if (!spellName) return null;
+  return (spells || []).find(s => s.name === spellName || s.name?.toLowerCase() === String(spellName).toLowerCase()) || null;
+}
+
 /**
  * Find the first healing spell from a spells array.
  * Heuristic: spell name contains "heal", "cure", "mend", "restore".
@@ -138,26 +140,18 @@ function findHealingSpell(spells) {
 }
 
 function isHealingSpell(spell) {
-  if (!spell) return false;
-  const n = String(spell.name || '').toLowerCase();
-  return !!(spell.healing || spell.effect === 'heal' || spell.type === 'heal' || /\b(?:heal|cure|mend|restore|healing word|lay on hands)\b/.test(n));
+  return targetAuthority.isHealingSpell(spell);
 }
 
 function isOffensiveSpell(spell, query = '') {
-  if (!spell) return false;
-  const text = `${spell.name || ''} ${query || ''}`.toLowerCase();
-  return !!(
-    spell.damage ||
-    spell.attack ||
-    spell.save ||
-    spell.type === 'damage' ||
-    /\b(?:acid splash|burning hands|chill touch|chromatic orb|dissonant whispers|eldritch blast|fire bolt|fireball|guiding bolt|heat metal|inflict wounds|lightning bolt|magic missile|moonbeam|ray of frost|sacred flame|scorching ray|shatter|spirit guardians|toll the dead|vicious mockery)\b/.test(text)
-  );
+  return targetAuthority.isOffensiveSpell(spell, query);
 }
 
-function defaultSpellTarget(spell, spellQuery, combatants, playerId) {
-  if (isHealingSpell(spell)) return playerId;
-  if (isOffensiveSpell(spell, spellQuery)) return firstEnemyId(combatants);
+function defaultSpellTarget(spell, spellQuery, combatants, playerId, targetPreferences = {}) {
+  const role = targetAuthority.spellTargetRole(spell || {}, spellQuery);
+  if (role === 'enemy') return targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
+  if (role === 'ally') return targetAuthority.getPreferredSupportTargetId(combatants, playerId, targetPreferences);
+  if (role === 'downed_ally') return targetAuthority.validTargetsForRole(combatants, 'downed_ally', playerId)[0]?.id || null;
   return playerId;
 }
 
@@ -238,6 +232,7 @@ function parseAction(input, playerId, ctx) {
   const lower = raw.toLowerCase();
   const combatants = ctx.combatants || {};
   const preTaggedOptions = ctx.preTaggedOptions || null;
+  const targetPreferences = targetAuthority.normalizeTargetPreferences(ctx.targetPreferences || {});
   const player = combatants[playerId] || {};
   const weapons = player.weapons || [];
   const spells = player.spells || [];
@@ -247,7 +242,10 @@ function parseAction(input, playerId, ctx) {
     const idx = parseInt(raw, 10) - 1;
     const option = preTaggedOptions[idx];
     if (option) {
-      return { ...option, attackerId: playerId, actorId: option.actorId || option.attackerId || playerId };
+      const tagged = { ...option, attackerId: playerId, actorId: option.actorId || option.attackerId || playerId };
+      return targetAuthority.applyTargetPreferences(tagged, combatants, targetPreferences, playerId, {
+        spell: findSpellObject(tagged.spell || tagged.spellName, spells),
+      });
     }
   }
 
@@ -260,12 +258,12 @@ function parseAction(input, playerId, ctx) {
   }
 
   if (isFeatureAction(raw)) {
-    return { type: 'feature', actorId: playerId, attackerId: playerId, targetId: firstEnemyId(combatants), description: raw };
+    return { type: 'feature', actorId: playerId, attackerId: playerId, targetId: targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences), description: raw };
   }
 
   // --- 3. Bare attack: "attack" ---
   if (/^(?:attack|strike|hit|slash|stab|shoot)$/i.test(raw)) {
-    const targetId = firstEnemyId(combatants);
+    const targetId = targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
     const weapon = findWeapon(null, weapons);
     return { type: 'attack', attackerId: playerId, targetId, weapon };
   }
@@ -275,7 +273,7 @@ function parseAction(input, playerId, ctx) {
   const awom = raw.match(attackWithWeaponOnlyRe);
   if (awom) {
     const weaponQuery = awom[1].trim();
-    const targetId = firstEnemyId(combatants);
+    const targetId = targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
     const weapon = findWeapon(weaponQuery, weapons) || findWeapon(null, weapons);
     return { type: 'attack', attackerId: playerId, targetId, weapon };
   }
@@ -285,7 +283,7 @@ function parseAction(input, playerId, ctx) {
   if (awm) {
     const targetQuery = awm[1].trim();
     const weaponQuery = awm[2].trim();
-    const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy') || firstEnemyId(combatants);
+    const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy', targetPreferences) || targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
     const weapon = findWeapon(weaponQuery, weapons) || findWeapon(null, weapons);
     return { type: 'attack', attackerId: playerId, targetId, weapon };
   }
@@ -295,7 +293,7 @@ function parseAction(input, playerId, ctx) {
   const am = raw.match(attackRe);
   if (am) {
     const targetQuery = am[1].trim();
-    const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy') || firstEnemyId(combatants);
+    const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy', targetPreferences) || targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
     const weapon = weapons.length > 0 ? weapons[0].name : null;
     return { type: 'attack', attackerId: playerId, targetId, weapon };
   }
@@ -307,7 +305,10 @@ function parseAction(input, playerId, ctx) {
     const spellQuery = com[1].trim();
     const targetQuery = com[2].trim();
     const spell = findSpell(spellQuery, spells);
-    const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy') || defaultSpellTarget(spells.find(s => s.name === spell), spellQuery, combatants, playerId);
+    const spellObj = findSpellObject(spell, spells);
+    const targetRole = targetAuthority.spellTargetRole(spellObj || {}, spellQuery);
+    const targetId = resolveTargetQuery(targetQuery, combatants, targetRole === 'enemy' ? 'Enemy' : null, targetPreferences) ||
+      defaultSpellTarget(spellObj, spellQuery, combatants, playerId, targetPreferences);
     return { type: 'spell', attackerId: playerId, spell, targetId };
   }
 
@@ -317,8 +318,8 @@ function parseAction(input, playerId, ctx) {
   if (cm) {
     const spellQuery = cm[1].trim();
     const spell = findSpell(spellQuery, spells);
-    const spellObj = (spells || []).find(s => s.name === spell);
-    return { type: 'spell', attackerId: playerId, spell, targetId: defaultSpellTarget(spellObj, spellQuery, combatants, playerId) };
+    const spellObj = findSpellObject(spell, spells);
+    return { type: 'spell', attackerId: playerId, spell, targetId: defaultSpellTarget(spellObj, spellQuery, combatants, playerId, targetPreferences) };
   }
 
   // --- 7. Heal: "heal <target>" ---
@@ -326,7 +327,7 @@ function parseAction(input, playerId, ctx) {
   const hm = raw.match(healRe);
   if (hm) {
     const targetQuery = hm[1].trim();
-    const targetId = findCombatantId(targetQuery, combatants) || playerId;
+    const targetId = findCombatantId(targetQuery, combatants) || targetAuthority.getPreferredSupportTargetId(combatants, playerId, targetPreferences);
     const spell = findHealingSpell(spells);
     return { type: 'spell', attackerId: playerId, spell, targetId };
   }

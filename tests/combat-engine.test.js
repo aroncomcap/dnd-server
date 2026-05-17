@@ -320,6 +320,24 @@ describe('CombatEngine', () => {
       }
     });
 
+    it('requires a valid living enemy target before resolving an attack', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const goblinBefore = engine.state.combatants.goblin.hp;
+
+      const result = engine.resolveAction({
+        type: 'attack',
+        attackerId: 'kael',
+        targetId: 'missing-target',
+        weaponName: 'longsword',
+      });
+
+      assert.equal(result.type, 'target_required');
+      assert.equal(result.requiresTarget, true);
+      assert.equal(result.targetRole, 'enemy');
+      assert.equal(engine.state.combatants.goblin.hp, goblinBefore);
+    });
+
     it('resolves Extra Attack profiles as multiple weapon attacks in one Attack action', () => {
       const engine = new CombatEngine();
       const pc = makeDnDPC({
@@ -387,6 +405,47 @@ describe('CombatEngine', () => {
         slotLevel: 1,
       });
       assert.equal(engine.state.combatants['kael'].spellSlots[1], slotsBefore - 1);
+    });
+
+    it('does not spend a spell slot when a target-required spell has no valid target', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const slotsBefore = engine.state.combatants.kael.spellSlots[3];
+
+      const result = engine.resolveAction({
+        type: 'spell',
+        casterId: 'kael',
+        targetId: null,
+        spellName: 'fireball',
+        slotLevel: 3,
+      });
+
+      assert.equal(result.type, 'target_required');
+      assert.equal(result.targetRole, 'enemy');
+      assert.equal(engine.state.combatants.kael.spellSlots[3], slotsBefore);
+    });
+
+    it('requires Revivify-style spells to target a downed ally, not a living enemy', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({
+        spells: [
+          { name: 'Revivify', level: 3, effect: 'revive' },
+        ],
+      });
+      engine.initCombat([pc], [makeDnDEnemy()], 'dnd5e');
+      const slotsBefore = engine.state.combatants.kael.spellSlots[3];
+
+      const result = engine.resolveAction({
+        type: 'spell',
+        casterId: 'kael',
+        targetId: 'goblin',
+        spellName: 'Revivify',
+        slotLevel: 3,
+      });
+
+      assert.equal(result.type, 'target_required');
+      assert.equal(result.targetRole, 'downed_ally');
+      assert.equal(engine.state.combatants.kael.spellSlots[3], slotsBefore);
     });
 
     it('applies direct damage spells to target HP', () => {

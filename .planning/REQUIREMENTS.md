@@ -38,6 +38,14 @@ Requirements for the Production Stabilization milestone.
 - [x] **FEEDBACK-01**: OOC/review self-assessment can log a bug with slug, source, and decision trace when the game identifies a programming improvement.
 - [x] **FEEDBACK-02**: Player-visible GM feedback controls are actionable only, with Retcon arming OOC mode and Redo Options regenerating scene-specific options while logging a decision trace.
 
+### Director-First Combat Recovery And Target Authority
+
+- [x] **TARGET-01**: Any spell, attack, feature, or support action requiring a target must validate a real legal target before resolution or resource spending. If no target is available, the game must auto-select a valid target or pause and request one.
+- [x] **TARGET-02**: Each player has persistent target preferences: an attack target for hostile actions and a support target for defensive/healing/support actions. Defaults are useful and persist until changed.
+- [x] **RECOVERY-01**: `Move to Next Beat` clears ephemeral state such as combat, pending actions, stale options, temporary enemies, social challenges, and narration locks while preserving durable character/campaign state and advancing the story beat.
+- [x] **COMBAT-01**: Fights stay round-by-round by default once initiative starts, and enemies take meaningful turns.
+- [x] **COMBAT-02**: `Finish Cinematically` is visible throughout combat, recommended when a fight is nearly decided, can be proposed by any player, proceeds immediately with one active player, and otherwise requires table approval.
+
 ### Repo Hygiene
 
 - [x] **HYGIENE-01**: Planning files exist and `gsd-autonomous` can discover incomplete phases.
@@ -96,6 +104,11 @@ Deferred beyond this stabilization pass.
 | INTENT-02 | Phase 5 | Done |
 | FEEDBACK-01 | Phase 5 | Done |
 | FEEDBACK-02 | Phase 5 | Done |
+| TARGET-01 | Phase 5.1 | Done |
+| TARGET-02 | Phase 5.1 | Done |
+| RECOVERY-01 | Phase 5.1 | Done |
+| COMBAT-01 | Phase 5.1 | Done |
+| COMBAT-02 | Phase 5.1 | Done |
 | LLM-01 | Phase 6 | Design ready |
 | LLM-02 | Phase 6 | Design ready |
 | LLM-03 | Phase 6 | Design ready |
@@ -105,12 +118,12 @@ Deferred beyond this stabilization pass.
 | LLM-07 | Phase 6 | Design ready |
 
 **Coverage:**
-- v1.0 requirements: 19 total
-- Mapped to phases: 19
+- v1.0 requirements: 24 total
+- Mapped to phases: 24
 - v1.1 LLM requirements: 7 total
 - Mapped to phases: 7
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-10*
-*Last updated: 2026-05-17 after Phase 5 intent/review stabilization*
+*Last updated: 2026-05-17 after Phase 5.1 local verification*
