@@ -3,6 +3,7 @@
 const db = require('./db');
 const GENERIC_TEMPLATES = require('./templates/generic-templates.json');
 const { buildStandardActionOptions } = require('./turn-options');
+const targetAuthority = require('./target-authority');
 
 // In-memory cache: Map<"slug:event:persona", string[]>
 const templateCache = new Map();
@@ -336,9 +337,20 @@ function generateCombatOptions(combatEngine, characterName) {
       return player.spellSlots[s.level] > 0;
     });
     const bestSpell = availableSpells.sort((a, b) => (b.level || 0) - (a.level || 0))[0];
-    opt3 = bestSpell
-      ? `🔥 Cast ${bestSpell.name}${nearestEnemy ? ` on ${nearestEnemy.name}` : ''}`
-      : '🔥 Attempt something reckless';
+    if (bestSpell) {
+      const role = targetAuthority.spellTargetRole(bestSpell, bestSpell.name);
+      if (role === 'enemy') {
+        opt3 = nearestEnemy ? `🔥 Cast ${bestSpell.name} at ${nearestEnemy.name}` : `🔥 Cast ${bestSpell.name}`;
+      } else if (role === 'self') {
+        opt3 = `🔥 Cast ${bestSpell.name}`;
+      } else {
+        const supportTargetId = targetAuthority.defaultSupportTargetId(combatants, player.id);
+        const supportTarget = combatants[supportTargetId] || player;
+        opt3 = `🔥 Cast ${bestSpell.name} on ${supportTarget.name}`;
+      }
+    } else {
+      opt3 = '🔥 Attempt something reckless';
+    }
   } else if (player.features?.some(f => /extra attack|action surge|sneak attack|rage|wild shape/i.test(f))) {
     const feature = player.features.find(f => /extra attack|action surge|sneak attack|rage|wild shape/i.test(f));
     opt3 = `🔥 Use ${feature}`;

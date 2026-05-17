@@ -102,6 +102,12 @@ function findWeapon(query, weapons) {
   return bestScore > 0 ? best : null;
 }
 
+function findExactWeapon(query, weapons) {
+  if (!weapons || weapons.length === 0 || !query) return null;
+  const normalized = String(query).trim().toLowerCase().replace(/^use\s+/, '');
+  return (weapons.find(w => String(w.name || '').trim().toLowerCase() === normalized) || null)?.name || null;
+}
+
 /**
  * Fuzzy-match a spell name from an array of spell objects [{name}].
  */
@@ -266,6 +272,12 @@ function parseAction(input, playerId, ctx) {
     const targetId = targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
     const weapon = findWeapon(null, weapons);
     return { type: 'attack', attackerId: playerId, targetId, weapon };
+  }
+
+  const bareWeapon = findExactWeapon(raw, weapons);
+  if (bareWeapon) {
+    const targetId = targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
+    return { type: 'attack', attackerId: playerId, targetId, weapon: bareWeapon };
   }
 
   // --- 3. Attack with weapon: "attack/strike/hit/slash/stab <target> with <weapon>" ---

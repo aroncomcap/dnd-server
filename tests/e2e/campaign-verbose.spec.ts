@@ -14,6 +14,9 @@ const TARGET_LEVEL = Number(process.env.CAMPAIGN_TARGET_LEVEL || 3);
 const TURNS_PER_LEVEL = Number(process.env.CAMPAIGN_TURNS_PER_LEVEL || 30);
 const MAX_SESSIONS = Number(process.env.CAMPAIGN_MAX_SESSIONS || 4);
 const MAX_MISSING_RESPONSES = Number(process.env.CAMPAIGN_MAX_MISSING_RESPONSES || 2);
+const REUSE_CAMPAIGN = process.env.CAMPAIGN_REUSE_CAMPAIGN !== 'false';
+const REUSE_ROTATE_HOURS = Number(process.env.CAMPAIGN_REUSE_ROTATE_HOURS || 24);
+const REUSE_NAME_PREFIX = process.env.CAMPAIGN_REUSE_NAME_PREFIX || 'Verbose-Reusable-DND5E';
 
 test.setTimeout(CAMPAIGN_TIMEOUT_MS);
 
@@ -21,6 +24,53 @@ test.setTimeout(CAMPAIGN_TIMEOUT_MS);
  * Campaign Verbose Test - Detailed Output
  * Captures and displays: narration, dice rolls, combat, all game events
  */
+
+function getReuseCampaignName() {
+  if (!REUSE_CAMPAIGN) return null;
+  const rotateMs = Math.max(1, REUSE_ROTATE_HOURS) * 60 * 60 * 1000;
+  const bucket = process.env.CAMPAIGN_REUSE_BUCKET || String(Math.floor(Date.now() / rotateMs));
+  return `${REUSE_NAME_PREFIX}-${bucket}`;
+}
+
+async function findReusableGameId(page, baseURL, gameName) {
+  if (!gameName) return null;
+  const gamesRes = await page.request.get(`${baseURL}/api/games`);
+  if (!gamesRes.ok()) return null;
+  const games = await gamesRes.json();
+  const match = games
+    .filter(game => game?.name === gameName)
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))[0];
+  return match?.id || null;
+}
+
+async function isCombatUiActive(page) {
+  return page.evaluate(() => {
+    const combatToggle = document.querySelector('#combat-log-toggle') as HTMLElement | null;
+    const targetRow = document.querySelector('#target-control-row') as HTMLElement | null;
+    const combatLog = document.querySelector('#combat-log') as HTMLElement | null;
+    const visible = (el: HTMLElement | null) => {
+      if (!el) return false;
+      const style = window.getComputedStyle(el);
+      return style.display !== 'none' && style.visibility !== 'hidden';
+    };
+    return visible(combatToggle) || visible(targetRow) || Boolean(combatLog?.textContent?.includes('Combat Begins'));
+  }).catch(() => false);
+}
+
+async function pickFallbackAction(page) {
+  if (await isCombatUiActive(page)) {
+    const actions = ['Attack', 'Dodge', 'Help'];
+    return actions[Math.floor(Math.random() * actions.length)];
+  }
+  const actions = [
+    'Ask what the clerk needs from us',
+    'Explain that we seek safe passage',
+    'Offer peaceful cooperation',
+    'Search the scene for useful details',
+    'Move on toward the next clear objective',
+  ];
+  return actions[Math.floor(Math.random() * actions.length)];
+}
 
 test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) => {
   console.log(`\n╔════════════════════════════════════════════════════════════════╗`);
@@ -52,40 +102,51 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
     const authenticated = await loginTestUserInBrowser(page, baseURL!);
     expect(authenticated).toBe(true);
 
-    // Create game
-    const gameName = `Verbose-Session${gameCount}-L${currentLevel}`;
-    await page.goto(`${baseURL}/new-game`, { waitUntil: 'domcontentloaded' });
-    await page.waitForTimeout(1000);
-
-    const gameNameInput = page.locator('#game-name');
-    const isVisible = await gameNameInput.isVisible().catch(() => false);
-    if (!isVisible) {
-      console.log(`❌ Form not visible, retrying...`);
-      continue;
+    let gameId = null;
+    const reusableName = getReuseCampaignName();
+    if (reusableName) {
+      gameId = await findReusableGameId(page, baseURL!, reusableName);
+      if (gameId) {
+        console.log(`♻️  Reusing game: ${gameId.substring(0, 8)}... (${reusableName})\n`);
+        await page.goto(`${baseURL}/game/${gameId}`, { waitUntil: 'domcontentloaded' });
+      }
     }
-
-    await gameNameInput.fill(gameName);
-    await page.locator('#game-system').selectOption('dnd5e');
-    await page.locator('#scene-prompt').fill('A new chapter in your adventure begins.');
-    await page.locator('#party-direction').fill('Your seasoned adventurers face their next challenge.');
-    await page.locator('#btn-create').click();
-
-    try {
-      await page.waitForURL(/\/game\//, { timeout: 15000 });
-    } catch {
-      await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
-    }
-
-    let gameUrl = page.url();
-    let gameId = gameUrl.match(/\/game\/([a-f0-9-]+)/)?.[1];
 
     if (!gameId) {
-      const gamesRes = await page.request.get(`${baseURL}/api/games`);
-      if (gamesRes.ok()) {
-        const games = await gamesRes.json();
-        if (games.length > 0) {
-          gameId = games[0].id;
-          await page.goto(`${baseURL}/game/${gameId}`, { waitUntil: 'domcontentloaded' });
+      const gameName = reusableName || `Verbose-Session${gameCount}-L${currentLevel}`;
+      await page.goto(`${baseURL}/new-game`, { waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(1000);
+
+      const gameNameInput = page.locator('#game-name');
+      const isVisible = await gameNameInput.isVisible().catch(() => false);
+      if (!isVisible) {
+        console.log(`❌ Form not visible, retrying...`);
+        continue;
+      }
+
+      await gameNameInput.fill(gameName);
+      await page.locator('#game-system').selectOption('dnd5e');
+      await page.locator('#scene-prompt').fill('A new chapter in your adventure begins.');
+      await page.locator('#party-direction').fill('Use the existing reusable verbose test party when available; otherwise create four balanced level 1 D&D 5e adventurers.');
+      await page.locator('#btn-create').click();
+
+      try {
+        await page.waitForURL(/\/game\//, { timeout: 15000 });
+      } catch {
+        await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
+      }
+
+      const gameUrl = page.url();
+      gameId = gameUrl.match(/\/game\/([a-f0-9-]+)/)?.[1];
+
+      if (!gameId) {
+        const gamesRes = await page.request.get(`${baseURL}/api/games`);
+        if (gamesRes.ok()) {
+          const games = await gamesRes.json();
+          if (games.length > 0) {
+            gameId = games[0].id;
+            await page.goto(`${baseURL}/game/${gameId}`, { waitUntil: 'domcontentloaded' });
+          }
         }
       }
     }
@@ -111,7 +172,8 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
     let sessionTurns = 0;
     let noActionCount = 0;
     let missingResponseCount = 0;
-    const maxSessionTurns = 50;
+    const turnsNeeded = Math.max(1, ((targetLevel - currentLevel) * turnsPerLevel) - (totalTurns % turnsPerLevel));
+    const maxSessionTurns = Math.min(50, turnsNeeded);
     const maxNoAction = 6;
 
     console.log(`🎮 PLAYING SESSION...\n`);
@@ -172,9 +234,9 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
         for (const input of inputs) {
           const isVisible = await input.isVisible().catch(() => false);
           if (isVisible) {
-            const actions = ['I attack', 'Move', 'Cast spell', 'Search', 'Go forward'];
+            const action = await pickFallbackAction(page);
             try {
-              await input.fill(actions[Math.floor(Math.random() * actions.length)]);
+              await input.fill(action);
               const sendBtn = page.locator('#btn-send');
               const isSendVisible = await sendBtn.isVisible({ timeout: 500 }).catch(() => false);
               const isSendEnabled = await sendBtn.isEnabled().catch(() => false);
@@ -255,6 +317,8 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
         if (sessionTurns % 5 === 0) {
           process.stdout.write(`[${sessionTurns}]`);
         }
+        currentLevel = 1 + Math.floor(totalTurns / turnsPerLevel);
+        if (currentLevel >= targetLevel) break;
       }
 
       await page.waitForTimeout(250);

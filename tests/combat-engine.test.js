@@ -338,6 +338,23 @@ describe('CombatEngine', () => {
       assert.equal(engine.state.combatants.goblin.hp, goblinBefore);
     });
 
+    it('allows enemies to attack living PCs instead of treating PCs as invalid enemy targets', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC({ ac: 1 })], [makeDnDEnemy()], 'dnd5e');
+
+      const result = engine.resolveAction({
+        type: 'attack',
+        attackerId: 'goblin',
+        targetId: 'kael',
+        weaponName: 'scimitar',
+      });
+
+      assert.equal(result.type, 'attack');
+      assert.notEqual(result.type, 'target_required');
+      assert.equal(result.attackerName, 'Goblin');
+      assert.equal(result.targetName, 'Kael');
+    });
+
     it('resolves Extra Attack profiles as multiple weapon attacks in one Attack action', () => {
       const engine = new CombatEngine();
       const pc = makeDnDPC({

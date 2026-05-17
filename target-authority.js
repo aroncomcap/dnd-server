@@ -46,6 +46,12 @@ function isDownedAlly(combatant) {
   return !!combatant.dead || (hp != null && hp <= 0);
 }
 
+function isOpponentForActor(actor, combatant) {
+  if (!combatant || !isAlive(combatant)) return false;
+  if (!actor) return isEnemy(combatant);
+  return isEnemy(actor) ? isAlly(combatant) : isEnemy(combatant);
+}
+
 function livingEnemies(combatants = {}) {
   return Object.values(combatants).filter(c => isEnemy(c) && isAlive(c));
 }
@@ -140,7 +146,10 @@ function spellTargetRole(spell = {}, query = '') {
 }
 
 function validTargetsForRole(combatants = {}, role, actorId = null) {
-  if (role === 'enemy') return livingEnemies(combatants);
+  if (role === 'enemy') {
+    const actor = combatants[actorId];
+    return Object.values(combatants).filter(c => isOpponentForActor(actor, c));
+  }
   if (role === 'downed_ally') return downedAllies(combatants);
   if (role === 'self') return combatants[actorId] ? [combatants[actorId]] : [];
   if (role === 'ally') return livingAllies(combatants);
@@ -155,9 +164,9 @@ function roleLabel(role) {
   return 'valid target';
 }
 
-function targetIsValid(combatant, role, actorId = null) {
+function targetIsValid(combatant, role, actorId = null, combatants = {}) {
   if (!combatant) return false;
-  if (role === 'enemy') return isEnemy(combatant) && isAlive(combatant);
+  if (role === 'enemy') return isOpponentForActor(combatants[actorId], combatant);
   if (role === 'ally') return isAlly(combatant) && isAlive(combatant);
   if (role === 'downed_ally') return isDownedAlly(combatant);
   if (role === 'self') return combatant.id === actorId && isAlive(combatant);
@@ -198,10 +207,10 @@ function applyTargetPreferences(action, combatants = {}, preferences = {}, actor
 
   if (next.type === 'attack') {
     const prefs = normalizeTargetPreferences(preferences);
-    const preferred = combatants[prefs.attackTargetId] && targetIsValid(combatants[prefs.attackTargetId], 'enemy', resolvedActorId)
+    const preferred = combatants[prefs.attackTargetId] && targetIsValid(combatants[prefs.attackTargetId], 'enemy', resolvedActorId, combatants)
       ? prefs.attackTargetId
       : (allowDefaultFallback ? defaultAttackTargetId(combatants) : null);
-    if (!targetIsValid(combatants[next.targetId], 'enemy', resolvedActorId) && preferred) {
+    if (!targetIsValid(combatants[next.targetId], 'enemy', resolvedActorId, combatants) && preferred) {
       next.targetId = preferred;
       next.targetSource = 'preferred_attack';
     }
@@ -213,19 +222,19 @@ function applyTargetPreferences(action, combatants = {}, preferences = {}, actor
     const role = spellTargetRole(spell, next.spell || next.spellName || '');
     if (role === 'enemy') {
       const prefs = normalizeTargetPreferences(preferences);
-      const preferred = combatants[prefs.attackTargetId] && targetIsValid(combatants[prefs.attackTargetId], role, resolvedActorId)
+      const preferred = combatants[prefs.attackTargetId] && targetIsValid(combatants[prefs.attackTargetId], role, resolvedActorId, combatants)
         ? prefs.attackTargetId
         : (allowDefaultFallback ? defaultAttackTargetId(combatants) : null);
-      if (!targetIsValid(combatants[next.targetId], role, resolvedActorId) && preferred) {
+      if (!targetIsValid(combatants[next.targetId], role, resolvedActorId, combatants) && preferred) {
         next.targetId = preferred;
         next.targetSource = 'preferred_attack';
       }
     } else if (role === 'ally') {
       const prefs = normalizeTargetPreferences(preferences);
-      const preferred = combatants[prefs.supportTargetId] && targetIsValid(combatants[prefs.supportTargetId], role, resolvedActorId)
+      const preferred = combatants[prefs.supportTargetId] && targetIsValid(combatants[prefs.supportTargetId], role, resolvedActorId, combatants)
         ? prefs.supportTargetId
         : (allowDefaultFallback ? defaultSupportTargetId(combatants, resolvedActorId) : null);
-      if (!targetIsValid(combatants[next.targetId], role, resolvedActorId) && preferred) {
+      if (!targetIsValid(combatants[next.targetId], role, resolvedActorId, combatants) && preferred) {
         next.targetId = preferred;
         next.targetSource = 'preferred_support';
       }
@@ -247,7 +256,7 @@ function validateActionTarget(action, combatants = {}, options = {}) {
   });
 
   if (next.type === 'attack') {
-    if (!targetIsValid(combatants[next.targetId], 'enemy', actorId)) {
+    if (!targetIsValid(combatants[next.targetId], 'enemy', actorId, combatants)) {
       return {
         ok: false,
         result: makeTargetRequiredResult(next, combatants, {
@@ -269,7 +278,7 @@ function validateActionTarget(action, combatants = {}, options = {}) {
     const resolvedTargetIds = Array.isArray(next.targetIds)
       ? next.targetIds.filter(Boolean)
       : (next.targetId ? [next.targetId] : []);
-    if (!resolvedTargetIds.length || resolvedTargetIds.some(id => !targetIsValid(combatants[id], role, actorId))) {
+    if (!resolvedTargetIds.length || resolvedTargetIds.some(id => !targetIsValid(combatants[id], role, actorId, combatants))) {
       return {
         ok: false,
         result: makeTargetRequiredResult(next, combatants, {

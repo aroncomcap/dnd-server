@@ -287,6 +287,17 @@ describe('parseAction — non-attack combat actions', () => {
     assert.equal(result.targetId, 'goblin-archer-2');
   });
 
+  it('bare weapon names in combat resolve as attacks against the preferred target', () => {
+    const result = parseAction('longsword', 'kael', {
+      ...BASE_CTX,
+      targetPreferences: { attackTargetId: 'goblin-archer-2' },
+    });
+    assert.ok(result);
+    assert.equal(result.type, 'attack');
+    assert.equal(result.weapon, 'Longsword');
+    assert.equal(result.targetId, 'goblin-archer-2');
+  });
+
   it('offensive spells use the persistent attack target when no target is typed', () => {
     const result = parseAction('cast sacred flame', 'kael', {
       ...BASE_CTX,

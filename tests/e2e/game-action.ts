@@ -29,11 +29,9 @@ export async function getLastCompletedDmText(page: Page): Promise<string> {
     const lastMsg = messages[messages.length - 1];
     if (!lastMsg) return '';
 
-    const body = Array.from(lastMsg.querySelectorAll('div'))
-      .filter(div => !div.classList.contains('msg-label'))
-      .map(div => div.textContent || '')
-      .join('\n')
-      .trim();
+    const clone = lastMsg.cloneNode(true) as Element;
+    clone.querySelectorAll('.msg-label, .narration-feedback').forEach(el => el.remove());
+    const body = (clone.textContent || '').trim();
     return body || (lastMsg.textContent || '').trim();
   });
 }
@@ -122,7 +120,9 @@ export async function getActionResponseDiagnostics(page: Page, beforeCount: numb
     const sendButton = document.querySelector('#btn-send') as HTMLButtonElement | null;
     const turnBanner = document.querySelector('#turn-banner');
     const lastCompleted = completedMessages[completedMessages.length - 1];
-    const lastText = (lastCompleted?.textContent || '').replace(/\s+/g, ' ').trim();
+    const lastClone = lastCompleted?.cloneNode(true) as Element | undefined;
+    lastClone?.querySelectorAll('.msg-label, .narration-feedback').forEach(el => el.remove());
+    const lastText = (lastClone?.textContent || lastCompleted?.textContent || '').replace(/\s+/g, ' ').trim();
     const actionInFlight = Boolean((window as any)._actionInFlight);
 
     return [

@@ -190,6 +190,37 @@ describe('generateCombatOptions', () => {
     assert.ok(options[2].includes('Fireball'));
   });
 
+  it('targets support spells at allies instead of enemies', () => {
+    const engine = {
+      state: {
+        combatants: {
+          'player-elowen': {
+            id: 'player-elowen',
+            type: 'PC',
+            name: 'Sister Elowen Vale',
+            hp: 20,
+            maxHp: 24,
+            weapons: [{ name: 'Mace' }],
+            spells: [
+              { name: 'Bless', level: 1, type: 'buff' },
+              { name: 'Healing Word', level: 1, healing: '1d4', type: 'heal' },
+            ],
+            spellSlots: { 1: 2 },
+            features: [],
+          },
+          'player-kael': { id: 'player-kael', type: 'PC', name: 'Kael', hp: 8, maxHp: 18 },
+          'guild-factor': { id: 'guild-factor', type: 'Enemy', name: 'Guild Factor', hp: 50, maxHp: 60 },
+        },
+      },
+    };
+
+    const options = generateCombatOptions(engine, 'Sister Elowen Vale');
+    const text = options.join('\n');
+
+    assert.match(text, /Cast (Bless|Healing Word) on (Sister Elowen Vale|Kael)/);
+    assert.doesNotMatch(text, /Cast (Bless|Healing Word) on Guild Factor/);
+  });
+
   it('falls back to reckless for character with no spells or features', () => {
     const engine = {
       state: {
