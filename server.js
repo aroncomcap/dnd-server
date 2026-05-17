@@ -252,6 +252,64 @@ function createFallbackParty(system = 'dnd5e') {
   ];
 }
 
+async function ensurePlayablePartyForStart(gameId, gameConfig, gs, socket = null) {
+  gs.data = gs.data || { characters: {}, chatHistory: [], currentTurnIndex: 0, turnOrder: [] };
+  gs.data.characters = gs.data.characters || {};
+  gs.data.turnOrder = Array.isArray(gs.data.turnOrder) ? gs.data.turnOrder : [];
+
+  const existingNames = Object.keys(gs.data.characters);
+  if (existingNames.length > 0) {
+    let changed = false;
+    for (const name of existingNames) {
+      if (!gs.data.turnOrder.includes(name)) {
+        gs.data.turnOrder.push(name);
+        changed = true;
+      }
+    }
+    if (!Number.isInteger(gs.data.currentTurnIndex) || gs.data.currentTurnIndex >= gs.data.turnOrder.length) {
+      gs.data.currentTurnIndex = 0;
+      changed = true;
+    }
+    if (changed) {
+      await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
+    }
+    return { created: false, count: existingNames.length };
+  }
+
+  const fallbackParty = createFallbackParty(gameConfig?.system || 'dnd5e');
+  const charStats = {};
+  let count = 0;
+
+  gs.data.currentTurnIndex = 0;
+  for (const character of fallbackParty) {
+    const cloned = JSON.parse(JSON.stringify(character));
+    const { name, ...charData } = cloned;
+    charData.token = charData.token || null;
+
+    gs.data.characters[name] = charData;
+    if (!gs.data.turnOrder.includes(name)) gs.data.turnOrder.push(name);
+    if (charData.combatStats) charStats[name] = charData.combatStats;
+
+    await db.upsertCharacter(gameId, name, charData);
+    io.to(gameId).emit('character_registered', { name, character: charData });
+    emitSystem(gameId, { text: `📜 ${name} has joined the campaign.` });
+    count++;
+  }
+
+  await db.saveTurnState(gameId, gs.data.currentTurnIndex, gs.data.turnOrder);
+  const payload = { count, fallback: true, reason: 'missing_party_on_start' };
+  if (socket) socket.emit('party_generated', payload);
+  io.to(gameId).emit('party_ready', {
+    count,
+    statsParsed: Object.keys(charStats).length,
+    combatStats: charStats,
+    fallback: true,
+    reason: 'missing_party_on_start',
+  });
+  console.log(`Fallback party generated: ${count} characters before game start`);
+  return { created: true, count };
+}
+
 const DEPLOY_TIME = new Date().toISOString();
 
 // ── Magic number constants ──────────────────────────────────────────────────────
@@ -1016,6 +1074,13 @@ async function initiateCombat(gameId, gameConfig, enemies) {
     }
     const id = name.toLowerCase().replace(/\s+/g, '-');
     pcCombatants.push({ ...combatStats, id, name, type: 'PC' });
+  }
+
+  if (pcCombatants.length === 0) {
+    gs.combatInitializing = false;
+    io.to(gameId).emit('combat_init_failed', { message: 'No player characters available for combat.' });
+    emitSystem(gameId, { text: 'Combat could not start because there are no player characters yet.' });
+    return null;
   }
 
   const state = gs.combatEngine.initCombat(pcCombatants, enemyCombatants, system);
@@ -4505,6 +4570,7 @@ Output ONLY this format:
     try {
       const gameConfig = await db.getGame(gameId);
       const gs = getGameState(gameId);
+      await ensurePlayablePartyForStart(gameId, gameConfig, gs, socket);
       // ✅ FIX: Serialize narration streaming per game
       const { narration, options, scene, world, llmRunId } = await withStreamingLock(gameId, () =>
         callGameLLM(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.')
@@ -5008,6 +5074,7 @@ const discordGameEngine = {
     const gs = getGameState(gameId);
     gs.paused = false;
     gs.idleTurns = 0;
+    await ensurePlayablePartyForStart(gameId, gameConfig, gs);
     // ✅ FIX: Serialize narration streaming per game
     const { narration, options, scene, world, llmRunId } = await withStreamingLock(gameId, () =>
       callGameLLM(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.')

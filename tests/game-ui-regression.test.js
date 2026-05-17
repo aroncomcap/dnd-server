@@ -62,6 +62,13 @@ test('AI party generation failures create a playable fallback party', () => {
   assert.match(serverJs, /io\.to\(gameId\)\.emit\('party_ready', \{ count: fallbackCount,[\s\S]*?fallback: true \}\);/, 'fallback party should publish combat stats');
 });
 
+test('game start guarantees a playable party before narration or combat', () => {
+  assert.match(serverJs, /async function ensurePlayablePartyForStart\(gameId, gameConfig, gs, socket = null\)/, 'server should have a reusable start-time party guard');
+  assert.match(serverJs, /socket\.on\('dm_start'[\s\S]*?await ensurePlayablePartyForStart\(gameId, gameConfig, gs, socket\);[\s\S]*?callGameLLM/, 'socket game start should create a fallback party before narration');
+  assert.match(serverJs, /async startGame\(gameId, prompt\)[\s\S]*?await ensurePlayablePartyForStart\(gameId, gameConfig, gs\);[\s\S]*?callGameLLM/, 'engine game start should create a fallback party before narration');
+  assert.match(serverJs, /if \(pcCombatants\.length === 0\) \{[\s\S]*?No player characters available for combat/, 'combat initialization should refuse enemy-only combat');
+});
+
 test('action submit is latched until a server response or long fallback', () => {
   assert.match(gameHtml, /let actionInFlight = false;/, 'action pending state should be explicit');
   assert.match(gameHtml, /function resetSendButton\(\)/, 'there should be one reset path for the send button');
@@ -75,7 +82,7 @@ test('action submit is latched until a server response or long fallback', () => 
   assert.match(gameHtml, /socket\.on\('action_complete'[\s\S]*?resetSendButton\(\);/, 'action completion acknowledgements should clear pending action state');
   assert.match(gameHtml, /function sendAction\(\) \{\s*if \(actionInFlight\) return;/, 'duplicate sends should be ignored while pending');
   assert.match(gameHtml, /if \(!currentPlayer\) return false; \/\/ wait until the table has loaded a real turn owner/, 'unknown turn state should not be treated as actionable');
-  assert.match(gameHtml, /if \(!currentPlayer\) \{[\s\S]*?Waiting for the table to finish loading/, 'unknown turn state should show a waiting message instead of action controls');
+  assert.match(gameHtml, /if \(!currentPlayer\) \{[\s\S]*?the table to finish loading/, 'unknown turn state should show a waiting message instead of action controls');
   assert.match(gameHtml, /if \(!currentPlayer\) \{[\s\S]*?Waiting for the table to finish loading before sending an action/, 'sendAction should not submit gameplay actions before a turn owner loads');
   assert.doesNotMatch(gameHtml, /setTimeout\(\(\) => \{ sendBtn\.textContent = 'Send Action'; sendBtn\.disabled = false; \}, 15000\);/, 'short fixed resend timer should not return');
 });

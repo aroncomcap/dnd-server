@@ -75,6 +75,54 @@ async function waitForKnownTurnOwner(page) {
   ).then(() => true).catch(() => false);
 }
 
+async function clickStartIfAvailable(page) {
+  const startBtn = page.locator('#btn-start, button:has-text("START"), button:has-text("Begin")').first();
+  const isVisible = await startBtn.isVisible({ timeout: 1000 }).catch(() => false);
+  const isEnabled = await startBtn.isEnabled().catch(() => false);
+  if (!isVisible || !isEnabled) return false;
+  await startBtn.click();
+  await page.waitForTimeout(1000);
+  return true;
+}
+
+async function openHostScreen(page) {
+  const hostButton = page.locator('nav button[data-screen="host"], button:has-text("HOST")').first();
+  if (await hostButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await hostButton.click();
+    await page.waitForTimeout(250);
+    return true;
+  }
+  return false;
+}
+
+async function ensureGameStarted(page) {
+  const clickedInitialStart = await clickStartIfAvailable(page);
+  if (clickedInitialStart && await waitForKnownTurnOwner(page)) return true;
+  if (await hasKnownTurnOwner(page)) return true;
+  if ((await getCompletedDmMessageCount(page)) > 0) {
+    return waitForKnownTurnOwner(page);
+  }
+
+  if (await openHostScreen(page)) {
+    const promptInput = page.locator('#host-prompt');
+    if (await promptInput.isVisible({ timeout: 1000 }).catch(() => false)) {
+      const promptText = await promptInput.inputValue().catch(() => '');
+      if (!promptText.trim()) {
+        await promptInput.fill('A new chapter in your adventure begins.');
+      }
+    }
+    if (await clickStartIfAvailable(page)) {
+      const gameButton = page.locator('nav button[data-screen="game"], button:has-text("GAME")').first();
+      if (await gameButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await gameButton.click();
+      }
+      return waitForKnownTurnOwner(page);
+    }
+  }
+
+  return false;
+}
+
 async function pickFallbackAction(page) {
   if (await isCombatUiActive(page)) {
     const actions = ['Attack', 'Dodge', 'Help'];
@@ -180,12 +228,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
     await page.waitForLoadState('domcontentloaded', { timeout: 5000 }).catch(() => {});
     await page.waitForTimeout(1000);
 
-    const startBtn = page.locator('button:has-text("START"), button:has-text("Begin")').first();
-    if (await startBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await startBtn.click();
-      await page.waitForTimeout(2000);
-    }
-    await waitForKnownTurnOwner(page);
+    await ensureGameStarted(page);
 
     // Play session with verbose capture
     let sessionTurns = 0;
