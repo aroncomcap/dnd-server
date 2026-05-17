@@ -57,6 +57,23 @@ async function isCombatUiActive(page) {
   }).catch(() => false);
 }
 
+async function hasKnownTurnOwner(page) {
+  return page.evaluate(() => {
+    const turnName = document.querySelector('#turn-name')?.textContent?.trim() || '';
+    return Boolean(turnName && turnName !== '?' && turnName !== '—');
+  }).catch(() => false);
+}
+
+async function waitForKnownTurnOwner(page) {
+  return page.waitForFunction(
+    () => {
+      const turnName = document.querySelector('#turn-name')?.textContent?.trim() || '';
+      return Boolean(turnName && turnName !== '?' && turnName !== '—');
+    },
+    { timeout: 20000 }
+  ).then(() => true).catch(() => false);
+}
+
 async function pickFallbackAction(page) {
   if (await isCombatUiActive(page)) {
     const actions = ['Attack', 'Dodge', 'Help'];
@@ -167,6 +184,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
       await startBtn.click();
       await page.waitForTimeout(2000);
     }
+    await waitForKnownTurnOwner(page);
 
     // Play session with verbose capture
     let sessionTurns = 0;
@@ -199,6 +217,11 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
       }
 
       await page.waitForTimeout(200);
+      if (!await hasKnownTurnOwner(page)) {
+        noActionCount++;
+        await page.waitForTimeout(1000);
+        continue;
+      }
 
       // Try to take action
       let actionTaken = false;

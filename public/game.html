@@ -2490,7 +2490,7 @@ function getMyName() {
 }
 
 function isMyTurnCheck() {
-  if (!currentPlayer) return true; // no turn set yet, show controls
+  if (!currentPlayer) return false; // wait until the table has loaded a real turn owner
   const current = currentPlayer.trim().toLowerCase();
   const me = getMyName().toLowerCase();
   return me && current === me;
@@ -2667,11 +2667,12 @@ function updateActionArea() {
   }
 
   if (!currentPlayer) {
-    // No turn set — show controls (pre-game)
-    myTurnControls.style.display = 'block';
-    waitingMsg.style.display = 'none';
+    myTurnControls.style.display = 'none';
     renderCharacterActionChips();
-    stopWaitingTips();
+    renderTargetControls();
+    waitingMsg.style.display = 'block';
+    waitingName.textContent = 'Waiting for the table to finish loading...';
+    startWaitingTips();
     return;
   }
 
@@ -4116,6 +4117,11 @@ function sendAction() {
     sendOOC(msg);
     input.value = '';
     setOocMode(false);
+    return;
+  }
+  if (!currentPlayer) {
+    addMsg('system', 'Waiting for the table to finish loading before sending an action.');
+    updateActionArea();
     return;
   }
 

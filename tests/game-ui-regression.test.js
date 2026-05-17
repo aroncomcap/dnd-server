@@ -74,6 +74,9 @@ test('action submit is latched until a server response or long fallback', () => 
   assert.match(gameHtml, /socket\.on\('turn_change'[\s\S]*?resetSendButton\(\);/, 'turn changes should clear pending action state');
   assert.match(gameHtml, /socket\.on\('action_complete'[\s\S]*?resetSendButton\(\);/, 'action completion acknowledgements should clear pending action state');
   assert.match(gameHtml, /function sendAction\(\) \{\s*if \(actionInFlight\) return;/, 'duplicate sends should be ignored while pending');
+  assert.match(gameHtml, /if \(!currentPlayer\) return false; \/\/ wait until the table has loaded a real turn owner/, 'unknown turn state should not be treated as actionable');
+  assert.match(gameHtml, /if \(!currentPlayer\) \{[\s\S]*?Waiting for the table to finish loading/, 'unknown turn state should show a waiting message instead of action controls');
+  assert.match(gameHtml, /if \(!currentPlayer\) \{[\s\S]*?Waiting for the table to finish loading before sending an action/, 'sendAction should not submit gameplay actions before a turn owner loads');
   assert.doesNotMatch(gameHtml, /setTimeout\(\(\) => \{ sendBtn\.textContent = 'Send Action'; sendBtn\.disabled = false; \}, 15000\);/, 'short fixed resend timer should not return');
 });
 
