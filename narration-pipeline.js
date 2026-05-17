@@ -53,6 +53,26 @@ function buildFallbackTurn(characterName, actionText) {
   };
 }
 
+function normalizeBareNarration(text) {
+  return String(text || '')
+    .replace(/\s+/g, ' ')
+    .replace(/[.!?]+$/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function isLowInformationNarration(narration, actionText = '') {
+  const normalized = normalizeBareNarration(narration);
+  if (!normalized) return true;
+
+  const action = normalizeBareNarration(actionText);
+  if (action && normalized === action) return true;
+
+  return FALLBACK_OPTIONS
+    .map(normalizeBareNarration)
+    .includes(normalized);
+}
+
 const FEROCITY_LABELS = {
   1: 'Deadly (lethal, every encounter is life-threatening)',
   2: 'Dangerous (tough fights, meaningful consequences)',
@@ -584,6 +604,15 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
     }
 
     const parsed = parseNarrationResponse(responseText);
+    if (isLowInformationNarration(parsed.narration, actionText)) {
+      const fallback = buildFallbackTurn(characterName, actionText);
+      closeStream(fallback.narration, response.llmRunId || null);
+      return {
+        ...fallback,
+        llmRunId: response.llmRunId || null,
+        fallback: true,
+      };
+    }
     if (!parsed.options.length) {
       parsed.options = [...FALLBACK_OPTIONS];
     }
