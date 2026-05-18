@@ -64,6 +64,18 @@ test('removes leaked inline action options from combat narration', () => {
   assert.doesNotMatch(cleaned, /1️⃣|2️⃣|3️⃣|Attack the unknown beast|Cast a healing or protective spell|Hold position/);
 });
 
+test('removes leaked inline scene options after numbered location text', () => {
+  assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
+  const { cleanInvalidCombatNarration } = require(modulePath);
+
+  const cleaned = cleanInvalidCombatNarration(
+    'The receipt book names quiet storage in Bay 3. 1️⃣ Seize the receipt book and force the dock-master to explain Bay 3. 2️⃣ Press the dock-runners’ names and take the payment record as proof. 3️⃣ Check Bay 3 before the warehouse crew can move the goods.'
+  );
+
+  assert.equal(cleaned, 'The receipt book names quiet storage in Bay 3.');
+  assert.doesNotMatch(cleaned, /1️⃣|2️⃣|3️⃣|Seize the receipt book|Press the dock-runners|Check Bay 3/);
+});
+
 test('preserves combat damage totals that look like numbered options', () => {
   assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
   const { cleanInvalidCombatNarration } = require(modulePath);

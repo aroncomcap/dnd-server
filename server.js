@@ -822,10 +822,23 @@ function extractAccountableName(text) {
   if (colonName && !isInvalidName(colonName[1])) return colonName[1];
   const possessiveName = value.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})'s\b/);
   if (possessiveName && !isInvalidName(possessiveName[1])) return possessiveName[1];
-  const rolePriority = ['foreman', 'deputy', 'clerk', 'buyer', 'patron', 'factor', 'dockmaster', 'quaymaster', 'courier', 'rider', 'accomplice', 'thief'];
   const lowerValue = value.toLowerCase();
-  const role = rolePriority.find(candidate => (lowerValue.match(new RegExp(`\\b${candidate}\\b`, 'gi')) || []).length >= 2);
-  if (role) return `the ${role}`;
+  const rolePriority = [
+    [/dock[- ]master/gi, 'the dock-master'],
+    [/\bforeman\b/gi, 'the foreman'],
+    [/\bdeputy\b/gi, 'the deputy'],
+    [/\bclerk\b/gi, 'the clerk'],
+    [/\bbuyer\b/gi, 'the buyer'],
+    [/\bpatron\b/gi, 'the patron'],
+    [/\bfactor\b/gi, 'the factor'],
+    [/\bquaymaster\b/gi, 'the quaymaster'],
+    [/\bcourier\b/gi, 'the courier'],
+    [/\brider\b/gi, 'the rider'],
+    [/\baccomplice\b/gi, 'the accomplice'],
+    [/\bthief\b/gi, 'the thief'],
+  ];
+  const role = rolePriority.find(([pattern]) => (lowerValue.match(pattern) || []).length >= 2);
+  if (role) return role[1];
   const singleNameCounts = {};
   for (const match of value.matchAll(/\b([A-Z][a-z]{3,})\b/g)) {
     const name = match[1];

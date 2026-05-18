@@ -983,6 +983,29 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /\bHe is forced into the open|\bExpose He\b/);
   });
 
+  it('prefers hyphenated dock-master role over incidental clerk mentions', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'A guild clerk points the party toward the warehouse office.' },
+          { role: 'assistant', content: 'The dock-master freezes over the receipt book and the half-burned ledger stub.' },
+          { role: 'assistant', content: 'The dock-master tries to hide a payment marked for quiet storage in Bay 3.' },
+          { role: 'assistant', content: 'The ledger is proof, but the dock-master claims the next lead waits below the office.' },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The dock-master backs into the desk and says the next answer is in the cellar before anyone can expose the route.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.payoffClosed, true);
+    assert.match(result.narration, /the dock-master is forced into the open/);
+    assert.doesNotMatch(result.narration, /the clerk is forced into the open/);
+  });
+
   it('keeps stale guild-proof actions in a newer south-road den scene', () => {
     const gs = {
       data: {

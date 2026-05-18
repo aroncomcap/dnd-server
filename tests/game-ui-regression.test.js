@@ -30,6 +30,7 @@ test('DM rendering strips structured marker blocks before display', () => {
   assert.match(gameHtml, /function stripStructuredBlocksFromNarration\(text\)/, 'structured block sanitizer should exist');
   assert.match(gameHtml, /let cleaned = stripStructuredBlocksFromNarration\(text\)/, 'renderDmText should sanitize all DM text');
   assert.match(gameHtml, /const finalText = stripStructuredBlocksFromNarration\(narration \|\| body\.textContent \|\| ''\)/, 'stream finalizer should sanitize fallback text');
+  assert.match(gameHtml, /1\\uFE0F\?\\u20E3\|1\[\.\)\]/, 'client sanitizer should remove inline option tails even without structured markers');
 });
 
 test('DM rendering does not strip combat math totals as action options', () => {
