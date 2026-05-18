@@ -2470,9 +2470,6 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   const elapsed = Date.now() - startTime;
   const reply = accumulatedText;
 
-  // Emit stream end with final narration for re-rendering
-  io.to(gameId).emit('dm_stream_end', { narration: cleanInvalidCombatNarration(narrationText.trim()), llmRunId: finalMessage.llmRunId || null });
-
   // Log cost
   const inputTokens = finalMessage.usage?.inputTokens || 0;
   const outputTokens = finalMessage.usage?.outputTokens || 0;
@@ -2488,7 +2485,6 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     const fallback = buildFallbackTurn(fallbackActor, submittedActionText);
     parsed.narration = fallback.narration;
     parsed.options = fallback.options;
-    io.to(gameId).emit('dm_stream_end', { narration: parsed.narration, llmRunId: finalMessage.llmRunId || null });
   }
   if (!combatActive && (isDeferredPayoffNarration(parsed.narration, submittedActionText, gd.chatHistory) ||
       isLeadLadderNarration(parsed.narration, submittedActionText, gd.chatHistory) ||
@@ -2503,20 +2499,19 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     if (repairedNarration) {
       parsed.narration = repairedNarration;
       parsed.options = [];
-      io.to(gameId).emit('dm_stream_end', { narration: parsed.narration, llmRunId: finalMessage.llmRunId || null });
     } else {
       parsed.narration = buildPayoffClosureFallback({
         narration: parsed.narration,
         history: gd.chatHistory,
       });
       parsed.options = [];
-      io.to(gameId).emit('dm_stream_end', { narration: parsed.narration, llmRunId: finalMessage.llmRunId || null });
       console.warn('[narration-payoff-repair] applied deterministic closure fallback');
     }
   }
   if (combatResolvedLines.length > 0 && !combatResolvedLines.every(line => parsed.narration.includes(line))) {
     parsed.narration = `${combatResolvedLines.map(line => `🎲 ${line}`).join('\n')}\n\n${parsed.narration}`.trim();
   }
+  io.to(gameId).emit('dm_stream_end', { narration: parsed.narration, llmRunId: finalMessage.llmRunId || null });
   parsed.llmRunId = finalMessage.llmRunId || null;
   if (combatActive && gs.combatEngine?.state?.active) {
     const nextCombatTurn = gs.combatEngine.getCurrentTurn();
