@@ -19,13 +19,32 @@ function normalizePlaceholderText(value) {
 function isPlaceholderEnemyName(value) {
   const text = normalizePlaceholderText(value);
   if (!text) return true;
+  if (/^[-–—]+$/.test(text)) return true;
   return /^(?:none|null|undefined|n\/a|na|nothing|no enemy|no enemies|no hostile|no hostiles|no hostile creatures|no combat|not applicable)$/i.test(text);
+}
+
+function looksLikePlayerActionText(value) {
+  const text = String(value || '').trim();
+  const lower = text.toLowerCase();
+  if (!text) return false;
+  if (/^(?:approach|ask|talk|speak|explain|offer|negotiate|parley|persuade|convince|bargain|search|inspect|investigate|move|press|continue|proceed|head|travel|follow)\b/i.test(text)) {
+    return true;
+  }
+  if (/\b(?:ask for|offer peace|make your case|seek passage|safe passage|goods|lead|terms|cooperate|cooperation)\b/i.test(lower)) {
+    return true;
+  }
+  const words = lower.split(/\s+/).filter(Boolean);
+  return words.length >= 8 && /[.!?;:]/.test(text);
 }
 
 function normalizeEnemyEntry(entry = {}) {
   const displayName = String(entry.displayName || entry.name || entry.slug || '').trim();
   const rawSlug = String(entry.slug || '').trim();
-  if (isPlaceholderEnemyName(displayName) || isPlaceholderEnemyName(rawSlug)) return null;
+  if (
+    isPlaceholderEnemyName(displayName) ||
+    (rawSlug && isPlaceholderEnemyName(rawSlug)) ||
+    looksLikePlayerActionText(displayName)
+  ) return null;
 
   const customSlug = monsterSlugFromName(displayName);
   const slug = rawSlug && rawSlug !== 'custom' ? rawSlug : customSlug;
@@ -44,6 +63,7 @@ function normalizeEnemyEntries(entries = []) {
 module.exports = {
   monsterSlugFromName,
   isPlaceholderEnemyName,
+  looksLikePlayerActionText,
   normalizeEnemyEntry,
   normalizeEnemyEntries,
 };
