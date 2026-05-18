@@ -44,6 +44,7 @@ const plannerState = require('./planner-state');
 const encounterDirector = require('./encounter-director');
 const templateEngine = require('./template-engine');
 const targetAuthority = require('./target-authority');
+const enemyTargeting = require('./enemy-targeting');
 const USE_SPLIT_PIPELINE = process.env.SPLIT_PIPELINE === 'true';
 const TEST_MODE = process.env.TEST_MODE === 'true';
 
@@ -1276,7 +1277,7 @@ Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
     // Find this enemy's pre-computed decision
     const decision = decisions.find(d => d.enemyId === current.id);
     const actionType = normalizeEnemyActionType(decision?.actionType || 'attack');
-    const targetId = decision?.targetId || pcs[0]?.id;
+    const targetId = enemyTargeting.resolveEnemyDecisionTarget(decision?.targetId, pcs) || pcs[0]?.id;
     const weaponName = decision?.weaponName;
 
     const result = engine.resolveAction({
@@ -1297,20 +1298,7 @@ Reply ONLY: ACTION: ${current.id} [action-type] [target-id]`;
 }
 
 function chooseEnemyTargetId(pcs = []) {
-  const candidates = pcs
-    .filter(p => Number(p.hp ?? 0) > 0)
-    .map(p => {
-      const hp = Number(p.hp ?? 1);
-      const maxHp = Number((p.maxHp ?? hp) || 1);
-      const hpRatio = maxHp > 0 ? hp / maxHp : 1;
-      return {
-        ...p,
-        hpRatio,
-        score: (p.concentrating ? 100 : 0) + ((1 - hpRatio) * 50) + (20 - Math.min(hp, 20)),
-      };
-    })
-    .sort((a, b) => b.score - a.score);
-  return candidates[0]?.id || null;
+  return enemyTargeting.chooseEnemyTargetId(pcs);
 }
 
 function chooseDeterministicEnemyDecision(enemy) {

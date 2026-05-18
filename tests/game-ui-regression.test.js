@@ -228,6 +228,11 @@ test('enemy combat turns are deterministic by default', () => {
   assert.match(serverJs, /if \(process\.env\.ENEMY_TACTICS_LLM !== 'true'\)[\s\S]*?chooseDeterministicEnemyDecision/, 'default enemy turns should skip LLM tactics');
 });
 
+test('enemy turns retarget stale precomputed decisions before resolving attacks', () => {
+  assert.match(serverJs, /require\('\.\/enemy-targeting'\)/, 'server should use shared enemy targeting helpers');
+  assert.match(serverJs, /resolveEnemyDecisionTarget\(decision\?\.targetId, pcs\)/, 'server should refresh stale precomputed targets against currently living PCs');
+});
+
 test('parseable combat actions use a deterministic tactical fast path', () => {
   assert.match(serverJs, /async function tryResolveCombatActionFastPath/, 'server should have a deterministic combat action fast path');
   assert.match(serverJs, /tryResolveCombatActionFastPath\(gameId, gameConfig, playerName, action\)/, 'player_action should try the fast path before calling the narration LLM');
