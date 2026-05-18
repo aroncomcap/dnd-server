@@ -146,6 +146,7 @@ test('rejoin restores turn order and the last scene image', () => {
 
 test('combat narration strips impossible roll placeholders', () => {
   assert.match(serverJs, /cleanInvalidCombatNarration/, 'server should sanitize impossible combat placeholder text before emitting DM narration');
+  assert.match(narrationPipelineJs, /cleanInvalidCombatNarration\(parsed\.narration\)/, 'split narration pipeline should sanitize final streamed narration before display');
   assert.match(serverJs, /Do NOT add HIT\/MISS to non-damage/, 'combat prompt should forbid HIT/MISS formatting for non-damage results');
 });
 

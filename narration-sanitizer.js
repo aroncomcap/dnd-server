@@ -14,10 +14,22 @@ function stripLeakedInlineOptions(text) {
   );
 }
 
+function stripUnsupportedCheckResultLabels(text) {
+  return String(text || '').replace(
+    /\b(?:(?:(?:Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma|Athletics|Acrobatics|Sleight of Hand|Stealth|Arcana|History|Investigation|Nature|Religion|Animal Handling|Insight|Medicine|Perception|Survival|Deception|Intimidation|Performance|Persuasion)\s+(?:check|contest|save)\s+(?:succeeds?|fails?|passes?|lands?|works?))|Investigation payoff|Social pressure lands?|Last-second pressure works?|Improvised grapple fails?)\s*(?:—|-|:)\s*/gi,
+    ''
+  );
+}
+
+function capitalizeSentenceStarts(text) {
+  return String(text || '').replace(/(^|[.!?]\s+)([a-z])/g, (_, prefix, char) => `${prefix}${char.toUpperCase()}`);
+}
+
 function cleanInvalidCombatNarration(text) {
   let cleaned = String(text || '');
 
   cleaned = stripLeakedInlineOptions(cleaned);
+  cleaned = stripUnsupportedCheckResultLabels(cleaned);
 
   cleaned = cleaned.replace(
     /\b([^.\n]*?\bcasts\s+[^—.\n]+)\s+—\s+rolls\s+(?:—|-|unknown)\s*,?\s*HIT!?\s*No immediate damage\./gi,
@@ -36,7 +48,7 @@ function cleanInvalidCombatNarration(text) {
 
   cleaned = cleaned.replace(/\b\d+d\d+\s*(?:[+-]\s*)?\?\s*/gi, '');
 
-  return normalizeNarrationWhitespace(cleaned);
+  return capitalizeSentenceStarts(normalizeNarrationWhitespace(cleaned));
 }
 
 module.exports = {

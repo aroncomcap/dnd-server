@@ -5,6 +5,7 @@ const { formatPlanForPrompt } = require('./encounter-designer');
 const llm = require('./llm');
 const { worldExtractionSchema, validationSchema } = require('./llm/schemas/world-extraction');
 const { isDialogueAction, isAdvanceAction, isExplicitHostileAction } = require('./action-parser');
+const { cleanInvalidCombatNarration } = require('./narration-sanitizer');
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -674,6 +675,7 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
     }
 
     const parsed = parseNarrationResponse(responseText);
+    parsed.narration = cleanInvalidCombatNarration(parsed.narration);
     if (isLowInformationNarration(parsed.narration, actionText)) {
       const fallback = buildFallbackTurn(characterName, actionText);
       closeStream(fallback.narration, response.llmRunId || null);

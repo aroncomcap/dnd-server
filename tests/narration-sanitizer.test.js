@@ -63,3 +63,15 @@ test('removes leaked inline action options from combat narration', () => {
   assert.equal(cleaned, 'Sneak Attack 1d6: Thorne’s strike lands.');
   assert.doesNotMatch(cleaned, /1️⃣|2️⃣|3️⃣|Attack the unknown beast|Cast a healing or protective spell|Hold position/);
 });
+
+test('removes unsourced noncombat check result labels while preserving consequences', () => {
+  assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
+  const { cleanInvalidCombatNarration } = require(modulePath);
+
+  const cleaned = cleanInvalidCombatNarration(
+    'Strength check succeeds — Merren is restrained in place. Social pressure lands — the boatman hesitates. Improvised grapple fails — Merren cannot break Kael’s hold.'
+  );
+
+  assert.equal(cleaned, 'Merren is restrained in place. The boatman hesitates. Merren cannot break Kael’s hold.');
+  assert.doesNotMatch(cleaned, /check succeeds|pressure lands|grapple fails/i);
+});

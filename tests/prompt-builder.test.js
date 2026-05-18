@@ -83,4 +83,14 @@ describe('prompt-builder resolved combat state', () => {
       assert.match(prompt, /Never repeat a prior clue as the main event/);
     }
   });
+
+  it('forbids unsourced noncombat check result labels', () => {
+    const minimal = buildMinimalPrompt({ system: 'dnd5e' }, makeGameState());
+    const full = buildFullPrompt('game-1', { system: 'dnd5e' }, () => makeGameState(), require('../encounter-designer'));
+
+    for (const prompt of [minimal, full]) {
+      assert.match(prompt, /Do not write check-result labels/);
+      assert.match(prompt, /unless the server supplied a resolved check/);
+    }
+  });
 });
