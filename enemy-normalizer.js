@@ -13,6 +13,7 @@ function normalizePlaceholderText(value) {
     .trim()
     .toLowerCase()
     .replace(/[.!?]+$/g, '')
+    .replace(/[-_]+/g, ' ')
     .replace(/\s+/g, ' ');
 }
 
@@ -20,7 +21,7 @@ function isPlaceholderEnemyName(value) {
   const text = normalizePlaceholderText(value);
   if (!text) return true;
   if (/^[-–—]+$/.test(text)) return true;
-  return /^(?:none|null|undefined|n\/a|na|nothing|no enemy|no enemies|no hostile|no hostiles|no hostile creatures|no combat|not applicable)$/i.test(text);
+  return /^(?:none|null|undefined|n\/a|na|nothing|no enemy|no enemies|no hostile|no hostiles|no hostile creatures|no combat|not applicable|enemy|enemies|foe|foes|threat|threats|hostile creature|hostile creatures|opposing party|opposing force|opposition|unknown foe|unknown enemy|combatant|combatants|attacker|attackers|ambusher|ambushers)$/i.test(text);
 }
 
 function looksLikePlayerActionText(value) {

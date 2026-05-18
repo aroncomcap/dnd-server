@@ -396,6 +396,13 @@ describe('parseAction — dialogue intent', () => {
     assert.equal(result.type, 'dialogue');
   });
 
+  it('offering aid or safe passage routes to dialogue', () => {
+    const result = parseAction('Step closer and offer aid, healing, or safe passage', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'dialogue');
+    assert.equal(result.targetId, null);
+  });
+
   it('negotiate with phrasing does not become an attack target named "with"', () => {
     const result = parseAction('negotiate with the Goblin', 'kael', BASE_CTX);
     assert.ok(result);
