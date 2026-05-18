@@ -412,6 +412,32 @@ describe('buildUserMessage', () => {
     assert.ok(msg.includes('wrap the scene up'), 'Should shorten minor merchant/guild document scenes');
   });
 
+  it('adds anti-stall pacing for repeated investigation of an established lead', () => {
+    const gs = {
+      pendingCorrections: [],
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'Dockmaster Pell says the empty berth and missing shipment are the next lead.' },
+          { role: 'assistant', content: 'The manifest points toward Iron Quay, the warehouse row, and a sealed shutter ahead.' },
+        ],
+      },
+    };
+
+    const msg = buildUserMessage(gs, 'Thistle', 'Inspect the manifest and search the berth for clues.');
+
+    assert.ok(msg.includes('ANTI-STALL PACING'), 'Investigation of a known lead should not repeat the same clue');
+    assert.ok(msg.includes('reveal the proof'), 'Should force a new discovery or complication');
+  });
+
+  it('tells the model to begin after the latest DM message instead of rephrasing it', () => {
+    const gs = makeGameState();
+
+    const msg = buildUserMessage(gs, 'Kael', 'Follow the lead.');
+
+    assert.ok(msg.includes('Begin after the latest DM message'), 'Should explicitly prevent rephrasing the last DM beat');
+    assert.ok(msg.includes('Do not reproduce or paraphrase any full sentence from RECENT HISTORY'), 'Should forbid duplicate narration');
+  });
+
   it('does not add anti-stall pacing for a new explicit combat action', () => {
     const gs = {
       pendingCorrections: [],

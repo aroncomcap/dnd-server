@@ -362,6 +362,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
       // Try to take action
       let actionTaken = false;
       let responseAlreadyReady = false;
+      let actionDescription = '';
       const beforeDmCount = await getCompletedDmMessageCount(page);
 
       const optionButtons = await page.locator('button[class*="option"], button:has-text("→")').all();
@@ -374,6 +375,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
         const randomBtn = await choosePlayableOptionButton(page, readyOptionButtons);
         try {
           if (randomBtn) {
+            actionDescription = `option: ${((await randomBtn.textContent().catch(() => '')) || '').replace(/\s+/g, ' ').trim()}`;
             await randomBtn.click({ timeout: 2000 });
             actionTaken = true;
             noActionCount = 0;
@@ -381,6 +383,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
         } catch {
           try {
             if (randomBtn) {
+              actionDescription = `option: ${((await randomBtn.textContent().catch(() => '')) || '').replace(/\s+/g, ' ').trim()}`;
               await randomBtn.click();
               actionTaken = true;
               noActionCount = 0;
@@ -404,6 +407,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
               const isSendVisible = await sendBtn.isVisible({ timeout: 500 }).catch(() => false);
               const isSendEnabled = await sendBtn.isEnabled().catch(() => false);
               if (isSendVisible && isSendEnabled) {
+                actionDescription = `typed: ${action}`;
                 await sendBtn.click();
                 actionTaken = true;
                 noActionCount = 0;
@@ -436,6 +440,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
 
         actionTaken = true;
         responseAlreadyReady = true;
+        actionDescription = 'pending action already in flight';
       }
 
       if (!actionTaken) {
@@ -464,6 +469,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
           console.log(`\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
           console.log(`TURN ${sessionTurns}`);
           console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
+          if (actionDescription) console.log(`PLAYER ACTION: ${actionDescription}`);
           console.log(`\n${lastBody}\n`);
 
           // Extract and highlight rolls and combat

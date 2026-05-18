@@ -20,6 +20,7 @@ const STORY_MOMENTUM_RULES = [
   'Every non-combat response must materially change the situation: new location, new clue, changed NPC stance, visible danger, paid cost, opened route, or a sharper decision.',
   'Maintain one active named lead, contact, or destination at a time. If recent history already named a lead, keep using that same lead until the party reaches, resolves, or clearly loses it.',
   'If you need a twist, twist the current lead instead of inventing a replacement contact, route, or destination.',
+  'Begin each response after the latest DM message. Do not reproduce or paraphrase any full sentence from recent history.',
   'For travel, progress, acknowledgement, and "move on" actions, move the party to the next concrete place, person, clue, or decision in this response.',
   'Minor routing/social scenes have a two-response ceiling: establish the lead, then reveal, resolve, complicate, or leave the scene. Do not chain clerks, permits, ledgers, or corridors.',
   'If recent history already ended with "the next lead is ahead/one room away/waiting there", the next progress action must consume that lead now instead of restating that it is close.',
@@ -87,15 +88,16 @@ function buildAntiStallPacingDirective(history, actionText) {
   const playerIsTryingToMoveScene =
     isAdvanceAction(action) ||
     isDialogueAction(action) ||
-    /\b(?:follow|continue|proceed|press on|move on|head|travel|enter|approach|leave|ask|explain|state|offer|cooperate|lead|objective)\b/i.test(action);
+    /\b(?:follow|continue|proceed|press on|move on|head|travel|enter|approach|leave|ask|explain|state|offer|cooperate|lead|objective|inspect|search|investigate|look|study|examine|check|trace|track)\b/i.test(action);
   if (!playerIsTryingToMoveScene) return '';
 
   const recent = assistantMessages.join(' ').toLowerCase();
   const stallSignals = [
     /\b(?:next|clear)\s+(?:lead|objective|proof|decision|place)\b/,
-    /\b(?:one\s+(?:room|door)|door\s+away|room\s+away|waiting\s+(?:there|ahead|beyond)|ahead)\b/,
+    /\b(?:one\s+(?:room|door)|door\s+away|room\s+away|waiting\s+(?:there|ahead|beyond)|waits?|bracing|ahead)\b/,
     /\b(?:points?|leads?|go(?:es)?)\s+(?:toward|to|back)\b/,
     /\b(?:clerk|guild|ledger|permit|docket|seal|factor|counting\s+room|warehouse|countinghouse)\b/,
+    /\b(?:dockmaster|dock|quay|shipment|cargo|crate|manifest|freight|berth|shutter)\b/,
   ];
   const signalCount = stallSignals.reduce((count, pattern) => count + (pattern.test(recent) ? 1 : 0), 0);
   if (signalCount < 2) return '';
@@ -334,7 +336,7 @@ function buildUserMessage(gs, characterName, actionText) {
   }
 
   // Player action with system override instruction
-  const systemOverride = `CRITICAL: The player has chosen an action below. You MUST narrate ONLY what happens as a direct consequence of that choice. Do not repeat previous narrations or generic descriptions. Treat RECENT HISTORY as binding continuity: keep the same named lead, contact, or destination until the party reaches, resolves, or clearly loses it.\n\n`;
+  const systemOverride = `CRITICAL: The player has chosen an action below. You MUST narrate ONLY what happens as a direct consequence of that choice. Begin after the latest DM message. Do not reproduce or paraphrase any full sentence from RECENT HISTORY. If the player's action overlaps with a recent beat, compress the overlap and reveal the next new consequence, discovery, NPC reaction, cost, or decision. Do not repeat previous narrations or generic descriptions. Treat RECENT HISTORY as binding continuity: keep the same named lead, contact, or destination until the party reaches, resolves, or clearly loses it.\n\n`;
   parts.push(systemOverride);
   parts.push(`PLAYER ACTION: ${characterName} chooses: ${actionText}`);
   parts.push(`\nRespond directly. Narrate what happens because of this choice ONLY.`);

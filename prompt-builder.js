@@ -9,6 +9,7 @@ const STORY_CONTINUITY_RULES = `STORY CONTINUITY RULES:
 - A merchant/guild/social routing scene may name at most one new contact or location before requiring the party to act on it. When the party follows that lead, take them there or reveal a complication at that exact lead.
 - If you need a twist, twist the current lead (missing contact, locked warehouse, compromised agent, visible danger) instead of swapping in another clerk, factor, road, or manifest.
 - Once a merchant/guild/checkpoint NPC gives a lead, move the party toward that lead; do not introduce another clerk, factor, outpost, or DC check for the same permission.
+- Begin each response after the latest DM message. Do not reproduce or paraphrase any full sentence from recent history.
 - Minor routing/social scenes have a two-response ceiling: establish the lead, then reveal, resolve, complicate, or leave the scene. Do not chain clerks, permits, ledgers, or corridors.
 - If recent history already ended with "the next lead is ahead/one room away/waiting there", the next progress action must consume that lead now instead of restating that it is close.
 - Do not restate "DC 9" or "2 successes before 3 failures" unless a new major obstacle truly begins. Routine routing/social scenes should resolve in one exchange and then advance.

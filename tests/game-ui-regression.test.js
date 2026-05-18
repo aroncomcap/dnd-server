@@ -273,6 +273,11 @@ test('verbose campaign helper does not treat old combat log text as active comba
   assert.doesNotMatch(campaignVerboseTs, /combatLog\?\.textContent\?\.includes\('Combat Begins'\)/, 'stale combat log text should not trigger combat fallback actions');
 });
 
+test('verbose campaign transcript prints selected player actions', () => {
+  assert.match(campaignVerboseTs, /let actionDescription = ''/, 'campaign transcript should track the selected action text');
+  assert.match(campaignVerboseTs, /PLAYER ACTION:/, 'campaign transcript should print the selected action before the DM response');
+});
+
 test('host recovery and optional combat compression are explicit controls', () => {
   assert.match(gameHtml, /Move to Next Beat/, 'reset affordance should become Move to Next Beat');
   assert.match(gameHtml, /socket\.emit\('move_to_next_beat'/, 'client should request story-beat recovery explicitly');
@@ -356,6 +361,7 @@ test('story prompt discourages repeated gatekeeper loops and noncombat filler ac
   assert.match(promptBuilderJs, /do not introduce another clerk, factor, outpost, or DC check/, 'prompt should avoid repeated guild checkpoint loops');
   assert.match(promptBuilderJs, /Minor routing\/social scenes have a two-response ceiling/, 'prompt should cap minor routing scenes before they drag');
   assert.match(promptBuilderJs, /the next progress action must consume that lead now/, 'prompt should consume already-established leads instead of restating them');
+  assert.match(promptBuilderJs, /Begin each response after the latest DM message/, 'prompt should prevent rephrasing the latest narration');
   assert.match(promptBuilderJs, /Make utilitarian hooks feel alive quickly/, 'prompt should demand dramatic stakes for paperwork-style scenes');
   assert.match(promptBuilderJs, /Routine routing\/social scenes should resolve in one exchange and then advance/, 'prompt should move brief social scenes forward');
   assert.match(promptBuilderJs, /Never answer progress with only cautious movement and no new information/, 'prompt should not turn progress into cautious non-events');
@@ -374,6 +380,7 @@ test('split narration prompt carries story momentum and option quality rules', (
   assert.match(narrationPipelineJs, /ANTI-STALL PACING/, 'split narration should inject anti-stall directives for repeated lead loops');
   assert.match(narrationPipelineJs, /Resolve or complicate it NOW/, 'anti-stall directives should force the established lead to be consumed');
   assert.match(narrationPipelineJs, /Minor routing\/social scenes have a two-response ceiling/, 'split narration should cap minor routing scenes before they drag');
+  assert.match(narrationPipelineJs, /Begin each response after the latest DM message/, 'split narration should prevent repeated DM paragraphs');
   assert.match(narrationPipelineJs, /Never answer progress with only cautious movement and no new information/, 'split narration should avoid cautious non-event loops');
   assert.match(narrationPipelineJs, /Do not repeat the same beat from recent turns/, 'split narration should avoid repeated scouting beats');
   assert.match(narrationPipelineJs, /Each option must change the situation/, 'split narration options should be scene-changing');
