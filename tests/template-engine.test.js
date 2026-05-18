@@ -221,7 +221,7 @@ describe('generateCombatOptions', () => {
     assert.doesNotMatch(text, /Cast (Bless|Healing Word) on Guild Factor/);
   });
 
-  it('falls back to help instead of generic reckless filler', () => {
+  it('falls back to concrete tactical actions instead of inert generic help', () => {
     const engine = {
       state: {
         combatants: {
@@ -233,7 +233,10 @@ describe('generateCombatOptions', () => {
     };
     const options = generateCombatOptions(engine, 'Bob');
     assert.strictEqual(options.length, 3);
-    assert.match(options[2], /Help an exposed ally against Goblin/);
+    assert.match(options.join('\n'), /Attack Goblin with Club/);
+    assert.match(options.join('\n'), /Dodge/);
+    assert.match(options.join('\n'), /Disengage from Goblin/);
+    assert.doesNotMatch(options.join('\n'), /Help an exposed ally|Help ally/i);
     assert.doesNotMatch(options.join('\n'), /reckless|scene's strange details|immediate danger/i);
   });
 
@@ -260,7 +263,8 @@ describe('generateCombatOptions', () => {
     const options = generateCombatOptions(engine, 'Garrick Moorland');
 
     assert.strictEqual(options.length, 3);
-    assert.match(options.join('\n'), /Attack Cult acolytes with rapier|Dodge|Help ally/);
+    assert.match(options.join('\n'), /Attack Cult acolytes with rapier|Dodge|Disengage from Cult acolytes/);
+    assert.doesNotMatch(options.join('\n'), /Help ally|Help an exposed ally/i);
     assert.doesNotMatch(options.join('\n'), /Press forward|Search the scene|Move on toward/i);
   });
 

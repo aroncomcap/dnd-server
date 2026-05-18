@@ -349,17 +349,13 @@ function generateCombatOptions(combatEngine, characterName) {
         opt3 = `🔥 Cast ${bestSpell.name} on ${supportTarget.name}`;
       }
     } else {
-      opt3 = nearestEnemy
-        ? `🤝 Help an exposed ally against ${nearestEnemy.name}`
-        : '🤝 Help an exposed ally';
+      opt3 = nearestEnemy ? `↩️ Disengage from ${nearestEnemy.name}` : '↩️ Disengage';
     }
   } else if (player.features?.some(f => /extra attack|action surge|sneak attack|rage|wild shape/i.test(f))) {
     const feature = player.features.find(f => /extra attack|action surge|sneak attack|rage|wild shape/i.test(f));
     opt3 = `🔥 Use ${feature}`;
   } else {
-    opt3 = nearestEnemy
-      ? `🤝 Help an exposed ally against ${nearestEnemy.name}`
-      : '🤝 Help an exposed ally';
+    opt3 = nearestEnemy ? `↩️ Disengage from ${nearestEnemy.name}` : '↩️ Disengage';
   }
 
   const seen = new Set();

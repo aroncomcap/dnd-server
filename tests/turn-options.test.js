@@ -92,6 +92,6 @@ test('combat fallback options exclude travel and exploration standard actions', 
   });
 
   assert.equal(options.length, 3);
-  assert.match(options.join('\n'), /Attack Cult acolytes with rapier|Dodge|Help ally/);
-  assert.doesNotMatch(options.join('\n'), /Press forward|Search the scene|Move on toward|scene's strange details/i);
+  assert.match(options.join('\n'), /Attack Cult acolytes with rapier|Dodge|Disengage from Cult acolytes/);
+  assert.doesNotMatch(options.join('\n'), /Help ally|Help an exposed ally|Press forward|Search the scene|Move on toward|scene's strange details/i);
 });

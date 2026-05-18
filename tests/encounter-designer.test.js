@@ -708,6 +708,18 @@ describe('formatPlanForPrompt()', () => {
     const str = formatPlanForPrompt(plan, 1);
     assert.ok(str.includes('Pillar progress:'), `missing pillar progress in: ${str}`);
   });
+
+  it('includes a story beat contract so planned encounters do not feel random', () => {
+    const str = formatPlanForPrompt(plan, 0);
+
+    assert.ok(str.includes('STORY BEAT CONTRACT'), `missing story beat contract in: ${str}`);
+    assert.match(str, /Objective:/, `missing objective in: ${str}`);
+    assert.match(str, /Because:/, `missing because/provenance in: ${str}`);
+    assert.match(str, /Therefore:/, `missing consequence bridge in: ${str}`);
+    assert.match(str, /Success:/, `missing success consequence in: ${str}`);
+    assert.match(str, /Failure:/, `missing failure consequence in: ${str}`);
+    assert.match(str, /Next hook:/, `missing next hook in: ${str}`);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -826,6 +826,47 @@ function applyDifficultyCorrection(currentCorrection, outcome) {
 // Prompt formatter
 // ---------------------------------------------------------------------------
 
+function formatStoryBeatContract(encounter) {
+  if (!encounter) return '';
+  const pillar = encounter.pillar || 'encounter';
+  const objective = encounter.objective || (
+    pillar === 'combat'
+      ? 'Resolve the threat while preserving momentum toward the party quest.'
+      : pillar === 'social'
+        ? 'Win useful cooperation, information, access, or a concession from the NPC/faction.'
+        : 'Overcome the obstacle and reveal a concrete discovery, route, or pressure.'
+  );
+  const because = encounter.because || encounter.enemyReason || encounter.stakes || (
+    pillar === 'combat'
+      ? 'The opposition is connected to the current location, faction, clue, or route; do not introduce unrelated random monsters.'
+      : pillar === 'social'
+        ? 'This NPC or faction controls something the party needs, knows, or can complicate.'
+        : 'This hazard or discovery exists because of the current dungeon, route, faction activity, or quest history.'
+  );
+  const therefore = encounter.therefore || (
+    'Show how the outcome changes the route, available information, danger level, resources, or next choice.'
+  );
+  const success = encounter.successConsequence || encounter.success || (
+    pillar === 'combat'
+      ? 'The party gains safer passage, a clue, leverage, or a clearer route forward.'
+      : pillar === 'social'
+        ? 'The party earns access, aid, a lead, a discount, a warning, or a named contact.'
+        : 'The party gains a discovery, shortcut, warning, treasure lead, or positional advantage.'
+  );
+  const failure = encounter.failureConsequence || encounter.failure || (
+    pillar === 'combat'
+      ? 'The party spends HP/resources, loses time, attracts attention, or faces a harder next beat.'
+      : pillar === 'social'
+        ? 'The party still advances, but with a cost, suspicion, delay, worse terms, or a new complication.'
+        : 'The party still advances, but suffers damage, resource loss, delay, alarm, or a partial clue.'
+  );
+  const hook = encounter.nextHook || (
+    'End by naming the next concrete lead, route, NPC, visible danger, or decision point.'
+  );
+
+  return `STORY BEAT CONTRACT: Objective: ${objective} Because: ${because} Therefore: ${therefore} Success: ${success} Failure: ${failure} Next hook: ${hook}`;
+}
+
 /**
  * Format the current encounter plan as a single-line string for injection
  * into an AI prompt.
@@ -880,7 +921,9 @@ function formatPlanForPrompt(plan, currentIndex) {
   const totalDone = done.length || 1;
   const pillarsStr = `C${Math.round(cCount/totalDone*100)}%/S${Math.round(sCount/totalDone*100)}%/E${Math.round(eCount/totalDone*100)}%`;
 
-  return `ENCOUNTER PLAN: Encounter ${pos} of ${total}. ${nextDesc}${restHint} Pillar progress: ${pillarsStr}.`;
+  const storyContract = formatStoryBeatContract(next);
+
+  return `ENCOUNTER PLAN: Encounter ${pos} of ${total}. ${nextDesc}${restHint} ${storyContract} Pillar progress: ${pillarsStr}.`;
 }
 
 // ---------------------------------------------------------------------------

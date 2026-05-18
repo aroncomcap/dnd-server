@@ -50,14 +50,18 @@ function isOffensiveStandardAction(action) {
 }
 
 function isCombatStandardAction(action) {
-  return /\b(?:attack|strike|shoot|sacred flame|fire bolt|eldritch blast|dissonant whispers|vicious mockery|toll the dead|ray of frost|fireball|burning hands|guiding bolt|inflict wounds|magic missile|spirit guardians|moonbeam|heat metal|shatter|turn undead|channel divinity|dodge|help|protect|shield|disengage|dash|bless|cure|heal|healing word|second wind|action surge|rage|reckless attack|wild shape|lay on hands|bardic inspiration|extra attack|sneak attack)\b/i.test(action || '');
+  return /\b(?:attack|strike|shoot|sacred flame|fire bolt|eldritch blast|dissonant whispers|vicious mockery|toll the dead|ray of frost|fireball|burning hands|guiding bolt|inflict wounds|magic missile|spirit guardians|moonbeam|heat metal|shatter|turn undead|channel divinity|dodge|protect|shield|disengage|dash|bless|cure|heal|healing word|second wind|action surge|rage|reckless attack|wild shape|lay on hands|bardic inspiration|extra attack|sneak attack)\b/i.test(action || '');
+}
+
+function isInertCombatHelpAction(action) {
+  return /\b(?:help|aid)\b/i.test(action || '') && !/\b(?:heal|healing|cure|stabilize|lay on hands|protect|shield)\b/i.test(action || '');
 }
 
 function scoreStandardAction(action, context = {}) {
   const lower = String(action || '').toLowerCase();
   const inCombat = !!findNearestEnemy(context);
   if (inCombat && /\b(?:attack|strike|shoot|sacred flame|fire bolt|eldritch blast|dissonant whispers|vicious mockery|toll the dead|ray of frost|fireball|burning hands|guiding bolt|inflict wounds|magic missile|spirit guardians|moonbeam|heat metal|shatter|turn undead|channel divinity)\b/.test(lower)) return 100;
-  if (inCombat && /\b(?:dodge|help|protect|shield)\b/.test(lower)) return 85;
+  if (inCombat && /\b(?:dodge|protect|shield)\b/.test(lower)) return 85;
   if (/\b(?:bless|cure|heal|healing word|silence)\b/.test(lower)) return 75;
   if (!inCombat && /\b(?:search|inspect|check|sneak|scout|pass without trace|investigate)\b/.test(lower)) return 95;
   return 50;
@@ -103,7 +107,7 @@ function decorateStandardAction(action, targetPlayer, context = {}) {
 function buildStandardActionOptions(standardActions, context = {}) {
   const inCombat = context.inCombat === true || !!context.combatActive || !!context.combatEngine?.state?.active || !!findNearestEnemy(context);
   const actions = splitStandardActions(standardActions)
-    .filter(action => !inCombat || isCombatStandardAction(action));
+    .filter(action => !inCombat || (isCombatStandardAction(action) && !isInertCombatHelpAction(action)));
   if (!actions.length) return [];
   const targetPlayer = context.targetPlayer || context.playerName || context.characterName || '';
   return actions
@@ -155,9 +159,9 @@ function buildFallbackOptionsForPlayer(targetPlayer, context = {}) {
   if (inCombat) {
     const enemyName = enemy?.name || 'the nearest enemy';
     return [
-      `🗡️ ${firstName} attacks ${enemyName} with their best weapon.`,
-      `🛡️ ${firstName} takes the Dodge action.`,
-      `🤝 ${firstName} helps an exposed ally against ${enemyName}.`,
+      `🗡️ ${firstName}: Attack ${enemyName} with their best weapon.`,
+      `🛡️ ${firstName}: Dodge.`,
+      `↩️ ${firstName}: Disengage from ${enemyName}.`,
     ];
   }
 
