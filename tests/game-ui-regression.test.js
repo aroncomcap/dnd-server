@@ -421,6 +421,11 @@ test('legacy narration path repairs deferred payoff endings after anti-stall tur
   assert.match(serverJs, /function shouldUseDeterministicPayoffClosure/, 'late breadcrumb chains should bypass another LLM repair attempt');
   assert.match(serverJs, /const useDeterministicClosure = shouldUseDeterministicPayoffClosure/, 'legacy path should force deterministic closure for mature breadcrumb chains');
   assert.match(serverJs, /Do not end with the scene still mid-action/, 'repair prompt should force late scenes to land an outcome');
+  assert.match(serverJs, /function isRepeatedRecentNarration/, 'server should reject verbatim repeated narration before it reaches players');
+  assert.match(serverJs, /narration-repeat-guard/, 'repeated narration replacements should be traceable in logs');
+  assert.match(serverJs, /initiative starts\?/, 'noncombat damage guard should catch AI-only initiative starts');
+  assert.match(serverJs, /slices\?/, 'noncombat damage guard should catch pseudo-damage from blades outside engine combat');
+  assert.match(serverJs, /Do not start combat, call for initiative, or narrate attacks unless the player explicitly chose violence/, 'payoff repair should not preserve AI-only combat after non-hostile input');
 });
 
 test('story prompt discourages repeated gatekeeper loops and noncombat filler actions', () => {

@@ -342,7 +342,7 @@ function hasExplicitHostileAction(userMessage) {
 
 function hasHardCombatSignal(text) {
   const value = String(text || '').replace(/\b(?:not|no|never|without|isn't|wasn't|weren't)\s+(?:an?\s+)?(?:ambush|attack|fight|combat|trap|hostility|hostile)\b/gi, '');
-  return /(?:roll(?:s|ing)?\s+(?:for\s+)?initiative|initiative.*(?:order|roll)|combat\s+(?:begins|starts|erupts|breaks out)|(?:goblin|orc|skeleton|zombie|wolf|rat|bandit|dragon|spider|kobold|gnoll|bugbear|hobgoblin|cultist|thug|guard|knight|wraith|ghoul|ghast|wight|vampire|demon|devil|elemental|giant|minotaur|owlbear|manticore|hydra|chimera|basilisk|beholder|lich|golem|treant|werewolf)s?\s+(?:attack|attacks|lunge|lunges|charge|charges|rush|rushes|swing|swings|slash|slashes|stab|stabs|strike|strikes|pounce|pounces|ambush|ambushes)\b|(?:attacks?\s+(?:you|the party|with)|charges?\s+(?:at|toward|into)|ambush(?:ed|es)?!?|lunges?\s+(?:at|toward)|strikes?\s+(?:at|with)|draws?\s+(?:its |their )?(?:sword|weapon|blade|axe|bow)|weapons?\s+drawn|swords?\s+(?:raised|drawn|flashing)|prepare(?:s)?\s+to\s+(?:fight|attack|strike)|openly\s+hostile|turns?\s+hostile|ready\s+(?:their|your)\s+weapons?))/i.test(value);
+  return /(?:roll(?:s|ing)?\s+(?:for\s+)?initiative|initiative.*(?:order|roll|starts?)|combat\s+(?:begins|starts|erupts|breaks out)|(?:goblin|orc|skeleton|zombie|wolf|rat|bandit|dragon|spider|kobold|gnoll|bugbear|hobgoblin|cultist|thug|guard|knight|wraith|ghoul|ghast|wight|vampire|demon|devil|elemental|giant|minotaur|owlbear|manticore|hydra|chimera|basilisk|beholder|lich|golem|treant|werewolf)s?\s+(?:attack|attacks|lunge|lunges|charge|charges|rush|rushes|swing|swings|slash|slashes|stab|stabs|strike|strikes|pounce|pounces|ambush|ambushes)\b|(?:attacks?\s+(?:you|the party|with)|charges?\s+(?:at|toward|into)|ambush(?:ed|es)?!?|lunges?\s+(?:at|toward)|strikes?\s+(?:at|with)|fires?\s+(?:at|from|on|toward)|shoots?\s+(?:at|from|toward)|draws?\s+(?:its |their )?(?:sword|weapon|blade|axe|bow)|weapons?\s+drawn|swords?\s+(?:raised|drawn|flashing)|prepare(?:s)?\s+to\s+(?:fight|attack|strike)|openly\s+hostile|turns?\s+hostile|ready\s+(?:their|your)\s+weapons?))/i.test(value);
 }
 
 function extractNumberedOptions(text) {
@@ -696,7 +696,26 @@ function hasUnsupportedNonCombatDamageNarration(narration, actionText = '') {
   if (isExplicitHostileAction(actionText)) return false;
   const text = String(narration || '').replace(/\s+/g, ' ').trim();
   if (!text) return false;
-  return /\b(?:draw(?:s|ing)? blood|bleeding|bloodies|clubs?|slashes?|stabs?|smashes?|rams?|lashes?|strikes?|hits?|cuts?|wounds?|glancing cut|catches (?:his|her|their) shoulder|kicks? (?:him|her|them)?\s*back|pins? (?:him|her|them)|dagger into|drives? the breath|oar into|hook across|knife into|blade into|arrow into|spear into|mace into)\b/i.test(text);
+  return /\b(?:initiative starts?|combat (?:begins|starts|erupts|breaks out)|erupts into violence|no more talking left|draw(?:s|ing)? blood|bleeding|bloodies|clubs?|slashes?|slices?|stabs?|smashes?|rams?|lashes?|strikes?|hits?|cuts?|wounds?|lunges?|charges?|fires? from|fires? at|surges? with|glancing cut|catches (?:his|her|their) shoulder|kicks? (?:him|her|them)?\s*back|pins? (?:him|her|them)|dagger into|knife punches|drives? the breath|oar into|hook across|knife into|blade into|arrow into|spear into|mace into)\b/i.test(text);
+}
+
+function normalizeNarrationForRepeat(text) {
+  return String(text || '')
+    .split(/\n\s*---(?:OPTIONS|SCENE|WORLD)---/i)[0]
+    .replace(/\bGame Master\s*·\s*\d+s?\b/gi, '')
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function isRepeatedRecentNarration(narration, history = []) {
+  const current = normalizeNarrationForRepeat(narration);
+  if (current.length < 120) return false;
+  return (history || [])
+    .filter(msg => msg?.role === 'assistant' && msg.content)
+    .slice(-3)
+    .some(msg => normalizeNarrationForRepeat(msg.content) === current);
 }
 
 function isLeadLadderNarration(narration, actionText = '', history = []) {
@@ -805,7 +824,7 @@ Requirements:
 - Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", or holding "real leverage".
 - Do not end with the scene still mid-action, such as a culprit kicking proof away, someone lunging for evidence, or an accomplice bolting.
 - Outside active combat, do not narrate NPCs hitting, wounding, drawing blood, or damaging PCs. Use non-damage costs instead: alarm, lost time, public exposure, damaged proof, lost leverage, an owed favor, or a harder choice.
-- Do not start combat unless the draft already started combat.
+- Do not start combat, call for initiative, or narrate attacks unless the player explicitly chose violence.
 - Write 80-130 words of vivid, playable narration only. No options, markers, JSON, or commentary.`;
 
   try {
@@ -819,7 +838,7 @@ Requirements:
     const repairedText = parseResponse(response.text || '').narration || response.text || '';
     const repaired = cleanInvalidCombatNarration(repairedText).trim();
     if (!repaired || isLowInformationNarration(repaired, actionText)) return null;
-    if (!hasHardCombatSignal(narration) && !isExplicitHostileAction(actionText) && hasHardCombatSignal(repaired)) {
+    if (!isExplicitHostileAction(actionText) && hasHardCombatSignal(repaired)) {
       return null;
     }
     if (isDeferredPayoffNarration(repaired, actionText, history) ||
@@ -2524,6 +2543,22 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   const parsed = parseResponse(reply);
   parsed.narration = cleanInvalidCombatNarration(parsed.narration);
   const submittedActionText = extractSubmittedActionText(userMessage);
+  const repeatedRecentNarration = !combatActive && isRepeatedRecentNarration(parsed.narration, gd.chatHistory);
+  if (repeatedRecentNarration) {
+    if (isPayoffSeekingAction(submittedActionText)) {
+      parsed.narration = buildPayoffClosureFallback({
+        narration: parsed.narration,
+        history: gd.chatHistory,
+      });
+      parsed.options = [];
+    } else {
+      const fallbackActor = actingAs || userMessage.split(':')[0]?.trim() || 'Unknown';
+      const fallback = buildFallbackTurn(fallbackActor, submittedActionText);
+      parsed.narration = fallback.narration;
+      parsed.options = fallback.options;
+    }
+    console.warn('[narration-repeat-guard] replaced repeated narration with fallback');
+  }
   if (!combatActive && isLowInformationNarration(parsed.narration, submittedActionText)) {
     const fallbackActor = actingAs || userMessage.split(':')[0]?.trim() || 'Unknown';
     const fallback = buildFallbackTurn(fallbackActor, submittedActionText);
