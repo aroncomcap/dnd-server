@@ -798,6 +798,30 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /same crypt stair/);
   });
 
+  it('advances repeated watchtower actions to the pursuit payoff instead of replaying riders', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The old guild lead stays closed. The watchtower is no paperwork trail: its signal fire has just been lit, and three riders below are cutting loose. One rider carries a matching black-wax tube; another has a courier horn at his belt. This beat is now pursuit under a burning sky, not another ledger.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The same three riders below cut loose again with the same black-wax tube.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /ruined aqueduct/);
+    assert.match(result.narration, /safehouses/);
+    assert.doesNotMatch(result.narration, /same three riders/);
+  });
+
   it('keeps stale guild-proof actions in a newer south-road den scene', () => {
     const gs = {
       data: {

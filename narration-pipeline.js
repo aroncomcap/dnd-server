@@ -288,6 +288,17 @@ function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration
 
 function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (/\b(?:riders below|black-wax tube|courier horn|burning sky)\b/i.test(latest)) {
+    return {
+      narration: 'The old guild lead stays closed. The pursuit pays off in motion: the rider with the black-wax tube is cut off at the switchback, the horn never sounds, and the tube cracks open in the dust. Inside is not another errand but a target: a charcoal map of the north road, three marked safehouses, and tonight\'s meeting point circled at the ruined aqueduct. The party has momentum now; the next choice is whether to ambush the meeting or turn the map into public leverage.',
+      options: [
+        'Ambush the ruined-aqueduct meeting before dusk',
+        'Use the safehouse map to flip an informant',
+        'Expose the black-wax route publicly and force a reaction',
+      ],
+    };
+  }
+
   if (/\b(?:watchtower|signal fire|black-wax line is broken)\b/i.test(latest)) {
     return {
       narration: 'The old guild lead stays closed. The watchtower is no paperwork trail: its signal fire has just been lit, and three riders below are cutting loose before the party can ask gentle questions. One rider carries a matching black-wax tube; another has a courier horn at his belt. This beat is now pursuit under a burning sky, not another ledger.',
