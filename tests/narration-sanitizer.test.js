@@ -76,6 +76,18 @@ test('removes malformed structured marker tails from visible narration', () => {
   assert.doesNotMatch(cleaned, /OPTIONS---|ENEMIES:/);
 });
 
+test('removes inline scene fields from visible narration', () => {
+  assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
+  const { cleanInvalidCombatNarration } = require(modulePath);
+
+  const cleaned = cleanInvalidCombatNarration(
+    'The ledger room erupts as the proof lands. Action: Garrick enters the ledger room Mood: tense NPC: Dockmaster Venn'
+  );
+
+  assert.equal(cleaned, 'The ledger room erupts as the proof lands.');
+  assert.doesNotMatch(cleaned, /Action:|Mood:|NPC:/);
+});
+
 test('removes unsourced noncombat check result labels while preserving consequences', () => {
   assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
   const { cleanInvalidCombatNarration } = require(modulePath);

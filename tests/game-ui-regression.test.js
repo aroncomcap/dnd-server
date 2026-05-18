@@ -407,6 +407,9 @@ test('legacy narration path repairs deferred payoff endings after anti-stall tur
   assert.match(serverJs, /being \(\?:moved\|shifted\)/, 'repair detector should catch moved-tonight cache endings');
   assert.match(serverJs, /crew has names/, 'repair detector should catch named-crew breadcrumbs');
   assert.match(serverJs, /kicks\?\.\{0,80\}\(\?:toward\|into\|over\|off\)/, 'repair detector should catch proof kicked into danger');
+  assert.match(serverJs, /destroying records/, 'repair detector should catch destroy-the-records breadcrumbs');
+  assert.match(serverJs, /berth \(\?:mark\|number\|seven\)/, 'repair detector should catch berth-mark breadcrumbs');
+  assert.match(serverJs, /assistantMessages\.length < 4/, 'lead ladder detector should trigger before the transcript drags');
   assert.match(serverJs, /Do not end with the scene still mid-action/, 'repair prompt should force late scenes to land an outcome');
 });
 

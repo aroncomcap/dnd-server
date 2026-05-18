@@ -689,7 +689,7 @@ function isDeferredPayoffNarration(narration, actionText = '', history = []) {
   if (signalCount < 2) return false;
 
   const ending = text.slice(-650).toLowerCase();
-  return /\b(?:vanish(?:es|ed)?|retreats?|melts?|slips away|runs?|escapes?|flees?|fleeing|fled|bolts?|deeper|still within reach|not alone|real leverage|go now|one breath left|before (?:he|she|they|it|anyone|the watch) (?:learns?|reaches?|can)|trail (?:has|is|turns|points)|route (?:he|she|they|it) used|next move|next lead|points? toward|waiting under|waiting at|head straight for|being (?:moved|shifted)|(?:is|are) (?:being )?(?:moved|shifted|hidden|carried) (?:now|tonight)|happening now|crew has names|has names|about to become public|chance to shove off|lost moments?|kicks?.{0,80}(?:toward|into|over|off)|shoves?.{0,80}(?:toward|into|over|off)|throws?.{0,80}(?:toward|into|over|off)|lunges? for|goes pale at the sight)\b/.test(ending);
+  return /\b(?:vanish(?:es|ed)?|retreats?|melts?|slips away|runs?|escapes?|flees?|fleeing|fled|bolts?|deeper|still within reach|not alone|real leverage|go now|one breath left|before (?:he|she|they|it|anyone|the watch|the books?|the records?) (?:learns?|reaches?|can|vanish(?:es)?|burns?)|trail (?:has|is|turns|points)|route (?:he|she|they|it) used|next move|next lead|points? toward|waiting under|waiting at|head straight for|being (?:moved|shifted)|(?:is|are) (?:being )?(?:moved|shifted|hidden|carried) (?:now|tonight)|happening now|crew has names|has names|about to become public|chance to shove off|lost moments?|destroying records|burns? the records?|books? vanish|record stove|berth (?:mark|number|seven)|blackwater steps|if you reach|can spot (?:him|her|them)|no watchman delays|kicks?.{0,80}(?:toward|into|over|off)|shoves?.{0,80}(?:toward|into|over|off)|throws?.{0,80}(?:toward|into|over|off)|lunges? for|goes pale at the sight)\b/.test(ending);
 }
 
 function hasUnsupportedNonCombatDamageNarration(narration, actionText = '') {
@@ -705,11 +705,11 @@ function isLeadLadderNarration(narration, actionText = '', history = []) {
     .filter(msg => msg?.role === 'assistant' && msg.content)
     .map(msg => String(msg.content).replace(/\s+/g, ' ').trim())
     .filter(Boolean);
-  if (assistantMessages.length < 6) return false;
+  if (assistantMessages.length < 4) return false;
 
   const text = String(narration || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const recent = assistantMessages.slice(-6).join(' ').toLowerCase();
-  const authorityStack = /\b(?:paid me|paid him|paid her|answers? to|taking orders from|above (?:me|him|her|them)|above his own|merchant council|council auditors?|dockmaster|assistant factor|broker|tally room|seal above|wrong room to ask|next lead)\b/;
+  const authorityStack = /\b(?:paid me|paid him|paid her|paid by|paid for|answers? to|taking orders from|above (?:me|him|her|them)|above his own|merchant council|council auditors?|quartermaster|dockmaster|assistant factor|broker|middleman|tally room|berth (?:mark|number|seven)|blackwater steps|seal above|wrong room to ask|next lead|hard name to hunt|location|covering the handoff|signed in .{0,40} hand)\b/;
   const objectiveContext = /\b(?:guild|merchant|ledger|seal|shipment|marks?|ferry|dock|quay|factor|broker|dockmaster|council|auditors?|tally|books?)\b/;
   return authorityStack.test(text) && objectiveContext.test(`${recent} ${text}`);
 }

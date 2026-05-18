@@ -8,14 +8,18 @@ function normalizeNarrationWhitespace(text) {
 }
 
 function stripLeakedInlineOptions(text) {
-  return String(text || '').replace(
+  let cleaned = String(text || '').replace(
     /\s*1\uFE0F?\u20E3\s+\S[\s\S]*?2\uFE0F?\u20E3\s+\S[\s\S]*?(?:3\uFE0F?\u20E3\s+\S[\s\S]*)?$/u,
     ''
   );
+  cleaned = cleaned.replace(/\s*1(?:\uFE0F?\u20E3|[.)])\s+\S[\s\S]*?2(?:\uFE0F?\u20E3|[.)])\s+\S[\s\S]*$/u, '');
+  return cleaned;
 }
 
 function stripMalformedStructuredMarkerTail(text) {
-  return String(text || '').replace(/\s*(?:-{0,3}\s*)?(?:OPTIONS|SCENE|WORLD)\s*-{2,}[\s\S]*$/i, '');
+  return String(text || '')
+    .replace(/\s*(?:-{0,3}\s*)?(?:OPTIONS|SCENE|WORLD)\s*-{2,}[\s\S]*$/i, '')
+    .replace(/\s*\bAction:\s*[^.]*\s+Mood:\s*[^.]*\s+NPC:\s*[\s\S]*$/i, '');
 }
 
 function stripInlineEnemyBlocks(text) {
