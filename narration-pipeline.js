@@ -131,6 +131,31 @@ function buildResolvedBeatAdvanceDirective(history, actionText) {
 The previous objective is done. Do not reopen the same culprit, guild, warehouse, ledger, cache, quay, stair, runner, buyer, or hidden room. Pay out the consequence in one sentence, then cut to a fresh materially different story beat tied to the party's larger objective.`;
 }
 
+function isFreshBeatBoundary(text) {
+  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger)\b/i.test(String(text || ''));
+}
+
+function isGenericResolvedObjectiveAction(actionText) {
+  return /\b(?:named clue|person responsible|current lead|clue pays off|force the current lead|confrontation now|decisive move.*answers|risk.*answers|put .* clue)\b/i.test(String(actionText || ''));
+}
+
+function reopensClosedGuildObjective(text) {
+  return /\b(?:guild|ledger|dock row|counting-house|countinghouse|merrow|sella|sarn|brannic|signet|crate|crates|buyer|quay|warehouse|clerk|factor|vouchers|routed crates|restitution)\b/i.test(String(text || ''));
+}
+
+function buildFreshBeatStaleActionDirective(history, actionText) {
+  const assistantMessages = (history || [])
+    .filter(msg => msg?.role === 'assistant' && msg.content)
+    .map(msg => String(msg.content).replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  const latest = assistantMessages[assistantMessages.length - 1] || '';
+  if (!isFreshBeatBoundary(latest)) return '';
+  if (!isGenericResolvedObjectiveAction(actionText)) return '';
+
+  return `[CURRENT SCENE GUARD]
+The prior guild/ledger objective is closed and must stay closed. The player's generic clue/confrontation phrasing now applies to the current scene only. Continue from the sealed waystation, bell mechanism, drag marks, messenger, rear hatch, or other current-scene evidence. Do not return to Dock Row, Sella, Merrow, Brannic, guild ledgers, crates, buyers, restitution, or passage vouchers.`;
+}
+
 function normalizeBareNarration(text) {
   return String(text || '')
     .replace(/\s+/g, ' ')
@@ -237,8 +262,44 @@ function buildResolvedBeatAdvance() {
   return 'The guild matter closes instead of reopening. Witnesses take custody of the proof, the promised supplies and passage are granted, and the party leaves with public leverage rather than another errand. By dusk, the next story beat is already waiting beyond Greyhook: a sealed roadside waystation with its bell ringing hard and no visible hand on the rope. The old ledger trail is behind you; this is a new problem.';
 }
 
+function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration) {
+  const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (!isFreshBeatBoundary(latest)) return false;
+  return isGenericResolvedObjectiveAction(actionText) || reopensClosedGuildObjective(narration);
+}
+
+function buildFreshBeatContinuation(assistantHistory) {
+  const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (/\b(?:wounded messenger|fresh footprints|rear hatch|pull-chain|drag mark)\b/i.test(latest)) {
+    return {
+      narration: 'The old guild lead stays closed. At the waystation, the usable clue is the living one: the wounded messenger grips Kael\'s sleeve and forces out a name between panicked breaths, "Black wax... rear hatch... shrine road." Helping him will cost precious minutes; chasing the fresh footprints now risks leaving the only witness bleeding on the floor.',
+      options: [
+        'Stabilize the messenger and demand one clear name',
+        'Follow the fresh footprints toward the shrine road',
+        'Split the party between triage and pursuit',
+      ],
+    };
+  }
+
+  return {
+    narration: 'The old guild lead stays closed. At the sealed waystation, the party puts the only current clue in front of the room itself: the snapped rope, the drag smear, and the bell mechanism hammered to keep ringing after someone fled. The answer is immediate and ugly: a wounded messenger is trapped under fallen shelving in the service room, alive but fading, while fresh footprints cut toward the rear hatch.',
+    options: [
+      'Free the wounded messenger and ask who set the bell',
+      'Follow the fresh footprints through the rear hatch',
+      'Disable the bell mechanism and search the service room',
+    ],
+  };
+}
+
 function closeDeferredPayoffIfNeeded(parsed, actionText, gs) {
   const assistantHistory = getAssistantHistory(gs);
+  if (shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, parsed?.narration)) {
+    return {
+      ...parsed,
+      ...buildFreshBeatContinuation(assistantHistory),
+      freshBeatGuarded: true,
+    };
+  }
   if (shouldAdvanceAfterResolvedBeat(actionText, assistantHistory)) {
     return {
       ...parsed,
@@ -478,6 +539,12 @@ function buildUserMessage(gs, characterName, actionText) {
     if (resolvedBeatAdvanceDirective) {
       parts.push(resolvedBeatAdvanceDirective);
       parts.push(`[INTERPRETED INTENT]\nThe party moves on from the resolved beat now.`);
+    }
+
+    const freshBeatStaleActionDirective = buildFreshBeatStaleActionDirective(history, actionText);
+    if (freshBeatStaleActionDirective) {
+      parts.push(freshBeatStaleActionDirective);
+      parts.push(`[INTERPRETED INTENT]\nResolve the player's intent against the current scene, not a completed prior objective.`);
     }
   }
 

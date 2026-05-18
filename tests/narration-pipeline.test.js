@@ -458,6 +458,27 @@ describe('buildUserMessage', () => {
     assert.match(msg, /The party moves on from the resolved beat now/);
   });
 
+  it('keeps stale generic clue actions scoped to the fresh current scene', () => {
+    const gs = {
+      pendingCorrections: [],
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The old ledger trail is behind you; this is a new problem. Greyhook\'s sealed roadside waystation waits ahead with its bell ringing hard and no visible hand on the rope.',
+          },
+        ],
+      },
+    };
+
+    const msg = buildUserMessage(gs, 'Kael', 'Put the named clue in front of the person responsible');
+
+    assert.match(msg, /CURRENT SCENE GUARD/);
+    assert.match(msg, /prior guild\/ledger objective is closed/);
+    assert.match(msg, /current scene only/);
+    assert.match(msg, /Resolve the player's intent against the current scene/);
+  });
+
   it('closes mature split-pipeline breadcrumb loops instead of chasing another room', () => {
     const gs = {
       data: {
@@ -533,6 +554,59 @@ describe('buildUserMessage', () => {
     assert.equal(result.resolvedBeatAdvanced, true);
     assert.match(result.narration, /promised supplies and passage are granted/);
     assert.doesNotMatch(result.narration, /hidden stair|buyer|quay/);
+  });
+
+  it('guards fresh scenes from stale clue actions that would reopen a closed guild objective', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The guild matter closes instead of reopening. By dusk, the next story beat is already waiting beyond Greyhook: a sealed roadside waystation with its bell ringing hard and no visible hand on the rope. The old ledger trail is behind you; this is a new problem.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Sella Marr and the guild clerk argue over the ledger while Dock Row waits for restitution.',
+      options: ['Expose Sella', 'Demand passage', 'Search the ledger'],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Put the named clue in front of the person responsible', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /sealed waystation/);
+    assert.match(result.narration, /wounded messenger/);
+    assert.doesNotMatch(result.narration, /Sella Marr|Dock Row|restitution/);
+    assert.deepEqual(result.options, [
+      'Free the wounded messenger and ask who set the bell',
+      'Follow the fresh footprints through the rear hatch',
+      'Disable the bell mechanism and search the service room',
+    ]);
+  });
+
+  it('continues the waystation clue instead of repeating the first fresh-beat guard', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The old guild lead stays closed. A wounded messenger is trapped under fallen shelving while fresh footprints cut toward the rear hatch.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'A clerk returns with new vouchers and asks the party to revisit the counting-house.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /Black wax/);
+    assert.match(result.narration, /shrine road/);
+    assert.doesNotMatch(result.narration, /vouchers|counting-house/);
   });
 
   it('tells the model to begin after the latest DM message instead of rephrasing it', () => {
