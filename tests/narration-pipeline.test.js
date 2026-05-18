@@ -982,6 +982,54 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /one more warning/);
   });
 
+  it('advances Pell warehouse confessions into the trapdoor scene instead of repeating the confession', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'Pell Varrin is already shoving a ledger into a crate, ink on his cuffs and fear in his jaw. He blurts, "The buyer is Sera Vale," and jerks his chin toward the crate stack, where a trapdoor sits half-hidden under tar cloth. From outside, boots hit the wet boards at the loading entrance.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Pell Varrin repeats that the buyer is Sera Vale and points again at the trapdoor.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Put the named clue in front of the person responsible', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /drops below the crate stack/);
+    assert.match(result.narration, /Sera Vale is already in a skiff/);
+    assert.doesNotMatch(result.narration, /repeats that the buyer is Sera Vale/);
+  });
+
+  it('resolves Sera skiff escapes into a black-wax lead instead of generic guild closure', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'Sera Vale is already in the skiff with the manifest tube under one arm and a moon-salt crate at her feet. She cuts the mooring rope instead of pleading. Pell warns she will burn the papers before she yields.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The chase stops here. Sera Vale is forced into the open and the guild can demand restitution.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /skiff chase pays off/);
+    assert.match(result.narration, /sealed waystation/);
+    assert.doesNotMatch(result.narration, /guild can demand restitution|The chase stops here/);
+  });
+
   it('does not extract determiners from generic responsible-person actions as culprit names', () => {
     const gs = {
       data: {

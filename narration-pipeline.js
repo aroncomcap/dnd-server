@@ -135,7 +135,7 @@ The previous objective is done. Do not reopen the same culprit, guild, warehouse
 }
 
 function isFreshBeatBoundary(text) {
-  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|black-wax tube|courier horn|switchback|safehouses|meeting point|ruined aqueduct|north road|current scene)\b/i.test(String(text || ''));
+  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|pell varrin|blackwater warehouse|trapdoor|buyer is sera vale|sera vale|manifest tube|moon-salt|skiff|loading door|under the pier|clear water|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|black-wax tube|courier horn|switchback|safehouses|meeting point|ruined aqueduct|north road|current scene)\b/i.test(String(text || ''));
 }
 
 function isGenericResolvedObjectiveAction(actionText) {
@@ -342,6 +342,28 @@ function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration
 
 function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (/\b(?:Sera Vale.*skiff|skiff.*Sera Vale|manifest tube|moon-salt crate|cut the mooring rope|clear water|burn the papers)\b/i.test(latest)) {
+    return {
+      narration: 'The skiff chase pays off under the pier instead of becoming another handoff. Sera Vale slams into the harbor chain with the manifest tube smoking in her fist and moon-salt spilling white across the black water. Cornered, she gives up the black-wax mark behind the theft: a courier route through the shrine road and a sealed waystation where the patron\'s messenger was meant to vanish. The party has the proof, Sera in reach, and a new lead bought with scorched evidence rather than delay.',
+      options: [
+        'Seize Sera and the smoking manifest tube',
+        'Demand the patron\'s name before the evidence burns',
+        'Race the black-wax courier route to the sealed waystation',
+      ],
+    };
+  }
+
+  if (/\b(?:Pell Varrin|Pell.*breaks|buyer is Sera Vale|trapdoor.*tar cloth|bar that door|loading door)\b/i.test(latest)) {
+    return {
+      narration: 'The warehouse confession turns physical at once. Pell throws the trapdoor keys across the floor, and the party drops below the crate stack into wet pilings and lantern glare. Sera Vale is already in a skiff with the manifest tube under one arm and a moon-salt crate at her feet. She cuts the mooring rope instead of bargaining. Above, the loading door splinters; below, the stolen proof is drifting into black water.',
+      options: [
+        'Leap to the skiff before Sera clears the pier',
+        'Secure the manifest tube while Pell bars the door',
+        'Cut off Sera from the dock ladder and force a confession',
+      ],
+    };
+  }
+
   if (/\b(?:At the ruined aqueduct, the black-wax map|Lanterns move below the broken arches|safehouse runner arrives early|coded purse|false signal on the north road)\b/i.test(latest)) {
     return {
       narration: 'The aqueduct meeting breaks open instead of resetting. The early runner is pinned against a cracked pillar with the coded purse still in hand, and the unlit north-road signal becomes the party\'s leverage. Below the arches, Captain Rulven Marr realizes the ambush is not his anymore. He must either trade the safehouse list, call his hidden crossbowmen, or watch the party light the false signal that turns his own network against him.',
