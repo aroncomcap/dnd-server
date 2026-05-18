@@ -37,6 +37,7 @@ function stripUnsupportedCheckResultLabels(text) {
     /\b(?:NO ROLL|(?:STR|DEX|CON|INT|WIS|CHA)\s+(?:check|contest|save)\s+implied|(?:ATHLETICS|ACROBATICS|STEALTH|ARCANA|HISTORY|INVESTIGATION|INSIGHT|PERCEPTION|SURVIVAL|DECEPTION|INTIMIDATION|PERSUASION|CHALLENGE)(?:\/(?:ATHLETICS|ACROBATICS|STEALTH|ARCANA|HISTORY|INVESTIGATION|INSIGHT|PERCEPTION|SURVIVAL|DECEPTION|INTIMIDATION|PERSUASION|CHALLENGE))*)\s*(?:—|-|:)\s*/gi,
     ''
   );
+  cleaned = cleaned.replace(/\b(?:str|dex|con|int|wis|cha|strength|dexterity|constitution|intelligence|wisdom|charisma)\s+save\s+needed\s*(?:—|-|:)\s*/gi, '');
   return cleaned;
 }
 

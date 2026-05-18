@@ -121,3 +121,15 @@ test('removes unsourced noncombat check result labels while preserving consequen
   assert.equal(cleaned, 'Merren is restrained in place. The boatman hesitates. Merren cannot break Kael’s hold. Theren gets aboard. Pressure forces a confession. The lead is forced into the open.');
   assert.doesNotMatch(cleaned, /check succeeds|pressure lands|grapple fails|DEX contest implied|NO ROLL|No roll this turn|INTIMIDATION\/CHALLENGE/i);
 });
+
+test('removes unsourced save-needed labels while preserving the narrated consequence', () => {
+  assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
+  const { cleanInvalidCombatNarration } = require(modulePath);
+
+  const cleaned = cleanInvalidCombatNarration(
+    'Seln hurls the ledger toward the lantern. Dex save needed — the lantern tips toward spilled tar-paper notes.'
+  );
+
+  assert.equal(cleaned, 'Seln hurls the ledger toward the lantern. The lantern tips toward spilled tar-paper notes.');
+  assert.doesNotMatch(cleaned, /Dex save needed/i);
+});

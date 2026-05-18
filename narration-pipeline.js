@@ -132,6 +132,87 @@ function isLowInformationNarration(narration, actionText = '') {
     .includes(normalized);
 }
 
+function getAssistantHistory(gs) {
+  const topLevelHistory = Array.isArray(gs?.chatHistory) ? gs.chatHistory : [];
+  const dataHistory = Array.isArray(gs?.data?.chatHistory) ? gs.data.chatHistory : [];
+  return (topLevelHistory.length ? topLevelHistory : dataHistory)
+    .filter(msg => msg?.role === 'assistant' && msg.content)
+    .map(msg => String(msg.content).replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+}
+
+function isPayoffSeekingAction(actionText) {
+  const action = String(actionText || '');
+  return isDialogueAction(action) || isAdvanceAction(action) ||
+    /\b(?:lead|clue|proof|answer|answers|confront|decisive|responsible|payoff|force|expose|resolve|finish|end|named clue)\b/i.test(action);
+}
+
+function hasObjectiveProofContext(text) {
+  const value = String(text || '').toLowerCase();
+  const proof = /\b(?:proof|ledger|manifest|coffer|lockbox|packet|slips?|chit|tally|seal|names?|records?|papers?|route|cargo|wagon|cache|manifest)\b/.test(value);
+  const setting = /\b(?:guild|merchant|factor|clerk|quay|ford|ferry|cache|weighhouse|warehouse|countinghouse|river|road|shipment|teamster|coffer|seln|harvek|doss)\b/.test(value);
+  return proof && setting;
+}
+
+function hasBreadcrumbEnding(narration) {
+  const ending = String(narration || '').replace(/\s+/g, ' ').trim().slice(-750).toLowerCase();
+  return /\b(?:bolts?|flees?|runs?|dives?|escapes?|vanish(?:es|ed)?|retreats?|scatter|scatters|old ferry path|ferry path|cache house|cache lead|ferry cache|old ferry posts|south quay weighhouse|upper tally room|trap ledger|floorboards|duplicate (?:cargo )?(?:tallies|sheets)|destroying duplicate|before dusk|evening bell|dock guards?|coming up the stairs|delay anyone|lead exposed|place,? the timing,? and proof|acting now|violence is about to break|evidence burning|papers? burning|lantern tips?|spilled tar|risk of the evidence|one name circled|quaymaster|harvek doss|sable|sable is below|below the quay|old tide tunnel|hidden stair|lower stair|approaching footsteps|scrapes? hard against stone|trying to spit out a name|before they silence|lead but lose|lose part of the paper trail|new lead|next lead|next answer|another tunnel|another intermediary)\b/.test(ending);
+}
+
+function shouldClosePayoffNarration(narration, actionText, assistantHistory) {
+  if (!isPayoffSeekingAction(actionText)) return false;
+  if ((assistantHistory || []).length < 3) return false;
+  const combined = `${(assistantHistory || []).slice(-6).join(' ')} ${narration || ''}`;
+  if (!hasObjectiveProofContext(combined)) return false;
+  const matureLoop = (assistantHistory || []).length >= 4;
+  const breadcrumb = hasBreadcrumbEnding(narration);
+  const bossAboveBoss = /\b(?:seln|harvek doss|quaymaster|guild factors?|higher up|upper tally room|trap ledger|south quay weighhouse)\b/i.test(narration || '') &&
+    /\b(?:factor|clerk|guild|coffer|manifest|ledger|packet|cache|proof)\b/i.test(combined);
+  return matureLoop && (breadcrumb || bossAboveBoss);
+}
+
+function extractAccountableName(text) {
+  const value = String(text || '');
+  const fullName = value.match(/\b(Harvek\s+Doss|House\s+[A-Z][a-z]+)\b/);
+  if (fullName) return fullName[1];
+  const single = value.match(/\b(Seln|Sable)\b/);
+  if (single) return single[1];
+  const titled = value.match(/\b(?:Factor|Clerk|Quaymaster|Dockmaster|Broker|Guildmaster)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
+  if (titled) return titled[1];
+  const named = value.match(/\b(?:culprit|responsible|signatory|payer|buyer|traitor|clerk|quaymaster)\s+(?:is|was|named|called)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
+  if (named) return named[1];
+  const twoWordNames = value.match(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/g) || [];
+  return twoWordNames.find(name => !/\b(?:Greyhook Market|Blackreed Ford|Mara Pell|Joren Pell)\b/.test(name)) || 'the exposed culprit';
+}
+
+function extractProofObject(text) {
+  const value = String(text || '').toLowerCase();
+  const proofWords = ['trap ledger', 'duplicate cargo tallies', 'duplicate sheets', 'payoff slips', 'sealed manifests', 'guild lockbox', 'iron-bound coffer', 'dented guild lockbox', 'packet', 'ledger', 'manifest', 'coffer', 'lockbox', 'tally rod', 'travel chit', 'papers'];
+  return proofWords.find(word => value.includes(word)) || 'the proof';
+}
+
+function buildSplitPayoffClosure({ narration, actionText, assistantHistory }) {
+  const combined = `${(assistantHistory || []).slice(-6).join(' ')} ${actionText || ''} ${narration || ''}`;
+  const culprit = extractAccountableName(combined);
+  const proof = extractProofObject(combined);
+  return `The chase stops here. ${culprit} is forced into the open in this scene: ${proof} is secured, the witness confirms the scheme, and the remaining accomplice loses the nerve to keep running. One cost still lands—the papers are scorched, the crowd hears ugly names, or the guild now knows the party has leverage—but the truth no longer moves to another room, quay, stair, or hidden cache. The party has enough to expose ${culprit}, demand passage and supplies, or force restitution from the guild. This beat is resolved; the next decision is what price to make them pay.`;
+}
+
+function closeDeferredPayoffIfNeeded(parsed, actionText, gs) {
+  const assistantHistory = getAssistantHistory(gs);
+  if (!shouldClosePayoffNarration(parsed?.narration, actionText, assistantHistory)) return parsed;
+  return {
+    ...parsed,
+    narration: buildSplitPayoffClosure({
+      narration: parsed.narration,
+      actionText,
+      assistantHistory,
+    }),
+    options: [],
+    payoffClosed: true,
+  };
+}
+
 const FEROCITY_LABELS = {
   1: 'Deadly (lethal, every encounter is life-threatening)',
   2: 'Dangerous (tough fights, meaningful consequences)',
@@ -687,12 +768,13 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
         fallback: true,
       };
     }
-    if (!parsed.options.length) {
-      parsed.options = [...FALLBACK_OPTIONS];
+    const finalized = closeDeferredPayoffIfNeeded(parsed, actionText, gs);
+    if (!finalized.options.length && !finalized.payoffClosed) {
+      finalized.options = [...FALLBACK_OPTIONS];
     }
-    parsed.llmRunId = response.llmRunId;
-    closeStream(parsed.narration || responseText.trim(), response.llmRunId);
-    return parsed;
+    finalized.llmRunId = response.llmRunId;
+    closeStream(finalized.narration || responseText.trim(), response.llmRunId);
+    return finalized;
   } catch (err) {
     const fallback = buildFallbackTurn(characterName, actionText);
     flushVisibleNarration();
@@ -1017,4 +1099,6 @@ module.exports = {
   buildFallbackTurn,
   isLowInformationNarration,
   buildAntiStallPacingDirective,
+  closeDeferredPayoffIfNeeded,
+  shouldClosePayoffNarration,
 };

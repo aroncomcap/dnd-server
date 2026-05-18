@@ -15,6 +15,7 @@ const {
   shouldCallModelForFlavor,
   callModelNarration,
   handlePlayerAction,
+  closeDeferredPayoffIfNeeded,
 } = require('../narration-pipeline');
 
 afterEach(() => {
@@ -435,6 +436,31 @@ describe('buildUserMessage', () => {
 
     assert.ok(msg.includes('ANTI-STALL PACING'), 'Investigation of a known lead should not repeat the same clue');
     assert.ok(msg.includes('reveal the proof'), 'Should force a new discovery or complication');
+  });
+
+  it('closes mature split-pipeline breadcrumb loops instead of chasing another room', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'Hadrik Vane opens the route to Blackreed Ford and names Joren Pell.' },
+          { role: 'assistant', content: 'At Blackreed Ford, Joren reveals the stolen guild lockbox and green-cloaked raiders.' },
+          { role: 'assistant', content: 'The raider says Seln sent them and the coffer goes to the ferry cache.' },
+          { role: 'assistant', content: 'Inside the cache house, Seln is caught with manifests, payoff slips, and the iron-bound coffer.' },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Seln bolts for the back door and shouts that Harvek Doss is at the south quay weighhouse destroying duplicate cargo tallies before dusk.',
+      options: ['Chase Seln', 'Go to the weighhouse', 'Search the floorboards'],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.payoffClosed, true);
+    assert.equal(result.options.length, 0);
+    assert.match(result.narration, /The chase stops here/);
+    assert.match(result.narration, /This beat is resolved/);
+    assert.doesNotMatch(result.narration, /south quay weighhouse|floorboards|before dusk/);
   });
 
   it('tells the model to begin after the latest DM message instead of rephrasing it', () => {

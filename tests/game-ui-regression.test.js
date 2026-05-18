@@ -472,6 +472,10 @@ test('split narration prompt carries story momentum and option quality rules', (
   assert.match(narrationPipelineJs, /Begin each response after the latest DM message/, 'split narration should prevent repeated DM paragraphs');
   assert.match(narrationPipelineJs, /Never answer progress with only cautious movement and no new information/, 'split narration should avoid cautious non-event loops');
   assert.match(narrationPipelineJs, /the culprit is below/, 'split narration should ban late objective cliffhanger loops');
+  assert.match(narrationPipelineJs, /function closeDeferredPayoffIfNeeded/, 'split narration should repair mature breadcrumb loops after streaming');
+  assert.match(narrationPipelineJs, /south quay weighhouse/, 'split narration should catch observed weighhouse breadcrumb loops');
+  assert.match(narrationPipelineJs, /trap ledger/, 'split narration should catch observed hidden-ledger breadcrumb loops');
+  assert.match(narrationPipelineJs, /The chase stops here/, 'split narration deterministic closure should end mature lead loops');
   assert.match(narrationPipelineJs, /Do not repeat the same beat from recent turns/, 'split narration should avoid repeated scouting beats');
   assert.match(narrationPipelineJs, /Each option must change the situation/, 'split narration options should be scene-changing');
   assert.match(narrationPipelineJs, /Avoid "inspect\/search\/scout ahead" unless a specific unresolved hazard/, 'split narration should avoid repeated passive inspection options');
