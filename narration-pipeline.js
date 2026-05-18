@@ -18,6 +18,8 @@ const VERBOSITY_RULES = {
 
 const STORY_MOMENTUM_RULES = [
   'Every non-combat response must materially change the situation: new location, new clue, changed NPC stance, visible danger, paid cost, opened route, or a sharper decision.',
+  'Maintain one active named lead, contact, or destination at a time. If recent history already named a lead, keep using that same lead until the party reaches, resolves, or clearly loses it.',
+  'If you need a twist, twist the current lead instead of inventing a replacement contact, route, or destination.',
   'For travel, progress, acknowledgement, and "move on" actions, move the party to the next concrete place, person, clue, or decision in this response.',
   'Never answer progress with only cautious movement and no new information. If the party checks for danger and there is no meaningful hazard, compress the caution and advance the scene.',
   'Do not repeat the same beat from recent turns. If recent narration already covered scouting, watching flanks, checking traps, or a clear path, switch to arrival, discovery, dialogue, consequence, or choice.',
@@ -280,7 +282,9 @@ function buildUserMessage(gs, characterName, actionText) {
   }
 
   // Chat history
-  const history = gs.chatHistory || [];
+  const topLevelHistory = Array.isArray(gs.chatHistory) ? gs.chatHistory : [];
+  const dataHistory = Array.isArray(gs.data?.chatHistory) ? gs.data.chatHistory : [];
+  const history = topLevelHistory.length ? topLevelHistory : dataHistory;
   if (history.length > 0) {
     const historyLines = history.map(msg => {
       const role = msg.role === 'assistant' ? 'DM' : (msg.name || characterName || 'Player');
@@ -295,7 +299,7 @@ function buildUserMessage(gs, characterName, actionText) {
   }
 
   // Player action with system override instruction
-  const systemOverride = `CRITICAL: The player has chosen an action below. You MUST narrate ONLY what happens as a direct consequence of that choice. Do not repeat previous narrations or generic descriptions.\n\n`;
+  const systemOverride = `CRITICAL: The player has chosen an action below. You MUST narrate ONLY what happens as a direct consequence of that choice. Do not repeat previous narrations or generic descriptions. Treat RECENT HISTORY as binding continuity: keep the same named lead, contact, or destination until the party reaches, resolves, or clearly loses it.\n\n`;
   parts.push(systemOverride);
   parts.push(`PLAYER ACTION: ${characterName} chooses: ${actionText}`);
   parts.push(`\nRespond directly. Narrate what happens because of this choice ONLY.`);

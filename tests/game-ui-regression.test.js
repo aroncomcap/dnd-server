@@ -350,9 +350,13 @@ test('formal enemy blocks require an actual hostile trigger', () => {
 
 test('story prompt discourages repeated gatekeeper loops and noncombat filler actions', () => {
   assert.match(promptBuilderJs, /Maintain one current objective at a time/, 'prompt should preserve a single active objective');
+  assert.match(promptBuilderJs, /Maintain one active named lead, contact, or destination at a time/, 'prompt should preserve one active named lead');
+  assert.match(promptBuilderJs, /do not invent a replacement contact or alternate destination/, 'prompt should not rotate contacts every turn');
+  assert.match(promptBuilderJs, /If you need a twist, twist the current lead/, 'prompt should complicate the current lead instead of replacing it');
   assert.match(promptBuilderJs, /do not introduce another clerk, factor, outpost, or DC check/, 'prompt should avoid repeated guild checkpoint loops');
   assert.match(promptBuilderJs, /Routine routing\/social scenes should resolve in one exchange and then advance/, 'prompt should move brief social scenes forward');
   assert.match(promptBuilderJs, /Never answer progress with only cautious movement and no new information/, 'prompt should not turn progress into cautious non-events');
+  assert.match(promptBuilderJs, /ground the scene immediately with a named place/, 'generic openings should become concrete scenes');
   assert.match(promptBuilderJs, /Roll only when there is real uncertainty, meaningful consequence/, 'prompt should reserve rolls for meaningful uncertainty');
   assert.match(promptBuilderJs, /already-earned passage should advance without a check/, 'prompt should not block earned progress with extra checks');
   assert.match(promptBuilderJs, /Avoid Dodge, Disengage, Dash, or generic Attack fillers unless immediate physical danger is present/, 'noncombat options should not be tactical filler');
@@ -362,6 +366,8 @@ test('story prompt discourages repeated gatekeeper loops and noncombat filler ac
 
 test('split narration prompt carries story momentum and option quality rules', () => {
   assert.match(narrationPipelineJs, /Every non-combat response must materially change the situation/, 'split narration should require changed situations');
+  assert.match(narrationPipelineJs, /topLevelHistory\.length \? topLevelHistory : dataHistory/, 'split narration should read persisted chat history');
+  assert.match(narrationPipelineJs, /Treat RECENT HISTORY as binding continuity/, 'split narration should preserve named leads from recent history');
   assert.match(narrationPipelineJs, /Never answer progress with only cautious movement and no new information/, 'split narration should avoid cautious non-event loops');
   assert.match(narrationPipelineJs, /Do not repeat the same beat from recent turns/, 'split narration should avoid repeated scouting beats');
   assert.match(narrationPipelineJs, /Each option must change the situation/, 'split narration options should be scene-changing');

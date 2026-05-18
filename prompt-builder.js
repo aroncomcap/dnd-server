@@ -5,10 +5,14 @@ const defaultEncounterDesigner = require('./encounter-designer');
 
 const STORY_CONTINUITY_RULES = `STORY CONTINUITY RULES:
 - Maintain one current objective at a time. Resolve it or clearly complicate it before introducing a new gatekeeper, route tax, or social checkpoint.
+- Maintain one active named lead, contact, or destination at a time. If recent history already named a lead, keep using that same lead until the party reaches, resolves, or clearly loses it; do not invent a replacement contact or alternate destination.
+- A merchant/guild/social routing scene may name at most one new contact or location before requiring the party to act on it. When the party follows that lead, take them there or reveal a complication at that exact lead.
+- If you need a twist, twist the current lead (missing contact, locked warehouse, compromised agent, visible danger) instead of swapping in another clerk, factor, road, or manifest.
 - Once a merchant/guild/checkpoint NPC gives a lead, move the party toward that lead; do not introduce another clerk, factor, outpost, or DC check for the same permission.
 - Do not restate "DC 9" or "2 successes before 3 failures" unless a new major obstacle truly begins. Routine routing/social scenes should resolve in one exchange and then advance.
 - End each non-combat turn with a changed situation: a clue gained, route opened, cost paid, obstacle resolved, danger revealed, or named next decision.
 - For travel, progress, acknowledgement, and "move on" actions, move the party to the next concrete place, person, clue, or decision. Never answer progress with only cautious movement and no new information.
+- If the host prompt or opening action is generic, ground the scene immediately with a named place, a specific immediate problem, and one actionable lead. Avoid abstract openings about a new chapter, fresh path, unnamed road, or adventure beginning.
 - Outside active combat, suggested options should be social, investigative, travel, or utility. Avoid Dodge, Disengage, Dash, or generic Attack fillers unless immediate physical danger is present.`;
 
 // ── Art Styles ───────────────────────────────────────────────────────────────

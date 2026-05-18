@@ -377,6 +377,23 @@ describe('buildUserMessage', () => {
     assert.ok(msg.includes('walk into the tavern') || msg.includes('barkeep'), 'Should include chat history');
   });
 
+  it('uses persisted data.chatHistory when top-level chatHistory is absent', () => {
+    const gs = {
+      pendingCorrections: [],
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'Veyra Halm at Cinder Wharf is the current lead.' },
+        ],
+      },
+    };
+
+    const msg = buildUserMessage(gs, 'Kael', 'Follow the lead.');
+
+    assert.ok(msg.includes('RECENT HISTORY'), 'Should include persisted history marker');
+    assert.ok(msg.includes('Veyra Halm at Cinder Wharf'), 'Should preserve the current named lead');
+    assert.ok(msg.includes('binding continuity'), 'Should tell the model to preserve the named lead');
+  });
+
   it('includes the player action', () => {
     const gs = makeGameState();
     const msg = buildUserMessage(gs, 'Kael', 'I attack the goblin.');
