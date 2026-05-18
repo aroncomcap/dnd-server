@@ -385,7 +385,17 @@ test('legacy narration path injects anti-stall objective closure', () => {
   assert.match(narrationPipelineJs, /buildAntiStallPacingDirective/, 'pipeline should expose anti-stall pacing');
   assert.match(serverJs, /buildAntiStallPacingDirective\(gd\.chatHistory, submittedActionTextForPrompt\)/, 'legacy path should add the same anti-stall pacing as split narration');
   assert.match(serverJs, /function buildObjectiveClosureDirective/, 'legacy path should add a stronger late-objective closure guard');
-  assert.match(serverJs, /Do not send the party to another office, annex, room, clerk, signatory, meeting, or "within the hour" lead/, 'closure guard should ban the observed breadcrumb endings');
+  assert.match(serverJs, /Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, or "within the hour" lead/, 'closure guard should ban the observed breadcrumb endings');
+  assert.match(serverJs, /Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", or holding "real leverage"/, 'closure guard should ban chase-deferral endings');
+});
+
+test('legacy narration path repairs deferred payoff endings after anti-stall turns', () => {
+  assert.match(serverJs, /function isDeferredPayoffNarration/, 'server should detect narrations that defer payoff into another chase beat');
+  assert.match(serverJs, /function repairDeferredPayoffNarration/, 'server should have a focused repair pass for deferred payoff narration');
+  assert.match(serverJs, /task: 'narration-payoff-repair'/, 'repair pass should be traceable in LLM telemetry');
+  assert.match(serverJs, /isDeferredPayoffNarration\(parsed\.narration, submittedActionText, gd\.chatHistory\)/, 'legacy path should inspect parsed narration before saving it');
+  assert.match(serverJs, /parsed\.narration = repairedNarration/, 'successful repair should replace the deferred narration');
+  assert.match(serverJs, /Do not add a new route, office, lane, contact, buyer, alias, or "next lead"/, 'repair prompt should forbid creating another breadcrumb');
 });
 
 test('story prompt discourages repeated gatekeeper loops and noncombat filler actions', () => {

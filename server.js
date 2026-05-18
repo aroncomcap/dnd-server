@@ -651,15 +651,96 @@ function buildObjectiveClosureDirective(history, actionText) {
   const recent = assistantMessages.join(' ').toLowerCase();
   const signalPatterns = [
     /\b(?:guild|merchant|ledger|seal|route|reroute|caravan|records?|papers?|books?)\b/,
-    /\b(?:clerk|vessa|seln|factor|buyer|signatory|courier|contact)\b/,
-    /\b(?:counting\s+(?:room|office|house|annex)|archive|tally\s+office|office|annex|room)\b/,
-    /\b(?:next\s+(?:lead|move|door)|within\s+the\s+hour|before\s+(?:the\s+books|the\s+records|they|anyone)|lead\s+(?:is|points|goes))\b/,
+    /\b(?:clerk|vessa|seln|factor|buyer|signatory|courier|contact|culprit|accomplice|payer|alias)\b/,
+    /\b(?:counting\s+(?:room|office|house|annex)|archive|tally\s+office|office|annex|room|dock|quay|crane|lane|warehouse)\b/,
+    /\b(?:manifest|shipment|strongbox|mask|ring|sigil|mark|token|receipt|note|proof)\b/,
+    /\b(?:next\s+(?:lead|move|door)|within\s+the\s+hour|before\s+(?:the\s+books|the\s+records|they|anyone)|lead\s+(?:is|points|goes)|trail|route|vanish|retreat|deeper|not\s+alone|real\s+leverage)\b/,
   ];
   const signalCount = signalPatterns.reduce((count, pattern) => count + (pattern.test(recent) ? 1 : 0), 0);
   if (signalCount < 2) return '';
 
   return `[OBJECTIVE CLOSURE]
-This objective has had several exchanges. Close or climax it in this response: name the culprit or buyer, secure or lose the proof, expose the motive, and show the immediate consequence. Do not send the party to another office, annex, room, clerk, signatory, meeting, or "within the hour" lead. End on a resolved consequence or hard choice in the current scene, not a new breadcrumb.`;
+This objective has had several exchanges. Close or climax it in this response: name the culprit or buyer, secure or lose the proof, expose the motive, and show the immediate consequence. Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, or "within the hour" lead. Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", or holding "real leverage". If a culprit flees, either the party catches them, they leave complete actionable proof behind, or the scene becomes an explicit immediate threat. End on a resolved consequence or hard choice in the current scene, not a new breadcrumb.`;
+}
+
+function isPayoffSeekingAction(actionText) {
+  const action = String(actionText || '');
+  return isDialogueAction(action) || isAdvanceAction(action) ||
+    /\b(?:lead|clue|proof|answer|answers|confront|decisive|responsible|payoff|force|expose|resolve|finish|end)\b/i.test(action);
+}
+
+function isDeferredPayoffNarration(narration, actionText = '', history = []) {
+  if (!isPayoffSeekingAction(actionText)) return false;
+  const text = String(narration || '').replace(/\s+/g, ' ').trim();
+  if (!text) return false;
+
+  const recentHistory = (history || [])
+    .filter(msg => msg?.role === 'assistant' && msg.content)
+    .map(msg => String(msg.content).replace(/\s+/g, ' ').trim())
+    .slice(-4)
+    .join(' ');
+  const combined = `${recentHistory} ${text}`.toLowerCase();
+  const objectiveSignals = [
+    /\b(?:lead|trail|route|clue|proof|answer|buyer|culprit|contact|accomplice|payer|alias)\b/,
+    /\b(?:ledger|manifest|shipment|strongbox|receipt|note|mask|ring|sigil|mark|token|seal)\b/,
+    /\b(?:guild|merchant|factor|dock|quay|crane|lane|warehouse|office|counting\s+house)\b/,
+  ];
+  const signalCount = objectiveSignals.reduce((count, pattern) => count + (pattern.test(combined) ? 1 : 0), 0);
+  if (signalCount < 2) return false;
+
+  const ending = text.slice(-650).toLowerCase();
+  return /\b(?:vanish(?:es|ed)?|retreats?|melts?|slips away|runs?|escapes?|deeper|still within reach|not alone|real leverage|go now|before (?:he|she|they|it) learns?|trail (?:has|is|turns|points)|route (?:he|she|they|it) used|next move|next lead|points? toward|waiting under|waiting at|head straight for)\b/.test(ending);
+}
+
+async function repairDeferredPayoffNarration({ gameId, gameConfig, narration, actionText, history }) {
+  const prompt = `Rewrite this tabletop RPG DM narration into a stronger in-scene payoff.
+
+Player action:
+${actionText}
+
+Recent history:
+${(history || []).slice(-5).map(msg => `${msg.role === 'assistant' ? 'DM' : 'Player'}: ${String(msg.content || '').slice(-700)}`).join('\n')}
+
+Draft narration:
+${narration}
+
+Requirements:
+- Keep continuity and facts from the draft.
+- Resolve or climax the current objective in this scene now.
+- Answer at least two of these: who is responsible, what they wanted, what proof changes hands, what cost lands, what immediate consequence follows.
+- Do not add a new route, office, lane, contact, buyer, alias, or "next lead".
+- Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", or holding "real leverage".
+- Do not start combat unless the draft already started combat.
+- Write 80-130 words of vivid, playable narration only. No options, markers, JSON, or commentary.`;
+
+  try {
+    const response = await llm.completeText({
+      task: 'narration-payoff-repair',
+      gameId,
+      maxTokens: 260,
+      temperature: 0.35,
+      prompt,
+    });
+    const repairedText = parseResponse(response.text || '').narration || response.text || '';
+    const repaired = cleanInvalidCombatNarration(repairedText).trim();
+    if (!repaired || isLowInformationNarration(repaired, actionText)) return null;
+    if (!hasHardCombatSignal(narration) && !isExplicitHostileAction(actionText) && hasHardCombatSignal(repaired)) {
+      return null;
+    }
+    if (isDeferredPayoffNarration(repaired, actionText, history)) return null;
+    logCost({
+      gameId,
+      model: response.model,
+      inputTokens: response.usage?.inputTokens || 0,
+      outputTokens: response.usage?.outputTokens || 0,
+      cost: response.cost || 0,
+      type: 'narration-payoff-repair',
+    });
+    return repaired;
+  } catch (err) {
+    console.warn('[narration-payoff-repair] failed:', err.message);
+    return null;
+  }
 }
 
 function looksLikeHostileOption(option) {
@@ -2353,6 +2434,20 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     parsed.narration = fallback.narration;
     parsed.options = fallback.options;
     io.to(gameId).emit('dm_stream_end', { narration: parsed.narration, llmRunId: finalMessage.llmRunId || null });
+  }
+  if (!combatActive && pacingOverride && isDeferredPayoffNarration(parsed.narration, submittedActionText, gd.chatHistory)) {
+    const repairedNarration = await repairDeferredPayoffNarration({
+      gameId,
+      gameConfig,
+      narration: parsed.narration,
+      actionText: submittedActionText,
+      history: gd.chatHistory,
+    });
+    if (repairedNarration) {
+      parsed.narration = repairedNarration;
+      parsed.options = [];
+      io.to(gameId).emit('dm_stream_end', { narration: parsed.narration, llmRunId: finalMessage.llmRunId || null });
+    }
   }
   if (combatResolvedLines.length > 0 && !combatResolvedLines.every(line => parsed.narration.includes(line))) {
     parsed.narration = `${combatResolvedLines.map(line => `🎲 ${line}`).join('\n')}\n\n${parsed.narration}`.trim();
