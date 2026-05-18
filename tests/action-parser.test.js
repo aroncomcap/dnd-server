@@ -16,6 +16,7 @@ const COMBATANTS = {
     weapons: [{ name: 'Longsword' }, { name: 'Dagger' }],
     spells: [
       { name: 'Fireball', damage: '8d6', save: 'dex' },
+      { name: 'Fire Bolt', level: 0, attack: true, damage: '1d10', damageType: 'fire' },
       { name: 'Shield' },
       { name: 'Cure Wounds', healing: '1d8' },
       { name: 'Sacred Flame', damage: '1d8', save: 'dex' },
@@ -34,6 +35,13 @@ const COMBATANTS = {
     name: 'Goblin Archer',
     type: 'Enemy',
     weapons: [{ name: 'Shortbow' }],
+    spells: [],
+  },
+  azer: {
+    id: 'azer',
+    name: 'Azer',
+    type: 'Enemy',
+    weapons: [{ name: 'Warhammer' }],
     spells: [],
   },
   lyra: {
@@ -182,6 +190,15 @@ describe('parseAction — attack without weapon', () => {
     assert.equal(result.targetId, 'gob-1');
     assert.equal(result.weapon, 'Longsword');
   });
+
+  it('explicit extra attack phrasing resolves as a multi-attack request', () => {
+    const result = parseAction('Attack with longsword twice with extra attack', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'attack');
+    assert.equal(result.targetId, 'gob-1');
+    assert.equal(result.weapon, 'Longsword');
+    assert.equal(result.attackCountOverride, 2);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -203,6 +220,15 @@ describe('parseAction — cast spell on target', () => {
     assert.ok(result);
     assert.equal(result.type, 'spell');
     assert.equal(result.targetId, 'gob-1');
+  });
+
+  it('speaker-prefixed spell text still resolves through deterministic spell math', () => {
+    const result = parseAction('Kael: Cast fire bolt at Azer.', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'spell');
+    assert.equal(result.attackerId, 'kael');
+    assert.equal(result.spell, 'Fire Bolt');
+    assert.equal(result.targetId, 'azer');
   });
 
   it('"cast shield" → spell targeting self', () => {

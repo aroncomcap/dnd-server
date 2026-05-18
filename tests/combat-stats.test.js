@@ -135,6 +135,26 @@ test('fills common spell math defaults before building spell profiles', () => {
   assert.ok(stats.attackProfiles.some(profile => profile.id === 'spell-sacred-flame'));
 });
 
+test('known offensive cantrips cannot inherit stale healing metadata', () => {
+  const stats = normalizeDnd5eCombatStats({
+    system: 'dnd5e',
+    level: 5,
+    abilities: { str: 10, dex: 10, con: 14, int: 18, wis: 10, cha: 10 },
+    proficiencyBonus: 3,
+    weapons: [],
+    spells: [
+      { name: 'Fire Bolt', healing: '2d10', effect: 'heal', damageType: 'healing' },
+    ],
+  });
+
+  const fireBolt = stats.spells.find(s => s.name === 'Fire Bolt');
+  assert.equal(fireBolt.attack, true);
+  assert.equal(fireBolt.damage, '1d10');
+  assert.equal(fireBolt.damageType, 'fire');
+  assert.equal(fireBolt.healing, undefined);
+  assert.notEqual(fireBolt.effect, 'heal');
+});
+
 test('getAttacksPerAction honors carried and enabled attack profile toggles', () => {
   const combatant = normalizeDnd5eCombatStats({
     system: 'dnd5e',

@@ -2,7 +2,7 @@
 
 const dnd5e = require('./resolvers/dnd5e-resolver');
 const runequest = require('./resolvers/runequest-resolver');
-const { getAttacksPerAction } = require('./combat-stats');
+const { getAttacksPerAction, normalizeSpellMath } = require('./combat-stats');
 const targetAuthority = require('./target-authority');
 
 const DEFAULT_CONCENTRATION_DURATION_TURNS = {
@@ -277,7 +277,11 @@ class CombatEngine {
             this.state.combatants[resolvedAction.targetId] = target;
           }
         } else {
-          const attackCount = getAttacksPerAction(attacker, weapon, 'weapon');
+          const profileAttackCount = getAttacksPerAction(attacker, weapon, 'weapon');
+          const overrideAttackCount = Number.isFinite(Number(action.attackCountOverride))
+            ? Math.max(1, Math.floor(Number(action.attackCountOverride)))
+            : 1;
+          const attackCount = Math.max(profileAttackCount, overrideAttackCount);
           const attacks = [];
           for (let i = 0; i < attackCount; i++) {
             if (resolver.checkDeath(target).status === 'dead') break;
@@ -317,7 +321,8 @@ class CombatEngine {
         const caster  = this.state.combatants[casterId];
         if (!caster) { result = { type: 'error', message: `Unknown caster: ${casterId}` }; break; }
         const spellName = action.spellName || action.spell;
-        const spell   = (caster.spells || []).find(s => s.name === spellName || s.name?.toLowerCase() === spellName?.toLowerCase());
+        const rawSpell = (caster.spells || []).find(s => s.name === spellName || s.name?.toLowerCase() === spellName?.toLowerCase());
+        const spell = rawSpell && this.state.system === 'dnd5e' ? normalizeSpellMath(rawSpell) : rawSpell;
 
         if (!spell) {
           result = {

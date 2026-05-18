@@ -165,6 +165,19 @@ function isFeatureAction(text) {
   return /\b(?:channel divinity|second wind|action surge|rage|reckless attack|wild shape|lay on hands|flurry of blows|stunning strike|bardic inspiration|turn undead|invoke duplicity)\b/i.test(text || '');
 }
 
+function explicitAttackCount(text) {
+  const raw = String(text || '');
+  const numeric = raw.match(/\b([2-9])\s*(?:attacks?|strikes?|swings?|times)\b/i);
+  if (numeric) return Math.max(2, Math.min(9, Number(numeric[1])));
+  if (/\b(?:twice|two\s+(?:attacks?|strikes?|swings?)|extra attack)\b/i.test(raw)) return 2;
+  return null;
+}
+
+function withAttackCount(action, raw) {
+  const count = explicitAttackCount(raw);
+  return count ? { ...action, attackCountOverride: count } : action;
+}
+
 function isSneakAttackAction(text) {
   return /\bsneak\s+attack\b/i.test(text || '');
 }
@@ -249,6 +262,31 @@ function stripEmoji(str) {
   return str.replace(/^[\p{Extended_Pictographic}\uFE0F\u20E3\u200D\s]+/u, '').trim();
 }
 
+function normalizeSpeakerLabel(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function currentActorAliases(playerId, combatants = {}) {
+  const actor = combatants[playerId] || {};
+  const values = new Set([playerId, actor.id, actor.name].filter(Boolean));
+  const idParts = String(playerId || '').split(/[-_\s]+/).filter(part => part.length > 2);
+  const nameParts = String(actor.name || '').split(/[-_\s]+/).filter(part => part.length > 2);
+  for (const part of [...idParts, ...nameParts]) values.add(part);
+  return new Set([...values].map(normalizeSpeakerLabel).filter(Boolean));
+}
+
+function stripSpeakerPrefix(str, playerId, combatants = {}) {
+  const match = String(str || '').match(/^([^:\n]{1,60}):\s*(.+)$/);
+  if (!match) return str;
+  const label = normalizeSpeakerLabel(match[1]);
+  if (!label) return str;
+  return currentActorAliases(playerId, combatants).has(label) ? match[2].trim() : str;
+}
+
 // ---------------------------------------------------------------------------
 // parseAction
 // ---------------------------------------------------------------------------
@@ -262,10 +300,10 @@ function stripEmoji(str) {
  */
 function parseAction(input, playerId, ctx) {
   if (!input || typeof input !== 'string') return null;
-  const raw = stripEmoji(input.trim());
+  const combatants = ctx.combatants || {};
+  const raw = stripSpeakerPrefix(stripEmoji(input.trim()), playerId, combatants);
   if (!raw) return null;
   const lower = raw.toLowerCase();
-  const combatants = ctx.combatants || {};
   const preTaggedOptions = ctx.preTaggedOptions || null;
   const targetPreferences = targetAuthority.normalizeTargetPreferences(ctx.targetPreferences || {});
   const player = combatants[playerId] || {};
@@ -304,13 +342,13 @@ function parseAction(input, playerId, ctx) {
   if (/^(?:attack|strike|hit|slash|stab|shoot)$/i.test(raw)) {
     const targetId = targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
     const weapon = findWeapon(null, weapons);
-    return { type: 'attack', attackerId: playerId, targetId, weapon };
+    return withAttackCount({ type: 'attack', attackerId: playerId, targetId, weapon }, raw);
   }
 
   const bareWeapon = findExactWeapon(raw, weapons);
   if (bareWeapon) {
     const targetId = targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
-    return { type: 'attack', attackerId: playerId, targetId, weapon: bareWeapon };
+    return withAttackCount({ type: 'attack', attackerId: playerId, targetId, weapon: bareWeapon }, raw);
   }
 
   // --- 3. Attack with weapon: "attack/strike/hit/slash/stab <target> with <weapon>" ---
@@ -320,7 +358,7 @@ function parseAction(input, playerId, ctx) {
     const weaponQuery = awom[1].trim();
     const targetId = targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
     const weapon = findWeapon(weaponQuery, weapons) || findWeapon(null, weapons);
-    return { type: 'attack', attackerId: playerId, targetId, weapon };
+    return withAttackCount({ type: 'attack', attackerId: playerId, targetId, weapon }, raw);
   }
 
   const attackWithWeaponRe = /^(?:attack|strike|hit|slash|stab|shoot)\s+(.+?)\s+with\s+(.+)$/i;
@@ -330,7 +368,7 @@ function parseAction(input, playerId, ctx) {
     const weaponQuery = awm[2].trim();
     const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy', targetPreferences) || targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
     const weapon = findWeapon(weaponQuery, weapons) || findWeapon(null, weapons);
-    return { type: 'attack', attackerId: playerId, targetId, weapon };
+    return withAttackCount({ type: 'attack', attackerId: playerId, targetId, weapon }, raw);
   }
 
   // --- 4. Attack (no weapon): "attack/strike/hit/slash/stab <target>" ---
@@ -340,7 +378,7 @@ function parseAction(input, playerId, ctx) {
     const targetQuery = am[1].trim();
     const targetId = resolveTargetQuery(targetQuery, combatants, 'Enemy', targetPreferences) || targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
     const weapon = weapons.length > 0 ? weapons[0].name : null;
-    return { type: 'attack', attackerId: playerId, targetId, weapon };
+    return withAttackCount({ type: 'attack', attackerId: playerId, targetId, weapon }, raw);
   }
 
   // --- 5. Cast on target: "cast <spell> on/at <target>" ---

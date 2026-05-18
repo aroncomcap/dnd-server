@@ -391,9 +391,58 @@ describe('CombatEngine', () => {
       assert.ok(result.attacks.every(attack => attack.type === 'attack'), 'each profile attack should be a normal attack result');
       assert.ok(engine.state.combatants.goblin.hp < 50, 'enemy should take damage from the attack sequence');
     });
+
+    it('honors an explicit two-attack action even when the profile is single-attack', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({
+        abilities: { str: 30, dex: 12, con: 14, int: 10, wis: 13, cha: 8 },
+        proficiencyBonus: 10,
+        weapons: [
+          { name: 'longsword', attackMod: 'str', damage: '1d8', damageType: 'slashing', properties: [] },
+        ],
+      });
+      engine.initCombat([pc], [makeDnDEnemy({ ac: 1, hp: 50, maxHp: 50 })], 'dnd5e');
+
+      const result = engine.resolveAction({
+        type: 'attack',
+        attackerId: 'kael',
+        targetId: 'goblin',
+        weaponName: 'longsword',
+        attackCountOverride: 2,
+      });
+
+      assert.equal(result.type, 'multiattack');
+      assert.equal(result.attacks.length, 2);
+    });
   });
 
   describe('resolveAction (spell)', () => {
+    it('known offensive spells with stale healing metadata still resolve as attacks', () => {
+      const engine = new CombatEngine();
+      const pc = makeDnDPC({
+        spells: [
+          { name: 'Fire Bolt', level: 0, attack: true, damage: '1d10', healing: '1d10', effect: 'heal', damageType: 'healing' },
+        ],
+        spellSlots: {},
+        spellcastingAbility: 'int',
+      });
+      const enemy = makeDnDEnemy({ id: 'azer', name: 'Azer', hp: 20, maxHp: 20, ac: 10 });
+      engine.initCombat([pc], [enemy], 'dnd5e');
+
+      const result = engine.resolveAction({
+        type: 'spell',
+        attackerId: 'kael',
+        spell: 'Fire Bolt',
+        targetId: 'azer',
+      });
+
+      assert.equal(result.type, 'spell-attack');
+      assert.equal(result.spell, 'Fire Bolt');
+      assert.equal(result.attacks.length, 1);
+      assert.equal(result.attacks[0].target, 'azer');
+      assert.equal(result.attacks[0].damageType, 'fire');
+    });
+
     it('resolves a healing spell', () => {
       const engine = new CombatEngine();
       const pc = makeDnDPC({ hp: 20 });

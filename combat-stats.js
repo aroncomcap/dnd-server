@@ -155,7 +155,17 @@ const SPELL_MATH_DEFAULTS = {
 function normalizeSpellMath(spell = {}) {
   const name = String(spell.name || '').trim();
   const defaults = SPELL_MATH_DEFAULTS[name.toLowerCase()];
-  return defaults ? { ...defaults, ...spell, name } : { ...spell };
+  if (!defaults) return { ...spell };
+
+  const merged = { ...defaults, ...spell, name };
+  if (defaults.damage && !defaults.healing) {
+    if (!spell.damage) merged.damage = defaults.damage;
+    if (String(spell.damageType || '').toLowerCase() === 'healing') merged.damageType = defaults.damageType;
+    delete merged.healing;
+    delete merged.heal;
+    if (merged.effect === 'heal') delete merged.effect;
+  }
+  return merged;
 }
 
 function findAttackProfile(combatant = {}, sourceOrWeapon, nameArg) {

@@ -139,8 +139,8 @@ function isOffensiveSpell(spell = {}, query = '') {
 function spellTargetRole(spell = {}, query = '') {
   const text = `${spell.name || ''} ${query || ''}`.toLowerCase();
   if (/\b(?:revivify|raise dead|resurrection|resurrect|reincarnate)\b/.test(text)) return 'downed_ally';
-  if (isHealingSpell(spell)) return 'ally';
   if (isOffensiveSpell(spell, query)) return 'enemy';
+  if (isHealingSpell(spell)) return 'ally';
   if (/\b(?:shield|misty step|mirror image|blur|expeditious retreat)\b/.test(text)) return 'self';
   return 'ally';
 }
