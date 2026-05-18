@@ -16,6 +16,7 @@ test('placeholder enemy names are rejected before combat initialization', () => 
   assert.equal(isPlaceholderEnemyName('N/A'), true);
   assert.equal(isPlaceholderEnemyName('Opposing party'), true);
   assert.equal(isPlaceholderEnemyName('Unknown Foe'), true);
+  assert.equal(isPlaceholderEnemyName('Surviving foes in the clearing'), true);
   assert.equal(isPlaceholderEnemyName('Goblin'), false);
 });
 
@@ -30,6 +31,7 @@ test('normalizeEnemyEntry returns null for placeholder ENEMIES rows', () => {
   assert.equal(normalizeEnemyEntry({ displayName: 'No enemies', count: 1, slug: 'custom' }), null);
   assert.equal(normalizeEnemyEntry({ displayName: '—', count: 1, slug: 'custom' }), null);
   assert.equal(normalizeEnemyEntry({ displayName: 'Opposing party', count: 1, slug: 'custom' }), null);
+  assert.equal(normalizeEnemyEntry({ displayName: 'Surviving foes in the clearing', count: 1, slug: 'custom' }), null);
   assert.equal(normalizeEnemyEntry({ count: 1, slug: 'opposing-party' }), null);
   assert.equal(normalizeEnemyEntry({
     displayName: 'Approach the guild factor and ask for passage, goods, or a lead. —',

@@ -182,6 +182,13 @@ function isSneakAttackAction(text) {
   return /\bsneak\s+attack\b/i.test(text || '');
 }
 
+function isExplicitHostileAction(text) {
+  const raw = stripEmoji(String(text || '').replace(/^.*?:\s*/, '').trim());
+  if (!raw || isDialogueAction(raw) || isAdvanceAction(raw)) return false;
+  return /\b(?:attack|attacks|attacking|strike|strikes|striking|hit|hits|hitting|slash|slashes|slashing|stab|stabs|stabbing|shoot|shoots|shooting|sneak\s+attack|lunge|lunges|lunging|charge|charges|charging)\b/i.test(raw) ||
+    /\bcast\s+(?:acid\s+splash|burning\s+hands|chill\s+touch|chromatic\s+orb|eldritch\s+blast|fire\s*bolt|fireball|guiding\s+bolt|inflict\s+wounds|lightning\s+bolt|magic\s+missile|poison\s+spray|ray\s+of\s+frost|sacred\s+flame|shatter|shocking\s+grasp|thunderwave|toll\s+the\s+dead|witch\s+bolt)\b/i.test(raw);
+}
+
 function parseSneakAttackAction(raw, playerId, combatants, weapons, targetPreferences = {}) {
   let rest = raw
     .replace(/\bsneak\s+attack\b/i, '')
@@ -674,4 +681,5 @@ module.exports = {
   makeDialogueAction,
   isAdvanceAction,
   makeAdvanceAction,
+  isExplicitHostileAction,
 };

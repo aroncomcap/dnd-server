@@ -24,6 +24,7 @@ const {
   makeDialogueAction,
   isAdvanceAction,
   makeAdvanceAction,
+  isExplicitHostileAction,
 } = require('./action-parser');
 const { parseStatsText } = require('./stat-parser');
 const { getMonsterStats } = require('./monster-lookup');
@@ -332,6 +333,10 @@ function extractSubmittedActionText(userMessage) {
 function hasNonHostileProgressIntent(userMessage) {
   const actionText = extractSubmittedActionText(userMessage);
   return isDialogueAction(actionText) || isAdvanceAction(actionText);
+}
+
+function hasExplicitHostileAction(userMessage) {
+  return isExplicitHostileAction(extractSubmittedActionText(userMessage));
 }
 
 function hasHardCombatSignal(text) {
@@ -2433,9 +2438,11 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   // Path 1: AI outputs formal ENEMIES: block (ideal)
   const nonHostileProgressIntent = hasNonHostileProgressIntent(userMessage);
   const hardCombatSignal = hasHardCombatSignal(parsed.narration || '');
+  const explicitHostileAction = hasExplicitHostileAction(userMessage);
   if (parsed.world?.enemies?.length > 0 && !gs.combatEngine.state.active) {
-    if (nonHostileProgressIntent && !hardCombatSignal) {
-      console.log(`[intent-guard] Suppressed ENEMIES block after non-hostile/progress input: ${extractSubmittedActionText(userMessage)}`);
+    if (!hardCombatSignal && !explicitHostileAction) {
+      const reason = nonHostileProgressIntent ? 'non-hostile/progress input' : 'no hostile trigger';
+      console.log(`[intent-guard] Suppressed ENEMIES block after ${reason}: ${extractSubmittedActionText(userMessage)}`);
       parsed.world.enemies = [];
     } else {
       await initiateCombat(gameId, gameConfig, parsed.world.enemies).catch(e => console.error('Combat init error:', e));

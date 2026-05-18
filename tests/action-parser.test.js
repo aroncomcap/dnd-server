@@ -2,7 +2,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { parseAction, parseOptions } = require('../action-parser.js');
+const { parseAction, parseOptions, isExplicitHostileAction } = require('../action-parser.js');
 
 // ---------------------------------------------------------------------------
 // Shared fixtures
@@ -430,6 +430,18 @@ describe('parseAction — dialogue intent', () => {
     assert.equal(result.type, 'attack');
     assert.equal(result.targetId, 'gob-1');
     assert.equal(result.weapon, 'Longsword');
+  });
+});
+
+describe('intent guards', () => {
+  it('treats explicit attacks and damaging spells as hostile actions', () => {
+    assert.equal(isExplicitHostileAction('attack the guild guard with mace'), true);
+    assert.equal(isExplicitHostileAction('Kael: cast fire bolt at the guard'), true);
+  });
+
+  it('does not treat aid, safe passage, or quoted attack words as hostile', () => {
+    assert.equal(isExplicitHostileAction('Step closer and offer aid, healing, or safe passage'), false);
+    assert.equal(isExplicitHostileAction('ask them not to attack the caravan'), false);
   });
 });
 

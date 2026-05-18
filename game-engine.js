@@ -2,6 +2,7 @@
 
 const db = require('./db');
 const templateEngine = require('./template-engine');
+const { isExplicitHostileAction } = require('./action-parser');
 
 let anthropic; // Initialized by module caller
 let io; // Initialized by module caller
@@ -725,7 +726,12 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   // Initiate combat — two paths:
   // Path 1: AI outputs formal ENEMIES: block (ideal)
   if (parsed.world?.enemies?.length > 0 && !gs.combatEngine.state.active) {
-    initiateCombat(gameId, gameConfig, parsed.world.enemies).catch(e => console.error('Combat init error:', e));
+    const formalEnemyHardSignal = /(?:roll(?:s|ing)?\s+(?:for\s+)?initiative|initiative.*(?:order|roll)|combat\s+(?:begins|starts|erupts|breaks out)|(?:goblin|orc|skeleton|zombie|wolf|rat|bandit|dragon|troll|ogre|spider|kobold|gnoll|bugbear|hobgoblin|cultist|thug|guard|knight|wraith|ghoul|ghast|wight|vampire|demon|devil|elemental|giant|minotaur|owlbear|manticore|hydra|chimera|basilisk|beholder|lich|golem|treant|werewolf)s?\s+(?:attack|attacks|lunge|lunges|charge|charges|rush|rushes|swing|swings|slash|slashes|stab|stabs|strike|strikes|pounce|pounces|ambush|ambushes)\b|(?:attacks?\s+(?:you|the party|with)|charges?\s+(?:at|toward|into)|ambush(?:ed|es)?!?|lunges?\s+(?:at|toward)|strikes?\s+(?:at|with)|draws?\s+(?:its |their )?(?:sword|weapon|blade|axe|bow)|weapons?\s+drawn|swords?\s+(?:raised|drawn|flashing)|prepare(?:s)?\s+to\s+(?:fight|attack|strike)|hostile|ready\s+(?:their|your)\s+weapons?))/i.test(parsed.narration || '');
+    if (formalEnemyHardSignal || isExplicitHostileAction(userMessage)) {
+      initiateCombat(gameId, gameConfig, parsed.world.enemies).catch(e => console.error('Combat init error:', e));
+    } else {
+      parsed.world.enemies = [];
+    }
   }
   // Path 2: AI narrates combat without ENEMIES: block — server takes over
   // Only trigger on strong combat signals (actual attacks/charges, not just monster mentions)

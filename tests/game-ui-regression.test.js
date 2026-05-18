@@ -6,6 +6,7 @@ const test = require('node:test');
 const gameHtml = fs.readFileSync(path.join(__dirname, '..', 'public', 'game.html'), 'utf8');
 const serverJs = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
 const gameEngineJs = fs.readFileSync(path.join(__dirname, '..', 'game-engine.js'), 'utf8');
+const actionParserJs = fs.readFileSync(path.join(__dirname, '..', 'action-parser.js'), 'utf8');
 const narrationPipelineJs = fs.readFileSync(path.join(__dirname, '..', 'narration-pipeline.js'), 'utf8');
 const promptBuilderJs = fs.readFileSync(path.join(__dirname, '..', 'prompt-builder.js'), 'utf8');
 const encounterDirectorJs = fs.readFileSync(path.join(__dirname, '..', 'encounter-director.js'), 'utf8');
@@ -336,6 +337,13 @@ test('non-hostile and progress intent cannot auto-derail into combat', () => {
   assert.match(serverJs, /intent-guard[\s\S]*?Suppressed ENEMIES block/, 'formal enemy blocks should be suppressible after non-hostile input');
   assert.doesNotMatch(serverJs, /emerge\|appear\|surround\|block\|engage/, 'soft scene text should not be hard combat signal terms');
   assert.match(promptBuilderJs, /Merchant, guard, watch, checkpoint/, 'prompt should preserve merchant/checkpoint scenes as social routing beats');
+});
+
+test('formal enemy blocks require an actual hostile trigger', () => {
+  assert.match(actionParserJs, /function isExplicitHostileAction/, 'parser should expose a narrow hostile-action predicate');
+  assert.match(serverJs, /const explicitHostileAction = hasExplicitHostileAction\(userMessage\)/, 'server should inspect submitted action before accepting ENEMIES blocks');
+  assert.match(serverJs, /if \(!hardCombatSignal && !explicitHostileAction\)/, 'formal enemy blocks should not start combat from neutral scene text alone');
+  assert.match(narrationPipelineJs, /explicitHostileAction \|\| hasHardCombatSignal/, 'split pipeline should use the same hostile trigger gate');
 });
 
 test('planned combat pacing does not force initiative by itself', () => {

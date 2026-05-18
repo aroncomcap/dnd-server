@@ -4,7 +4,7 @@ const templateEngine = require('./template-engine');
 const { formatPlanForPrompt } = require('./encounter-designer');
 const llm = require('./llm');
 const { worldExtractionSchema, validationSchema } = require('./llm/schemas/world-extraction');
-const { isDialogueAction, isAdvanceAction } = require('./action-parser');
+const { isDialogueAction, isAdvanceAction, isExplicitHostileAction } = require('./action-parser');
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -895,15 +895,17 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
   // Check for enemies detected → initiate combat
   const enemies = extractionResult.enemies || [];
   const nonHostileIntent = isDialogueAction(actionText) || isAdvanceAction(actionText);
-  if (enemies.length > 0 && initiateCombat && (!nonHostileIntent || hasHardCombatSignal(narration))) {
+  const explicitHostileAction = isExplicitHostileAction(actionText);
+  if (enemies.length > 0 && initiateCombat && (explicitHostileAction || hasHardCombatSignal(narration))) {
     try {
       await initiateCombat(gameId, gameConfig, enemies);
     } catch (err) {
       console.error(`[narration-pipeline] initiateCombat failed:`, err.message);
     }
-  } else if (enemies.length > 0 && nonHostileIntent) {
+  } else if (enemies.length > 0) {
     extractionResult.enemies = [];
-    console.log(`[narration-pipeline] suppressed enemies after non-hostile/progress input`);
+    const reason = nonHostileIntent ? 'non-hostile/progress input' : 'no hostile trigger';
+    console.log(`[narration-pipeline] suppressed enemies after ${reason}`);
   }
 
   // Process violations
