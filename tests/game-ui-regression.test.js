@@ -62,6 +62,9 @@ test('AI party generation failures create a playable fallback party', () => {
   assert.match(serverJs, /Party generation failed:[\s\S]*?createFallbackParty\(gameConfig\.system \|\| 'dnd5e'\)/, 'party generation catch path should create fallback characters');
   assert.match(serverJs, /socket\.emit\('party_generated', \{ count: fallbackCount, fallback: true \}\);/, 'fallback party should unblock auto-start flow');
   assert.match(serverJs, /io\.to\(gameId\)\.emit\('party_ready', \{ count: fallbackCount,[\s\S]*?fallback: true \}\);/, 'fallback party should publish combat stats');
+  assert.match(gameHtml, /function startAutoAdventureWithParty\(\)/, 'auto-start should have one guarded path into dm_start');
+  assert.match(gameHtml, /setTimeout\(startAutoAdventureWithParty, 12000\);/, 'auto-start should not leave the loading overlay blocking the host if party generation stalls');
+  assert.match(campaignVerboseTs, /if \(await isLoadingOverlayActive\(page\)\) return false;/, 'campaign harness should not click through a blocking auto-start overlay');
 });
 
 test('game start guarantees a playable party before narration or combat', () => {

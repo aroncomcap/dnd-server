@@ -120,6 +120,7 @@ async function waitForLoadingOverlayToClear(page, timeout = 5000) {
 }
 
 async function clickStartIfAvailable(page) {
+  if (await isLoadingOverlayActive(page)) return false;
   const startBtn = page.locator('#btn-start, button:has-text("START"), button:has-text("Begin")').first();
   const isVisible = await startBtn.isVisible({ timeout: 1000 }).catch(() => false);
   const isEnabled = await startBtn.isEnabled().catch(() => false);

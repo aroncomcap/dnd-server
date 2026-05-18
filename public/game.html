@@ -3398,23 +3398,24 @@ if (state.ferocity != null) {
     if (autoParty) {
       const bar = document.getElementById('loading-bar');
       if (bar) bar.style.width = '30%';
-      socket.emit('generate_party', { direction: autoParty });
-      socket.once('party_generated', () => {
+      let autoStartResolved = false;
+      function startAutoAdventureWithParty() {
+        if (autoStartResolved) return;
+        autoStartResolved = true;
         if (bar) bar.style.width = '70%';
         const el = document.getElementById('loading-msg');
         if (el) el.textContent = 'Heroes assembled! The DM prepares...';
         socket.emit('dm_start', { prompt: autoScene });
         switchToGame();
-        // Dismiss after DM starts streaming
         socket.once('dm_stream_start', () => { if (bar) bar.style.width = '100%'; setTimeout(dismissLoading, 500); });
-        // Fallback dismiss after 10s
         setTimeout(dismissLoading, 10000);
-      });
+      }
+      socket.emit('generate_party', { direction: autoParty });
+      socket.once('party_generated', startAutoAdventureWithParty);
       socket.once('party_gen_failed', () => {
-        socket.emit('dm_start', { prompt: autoScene });
-        switchToGame();
-        setTimeout(dismissLoading, 1000);
+        startAutoAdventureWithParty();
       });
+      setTimeout(startAutoAdventureWithParty, 12000);
     } else {
       socket.emit('dm_start', { prompt: autoScene });
       switchToGame();
