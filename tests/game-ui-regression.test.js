@@ -241,6 +241,12 @@ test('parseable combat actions use a deterministic tactical fast path', () => {
   assert.match(serverJs, /target_required/, 'target-required results should be handled explicitly');
 });
 
+test('combat LLM fallback returns tactical engine text instead of re-narrating resolved rolls', () => {
+  assert.match(serverJs, /let combatTacticalReturn = null/, 'combat fallback should be able to short-circuit after engine resolution');
+  assert.match(serverJs, /combatTacticalReturn = \{[\s\S]*?narration: text,[\s\S]*?llmRunId: null,[\s\S]*?\}/, 'resolved combat fallback should build a no-LLM tactical response');
+  assert.match(serverJs, /if \(combatTacticalReturn\) return combatTacticalReturn;[\s\S]*?const combatPromptInjection/, 'server should not call the narration model after tactical combat is already resolved');
+});
+
 test('combat target preferences have a client/server socket contract', () => {
   assert.match(gameHtml, /id="target-control-row"/, 'combat controls should include persistent target selectors');
   assert.match(gameHtml, /id="attack-target-select"/, 'attack target selector should exist');

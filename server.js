@@ -2005,6 +2005,7 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
   }
   let combatContext = '';
   let combatResolvedLines = [];
+  let combatTacticalReturn = null;
 
   if (combatActive) {
     try {
@@ -2078,6 +2079,8 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
         const allResults = resolvedCombatResults.filter(Boolean);
         const resultLines = allResults.map(r => gs.combatEngine.formatResultForPrompt(r));
         combatResolvedLines = resultLines;
+        let combatOverCheck = null;
+        let combatXpAward = null;
 
         combatContext = `\n\n${gs.combatEngine.getCombatStateForPrompt()}\n\nRESOLVED THIS ROUND:\n${resultLines.join('\n')}\n\nNarrate these results in your DM persona. It is now ${gs.combatEngine.getCurrentTurn()?.name || 'the next player'}'s turn.`;
 
@@ -2091,12 +2094,14 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
         }
 
         const overCheck = gs.combatEngine.isCombatOver();
+        combatOverCheck = overCheck;
         if (overCheck.over) {
           combatContext += `\n\nCOMBAT IS OVER: ${overCheck.reason === 'enemies_defeated' ? 'All enemies defeated. Narrate aftermath and loot.' : 'All PCs are down.'}`;
           recordCombatConclusion(gameId, overCheck.reason);
           const xpAward = overCheck.reason === 'enemies_defeated'
             ? await awardCombatXpForGame(gameId, overCheck.reason)
             : null;
+          combatXpAward = xpAward;
           if (xpAward) {
             combatContext += `\n\nXP AWARDS:\n${formatXpAwardForPrompt(xpAward)}\nMention these XP grants and any level ups in the aftermath.`;
           }
@@ -2168,6 +2173,18 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
 
           io.to(gameId).emit('combat_ended', { reason: overCheck.reason, xp: xpAward });
         }
+        const text = formatTacticalCombatText(gs, allResults, combatOverCheck, combatXpAward);
+        const actorName = actingAs || userMessage.match(/^([^:]{1,80}):/)?.[1]?.trim() || 'Player';
+        appendTacticalHistory(gameId, actorName, actionText, text);
+        combatTacticalReturn = {
+          narration: text,
+          options: [],
+          scene: null,
+          world: null,
+          isKillshot: false,
+          mapMoved: false,
+          llmRunId: null,
+        };
       }
     } catch (combatErr) {
       // Combat engine error — fall back to normal AI processing (no combat context)
@@ -2182,6 +2199,8 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
       combatContext = '\n\n[Server combat engine encountered an error this turn. Narrate this combat turn normally using dice rolls.]';
     }
   }
+
+  if (combatTacticalReturn) return combatTacticalReturn;
 
   const combatPromptInjection = combatActive ? `\n\nCOMBAT MODE ACTIVE — Server controls all combat.
 DO NOT: roll dice, invent attack results, change HP, ask for initiative rolls, or resolve combat yourself.
