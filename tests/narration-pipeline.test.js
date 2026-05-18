@@ -533,6 +533,29 @@ describe('buildUserMessage', () => {
     ]);
   });
 
+  it('treats clue-payoff phrasing as post-closure advance intent', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The chase stops here. Merrow is forced into the open. This beat is resolved; the next decision is what price to make them pay.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Merrow signs passage papers and points to another office.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Move to the place where the clue pays off', gs);
+
+    assert.equal(result.resolvedBeatAdvanced, true);
+    assert.match(result.narration, /next story beat/);
+    assert.doesNotMatch(result.narration, /another office|Merrow signs/);
+  });
+
   it('pays out closure aftermath actions without reopening the old objective', () => {
     const gs = {
       data: {
@@ -607,6 +630,39 @@ describe('buildUserMessage', () => {
     assert.match(result.narration, /Black wax/);
     assert.match(result.narration, /shrine road/);
     assert.doesNotMatch(result.narration, /vouchers|counting-house/);
+  });
+
+  it('keeps stale guild-proof actions in a newer south-road den scene', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The chase stops here. Brannic Voss is forced into the open. This beat is resolved; the next decision is what price to make them pay.',
+          },
+          {
+            role: 'assistant',
+            content: 'Thalen drives the party to the south-road loss site: a wrecked milestone, mule bones, clawed tracks, and a collapsed culvert. Whatever was being fed is here or close, and the hidden den is open before you.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Mira hurries the scorched papers and seal-marked coffer back into Merrow\'s reach.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Put the named clue in front of the person responsible', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /south-road culvert/);
+    assert.match(result.narration, /clawed tracks/);
+    assert.doesNotMatch(result.narration, /Merrow|coffer|guild authority/);
+    assert.deepEqual(result.options, [
+      'Light the culvert and identify what is feeding there',
+      'Set a rope line and draw the creature into the open',
+      'Call into the den and offer food for answers',
+    ]);
   });
 
   it('tells the model to begin after the latest DM message instead of rephrasing it', () => {

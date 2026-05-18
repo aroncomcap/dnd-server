@@ -115,7 +115,8 @@ Recent DM turns already established the current lead, destination, permission st
 function isClosedBeatAftermathAction(actionText) {
   const action = String(actionText || '');
   return isAdvanceAction(action) ||
-    /\b(?:next story beat|move on|continue|press on|advance|leave|depart|head out|travel on|expose|demand|collect|concession|restitution|supplies|passage|make them pay|hold them accountable)\b/i.test(action);
+    isGenericResolvedObjectiveAction(action) ||
+    /\b(?:next story beat|move on|continue|press on|advance|leave|depart|head out|travel on|clue pays off|expose|demand|collect|concession|restitution|supplies|passage|make them pay|hold them accountable)\b/i.test(action);
 }
 
 function buildResolvedBeatAdvanceDirective(history, actionText) {
@@ -132,7 +133,7 @@ The previous objective is done. Do not reopen the same culprit, guild, warehouse
 }
 
 function isFreshBeatBoundary(text) {
-  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger)\b/i.test(String(text || ''));
+  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|current scene)\b/i.test(String(text || ''));
 }
 
 function isGenericResolvedObjectiveAction(actionText) {
@@ -141,6 +142,12 @@ function isGenericResolvedObjectiveAction(actionText) {
 
 function reopensClosedGuildObjective(text) {
   return /\b(?:guild|ledger|dock row|counting-house|countinghouse|merrow|sella|sarn|brannic|signet|crate|crates|buyer|quay|warehouse|clerk|factor|vouchers|routed crates|restitution)\b/i.test(String(text || ''));
+}
+
+function hasRecentResolvedBeat(assistantHistory) {
+  return (assistantHistory || [])
+    .slice(-6)
+    .some(msg => /\bThis beat is resolved\b|\btruth no longer moves to another room\b|\bold guild lead stays closed\b|\bold ledger trail is behind you\b|\bguild matter closes instead of reopening\b/i.test(msg || ''));
 }
 
 function buildFreshBeatStaleActionDirective(history, actionText) {
@@ -264,12 +271,23 @@ function buildResolvedBeatAdvance() {
 
 function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
-  if (!isFreshBeatBoundary(latest)) return false;
+  if (!hasRecentResolvedBeat(assistantHistory) || !isFreshBeatBoundary(latest)) return false;
   return isGenericResolvedObjectiveAction(actionText) || reopensClosedGuildObjective(narration);
 }
 
 function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (/\b(?:south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones)\b/i.test(latest)) {
+    return {
+      narration: 'The guild scandal stays behind the party. At the south-road culvert, the current clue is physical and immediate: clawed tracks, torn canvas, mule bones, and a sour carrion heat breathing from the collapsed stone. Something inside drags a stamped crate deeper into the dark with deliberate strength. The choice is no longer paperwork; it is whether to expose, trap, or speak to whatever has been feeding on the stolen cargo.',
+      options: [
+        'Light the culvert and identify what is feeding there',
+        'Set a rope line and draw the creature into the open',
+        'Call into the den and offer food for answers',
+      ],
+    };
+  }
+
   if (/\b(?:wounded messenger|fresh footprints|rear hatch|pull-chain|drag mark)\b/i.test(latest)) {
     return {
       narration: 'The old guild lead stays closed. At the waystation, the usable clue is the living one: the wounded messenger grips Kael\'s sleeve and forces out a name between panicked breaths, "Black wax... rear hatch... shrine road." Helping him will cost precious minutes; chasing the fresh footprints now risks leaving the only witness bleeding on the floor.',
