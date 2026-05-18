@@ -78,3 +78,20 @@ test('fallback options prefer character standard actions over generic prompts', 
   assert.match(options.join('\n'), /Cast bless|Cast cure wounds|Cast pass without trace|Cast silence|Cast spirit guardians|Attack with mace|Channel Divinity|Dodge|Help ally/);
   assert.doesNotMatch(options.join('\n'), /scene's strange details|immediate danger|takes point/i);
 });
+
+test('combat fallback options exclude travel and exploration standard actions', () => {
+  assert.ok(fs.existsSync(modulePath), 'turn-options.js should exist');
+  const { buildFallbackOptionsForPlayer } = require(modulePath);
+
+  const options = buildFallbackOptionsForPlayer('Garrick Moorland', {
+    inCombat: true,
+    nearestEnemy: { name: 'Cult acolytes', type: 'Enemy', hp: 15, maxHp: 22 },
+    character: {
+      standardActions: 'Press forward cautiously, Search the scene for useful details, Move on toward the objective, Attack with rapier, Dodge, Help ally',
+    },
+  });
+
+  assert.equal(options.length, 3);
+  assert.match(options.join('\n'), /Attack Cult acolytes with rapier|Dodge|Help ally/);
+  assert.doesNotMatch(options.join('\n'), /Press forward|Search the scene|Move on toward|scene's strange details/i);
+});

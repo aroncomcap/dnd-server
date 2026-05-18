@@ -49,6 +49,10 @@ function isOffensiveStandardAction(action) {
   return /\b(?:attack|strike|shoot|sacred flame|fire bolt|eldritch blast|dissonant whispers|vicious mockery|toll the dead|ray of frost|fireball|burning hands|guiding bolt|inflict wounds|magic missile|spirit guardians|moonbeam|heat metal|shatter|turn undead)\b/i.test(action || '');
 }
 
+function isCombatStandardAction(action) {
+  return /\b(?:attack|strike|shoot|sacred flame|fire bolt|eldritch blast|dissonant whispers|vicious mockery|toll the dead|ray of frost|fireball|burning hands|guiding bolt|inflict wounds|magic missile|spirit guardians|moonbeam|heat metal|shatter|turn undead|channel divinity|dodge|help|protect|shield|disengage|dash|bless|cure|heal|healing word|second wind|action surge|rage|reckless attack|wild shape|lay on hands|bardic inspiration|extra attack|sneak attack)\b/i.test(action || '');
+}
+
 function scoreStandardAction(action, context = {}) {
   const lower = String(action || '').toLowerCase();
   const inCombat = !!findNearestEnemy(context);
@@ -97,7 +101,9 @@ function decorateStandardAction(action, targetPlayer, context = {}) {
 }
 
 function buildStandardActionOptions(standardActions, context = {}) {
-  const actions = splitStandardActions(standardActions);
+  const inCombat = context.inCombat === true || !!context.combatActive || !!context.combatEngine?.state?.active || !!findNearestEnemy(context);
+  const actions = splitStandardActions(standardActions)
+    .filter(action => !inCombat || isCombatStandardAction(action));
   if (!actions.length) return [];
   const targetPlayer = context.targetPlayer || context.playerName || context.characterName || '';
   return actions
@@ -137,12 +143,23 @@ function findMismatchedNames(options, targetPlayer, partyNames) {
 function buildFallbackOptionsForPlayer(targetPlayer, context = {}) {
   const name = String(targetPlayer || 'The next hero').trim() || 'The next hero';
   const firstName = getPreferredName(name);
+  const enemy = findNearestEnemy(context);
+  const inCombat = context.inCombat === true || !!context.combatActive || !!context.combatEngine?.state?.active || !!enemy;
   const standardActions = context.standardActions || context.character?.standardActions || context.character?.data?.standardActions;
   const standardOptions = buildStandardActionOptions(standardActions, {
     ...context,
     targetPlayer: name,
   });
   if (standardOptions.length >= 3) return standardOptions;
+
+  if (inCombat) {
+    const enemyName = enemy?.name || 'the nearest enemy';
+    return [
+      `🗡️ ${firstName} attacks ${enemyName} with their best weapon.`,
+      `🛡️ ${firstName} takes the Dodge action.`,
+      `🤝 ${firstName} helps an exposed ally against ${enemyName}.`,
+    ];
+  }
 
   return [
     `🗡️ ${firstName} takes point and checks the immediate danger.`,
@@ -186,5 +203,6 @@ module.exports = {
   buildFallbackOptionsForPlayer,
   findMismatchedNames,
   getPreferredName,
+  isCombatStandardAction,
   sanitizeOptionsForPlayer,
 };

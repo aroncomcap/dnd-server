@@ -314,9 +314,9 @@ function generateCombatOptions(combatEngine, characterName) {
     character: player,
     nearestEnemy,
     combatants,
+    inCombat: true,
     includeActorLabel: false,
   });
-  if (standardOptions.length >= 3) return standardOptions;
 
   // Option 1: Attack with primary weapon
   const weapon = player.weapons?.[0]?.name || 'weapon';
@@ -349,16 +349,33 @@ function generateCombatOptions(combatEngine, characterName) {
         opt3 = `🔥 Cast ${bestSpell.name} on ${supportTarget.name}`;
       }
     } else {
-      opt3 = '🔥 Attempt something reckless';
+      opt3 = nearestEnemy
+        ? `🤝 Help an exposed ally against ${nearestEnemy.name}`
+        : '🤝 Help an exposed ally';
     }
   } else if (player.features?.some(f => /extra attack|action surge|sneak attack|rage|wild shape/i.test(f))) {
     const feature = player.features.find(f => /extra attack|action surge|sneak attack|rage|wild shape/i.test(f));
     opt3 = `🔥 Use ${feature}`;
   } else {
-    opt3 = '🔥 Attempt something reckless';
+    opt3 = nearestEnemy
+      ? `🤝 Help an exposed ally against ${nearestEnemy.name}`
+      : '🤝 Help an exposed ally';
   }
 
-  return [opt1, opt2, opt3];
+  const seen = new Set();
+  return [...standardOptions, opt1, opt2, opt3]
+    .filter(option => {
+      const key = String(option || '')
+        .toLowerCase()
+        .replace(/^[^\w]+/, '')
+        .replace(/[.!,;:]+$/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 3);
 }
 
 module.exports = {

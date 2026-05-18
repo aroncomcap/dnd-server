@@ -221,7 +221,7 @@ describe('generateCombatOptions', () => {
     assert.doesNotMatch(text, /Cast (Bless|Healing Word) on Guild Factor/);
   });
 
-  it('falls back to reckless for character with no spells or features', () => {
+  it('falls back to help instead of generic reckless filler', () => {
     const engine = {
       state: {
         combatants: {
@@ -233,7 +233,35 @@ describe('generateCombatOptions', () => {
     };
     const options = generateCombatOptions(engine, 'Bob');
     assert.strictEqual(options.length, 3);
-    assert.ok(options[2].includes('reckless'));
+    assert.match(options[2], /Help an exposed ally against Goblin/);
+    assert.doesNotMatch(options.join('\n'), /reckless|scene's strange details|immediate danger/i);
+  });
+
+  it('filters non-combat standard actions out of active combat options', () => {
+    const engine = {
+      state: {
+        combatants: {
+          'player-garrick': {
+            type: 'PC',
+            name: 'Garrick Moorland',
+            hp: 18,
+            maxHp: 18,
+            weapons: [{ name: 'Rapier' }],
+            spells: [],
+            spellSlots: {},
+            features: [],
+            standardActions: 'Press forward cautiously, Search the scene for useful details, Move on toward the objective, Attack with rapier, Dodge, Help ally',
+          },
+          'cult-acolytes': { type: 'Enemy', name: 'Cult acolytes', hp: 15, maxHp: 22 },
+        },
+      },
+    };
+
+    const options = generateCombatOptions(engine, 'Garrick Moorland');
+
+    assert.strictEqual(options.length, 3);
+    assert.match(options.join('\n'), /Attack Cult acolytes with rapier|Dodge|Help ally/);
+    assert.doesNotMatch(options.join('\n'), /Press forward|Search the scene|Move on toward/i);
   });
 
   it('prefers character standard actions over generic combat fillers', () => {
