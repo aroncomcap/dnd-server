@@ -49,6 +49,13 @@ test('E2E campaign harness waits for already pending accepted actions', () => {
   assert.match(campaignVerboseTs, /const beforeDmText = await getLastCompletedDmText\(page\)/, 'verbose transcript should capture prior text before sending an action');
 });
 
+test('E2E campaign harness retries transient new-game navigation failures', () => {
+  assert.match(campaignVerboseTs, /try \{[\s\S]*?page\.goto\(`\$\{baseURL\}\/new-game`/, 'new-game navigation should be inside a retryable try block');
+  assert.match(campaignVerboseTs, /New game navigation attempt \$\{attempt\} failed/, 'navigation failures should be logged with attempt number');
+  assert.match(campaignVerboseTs, /if \(attempt === 2\) throw err;/, 'second navigation failure should still fail the test');
+  assert.match(campaignVerboseTs, /await page\.waitForTimeout\(2000\);[\s\S]*?continue;/, 'first navigation failure should wait briefly before retrying');
+});
+
 test('streamed narration failures are finalized instead of leaving a live stream bubble', () => {
   assert.match(gameHtml, /function finalizeStreamBubble\(narration, llmRunId = null\)/, 'client should have a reusable stream finalizer');
   assert.match(gameHtml, /socket\.on\('dm_stream_end'[\s\S]*?finalizeStreamBubble\(narration, data\.llmRunId\);/, 'stream end should finalize the live stream bubble');

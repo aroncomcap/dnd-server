@@ -53,7 +53,15 @@ async function findReusableGameId(page, baseURL, gameName) {
 
 async function openNewGameForm(page, baseURL) {
   for (let attempt = 1; attempt <= 2; attempt++) {
-    await page.goto(`${baseURL}/new-game`, { waitUntil: 'domcontentloaded' });
+    try {
+      await page.goto(`${baseURL}/new-game`, { waitUntil: 'domcontentloaded' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.log(`⚠️  New game navigation attempt ${attempt} failed: ${message}`);
+      if (attempt === 2) throw err;
+      await page.waitForTimeout(2000);
+      continue;
+    }
     await page.locator('#game-name').waitFor({ state: 'visible', timeout: 10000 }).then(() => true).catch(() => false);
     const gameNameInput = page.locator('#game-name');
     const createButton = page.locator('#btn-create');
