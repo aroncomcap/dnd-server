@@ -689,7 +689,7 @@ function isDeferredPayoffNarration(narration, actionText = '', history = []) {
   if (signalCount < 2) return false;
 
   const ending = text.slice(-650).toLowerCase();
-  return /\b(?:vanish(?:es|ed)?|retreats?|melts?|slips away|runs?|escapes?|flees?|fleeing|fled|bolts?|deeper|still within reach|not alone|real leverage|go now|one breath left|fresh lead|shorter path|inner counting room|route office|buyer'?s marks?|master hears|time mark|tonight,? eastbound|eastbound|riverfront exchange|at dusk|escort sign|cargo prayer|back gate|route code|meets? the load|cutout|inside job|only if the escort|starts? backing away|willing to bargain|one fresh detail|almost at the door|too late to hide the lie|no longer a rumor|before (?:he|she|they|it|anyone|the watch|the books?|the records?) (?:learns?|reaches?|can|vanish(?:es)?|burns?)|trail (?:has|is|turns|points)|route (?:he|she|they|it) used|next move|next lead|points? toward|waiting under|waiting at|head straight for|being (?:moved|shifted)|(?:is|are) (?:being )?(?:moved|shifted|hidden|carried) (?:now|tonight)|happening now|crew has names|has names|about to become public|chance to shove off|lost moments?|destroying records|burns? the records?|books? vanish|record stove|berth (?:mark|number|seven)|blackwater steps|if you reach|can spot (?:him|her|them)|no watchman delays|kicks?.{0,80}(?:toward|into|over|off)|shoves?.{0,80}(?:toward|into|over|off)|throws?.{0,80}(?:toward|into|over|off)|lunges? for|goes pale at the sight)\b/.test(ending);
+  return /\b(?:vanish(?:es|ed)?|retreats?|melts?|slips away|runs?|escapes?|flees?|fleeing|fled|bolts?|deeper|still within reach|not alone|real leverage|go now|one breath left|fresh lead|shorter path|inner counting room|route office|warehouse office|buyer'?s marks?|master hears|time mark|tonight,? eastbound|eastbound|riverfront exchange|at dusk|escort sign|cargo prayer|back gate|route code|quiet wing|quiet buyers?|private access|sealed bay|hidden side|next named target|next man|must corner|lead changes shape|doorway into|how far up|witnesses no one intended|ready to run|meets? the load|cutout|inside job|only if the escort|starts? backing away|willing to bargain|one fresh detail|almost at the door|too late to hide the lie|no longer a rumor|before (?:he|she|they|it|anyone|the watch|the books?|the records?) (?:learns?|reaches?|can|vanish(?:es)?|burns?)|trail (?:has|is|turns|points)|route (?:he|she|they|it) used|next move|next lead|points? toward|waiting under|waiting at|head straight for|being (?:moved|shifted)|(?:is|are) (?:being )?(?:moved|shifted|hidden|carried) (?:now|tonight)|happening now|crew has names|has names|about to become public|chance to shove off|lost moments?|destroying records|burns? the records?|books? vanish|record stove|berth (?:mark|number|seven)|blackwater steps|if you reach|can spot (?:him|her|them)|no watchman delays|kicks?.{0,80}(?:toward|into|over|off)|shoves?.{0,80}(?:toward|into|over|off)|throws?.{0,80}(?:toward|into|over|off)|lunges? for|goes pale at the sight)\b/.test(ending);
 }
 
 function hasUnsupportedNonCombatDamageNarration(narration, actionText = '') {
@@ -728,8 +728,8 @@ function isLeadLadderNarration(narration, actionText = '', history = []) {
 
   const text = String(narration || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const recent = assistantMessages.slice(-6).join(' ').toLowerCase();
-  const authorityStack = /\b(?:paid me|paid him|paid her|paid by|paid for|answers? to|taking orders from|above (?:me|him|her|them)|above his own|someone higher up|higher up|merchant council|council auditors?|quartermaster|dockmaster|assistant factor|broker|middleman|tally room|route office|inner counting room|riverfront exchange|escort sign|cargo prayer|back gate|route code|berth (?:mark|number|seven)|blackwater steps|seal above|wrong room to ask|next lead|fresh lead|shorter path|hard name to hunt|location|covering the handoff|signed in .{0,40} hand|will be at|waiting at|meets? the load|inside job|cutout|cargo is being moved|time mark|eastbound)\b/;
-  const objectiveContext = /\b(?:guild|merchant|ledger|seal|shipment|marks?|ferry|dock|quay|factor|broker|dockmaster|council|auditors?|tally|books?|route|cargo|freight|exchange|escort|warehouse|storehouse|proof|buyer|enforcer)\b/;
+  const authorityStack = /\b(?:paid me|paid him|paid her|paid by|paid for|answers? to|taking orders from|above (?:me|him|her|them)|above his own|someone higher up|higher up|merchant council|council auditors?|quartermaster|dockmaster|assistant factor|broker|middleman|tally room|route office|warehouse office|inner counting room|riverfront exchange|escort sign|cargo prayer|back gate|route code|quiet wing|quiet buyers?|private access|sealed bay|hidden side|next named target|next man|must corner|lead changes shape|doorway into|how far up|witnesses no one intended|ready to run|berth (?:mark|number|seven)|blackwater steps|seal above|wrong room to ask|next lead|fresh lead|shorter path|hard name to hunt|location|covering the handoff|signed in .{0,40} hand|will be at|waiting at|meets? the load|inside job|cutout|cargo is being moved|time mark|eastbound)\b/;
+  const objectiveContext = /\b(?:guild|merchant|ledger|seal|shipment|marks?|ferry|dock|quay|factor|broker|dockmaster|council|auditors?|tally|books?|route|cargo|freight|exchange|escort|warehouse|storehouse|proof|buyer|enforcer|bay|wing|office)\b/;
   return authorityStack.test(text) && objectiveContext.test(`${recent} ${text}`);
 }
 
@@ -749,10 +749,20 @@ function shouldUseDeterministicPayoffClosure(narration, actionText = '', history
     /\broute office\b/,
     /\binner counting room\b/,
     /\briverfront exchange\b/,
+    /\bwarehouse office\b/,
     /\bescort sign\b/,
     /\bcargo prayer\b/,
     /\bback gate\b/,
     /\broute code\b/,
+    /\bquiet wing\b/,
+    /\bprivate access\b/,
+    /\bsealed bay\b/,
+    /\bhidden side\b/,
+    /\bnext named target\b/,
+    /\bnext man\b/,
+    /\bmust corner\b/,
+    /\blead changes shape\b/,
+    /\bdoorway into\b/,
     /\btime mark\b/,
     /\beastbound\b/,
     /\bat dusk\b/,

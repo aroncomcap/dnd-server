@@ -394,6 +394,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
       let responseAlreadyReady = false;
       let actionDescription = '';
       const beforeDmCount = await getCompletedDmMessageCount(page);
+      const beforeDmText = await getLastCompletedDmText(page);
 
       const optionButtons = await page.locator('button[class*="option"], button:has-text("→")').all();
       const readyOptionButtons = [];
@@ -451,7 +452,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
       }
 
       if (!actionTaken && await isActionResponsePending(page)) {
-        const pendingResult = await waitForPendingActionToSettle(page, beforeDmCount);
+        const pendingResult = await waitForPendingActionToSettle(page, beforeDmCount, beforeDmText);
         if (pendingResult === 'timeout') {
           missingResponseCount++;
           const diagnostics = await getActionResponseDiagnostics(page, beforeDmCount);
@@ -476,7 +477,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
       if (!actionTaken) {
         noActionCount++;
       } else {
-        const responseReady = responseAlreadyReady || await waitForActionResponse(page, beforeDmCount);
+        const responseReady = responseAlreadyReady || await waitForActionResponse(page, beforeDmCount, beforeDmText);
         if (!responseReady) {
           missingResponseCount++;
           const diagnostics = await getActionResponseDiagnostics(page, beforeDmCount);

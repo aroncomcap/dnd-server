@@ -33,7 +33,8 @@ test('DM rendering strips structured marker blocks before display', () => {
 });
 
 test('E2E action waiter requires a new completed DM message', () => {
-  assert.match(gameActionTs, /return completedDmCount > before;/, 'waitForActionResponse should require a new completed DM message');
+  assert.match(gameActionTs, /if \(completedDmCount <= before\) return false;/, 'waitForActionResponse should require a new completed DM message');
+  assert.match(gameActionTs, /normalize\(clone\?\.textContent \|\| ''\) !== normalize\(previousText\)/, 'waitForActionResponse should reject stale repeated text when prior text is known');
   assert.doesNotMatch(gameActionTs, /completedDmCount > before\s*\|\|/, 'idle send button should not count as an action response');
 });
 
@@ -44,6 +45,8 @@ test('E2E campaign harness waits for already pending accepted actions', () => {
   assert.match(campaignVerboseTs, /pendingResult === 'settled'/, 'campaign should keep moving when a pending action has already settled');
   assert.match(campaignVerboseTs, /Pending action did not produce a completed DM response/, 'pending action stalls should be diagnosed separately');
   assert.match(campaignVerboseTs, /const responseReady = responseAlreadyReady \|\| await waitForActionResponse/, 'campaign should not wait twice after an in-flight response already completed');
+  assert.match(gameActionTs, /previousText/, 'E2E response waiters should distinguish genuinely new narration from stale repeated text');
+  assert.match(campaignVerboseTs, /const beforeDmText = await getLastCompletedDmText\(page\)/, 'verbose transcript should capture prior text before sending an action');
 });
 
 test('streamed narration failures are finalized instead of leaving a live stream bubble', () => {
@@ -417,6 +420,9 @@ test('legacy narration path repairs deferred payoff endings after anti-stall tur
   assert.match(serverJs, /riverfront exchange/, 'repair detector should catch riverfront-exchange breadcrumbs');
   assert.match(serverJs, /escort sign/, 'repair detector should catch escort-sign breadcrumbs');
   assert.match(serverJs, /cargo prayer/, 'repair detector should catch cargo-prayer breadcrumbs');
+  assert.match(serverJs, /quiet wing/, 'repair detector should catch quiet-wing merchant guild ladders');
+  assert.match(serverJs, /sealed bay/, 'repair detector should catch sealed-bay breadcrumbs');
+  assert.match(serverJs, /next named target/, 'repair detector should catch explicit next-target deferrals');
   assert.match(serverJs, /assistantMessages\.length < 4/, 'lead ladder detector should trigger before the transcript drags');
   assert.match(serverJs, /function shouldUseDeterministicPayoffClosure/, 'late breadcrumb chains should bypass another LLM repair attempt');
   assert.match(serverJs, /const useDeterministicClosure = shouldUseDeterministicPayoffClosure/, 'legacy path should force deterministic closure for mature breadcrumb chains');
@@ -426,6 +432,8 @@ test('legacy narration path repairs deferred payoff endings after anti-stall tur
   assert.match(serverJs, /initiative starts\?/, 'noncombat damage guard should catch AI-only initiative starts');
   assert.match(serverJs, /slices\?/, 'noncombat damage guard should catch pseudo-damage from blades outside engine combat');
   assert.match(serverJs, /Do not start combat, call for initiative, or narrate attacks unless the player explicitly chose violence/, 'payoff repair should not preserve AI-only combat after non-hostile input');
+  assert.match(gameHtml, /OPTIONS\\s\*\$\/i/, 'client renderer should remove bare OPTIONS marker tails from visible narration');
+  assert.match(gameHtml, /1\(\?:\\uFE0F\?\\u20E3\|\[\.\)\]\)/, 'client renderer should remove inline numbered option leaks');
 });
 
 test('story prompt discourages repeated gatekeeper loops and noncombat filler actions', () => {

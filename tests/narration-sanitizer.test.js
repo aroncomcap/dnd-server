@@ -88,6 +88,16 @@ test('removes inline scene fields from visible narration', () => {
   assert.doesNotMatch(cleaned, /Action:|Mood:|NPC:/);
 });
 
+test('removes bare options marker tail from visible narration', () => {
+  assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
+  const { cleanInvalidCombatNarration } = require(modulePath);
+
+  const cleaned = cleanInvalidCombatNarration('The runner freezes with the manifest in hand. OPTIONS');
+
+  assert.equal(cleaned, 'The runner freezes with the manifest in hand.');
+  assert.doesNotMatch(cleaned, /\bOPTIONS\b/);
+});
+
 test('removes unsourced noncombat check result labels while preserving consequences', () => {
   assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
   const { cleanInvalidCombatNarration } = require(modulePath);

@@ -36,22 +36,33 @@ export async function getLastCompletedDmText(page: Page): Promise<string> {
   });
 }
 
-export async function waitForActionResponse(page: Page, beforeCount: number, timeout = Number(process.env.CAMPAIGN_RESPONSE_TIMEOUT_MS || 90000)): Promise<boolean> {
+export async function waitForActionResponse(
+  page: Page,
+  beforeCount: number,
+  beforeText = '',
+  timeout = Number(process.env.CAMPAIGN_RESPONSE_TIMEOUT_MS || 90000)
+): Promise<boolean> {
   return page.waitForFunction(
-    (before) => {
+    ({ before, previousText }) => {
+      const normalize = (text: string) => String(text || '').replace(/\s+/g, ' ').trim();
       const isCompletedDmMessage = (msg: Element) => {
         if (msg.id === 'dm-stream-bubble' || msg.id === 'thinking-indicator') return false;
         if (msg.querySelector('#dm-stream-body') || msg.querySelector('#thinking-tip')) return false;
         const text = (msg.textContent || '').trim();
         return text.length > 0 && !text.includes('Thinking...');
       };
-      const completedDmCount = Array.from(document.querySelectorAll('#chat-log .msg-dm'))
-        .filter(isCompletedDmMessage)
-        .length;
+      const messages = Array.from(document.querySelectorAll('#chat-log .msg-dm'))
+        .filter(isCompletedDmMessage);
+      const completedDmCount = messages.length;
+      if (completedDmCount <= before) return false;
 
-      return completedDmCount > before;
+      if (!previousText) return true;
+      const lastMsg = messages[messages.length - 1];
+      const clone = lastMsg?.cloneNode(true) as Element | undefined;
+      clone?.querySelectorAll('.msg-label, .narration-feedback').forEach(el => el.remove());
+      return normalize(clone?.textContent || '') !== normalize(previousText);
     },
-    beforeCount,
+    { before: beforeCount, previousText: beforeText },
     { timeout }
   ).then(() => true).catch(() => false);
 }
@@ -73,20 +84,28 @@ export async function isActionResponsePending(page: Page): Promise<boolean> {
 export async function waitForPendingActionToSettle(
   page: Page,
   beforeCount: number,
+  beforeText = '',
   timeout = Number(process.env.CAMPAIGN_RESPONSE_TIMEOUT_MS || 90000)
 ): Promise<'response' | 'settled' | 'timeout'> {
   return page.waitForFunction(
-    (before) => {
+    ({ before, previousText }) => {
+      const normalize = (text: string) => String(text || '').replace(/\s+/g, ' ').trim();
       const isCompletedDmMessage = (msg: Element) => {
         if (msg.id === 'dm-stream-bubble' || msg.id === 'thinking-indicator') return false;
         if (msg.querySelector('#dm-stream-body') || msg.querySelector('#thinking-tip')) return false;
         const text = (msg.textContent || '').trim();
         return text.length > 0 && !text.includes('Thinking...');
       };
-      const completedDmCount = Array.from(document.querySelectorAll('#chat-log .msg-dm'))
-        .filter(isCompletedDmMessage)
-        .length;
-      if (completedDmCount > before) return 'response';
+      const messages = Array.from(document.querySelectorAll('#chat-log .msg-dm'))
+        .filter(isCompletedDmMessage);
+      const completedDmCount = messages.length;
+      if (completedDmCount > before) {
+        if (!previousText) return 'response';
+        const lastMsg = messages[messages.length - 1];
+        const clone = lastMsg?.cloneNode(true) as Element | undefined;
+        clone?.querySelectorAll('.msg-label, .narration-feedback').forEach(el => el.remove());
+        if (normalize(clone?.textContent || '') !== normalize(previousText)) return 'response';
+      }
 
       const sendButton = document.querySelector('#btn-send') as HTMLButtonElement | null;
       const sendText = sendButton?.textContent?.trim().toLowerCase() || '';
@@ -99,7 +118,7 @@ export async function waitForPendingActionToSettle(
 
       return actionPending ? false : 'settled';
     },
-    beforeCount,
+    { before: beforeCount, previousText: beforeText },
     { timeout }
   ).then(result => result.jsonValue() as Promise<'response' | 'settled'>).catch(() => 'timeout');
 }

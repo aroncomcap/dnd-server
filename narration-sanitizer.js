@@ -19,6 +19,7 @@ function stripLeakedInlineOptions(text) {
 function stripMalformedStructuredMarkerTail(text) {
   return String(text || '')
     .replace(/\s*(?:-{0,3}\s*)?(?:OPTIONS|SCENE|WORLD)\s*-{2,}[\s\S]*$/i, '')
+    .replace(/\s*\bOPTIONS\s*$/i, '')
     .replace(/\s*\bAction:\s*[^.]*\s+Mood:\s*[^.]*\s+NPC:\s*[\s\S]*$/i, '');
 }
 
