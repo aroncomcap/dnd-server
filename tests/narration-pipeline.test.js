@@ -914,6 +914,50 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /Master Hobb repeats|The chase stops here|Hobb is forced into the open/);
   });
 
+  it('pays out Mercer Hall threshold scenes instead of repeating the doorway', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'The soot-gray scribe points the party toward Mercer\'s Hall, where the merchant guild decides who gets coin, cargo, and passage.' },
+          { role: 'assistant', content: 'The Hall\'s ironbound doors stand closed beneath a carved merchant wheel, and two liveried porters watch the steps.' },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The party commits to Mercer\'s Hall. The soot-gray scribe folds the ledger shut and points out the shortest route through the dock market.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Put the named clue in front of the person responsible', gs);
+
+    assert.equal(result.merchantRoutingAdvanced, true);
+    assert.match(result.narration, /counting chamber/);
+    assert.match(result.narration, /one page has been cut out/);
+    assert.doesNotMatch(result.narration, /shortest route through the dock market|doors stand closed/);
+  });
+
+  it('pays out Reed Street key scenes into the warehouse room', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'The factor thrusts a wax-sealed pass and the warehouse key into the dwarf\'s hand.' },
+          { role: 'assistant', content: 'He mutters that Reed Street holds the ledgers and gives the party a lantern token for midnight entry.' },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The factor gives one more warning about Reed Street and says the party should hurry.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.merchantRoutingAdvanced, true);
+    assert.match(result.narration, /Reed Street becomes a crime scene/);
+    assert.match(result.narration, /Pell Varrin/);
+    assert.doesNotMatch(result.narration, /one more warning/);
+  });
+
   it('does not extract determiners from generic responsible-person actions as culprit names', () => {
     const gs = {
       data: {

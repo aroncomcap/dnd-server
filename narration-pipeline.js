@@ -449,14 +449,41 @@ function shouldAdvanceMerchantRoutingScene(actionText, assistantHistory) {
   if (!isGenericResolvedObjectiveAction(actionText) && !isAdvanceAction(actionText)) return false;
   if (hasRecentResolvedBeat(assistantHistory)) return false;
   const recent = (assistantHistory || []).slice(-4).join(' ').toLowerCase();
-  if (!/\b(?:hobb|wax token|south storehouse|dockmaster|grant passage|guild will not open|bring me proof)\b/.test(recent)) return false;
+  if (/\b(?:pell varrin|reed street without delay|door is already ajar|dock[- ]master.*receipt book|crate-marked ledger page|missing shipment was diverted|quiet storage|bay 3)\b/.test(recent)) return false;
+  const hobbStorehouseRoute = /\b(?:hobb|wax token|south storehouse|dockmaster|grant passage|guild will not open|bring me proof)\b/.test(recent);
+  const mercerHallRoute = /\b(?:mercer'?s hall|mercers hall|hall'?s ironbound doors|ironbound doors|merchant wheel|liveried porters|dock market)\b/.test(recent);
+  const reedStreetRoute = /\b(?:reed street|warehouse key|lantern token|midnight entry)\b/.test(recent);
+  if (!hobbStorehouseRoute && !mercerHallRoute && !reedStreetRoute) return false;
   if (!/\b(?:merchant|guild|factor|ledger|freight|cargo|crate|shipment|wax token|wax-sealed|passage)\b/.test(recent)) return false;
-  if (!/\b(?:dockmaster|south storehouse|storehouse|silt quay|warehouse yard|warehouse)\b/.test(recent)) return false;
+  if (!/\b(?:dockmaster|south storehouse|storehouse|silt quay|warehouse yard|warehouse|mercer'?s hall|mercers hall|hall'?s ironbound doors|reed street)\b/.test(recent)) return false;
   if (/\b(?:dockmaster rell|splintered handcart|loading ramp|crate-marked ledger page|missing shipment was diverted)\b/.test(recent)) return false;
   return true;
 }
 
-function buildMerchantRoutingContinuation() {
+function buildMerchantRoutingContinuation(assistantHistory = []) {
+  const recent = (assistantHistory || []).slice(-4).join(' ').toLowerCase();
+  if (/\b(?:mercer'?s hall|mercers hall|hall'?s ironbound doors|ironbound doors|merchant wheel|liveried porters|dock market)\b/.test(recent)) {
+    return {
+      narration: 'Mercer\'s Hall stops being a doorway and becomes the room where leverage lives. The porters open the ironbound doors onto a counting chamber of chained ledgers, brass lamps, and merchants pretending not to listen. The soot-gray scribe\'s ledger matches a second book on the dais, except one page has been cut out cleanly. A porter tries to palm the fresh scrap before anyone names him. The party can seize the scrap, force the scribe to read the missing account aloud, or follow the porter to whoever paid for the silence.',
+      options: [
+        'Seize the fresh ledger scrap from the porter',
+        'Force the scribe to read the missing account aloud',
+        'Follow the porter to whoever paid for the silence',
+      ],
+    };
+  }
+
+  if (/\b(?:reed street|warehouse key|lantern token|midnight entry)\b/.test(recent)) {
+    return {
+      narration: 'The pass and key do their job: Reed Street becomes a crime scene, not another promise. The warehouse stands under a dead lantern with its guild mark cut away and reset too neatly to hide the scar. Inside, Pell Varrin is already shoving a ledger into a crate, ink on his cuffs and fear in his jaw. A rear door swings in the draft behind him. The party has the clerk, the ledger, and the moving trail in the same room.',
+      options: [
+        'Pin Pell Varrin down before he reaches the rear door',
+        'Secure the ledger and read the circled payment line',
+        'Let Pell run and follow the rear-door trail',
+      ],
+    };
+  }
+
   return {
     narration: 'The merchant interview stops being the scene and becomes the route. Hobb\'s wax token opens the south storehouse gate, where dockmaster Rell is already sweating beside a splintered handcart and a broken guild seal. Under loose boards by the loading ramp, the party finds the crate-marked ledger page: the missing shipment was diverted to Silt Quay. Rell can name who pressured him, but only if the party decides whether to shield him from Hobb, expose both men, or race the proof to the quay before the handoff moves.',
     options: [
@@ -472,7 +499,7 @@ function closeDeferredPayoffIfNeeded(parsed, actionText, gs) {
   if (shouldAdvanceMerchantRoutingScene(actionText, assistantHistory)) {
     return {
       ...parsed,
-      ...buildMerchantRoutingContinuation(),
+      ...buildMerchantRoutingContinuation(assistantHistory),
       merchantRoutingAdvanced: true,
     };
   }
