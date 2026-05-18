@@ -288,6 +288,9 @@ test('verbose campaign transcript prints selected player actions', () => {
 test('verbose campaign fallback actions consume named leads instead of re-asking clerks', () => {
   assert.match(campaignVerboseTs, /go directly to Harl Venn at the south warehouse quay/i, 'smoke player should consume the Harl Venn lead');
   assert.match(campaignVerboseTs, /go directly to Warehouse 12/i, 'smoke player should consume the Warehouse 12 lead');
+  assert.match(campaignVerboseTs, /go directly to the shuttered counting-house on Wharf Lane/i, 'smoke player should consume the Wharf Lane counting-house lead');
+  assert.match(campaignVerboseTs, /go directly to the cooper's shed/i, 'smoke player should consume the cooper shed lead');
+  assert.doesNotMatch(campaignVerboseTs, /Ask what the clerk needs from us/, 'smoke player should not keep re-asking clerks after a lead is visible');
 });
 
 test('host recovery and optional combat compression are explicit controls', () => {

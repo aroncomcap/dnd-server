@@ -179,6 +179,12 @@ async function pickFallbackAction(page) {
     .replace(/\s+/g, ' ')
     .slice(-2500)
     .toLowerCase();
+  if (/\bcooper'?s shed\b|\bblue lamp-smoke\b/.test(recentText)) {
+    return "Go directly to the cooper's shed and question whoever is inside";
+  }
+  if (/\bwharf lane\b|\bcounting-house\b/.test(recentText)) {
+    return 'Go directly to the shuttered counting-house on Wharf Lane';
+  }
   if (/\bwarehouse 12\b/.test(recentText)) {
     return 'Go directly to Warehouse 12 and look for the runner and original receipt';
   }
@@ -195,14 +201,13 @@ async function pickFallbackAction(page) {
     return 'Follow the lead toward the next clear objective';
   }
   if (/\b(?:guild|factor|clerk|toll|steward|passage|merchant)\b/.test(recentText)) {
-    return 'State our purpose clearly, ask for the useful lead, and move on';
+    return 'State our purpose clearly, take the current lead, and leave for the named destination';
   }
   const actions = [
-    'Ask what the clerk needs from us',
-    'Explain that we seek safe passage',
-    'Offer peaceful cooperation',
-    'Search the scene for useful details',
     'Move on toward the next clear objective',
+    'Follow the strongest current lead immediately',
+    'Ask one direct question, then proceed to the named lead',
+    'Search for the clue that changes the situation',
   ];
   return actions[Math.floor(Math.random() * actions.length)];
 }

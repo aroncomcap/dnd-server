@@ -327,7 +327,10 @@ function buildUserMessage(gs, characterName, actionText) {
     parts.push(`[RECENT HISTORY]\n${historyLines.join('\n')}`);
 
     const antiStallDirective = buildAntiStallPacingDirective(history, actionText);
-    if (antiStallDirective) parts.push(antiStallDirective);
+    if (antiStallDirective) {
+      parts.push(antiStallDirective);
+      parts.push(`[INTERPRETED INTENT]\nThe party proceeds to the current named lead now. If a destination, contact, room, or visible threat has already been named, cut directly to it and show the immediate consequence.`);
+    }
   }
 
   const resolvedCombatState = formatResolvedCombatState(gs.lastCombatConclusion);

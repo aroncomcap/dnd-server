@@ -412,6 +412,8 @@ describe('buildUserMessage', () => {
     assert.ok(msg.includes('wrap the scene up'), 'Should shorten minor merchant/guild document scenes');
     assert.ok(msg.includes('treat it as consent to proceed'), 'Repeated non-hostile intent should close the current exchange');
     assert.ok(msg.includes('change the physical location'), 'A known destination should force a location change');
+    assert.ok(msg.includes('INTERPRETED INTENT'), 'Anti-stall turns should get an explicit interpreted intent');
+    assert.ok(msg.includes('The party proceeds to the current named lead now'), 'Interpreted intent should force immediate lead consumption');
   });
 
   it('adds anti-stall pacing for repeated investigation of an established lead', () => {
