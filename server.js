@@ -30,7 +30,7 @@ const { parseStatsText } = require('./stat-parser');
 const { getMonsterStats } = require('./monster-lookup');
 const ed = require('./encounter-designer');
 const narrationPipeline = require('./narration-pipeline');
-const { buildFallbackTurn, isLowInformationNarration } = narrationPipeline;
+const { buildAntiStallPacingDirective, buildFallbackTurn, isLowInformationNarration } = narrationPipeline;
 const costTracker = require('./cost-tracker');
 const llm = require('./llm');
 const llmTelemetry = require('./llm/telemetry');
@@ -633,6 +633,33 @@ function targetRequiredNarration(userMessage) {
     llmRunId: null,
     blocked: true,
   };
+}
+
+function buildObjectiveClosureDirective(history, actionText) {
+  const action = String(actionText || '');
+  const wantsPayoff = isDialogueAction(action) || isAdvanceAction(action) ||
+    /\b(?:lead|clue|proof|answer|answers|confront|decisive|responsible|payoff|force)\b/i.test(action);
+  if (!wantsPayoff) return '';
+
+  const assistantMessages = (history || [])
+    .filter(msg => msg?.role === 'assistant' && msg.content)
+    .map(msg => String(msg.content).replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .slice(-6);
+  if (assistantMessages.length < 2) return '';
+
+  const recent = assistantMessages.join(' ').toLowerCase();
+  const signalPatterns = [
+    /\b(?:guild|merchant|ledger|seal|route|reroute|caravan|records?|papers?|books?)\b/,
+    /\b(?:clerk|vessa|seln|factor|buyer|signatory|courier|contact)\b/,
+    /\b(?:counting\s+(?:room|office|house|annex)|archive|tally\s+office|office|annex|room)\b/,
+    /\b(?:next\s+(?:lead|move|door)|within\s+the\s+hour|before\s+(?:the\s+books|the\s+records|they|anyone)|lead\s+(?:is|points|goes))\b/,
+  ];
+  const signalCount = signalPatterns.reduce((count, pattern) => count + (pattern.test(recent) ? 1 : 0), 0);
+  if (signalCount < 2) return '';
+
+  return `[OBJECTIVE CLOSURE]
+This objective has had several exchanges. Close or climax it in this response: name the culprit or buyer, secure or lose the proof, expose the motive, and show the immediate consequence. Do not send the party to another office, annex, room, clerk, signatory, meeting, or "within the hour" lead. End on a resolved consequence or hard choice in the current scene, not a new breadcrumb.`;
 }
 
 function looksLikeHostileOption(option) {
@@ -2219,7 +2246,11 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   // Rebuild messages with combatContext appended to user message
   // Append system instruction before the content to override pattern-matching
   const systemOverride = `CRITICAL: The player has chosen an action below. You MUST narrate ONLY what happens as a direct consequence of that choice. Do not repeat previous narrations or generic descriptions.\n\n`;
-  const userMessageFormatted = `${systemOverride}PLAYER ACTION: ${userMessage}\n\nRespond directly. Narrate what happens because of this choice ONLY.${combatContext}`;
+  const submittedActionTextForPrompt = extractSubmittedActionText(userMessage);
+  const antiStallPacing = combatActive ? '' : buildAntiStallPacingDirective(gd.chatHistory, submittedActionTextForPrompt);
+  const objectiveClosure = combatActive ? '' : buildObjectiveClosureDirective(gd.chatHistory, submittedActionTextForPrompt);
+  const pacingOverride = [antiStallPacing, objectiveClosure].filter(Boolean).join('\n\n');
+  const userMessageFormatted = `${systemOverride}${pacingOverride ? `${pacingOverride}\n\n` : ''}PLAYER ACTION: ${userMessage}\n\nRespond directly. Narrate what happens because of this choice ONLY.${combatContext}`;
   const messagesWithCombat = [
     ...gd.chatHistory,
     { role: 'user', content: prefix + userMessageFormatted },

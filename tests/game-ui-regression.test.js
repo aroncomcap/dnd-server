@@ -295,6 +295,7 @@ test('verbose campaign fallback actions consume named leads instead of re-asking
   assert.match(campaignVerboseTs, /confront the factor with the orderbook/i, 'smoke player should force evidence scenes to pay off');
   assert.match(campaignVerboseTs, /private lift key to tonight's handoff/i, 'smoke player should follow scheduled handoff stakes');
   assert.match(campaignVerboseTs, /confront Harrow Quill/i, 'smoke player should force named climax targets');
+  assert.match(campaignVerboseTs, /force the buyer's identity/i, 'smoke player should force merchant-house breadcrumb chains to close');
   assert.doesNotMatch(campaignVerboseTs, /Ask what the clerk needs from us/, 'smoke player should not keep re-asking clerks after a lead is visible');
 });
 
@@ -378,6 +379,13 @@ test('legacy narration path replaces low-information action echoes', () => {
   assert.match(narrationPipelineJs, /function buildFallbackTurn/, 'pipeline should centralize playable fallback narration');
   assert.match(serverJs, /isLowInformationNarration\(parsed\.narration, submittedActionText\)/, 'legacy path should detect action echoes after parsing model output');
   assert.match(serverJs, /buildFallbackTurn\(fallbackActor, submittedActionText\)/, 'legacy path should replace echoes with playable fallback narration');
+});
+
+test('legacy narration path injects anti-stall objective closure', () => {
+  assert.match(narrationPipelineJs, /buildAntiStallPacingDirective/, 'pipeline should expose anti-stall pacing');
+  assert.match(serverJs, /buildAntiStallPacingDirective\(gd\.chatHistory, submittedActionTextForPrompt\)/, 'legacy path should add the same anti-stall pacing as split narration');
+  assert.match(serverJs, /function buildObjectiveClosureDirective/, 'legacy path should add a stronger late-objective closure guard');
+  assert.match(serverJs, /Do not send the party to another office, annex, room, clerk, signatory, meeting, or "within the hour" lead/, 'closure guard should ban the observed breadcrumb endings');
 });
 
 test('story prompt discourages repeated gatekeeper loops and noncombat filler actions', () => {

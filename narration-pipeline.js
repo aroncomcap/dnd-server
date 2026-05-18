@@ -1015,4 +1015,5 @@ module.exports = {
   handlePlayerAction,
   buildFallbackTurn,
   isLowInformationNarration,
+  buildAntiStallPacingDirective,
 };

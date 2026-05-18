@@ -188,6 +188,9 @@ async function pickFallbackAction(page) {
   if (/\bblack net slip\b|\bharrow quill\b|\bnamed contact\b/.test(recentText)) {
     return 'Go directly to Black Net Slip, confront Harrow Quill, and force a final answer now';
   }
+  if (/\bvessa marr\b|\bmaster seln\b|\bmerchant-house\b|\btally office\b|\bsignatory\b|\briverside counting annex\b|\bsealed archive\b/.test(recentText)) {
+    return "Confront the person named in this room, secure the records, and force the buyer's identity into the open now";
+  }
   if (/\bprivate lift\b|\bhavel'?s circle\b|\bscheduled handoff\b|\bdelivery mark\b/.test(recentText)) {
     return "Take the private lift key to tonight's handoff and confront Havel's circle";
   }
