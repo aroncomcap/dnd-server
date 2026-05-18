@@ -282,7 +282,7 @@ function buildResolvedBeatAdvance() {
 
 function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
-  if (!hasRecentResolvedBeat(assistantHistory) || !isFreshBeatBoundary(latest)) return false;
+  if (!isFreshBeatBoundary(latest)) return false;
   return isGenericResolvedObjectiveAction(actionText) || reopensClosedGuildObjective(narration);
 }
 
@@ -290,7 +290,7 @@ function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
   if (/\b(?:riders below|black-wax tube|courier horn|burning sky)\b/i.test(latest)) {
     return {
-      narration: 'The old guild lead stays closed. The pursuit pays off in motion: the rider with the black-wax tube is cut off at the switchback, the horn never sounds, and the tube cracks open in the dust. Inside is not another errand but a target: a charcoal map of the north road, three marked safehouses, and tonight\'s meeting point circled at the ruined aqueduct. The party has momentum now; the next choice is whether to ambush the meeting or turn the map into public leverage.',
+      narration: 'The pursuit pays off in motion: the rider with the black-wax tube is cut off at the switchback, the horn never sounds, and the tube cracks open in the dust. Inside is not another errand but a target: a charcoal map of the north road, three marked safehouses, and tonight\'s meeting point circled at the ruined aqueduct. The party has momentum now; the next choice is whether to ambush the meeting or turn the map into public leverage.',
       options: [
         'Ambush the ruined-aqueduct meeting before dusk',
         'Use the safehouse map to flip an informant',
@@ -301,7 +301,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:watchtower|signal fire|black-wax line is broken)\b/i.test(latest)) {
     return {
-      narration: 'The old guild lead stays closed. The watchtower is no paperwork trail: its signal fire has just been lit, and three riders below are cutting loose before the party can ask gentle questions. One rider carries a matching black-wax tube; another has a courier horn at his belt. This beat is now pursuit under a burning sky, not another ledger.',
+      narration: 'The watchtower is no paperwork trail: its signal fire has just been lit, and three riders below are cutting loose before the party can ask gentle questions. One rider carries a matching black-wax tube; another has a courier horn at his belt. This beat is now pursuit under a burning sky, not another ledger.',
       options: [
         'Cut off the rider with the black-wax tube',
         'Shoot the courier horn from the second rider\'s belt',
@@ -312,7 +312,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:vessa coil|masked patron|obsidian bell|hill-shrine crypt|seal-holder)\b/i.test(latest)) {
     return {
-      narration: 'The old guild lead stays closed. Vessa Coil breaks when the obsidian bell rings below the hill-shrine floor; she did not buy stolen cargo for profit, but to keep that bell sealed. Her confession gives the party a name, a danger, and a cost: expose her and the wardens lose their funding, or take the black-wax map to the old watchtower before the patron sends riders to erase it. The black-wax line is broken open, and the next beat is already moving.',
+      narration: 'Vessa Coil breaks when the obsidian bell rings below the hill-shrine floor; she did not buy stolen cargo for profit, but to keep that bell sealed. Her confession gives the party a name, a danger, and a cost: expose her and the wardens lose their funding, or take the black-wax map to the old watchtower before the patron sends riders to erase it. The black-wax line is broken open, and the next beat is already moving.',
       options: [
         'Expose Vessa and accept the wardens\' anger',
         'Take the black-wax map to the old watchtower',
@@ -323,7 +323,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:cracked altar|black-wax satchel|broken signet|route sketch|hill shrine)\b/i.test(latest)) {
     return {
-      narration: 'The old guild lead stays closed. The route sketch pays off at the hill shrine: beneath the split lintel, the broken signet matches the ring of Vessa Coil, a veiled patron waiting beside an open crypt stair. She expected a courier, not witnesses. When the party names the black wax, Vessa\'s hand moves to a bronze pull-chain and a deep obsidian bell answers from below. The confrontation is here; the danger is what that bell just woke.',
+      narration: 'The route sketch pays off at the hill shrine: beneath the split lintel, the broken signet matches the ring of Vessa Coil, a veiled patron waiting beside an open crypt stair. She expected a courier, not witnesses. When the party names the black wax, Vessa\'s hand moves to a bronze pull-chain and a deep obsidian bell answers from below. The confrontation is here; the danger is what that bell just woke.',
       options: [
         'Stop Vessa before she pulls the chain again',
         'Demand the truth about the obsidian bell',
@@ -334,7 +334,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:hooded courier|thorn-choked|roadside chapel|chapel door|courier disappears)\b/i.test(latest)) {
     return {
-      narration: 'The old guild lead stays closed. At the thorn-choked roadside chapel, the courier is no longer a rumor ahead of the party: he is at the cracked altar, one hand on a black-wax satchel and the other on a knife he is not brave enough to use. Inside the satchel is a route sketch toward the hill shrine and a broken signet pressed into the wax. The choice is immediate: seize him, bargain for the name behind the seal, or let him run and follow the map.',
+      narration: 'At the thorn-choked roadside chapel, the courier is no longer a rumor ahead of the party: he is at the cracked altar, one hand on a black-wax satchel and the other on a knife he is not brave enough to use. Inside the satchel is a route sketch toward the hill shrine and a broken signet pressed into the wax. The choice is immediate: seize him, bargain for the name behind the seal, or let him run and follow the map.',
       options: [
         'Seize the courier before he burns the satchel',
         'Offer the courier protection for the name behind the black wax',
@@ -345,7 +345,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:black wax|shrine road)\b/i.test(latest)) {
     return {
-      narration: 'The old guild lead stays closed. The party follows the messenger\'s clue instead of circling the warehouse story: fresh prints leave the rear hatch and cut toward the shrine road, where black wax is smeared across a cracked milestone. Ahead, a hooded courier drags a satchel into the thorn-choked roadside chapel. The witness paid off; the next beat is pursuit, leverage, or a risky call before the courier disappears.',
+      narration: 'The messenger\'s clue bites: fresh prints leave the rear hatch and cut toward the shrine road, where black wax is smeared across a cracked milestone. Ahead, a hooded courier drags a satchel into the thorn-choked roadside chapel. The witness paid off; the next beat is pursuit, leverage, or a risky call before the courier disappears.',
       options: [
         'Rush the courier before the chapel door closes',
         'Circle the thorn chapel and cut off the rear exit',
@@ -367,7 +367,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:wounded messenger|fresh footprints|rear hatch|pull-chain|drag mark)\b/i.test(latest)) {
     return {
-      narration: 'The old guild lead stays closed. At the waystation, the usable clue is the living one: the wounded messenger grips Kael\'s sleeve and forces out a name between panicked breaths, "Black wax... rear hatch... shrine road." Helping him will cost precious minutes; chasing the fresh footprints now risks leaving the only witness bleeding on the floor.',
+      narration: 'At the waystation, the usable clue is the living one: the wounded messenger grips Kael\'s sleeve and forces out a name between panicked breaths, "Black wax... rear hatch... shrine road." Helping him will cost precious minutes; chasing the fresh footprints now risks leaving the only witness bleeding on the floor.',
       options: [
         'Stabilize the messenger and demand one clear name',
         'Follow the fresh footprints toward the shrine road',
@@ -377,7 +377,7 @@ function buildFreshBeatContinuation(assistantHistory) {
   }
 
   return {
-    narration: 'The old guild lead stays closed. At the sealed waystation, the party puts the only current clue in front of the room itself: the snapped rope, the drag smear, and the bell mechanism hammered to keep ringing after someone fled. The answer is immediate and ugly: a wounded messenger is trapped under fallen shelving in the service room, alive but fading, while fresh footprints cut toward the rear hatch.',
+    narration: 'At the sealed waystation, the party puts the only current clue in front of the room itself: the snapped rope, the drag smear, and the bell mechanism hammered to keep ringing after someone fled. The answer is immediate and ugly: a wounded messenger is trapped under fallen shelving in the service room, alive but fading, while fresh footprints cut toward the rear hatch.',
     options: [
       'Free the wounded messenger and ask who set the bell',
       'Follow the fresh footprints through the rear hatch',

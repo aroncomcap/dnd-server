@@ -678,6 +678,52 @@ describe('buildUserMessage', () => {
     ]);
   });
 
+  it('does not expose internal closure-guard language in fresh beat narration', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The old ledger trail is behind you; this is a new problem. Greyhook\'s sealed roadside waystation waits ahead with its bell ringing hard and no visible hand on the rope.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The guild clerk tries to reopen the ledger dispute.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Put the named clue in front of the person responsible', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.doesNotMatch(result.narration, /old guild lead stays closed|prior guild|ledger objective is closed/i);
+    assert.match(result.narration, /sealed waystation/);
+  });
+
+  it('continues fresh beat routing after the old closure marker falls out of history', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'At the sealed waystation, the party finds the snapped rope, drag smear, and hammered bell mechanism. A wounded messenger is trapped under fallen shelving while fresh footprints cut toward the rear hatch.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'A guild clerk appears with another ledger and restarts the wharf dispute.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /Black wax/);
+    assert.doesNotMatch(result.narration, /guild clerk|ledger|wharf dispute/i);
+  });
+
   it('continues the waystation clue instead of repeating the first fresh-beat guard', () => {
     const gs = {
       data: {
