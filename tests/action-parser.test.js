@@ -173,6 +173,15 @@ describe('parseAction — attack without weapon', () => {
     assert.ok(result);
     assert.equal(result.targetId, 'goblin-archer-2');
   });
+
+  it('sneak attack feature text resolves through deterministic attack math', () => {
+    const result = parseAction('Sneak Attack 1d6', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'attack');
+    assert.equal(result.attackerId, 'kael');
+    assert.equal(result.targetId, 'gob-1');
+    assert.equal(result.weapon, 'Longsword');
+  });
 });
 
 // ---------------------------------------------------------------------------

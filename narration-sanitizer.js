@@ -7,8 +7,17 @@ function normalizeNarrationWhitespace(text) {
     .trim();
 }
 
+function stripLeakedInlineOptions(text) {
+  return String(text || '').replace(
+    /\s*1\uFE0F?\u20E3\s+\S[\s\S]*?2\uFE0F?\u20E3\s+\S[\s\S]*?(?:3\uFE0F?\u20E3\s+\S[\s\S]*)?$/u,
+    ''
+  );
+}
+
 function cleanInvalidCombatNarration(text) {
   let cleaned = String(text || '');
+
+  cleaned = stripLeakedInlineOptions(cleaned);
 
   cleaned = cleaned.replace(
     /\b([^.\n]*?\bcasts\s+[^—.\n]+)\s+—\s+rolls\s+(?:—|-|unknown)\s*,?\s*HIT!?\s*No immediate damage\./gi,

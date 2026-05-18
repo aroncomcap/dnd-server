@@ -39,3 +39,15 @@ test('removes unknown combat placeholder lines', () => {
 
   assert.equal(cleaned, 'Fleeing Presence Claw. The blue-lit thing streaks on.');
 });
+
+test('removes leaked inline action options from combat narration', () => {
+  assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
+  const { cleanInvalidCombatNarration } = require(modulePath);
+
+  const cleaned = cleanInvalidCombatNarration(
+    'Sneak Attack 1d6: Thorne’s strike lands. 1️⃣ Attack the unknown beast 2️⃣ Cast a healing or protective spell 3️⃣ Hold position and watch for openings.'
+  );
+
+  assert.equal(cleaned, 'Sneak Attack 1d6: Thorne’s strike lands.');
+  assert.doesNotMatch(cleaned, /1️⃣|2️⃣|3️⃣|Attack the unknown beast|Cast a healing or protective spell|Hold position/);
+});

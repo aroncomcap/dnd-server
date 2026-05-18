@@ -51,6 +51,23 @@ async function findReusableGameId(page, baseURL, gameName) {
   }
 }
 
+async function openNewGameForm(page, baseURL) {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    await page.goto(`${baseURL}/new-game`, { waitUntil: 'domcontentloaded' });
+    await page.locator('#game-name').waitFor({ state: 'visible', timeout: 10000 }).then(() => true).catch(() => false);
+    const gameNameInput = page.locator('#game-name');
+    const createButton = page.locator('#btn-create');
+    if (
+      await gameNameInput.isVisible().catch(() => false) &&
+      await createButton.isVisible().catch(() => false)
+    ) {
+      return gameNameInput;
+    }
+    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+  }
+  throw new Error(`New game form did not become visible at ${page.url()}`);
+}
+
 async function isCombatUiActive(page) {
   return page.evaluate(() => {
     const targetRow = document.querySelector('#target-control-row') as HTMLElement | null;
@@ -210,15 +227,7 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
 
     if (!gameId) {
       const gameName = reusableName || `Verbose-Session${gameCount}-L${currentLevel}`;
-      await page.goto(`${baseURL}/new-game`, { waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(1000);
-
-      const gameNameInput = page.locator('#game-name');
-      const isVisible = await gameNameInput.isVisible().catch(() => false);
-      if (!isVisible) {
-        console.log(`❌ Form not visible, retrying...`);
-        continue;
-      }
+      const gameNameInput = await openNewGameForm(page, baseURL!);
 
       await gameNameInput.fill(gameName);
       await page.locator('#game-system').selectOption('dnd5e');

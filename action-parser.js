@@ -165,6 +165,35 @@ function isFeatureAction(text) {
   return /\b(?:channel divinity|second wind|action surge|rage|reckless attack|wild shape|lay on hands|flurry of blows|stunning strike|bardic inspiration|turn undead|invoke duplicity)\b/i.test(text || '');
 }
 
+function isSneakAttackAction(text) {
+  return /\bsneak\s+attack\b/i.test(text || '');
+}
+
+function parseSneakAttackAction(raw, playerId, combatants, weapons, targetPreferences = {}) {
+  let rest = raw
+    .replace(/\bsneak\s+attack\b/i, '')
+    .replace(/\b\d+d\d+(?:\s*[+-]\s*\d+)?\b/i, '')
+    .trim();
+  let weapon = findWeapon(null, weapons);
+
+  const weaponOnly = rest.match(/^(?:with|using)\s+(.+)$/i);
+  if (weaponOnly) {
+    weapon = findWeapon(weaponOnly[1].trim(), weapons) || weapon;
+    rest = '';
+  } else {
+    const targetWithWeapon = rest.match(/^(.+?)\s+(?:with|using)\s+(.+)$/i);
+    if (targetWithWeapon) {
+      rest = targetWithWeapon[1].trim();
+      weapon = findWeapon(targetWithWeapon[2].trim(), weapons) || weapon;
+    }
+  }
+
+  rest = rest.replace(/^(?:on|at|against)\s+/i, '').trim();
+  const targetId = resolveTargetQuery(rest, combatants, 'Enemy', targetPreferences) ||
+    targetAuthority.getPreferredAttackTargetId(combatants, targetPreferences);
+  return { type: 'attack', attackerId: playerId, targetId, weapon, notes: 'Sneak Attack' };
+}
+
 function isDialogueAction(text) {
   return /\b(?:speak|speaks|speaking|talk|talks|talking|tell|tells|telling|explain|explains|explaining|request|requests|requesting|parl(?:e|a)y|negotiate|negotiates|negotiating|ask|asks|asking|question|questions|questioning|offer\s+peace|make\s+peace|peacefully|persuade|persuades|persuading|persuasion|convince|convinces|convincing|diplomacy|diplomatic|reason\s+with|calm\s+(?:down|them|him|her|it)|de-?escalate|surrender|lower\s+(?:my|our|the)\s+weapon|hold\s+up\s+(?:my|our|their)?\s*hands|we\s+seek|seek\s+(?:safe\s+)?passage|can\s+help|pressure|pressures|pressuring|intimidate|intimidates|intimidating|intimidation|demand|demands|demanding|argue|argues|arguing|appeal|appeals|appealing|plead|pleads|pleading|bargain|bargains|bargaining|barter|barters|bartering|haggle|haggles|haggling)\b/i.test(text || '');
 }
@@ -261,6 +290,10 @@ function parseAction(input, playerId, ctx) {
     if (lower === action || lower.startsWith(action + ' ')) {
       return { type: action, actorId: playerId, attackerId: playerId };
     }
+  }
+
+  if (isSneakAttackAction(raw)) {
+    return parseSneakAttackAction(raw, playerId, combatants, weapons, targetPreferences);
   }
 
   if (isFeatureAction(raw)) {
