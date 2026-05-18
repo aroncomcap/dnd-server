@@ -432,8 +432,37 @@ function buildFreshBeatContinuation(assistantHistory) {
   };
 }
 
+function shouldAdvanceMerchantRoutingScene(actionText, assistantHistory) {
+  if (!isGenericResolvedObjectiveAction(actionText) && !isAdvanceAction(actionText)) return false;
+  if (hasRecentResolvedBeat(assistantHistory)) return false;
+  const recent = (assistantHistory || []).slice(-4).join(' ').toLowerCase();
+  if (!/\b(?:hobb|wax token|south storehouse|dockmaster|grant passage|guild will not open|bring me proof)\b/.test(recent)) return false;
+  if (!/\b(?:merchant|guild|factor|ledger|freight|cargo|crate|shipment|wax token|wax-sealed|passage)\b/.test(recent)) return false;
+  if (!/\b(?:dockmaster|south storehouse|storehouse|silt quay|warehouse yard|warehouse)\b/.test(recent)) return false;
+  if (/\b(?:dockmaster rell|splintered handcart|loading ramp|crate-marked ledger page|missing shipment was diverted)\b/.test(recent)) return false;
+  return true;
+}
+
+function buildMerchantRoutingContinuation() {
+  return {
+    narration: 'The merchant interview stops being the scene and becomes the route. Hobb\'s wax token opens the south storehouse gate, where dockmaster Rell is already sweating beside a splintered handcart and a broken guild seal. Under loose boards by the loading ramp, the party finds the crate-marked ledger page: the missing shipment was diverted to Silt Quay. Rell can name who pressured him, but only if the party decides whether to shield him from Hobb, expose both men, or race the proof to the quay before the handoff moves.',
+    options: [
+      'Press Dockmaster Rell for who ordered the diversion',
+      'Secure the ledger page before Hobb hears it surfaced',
+      'Take the proof to Silt Quay and catch the handoff',
+    ],
+  };
+}
+
 function closeDeferredPayoffIfNeeded(parsed, actionText, gs) {
   const assistantHistory = getAssistantHistory(gs);
+  if (shouldAdvanceMerchantRoutingScene(actionText, assistantHistory)) {
+    return {
+      ...parsed,
+      ...buildMerchantRoutingContinuation(),
+      merchantRoutingAdvanced: true,
+    };
+  }
   if (shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, parsed?.narration)) {
     return {
       ...parsed,

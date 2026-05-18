@@ -891,6 +891,29 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /The chase stops here|guild matter closes|force restitution/i);
   });
 
+  it('pays out merchant routing scenes into the named storehouse lead', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'Master Hobb says the missing crates were last seen near Silt Quay and offers passage if the party brings proof.' },
+          { role: 'assistant', content: 'Hobb slides a wax token across the counter and says the south storehouse dockmaster handled the broken cart before noon.' },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Master Hobb repeats that the guild needs proof before its doors open wider.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Put the named clue in front of the person responsible', gs);
+
+    assert.equal(result.merchantRoutingAdvanced, true);
+    assert.match(result.narration, /south storehouse gate/);
+    assert.match(result.narration, /dockmaster Rell/);
+    assert.match(result.narration, /Silt Quay/);
+    assert.doesNotMatch(result.narration, /Master Hobb repeats|The chase stops here|Hobb is forced into the open/);
+  });
+
   it('does not extract determiners from generic responsible-person actions as culprit names', () => {
     const gs = {
       data: {
