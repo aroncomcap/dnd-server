@@ -438,6 +438,26 @@ describe('buildUserMessage', () => {
     assert.ok(msg.includes('reveal the proof'), 'Should force a new discovery or complication');
   });
 
+  it('adds a resolved beat advance directive after deterministic closure', () => {
+    const gs = {
+      pendingCorrections: [],
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The chase stops here. Halwen is exposed. This beat is resolved; the next decision is what price to make them pay.',
+          },
+        ],
+      },
+    };
+
+    const msg = buildUserMessage(gs, 'Kael', 'Move to the next story beat');
+
+    assert.match(msg, /RESOLVED BEAT ADVANCE/);
+    assert.match(msg, /Do not reopen the same culprit/);
+    assert.match(msg, /The party moves on from the resolved beat now/);
+  });
+
   it('closes mature split-pipeline breadcrumb loops instead of chasing another room', () => {
     const gs = {
       data: {
@@ -457,10 +477,62 @@ describe('buildUserMessage', () => {
     const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
 
     assert.equal(result.payoffClosed, true);
-    assert.equal(result.options.length, 0);
+    assert.equal(result.options.length, 3);
+    assert.match(result.options.join(' '), /Move to the next story beat/);
     assert.match(result.narration, /The chase stops here/);
     assert.match(result.narration, /This beat is resolved/);
     assert.doesNotMatch(result.narration, /south quay weighhouse|floorboards|before dusk/);
+  });
+
+  it('advances to a fresh beat after a resolved closure instead of reopening the ledger trail', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The chase stops here. Halwen is forced into the open. This beat is resolved; the next decision is what price to make them pay.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The party heads to Warehouse 9 where another buyer waits.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Move to the next story beat', gs);
+
+    assert.equal(result.resolvedBeatAdvanced, true);
+    assert.match(result.narration, /sealed roadside waystation/);
+    assert.doesNotMatch(result.narration, /Warehouse 9|buyer/);
+    assert.deepEqual(result.options, [
+      'Enter the sealed waystation and look for survivors',
+      'Circle the waystation for tracks before opening the door',
+      'Call out and demand whoever is ringing the bell answer',
+    ]);
+  });
+
+  it('pays out closure aftermath actions without reopening the old objective', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The truth no longer moves to another room. This beat is resolved; the next decision is what price to make them pay.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'A dock runner says the buyer is at the hidden stair under the quay.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Expose Seln publicly and demand restitution from the guild', gs);
+
+    assert.equal(result.resolvedBeatAdvanced, true);
+    assert.match(result.narration, /promised supplies and passage are granted/);
+    assert.doesNotMatch(result.narration, /hidden stair|buyer|quay/);
   });
 
   it('tells the model to begin after the latest DM message instead of rephrasing it', () => {

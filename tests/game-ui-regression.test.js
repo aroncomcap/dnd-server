@@ -473,6 +473,9 @@ test('split narration prompt carries story momentum and option quality rules', (
   assert.match(narrationPipelineJs, /Never answer progress with only cautious movement and no new information/, 'split narration should avoid cautious non-event loops');
   assert.match(narrationPipelineJs, /the culprit is below/, 'split narration should ban late objective cliffhanger loops');
   assert.match(narrationPipelineJs, /function closeDeferredPayoffIfNeeded/, 'split narration should repair mature breadcrumb loops after streaming');
+  assert.match(narrationPipelineJs, /Move to the next story beat/, 'split narration closure should offer an explicit next-beat option');
+  assert.match(narrationPipelineJs, /RESOLVED BEAT ADVANCE/, 'split narration should prevent post-closure actions from reopening old leads');
+  assert.match(narrationPipelineJs, /resolvedBeatAdvanced/, 'split narration should trace deterministic fresh-beat advances');
   assert.match(narrationPipelineJs, /south quay weighhouse/, 'split narration should catch observed weighhouse breadcrumb loops');
   assert.match(narrationPipelineJs, /trap ledger/, 'split narration should catch observed hidden-ledger breadcrumb loops');
   assert.match(narrationPipelineJs, /The chase stops here/, 'split narration deterministic closure should end mature lead loops');

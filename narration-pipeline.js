@@ -112,6 +112,25 @@ function buildAntiStallPacingDirective(history, actionText) {
 Recent DM turns already established the current lead, destination, permission step, or document trail. If the player repeats non-hostile social, search, or progress intent, treat it as consent to proceed. Do not narrate another transition, reminder, reluctance, or "it is ahead/one door away" beat. Resolve or complicate it NOW in this response: change the physical location, arrive inside, reveal the proof, confront the responsible NPC, introduce immediate danger, extract a cost, or close the minor routing scene and move to the next materially different scene. Do not end this response by only naming another lead. This turn needs payoff, pressure, or a hard choice: put someone named on stage, expose motive, force a cost, start a valid threat, or close the objective. This objective has consumed several turns; if an accountable NPC, culprit, cache, handoff, or named place is visible, resolve or climax it now rather than adding another intermediary. Forbidden endings: "the next move is clear", "one more door", "the lead points to", "reach X before Y", "the witness is trying to say a name", "the papers are burning", "the culprit is below", "footsteps approach", "there is another tunnel", or a newly named contact with no immediate payoff. If this is a merchant/guild/clerk/permit/ledger scene and the player is cooperating or following the lead, wrap the scene up instead of adding another clerk or document.`;
 }
 
+function isClosedBeatAftermathAction(actionText) {
+  const action = String(actionText || '');
+  return isAdvanceAction(action) ||
+    /\b(?:next story beat|move on|continue|press on|advance|leave|depart|head out|travel on|expose|demand|collect|concession|restitution|supplies|passage|make them pay|hold them accountable)\b/i.test(action);
+}
+
+function buildResolvedBeatAdvanceDirective(history, actionText) {
+  const assistantMessages = (history || [])
+    .filter(msg => msg?.role === 'assistant' && msg.content)
+    .map(msg => String(msg.content).replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  const latest = assistantMessages[assistantMessages.length - 1] || '';
+  if (!/\bThis beat is resolved\b|\btruth no longer moves to another room\b/i.test(latest)) return '';
+  if (!isClosedBeatAftermathAction(actionText)) return '';
+
+  return `[RESOLVED BEAT ADVANCE]
+The previous objective is done. Do not reopen the same culprit, guild, warehouse, ledger, cache, quay, stair, runner, buyer, or hidden room. Pay out the consequence in one sentence, then cut to a fresh materially different story beat tied to the party's larger objective.`;
+}
+
 function normalizeBareNarration(text) {
   return String(text || '')
     .replace(/\s+/g, ' ')
@@ -198,8 +217,40 @@ function buildSplitPayoffClosure({ narration, actionText, assistantHistory }) {
   return `The chase stops here. ${culprit} is forced into the open in this scene: ${proof} is secured, the witness confirms the scheme, and the remaining accomplice loses the nerve to keep running. One cost still lands—the papers are scorched, the crowd hears ugly names, or the guild now knows the party has leverage—but the truth no longer moves to another room, quay, stair, or hidden cache. The party has enough to expose ${culprit}, demand passage and supplies, or force restitution from the guild. This beat is resolved; the next decision is what price to make them pay.`;
 }
 
+function buildSplitPayoffOptions({ narration, actionText, assistantHistory }) {
+  const combined = `${(assistantHistory || []).slice(-6).join(' ')} ${actionText || ''} ${narration || ''}`;
+  const culprit = extractAccountableName(combined);
+  return [
+    `Expose ${culprit} publicly and collect the promised concession`,
+    'Demand supplies, passage, and restitution from the guild',
+    'Move to the next story beat',
+  ];
+}
+
+function shouldAdvanceAfterResolvedBeat(actionText, assistantHistory) {
+  const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  return /\bThis beat is resolved\b|\btruth no longer moves to another room\b/i.test(latest) &&
+    isClosedBeatAftermathAction(actionText);
+}
+
+function buildResolvedBeatAdvance() {
+  return 'The guild matter closes instead of reopening. Witnesses take custody of the proof, the promised supplies and passage are granted, and the party leaves with public leverage rather than another errand. By dusk, the next story beat is already waiting beyond Greyhook: a sealed roadside waystation with its bell ringing hard and no visible hand on the rope. The old ledger trail is behind you; this is a new problem.';
+}
+
 function closeDeferredPayoffIfNeeded(parsed, actionText, gs) {
   const assistantHistory = getAssistantHistory(gs);
+  if (shouldAdvanceAfterResolvedBeat(actionText, assistantHistory)) {
+    return {
+      ...parsed,
+      narration: buildResolvedBeatAdvance(),
+      options: [
+        'Enter the sealed waystation and look for survivors',
+        'Circle the waystation for tracks before opening the door',
+        'Call out and demand whoever is ringing the bell answer',
+      ],
+      resolvedBeatAdvanced: true,
+    };
+  }
   if (!shouldClosePayoffNarration(parsed?.narration, actionText, assistantHistory)) return parsed;
   return {
     ...parsed,
@@ -208,7 +259,11 @@ function closeDeferredPayoffIfNeeded(parsed, actionText, gs) {
       actionText,
       assistantHistory,
     }),
-    options: [],
+    options: buildSplitPayoffOptions({
+      narration: parsed.narration,
+      actionText,
+      assistantHistory,
+    }),
     payoffClosed: true,
   };
 }
@@ -417,6 +472,12 @@ function buildUserMessage(gs, characterName, actionText) {
     if (antiStallDirective) {
       parts.push(antiStallDirective);
       parts.push(`[INTERPRETED INTENT]\nThe party proceeds to the current named lead now. If a destination, contact, room, or visible threat has already been named, cut directly to it and show the immediate consequence.`);
+    }
+
+    const resolvedBeatAdvanceDirective = buildResolvedBeatAdvanceDirective(history, actionText);
+    if (resolvedBeatAdvanceDirective) {
+      parts.push(resolvedBeatAdvanceDirective);
+      parts.push(`[INTERPRETED INTENT]\nThe party moves on from the resolved beat now.`);
     }
   }
 
