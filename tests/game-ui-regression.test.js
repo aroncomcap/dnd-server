@@ -388,7 +388,7 @@ test('legacy narration path injects anti-stall objective closure', () => {
   assert.match(narrationPipelineJs, /buildAntiStallPacingDirective/, 'pipeline should expose anti-stall pacing');
   assert.match(serverJs, /buildAntiStallPacingDirective\(gd\.chatHistory, submittedActionTextForPrompt\)/, 'legacy path should add the same anti-stall pacing as split narration');
   assert.match(serverJs, /function buildObjectiveClosureDirective/, 'legacy path should add a stronger late-objective closure guard');
-  assert.match(serverJs, /Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, or "within the hour" lead/, 'closure guard should ban the observed breadcrumb endings');
+  assert.match(serverJs, /Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, exchange, back gate, route code, escort sign, cargo prayer, or "within the hour" lead/, 'closure guard should ban the observed breadcrumb endings');
   assert.match(serverJs, /Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", holding "real leverage", being moved tonight, a crew that "has names", or proof still being kicked into danger/, 'closure guard should ban chase-deferral endings');
 });
 
@@ -412,7 +412,14 @@ test('legacy narration path repairs deferred payoff endings after anti-stall tur
   assert.match(serverJs, /kicks\?\.\{0,80\}\(\?:toward\|into\|over\|off\)/, 'repair detector should catch proof kicked into danger');
   assert.match(serverJs, /destroying records/, 'repair detector should catch destroy-the-records breadcrumbs');
   assert.match(serverJs, /berth \(\?:mark\|number\|seven\)/, 'repair detector should catch berth-mark breadcrumbs');
+  assert.match(serverJs, /fresh lead/, 'repair detector should catch fresh-lead breadcrumbs');
+  assert.match(serverJs, /route office/, 'repair detector should catch route-office breadcrumbs');
+  assert.match(serverJs, /riverfront exchange/, 'repair detector should catch riverfront-exchange breadcrumbs');
+  assert.match(serverJs, /escort sign/, 'repair detector should catch escort-sign breadcrumbs');
+  assert.match(serverJs, /cargo prayer/, 'repair detector should catch cargo-prayer breadcrumbs');
   assert.match(serverJs, /assistantMessages\.length < 4/, 'lead ladder detector should trigger before the transcript drags');
+  assert.match(serverJs, /function shouldUseDeterministicPayoffClosure/, 'late breadcrumb chains should bypass another LLM repair attempt');
+  assert.match(serverJs, /const useDeterministicClosure = shouldUseDeterministicPayoffClosure/, 'legacy path should force deterministic closure for mature breadcrumb chains');
   assert.match(serverJs, /Do not end with the scene still mid-action/, 'repair prompt should force late scenes to land an outcome');
 });
 
