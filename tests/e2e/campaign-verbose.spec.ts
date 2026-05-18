@@ -53,15 +53,14 @@ async function findReusableGameId(page, baseURL, gameName) {
 
 async function isCombatUiActive(page) {
   return page.evaluate(() => {
-    const combatToggle = document.querySelector('#combat-log-toggle') as HTMLElement | null;
     const targetRow = document.querySelector('#target-control-row') as HTMLElement | null;
-    const combatLog = document.querySelector('#combat-log') as HTMLElement | null;
     const visible = (el: HTMLElement | null) => {
       if (!el) return false;
       const style = window.getComputedStyle(el);
       return style.display !== 'none' && style.visibility !== 'hidden';
     };
-    return visible(combatToggle) || visible(targetRow) || Boolean(combatLog?.textContent?.includes('Combat Begins'));
+    const state = window as unknown as { __ttsCombatActive?: boolean };
+    return Boolean(state.__ttsCombatActive) || visible(targetRow);
   }).catch(() => false);
 }
 

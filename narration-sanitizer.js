@@ -20,6 +20,11 @@ function cleanInvalidCombatNarration(text) {
     '$1. '
   );
 
+  cleaned = cleaned.replace(
+    /\b([^.\n]*?\b(?:cure wounds|healing word|bless|shield|guidance|bardic inspiration|dodge|help|dash|disengage|second wind)\b[^—.\n]*)\s+(?:—|-)\s+rolls?[^!\n]*(?:HIT|MISS)!?\s*/gi,
+    '$1 '
+  );
+
   return normalizeNarrationWhitespace(cleaned);
 }
 

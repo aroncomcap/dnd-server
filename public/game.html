@@ -2540,6 +2540,36 @@ function buildCharacterActionChips(char) {
   return chips;
 }
 
+function getKnownSpellForChip(char, label) {
+  const spellName = String(label || '').replace(/^cast\s+/i, '').trim().toLowerCase();
+  if (!spellName) return null;
+  const spells = char?.combatStats?.spells || char?.spells || [];
+  return spells.find(spell => {
+    const name = typeof spell === 'string' ? spell : spell?.name;
+    return String(name || '').trim().toLowerCase() === spellName;
+  }) || null;
+}
+
+function isHostileSpellChip(char, label) {
+  const lower = String(label || '').trim().toLowerCase();
+  const spell = getKnownSpellForChip(char, lower);
+  if (spell && typeof spell === 'object') {
+    if (spell.healing || spell.effect === 'heal' || spell.type === 'heal' || spell.type === 'healing') return false;
+    if (spell.type === 'defense' || spell.type === 'buff' || spell.type === 'utility') return false;
+    if (spell.damage || spell.attack || spell.save || spell.type === 'damage') return true;
+  }
+  return /\b(?:acid splash|burning hands|chill touch|eldritch blast|fire bolt|fireball|guiding bolt|inflict wounds|magic missile|poison spray|ray of frost|sacred flame|shocking grasp|thunderwave|toll the dead)\b/i.test(lower);
+}
+
+function isCombatOnlyActionChip(char, label) {
+  const lower = String(label || '').trim().toLowerCase();
+  if (!lower) return false;
+  if (isHostileSpellChip(char, lower)) return true;
+  if (/^(?:attack|strike|stab|slash|shoot|sneak attack|extra attack|multiattack|action surge|rage)\b/i.test(lower)) return true;
+  if (/^(?:dodge|dash|disengage|second wind)\b/i.test(lower)) return true;
+  return false;
+}
+
 function renderCharacterActionChips() {
   const rail = document.getElementById('character-action-chips');
   if (!rail) return;
@@ -2550,7 +2580,9 @@ function renderCharacterActionChips() {
     return;
   }
 
-  const chips = buildCharacterActionChips(getVisibleTurnCharacter());
+  const visibleChar = getVisibleTurnCharacter();
+  const chips = buildCharacterActionChips(visibleChar)
+    .filter(chip => combatActive || !isCombatOnlyActionChip(visibleChar, chip.label));
   if (!chips.length) {
     rail.classList.remove('visible');
     return;
@@ -2718,6 +2750,7 @@ let combatActive = false;
 let combatState = null;
 let targetPreferences = {};
 let reactionTimeout = null;
+window.__ttsCombatActive = false;
 
 socket.on('combat_initializing', (data) => {
   // Switch to OOC-only mode while monsters load
@@ -2751,6 +2784,7 @@ socket.on('combat_init_failed', () => {
 
 socket.on('combat_started', (data) => {
   combatActive = true;
+  window.__ttsCombatActive = true;
   combatState = { ...(combatState || {}), ...data };
   targetPreferences = data.targetPreferences || targetPreferences || {};
   clearPendingOptions();
@@ -2772,6 +2806,7 @@ socket.on('combat_started', (data) => {
 
 socket.on('combat_update', (data) => {
   combatActive = true;
+  window.__ttsCombatActive = true;
   combatState = {
     ...(combatState || {}),
     ...data,
@@ -2790,7 +2825,11 @@ socket.on('combat_update', (data) => {
 
 socket.on('combat_ended', (data) => {
   combatActive = false;
+  window.__ttsCombatActive = false;
+  combatState = { active: false, combatants: {}, initiativeOrder: [], targetSuggestions: {} };
+  targetPreferences = {};
   renderTargetControls();
+  renderCharacterActionChips();
   if (data.reason !== 'error') {
     document.getElementById('combat-log').innerHTML += '<div class="round-header">Combat Ended — ' + (data.reason === 'enemies_defeated' ? 'Victory!' : 'Defeat...') + '</div>';
   }
@@ -4135,7 +4174,9 @@ function sendAction() {
   }
 
   markActionSending();
-  socket.timeout(ACTION_ACK_TIMEOUT_MS).emit('player_action', { gameId, playerName: name, action, targetPreferences: getSelectedTargetPreferences() }, (err, ack) => {
+  const payload = { gameId, playerName: name, action };
+  if (combatActive) payload.targetPreferences = getSelectedTargetPreferences();
+  socket.timeout(ACTION_ACK_TIMEOUT_MS).emit('player_action', payload, (err, ack) => {
     if (err || !ack?.ok) {
       resetSendButton();
       input.value = action;

@@ -193,8 +193,9 @@ WRITING STYLE:
 - Write narration as flowing prose PARAGRAPHS. Multiple sentences per paragraph. Do NOT put each sentence on its own line.
 - Do NOT use markdown headers (# or ##) in narration. No section labels. Just prose.
 - Be mechanically accurate. A cantrip is a simple attack, not an explosion. A shortsword strike doesn't cause shockwaves. Scale descriptions to the actual spell/action level.
-- Combine attack roll + damage + result on ONE line: "**🎲 Fire Bolt (INT +2, Prof +2) — rolls 19. HIT! 1d10 = 7 fire damage. Captain wounded (HP ~13/20)**"
-- Use "HIT" or "MISS" (caps) so the client can color-code them.
+- Only use dice/HIT/MISS lines when the server has supplied RESOLVED THIS ROUND or an explicitly resolved rules/check result. Outside active combat, do not roll attack dice, invent damage, or change HP yourself.
+- If the player initiates violence and combat is not already active, narrate the hostile intent or positioning, output an ENEMIES block if initiative should start, and let the server resolve the attack on the next combat turn.
+- Never add HIT/MISS to healing, buffs, movement, social, travel, or non-damaging utility actions.
 - Follow the dice roll line with 1-2 sentences of narration describing the result. That's it.
 
 OUTPUT FORMAT (use this EXACT order at the end of every response):
@@ -446,8 +447,9 @@ WRITING STYLE:
 - Write narration as flowing prose PARAGRAPHS. Multiple sentences per paragraph. Do NOT put each sentence on its own line.
 - Do NOT use markdown headers (# or ##) in narration. No section labels. Just prose.
 - Be mechanically accurate. A cantrip is a simple attack, not an explosion. A shortsword strike doesn't cause shockwaves. Scale descriptions to the actual spell/action level.
-- Combine attack roll + damage + result on ONE line: "**🎲 Fire Bolt (INT +2, Prof +2) — rolls 19. HIT! 1d10 = 7 fire damage. Captain wounded (HP ~13/20)**"
-- Use "HIT" or "MISS" (caps) so the client can color-code them.
+- Only use dice/HIT/MISS lines when the server has supplied RESOLVED THIS ROUND or an explicitly resolved rules/check result. Outside active combat, do not roll attack dice, invent damage, or change HP yourself.
+- If the player initiates violence and combat is not already active, narrate the hostile intent or positioning, output an ENEMIES block if initiative should start, and let the server resolve the attack on the next combat turn.
+- Never add HIT/MISS to healing, buffs, movement, social, travel, or non-damaging utility actions.
 - Follow the dice roll line with 1-2 sentences of narration describing the result. That's it.
 
 ACTION OPTIONS:

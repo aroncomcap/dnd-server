@@ -93,7 +93,8 @@ test('player actions survive socket reconnects', () => {
   assert.match(gameHtml, /socket\.on\('connect'[\s\S]*?requestGameJoin\(\);[\s\S]*?updateActionArea\(\);/, 'client should rejoin the room after reconnect');
   assert.match(gameHtml, /socket\.on\('disconnect'[\s\S]*?gameJoinReady = false;[\s\S]*?updateActionArea\(\);/, 'client should mark actions unavailable after disconnect');
   assert.match(gameHtml, /if \(!socket\.connected \|\| !gameJoinReady\)[\s\S]*?return;/, 'sendAction should not locally echo actions before the socket rejoins');
-  assert.match(gameHtml, /socket\.timeout\(ACTION_ACK_TIMEOUT_MS\)\.emit\('player_action', \{ gameId, playerName: name, action, targetPreferences: getSelectedTargetPreferences\(\) \}/, 'player actions should include gameId as a reconnect recovery fallback');
+  assert.match(gameHtml, /const payload = \{ gameId, playerName: name, action \}/, 'player actions should include gameId as a reconnect recovery fallback');
+  assert.match(gameHtml, /socket\.timeout\(ACTION_ACK_TIMEOUT_MS\)\.emit\('player_action', payload/, 'player actions should send the reconnect-safe payload');
   assert.match(serverJs, /if \(!gameId && typeof data\?\.gameId === 'string'\)[\s\S]*?socket\.join\(requestedGameId\);[\s\S]*?socket\.gameId = requestedGameId;/, 'server should recover buffered actions from sockets that reconnected before join_game');
 });
 
@@ -176,6 +177,13 @@ test('combat freeform actions are not silently converted into weapon attacks', (
   assert.doesNotMatch(gameEngineJs, /Default:\s*attack the first living enemy with primary weapon/, 'game-engine combat path should not coerce unknown player actions into attacks');
 });
 
+test('GM prompt keeps attack rolls under server control', () => {
+  assert.match(promptBuilderJs, /Outside active combat, do not roll attack dice/, 'GM prompt should forbid model-rolled attacks outside active combat');
+  assert.match(promptBuilderJs, /let the server resolve the attack on the next combat turn/, 'GM prompt should route new violence into server combat resolution');
+  assert.doesNotMatch(promptBuilderJs, /Combine attack roll \+ damage \+ result on ONE line/, 'old model-rolled attack style should not remain in the main prompt');
+  assert.doesNotMatch(serverJs, /Kael swings longsword \(STR \+3, Prof \+2\) — rolls 17/, 'legacy few-shot should not teach model-resolved attacks');
+});
+
 test('combat turn options stay scoped to the engine turn after actions and auto-actions', () => {
   assert.match(serverJs, /function getVisiblePlayerForOptions/, 'server should compute option owner from active combat engine turn');
   assert.match(serverJs, /const nextPlayer = getVisiblePlayerForOptions\(gameId\);[\s\S]*emitDmMessage\(gameId, \{ text: narration, options, auto: false/, 'human combat actions should emit options for the resolved engine turn');
@@ -187,6 +195,13 @@ test('combat start clears stale scene options', () => {
   assert.match(gameHtml, /socket\.on\('combat_started'[\s\S]*?clearPendingOptions\(\)/, 'combat start should remove pre-combat social options from the action area');
   assert.match(gameHtml, /NO OPTIONS in model response[\s\S]*?pendingOptions = \[\]/, 'messages with no options should clear pending client options');
   assert.match(serverJs, /hasOwnProperty\.call\(messageData \|\| \{\}, 'options'\)[\s\S]*?gs\.lastOptions = \[\]/, 'server should clear remembered options when emitting an explicit empty options array');
+});
+
+test('combat end clears stale targets and hides combat-only quick actions', () => {
+  assert.match(gameHtml, /socket\.on\('combat_ended'[\s\S]*?combatState = \{ active: false, combatants: \{\}, initiativeOrder: \[\], targetSuggestions: \{\} \}/, 'client should clear defeated combatants after combat ends');
+  assert.match(gameHtml, /targetPreferences = \{\}/, 'client should clear stale combat target preferences after combat ends');
+  assert.match(gameHtml, /function isCombatOnlyActionChip/, 'client should classify combat-only action chips');
+  assert.match(gameHtml, /filter\(chip => combatActive \|\| !isCombatOnlyActionChip/, 'client should hide aggressive/tactical chips outside active combat');
 });
 
 test('combat auto-actions are resolved by the combat engine', () => {
@@ -214,9 +229,21 @@ test('combat target preferences have a client/server socket contract', () => {
   assert.match(gameHtml, /id="attack-target-select"/, 'attack target selector should exist');
   assert.match(gameHtml, /id="support-target-select"/, 'support target selector should exist');
   assert.match(gameHtml, /socket\.emit\('set_target_preferences'/, 'client should persist target preference changes');
-  assert.match(gameHtml, /targetPreferences: getSelectedTargetPreferences\(\)/, 'player actions should carry selected targets');
+  assert.match(gameHtml, /if \(combatActive\) payload\.targetPreferences = getSelectedTargetPreferences\(\)/, 'player actions should only carry selected targets during active combat');
   assert.match(serverJs, /socket\.on\('set_target_preferences'/, 'server should persist target preference changes');
   assert.match(serverJs, /targetPreferences/, 'combat socket payloads should include target preferences');
+});
+
+test('untargeted offensive actions ask for a target before resolution', () => {
+  assert.match(serverJs, /function isUntargetedOffensiveAction/, 'server should detect offensive actions without valid targets');
+  assert.match(serverJs, /function targetRequiredNarration/, 'server should have a deterministic target prompt');
+  assert.match(serverJs, /isUntargetedOffensiveAction\(userMessage[\s\S]*?return targetRequiredNarration\(userMessage\)/, 'inactive combat LLM calls should prompt before resolving untargeted attacks');
+  assert.match(serverJs, /const nextPlayer = blocked \? playerName : getVisiblePlayerForOptions/, 'target prompts should keep the same player turn');
+});
+
+test('verbose campaign helper does not treat old combat log text as active combat', () => {
+  assert.match(campaignVerboseTs, /__ttsCombatActive/, 'live smoke helper should read the explicit combat-active flag');
+  assert.doesNotMatch(campaignVerboseTs, /combatLog\?\.textContent\?\.includes\('Combat Begins'\)/, 'stale combat log text should not trigger combat fallback actions');
 });
 
 test('host recovery and optional combat compression are explicit controls', () => {

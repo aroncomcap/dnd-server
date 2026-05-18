@@ -16,6 +16,19 @@ test('removes bogus hit text from non-damage spell narration', () => {
   assert.equal(cleaned, 'Vesper Quill casts hex. No immediate damage. The curse settles.');
 });
 
+test('removes hit or miss text from healing and support actions', () => {
+  assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
+  const { cleanInvalidCombatNarration } = require(modulePath);
+
+  const cleaned = cleanInvalidCombatNarration(
+    'Sister Elowen casts Cure Wounds — rolls 17. HIT! Mirek regains 6 hit points.'
+  );
+
+  assert.doesNotMatch(cleaned, /\bHIT\b|\bMISS\b/);
+  assert.doesNotMatch(cleaned, /rolls 17/);
+  assert.match(cleaned, /Mirek regains 6 hit points/);
+});
+
 test('removes unknown combat placeholder lines', () => {
   assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
   const { cleanInvalidCombatNarration } = require(modulePath);

@@ -612,6 +612,7 @@ function extractNamedCombatTarget(text, partyNames = []) {
   const patterns = [
     /\b(?:attack|attacks|strike|strikes|hit|hits|stab|stabs|slash|slashes|shoot|shoots|blast|blasts)\s+(?:at\s+)?(?:the\s+)?([a-z][a-z'’ -]{2,60}?)(?=\s+(?:with|using|and|but|before|while|as|again|back|to\b)|[.,;!]|$)/i,
     /\bcast\s+[-a-z'’ ]+\s+(?:at|against|on|toward|towards)\s+(?:the\s+)?([a-z][a-z'’ -]{2,60}?)(?=\s+(?:with|using|and|but|before|while|as|again|back|to\b)|[.,;!]|$)/i,
+    /\b(?:acid splash|burning hands|chill touch|eldritch blast|fire bolt|fireball|guiding bolt|inflict wounds|magic missile|poison spray|ray of frost|sacred flame|shocking grasp|thunderwave|toll the dead)\s+(?:at|against|on|toward|towards)\s+(?:the\s+)?([a-z][a-z'’ -]{2,60}?)(?=\s+(?:with|using|and|but|before|while|as|again|back|to\b)|[.,;!]|$)/i,
   ];
 
   for (const pattern of patterns) {
@@ -628,6 +629,32 @@ function extractNamedCombatTarget(text, partyNames = []) {
     return raw.replace(/\b\w/g, c => c.toUpperCase());
   }
   return null;
+}
+
+function isUntargetedOffensiveAction(text, partyNames = []) {
+  const actionText = extractSubmittedActionText(text);
+  if (!actionText || hasNonHostileProgressIntent(actionText)) return false;
+  if (extractNamedCombatTarget(actionText, partyNames)) return false;
+
+  const lower = actionText.toLowerCase();
+  if (/^(?:attack|attacks|strike|strikes|hit|hits|stab|stabs|slash|slashes|shoot|shoots|blast|blasts|sneak attack)\b/.test(lower)) {
+    return true;
+  }
+  return /^(?:cast\s+)?(?:acid splash|burning hands|chill touch|eldritch blast|fire bolt|fireball|guiding bolt|inflict wounds|magic missile|poison spray|ray of frost|sacred flame|shocking grasp|thunderwave|toll the dead)\b/.test(lower);
+}
+
+function targetRequiredNarration(userMessage) {
+  const actionText = extractSubmittedActionText(userMessage) || 'That action';
+  return {
+    narration: `${actionText} needs a clear target. Who are you targeting?`,
+    options: [],
+    scene: null,
+    world: null,
+    isKillshot: false,
+    mapMoved: false,
+    llmRunId: null,
+    blocked: true,
+  };
 }
 
 async function maybeStartCombatFromOffensiveAction(gameId, gameConfig, userMessage, gs = getGameState(gameId)) {
@@ -1747,6 +1774,9 @@ async function callGameLLM(gameId, gameConfig, userMessage, actingAs = null) {
   // Combat turns use legacy path — combat engine integration has special handling.
   const gs0 = getGameState(gameId);
   if (!gs0.combatEngine?.state?.active) {
+    if (isUntargetedOffensiveAction(userMessage, Object.keys(gs0.data.characters || {}))) {
+      return targetRequiredNarration(userMessage);
+    }
     await maybeStartCombatFromOffensiveAction(gameId, gameConfig, userMessage, gs0).catch(err => {
       console.error('[auto-combat-action] failed:', err.message);
     });
@@ -1891,6 +1921,9 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
   const gd = gs.data;
 
   if (!gs.combatEngine?.state?.active) {
+    if (isUntargetedOffensiveAction(userMessage, Object.keys(gs.data.characters || {}))) {
+      return targetRequiredNarration(userMessage);
+    }
     const started = await maybeStartCombatFromOffensiveAction(gameId, gameConfig, userMessage, gs).catch(err => {
       console.error('[auto-combat-action] failed:', err.message);
       return false;
@@ -1908,7 +1941,7 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
     { role: 'user', content: 'Kael: I search the room for traps.' },
     { role: 'assistant', content: 'Kael finds a tripwire near the door — a poison dart trap.\n\n---OPTIONS---\n1️⃣ 🗡️ Disarm the trap\n2️⃣ 🛡️ Find another way around\n3️⃣ 🔥 Trigger it from a distance\n\n---SCENE---\nACTION: Examining trapped doorway\nMOOD: cautious\nNPC: none\n\n---WORLD---\nLOCATIONS:\n- Trapped Hallway | Stone corridor | current\nNPCS:\n- none\nMAP: Trapped Hallway' },
     { role: 'user', content: 'Kael: I attack the goblin with my longsword.' },
-    { role: 'assistant', content: '**🎲 Kael swings longsword (STR +3, Prof +2) — rolls 17. HIT! 1d8+3 = 7 slashing. Goblin staggers (HP 0/7)**\nKael cleaves through the goblin\'s guard. It crumples.\n\n**🎲 Goblin Archer fires at Kael — rolls 14. HIT! 1d6+2 = 5 piercing. Kael winces (HP 13/18)**\nAn arrow bites into Kael\'s shoulder.\n\n---OPTIONS---\n1️⃣ 🗡️ Charge the archer\n2️⃣ 🛡️ Take cover behind the pillar\n3️⃣ 🔥 Throw the goblin\'s body at the archer\n\n---SCENE---\nACTION: Fighting goblins in cave\nMOOD: fierce\nNPC: none\n\n---WORLD---\nLOCATIONS:\n- Goblin Cave | Damp limestone | current\nNPCS:\n- none\nMAP: Goblin Cave' },
+    { role: 'assistant', content: 'Kael lunges for the goblin, and the cave snaps from threat to open violence. The goblin shrieks an alarm while its archer scrambles for a firing angle; initiative begins before anyone\'s blow lands.\n\n---OPTIONS---\n1️⃣ 🗡️ Attack the goblin with longsword\n2️⃣ 🛡️ Take cover behind the pillar\n3️⃣ 🔥 Drive the archer back with a feint\n\n---SCENE---\nACTION: Combat begins in the goblin cave\nMOOD: fierce\nNPC: Goblin\n\n---WORLD---\nLOCATIONS:\n- Goblin Cave | Damp limestone | current\nNPCS:\n- Goblin Archer | Ambusher | hostile\nMAP: Goblin Cave\nENEMIES:\n- Goblin | 1 | goblin\n- Goblin Archer | 1 | goblin' },
   ] : [];
 
   const messages = [
@@ -4466,11 +4499,11 @@ Output ONLY this format:
         return;
       }
       // ✅ FIX: Serialize narration streaming per game to prevent concurrent chunk interleaving
-      const { narration, options, scene, world, isKillshot, mapMoved, llmRunId } = await withStreamingLock(gameId, () =>
+      const { narration, options, scene, world, isKillshot, mapMoved, llmRunId, blocked } = await withStreamingLock(gameId, () =>
         callGameLLM(gameId, gameConfig, `${playerName}: ${action}`)
       );
-      await advanceTurn(gameId, gameConfig, true);
-      const nextPlayer = getVisiblePlayerForOptions(gameId);
+      if (!blocked) await advanceTurn(gameId, gameConfig, true);
+      const nextPlayer = blocked ? playerName : getVisiblePlayerForOptions(gameId);
       emitDmMessage(gameId, { text: narration, options, auto: false, previousPlayer: playerName, forPlayer: nextPlayer, world, llmRunId });
       io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
       maybeGenerateImage(gameId, gameConfig, scene, isKillshot, mapMoved, narration)
@@ -5034,11 +5067,11 @@ const discordGameEngine = {
 
     const gameConfig = await db.getGame(gameId);
     // ✅ FIX: Serialize narration streaming per game
-    const { narration, options, scene, world, isKillshot, mapMoved, llmRunId } = await withStreamingLock(gameId, () =>
+    const { narration, options, scene, world, isKillshot, mapMoved, llmRunId, blocked } = await withStreamingLock(gameId, () =>
       callGameLLM(gameId, gameConfig, `${playerName}: ${action}`)
     );
-    await advanceTurn(gameId, gameConfig, true);
-    const nextPlayer = getVisiblePlayerForOptions(gameId);
+    if (!blocked) await advanceTurn(gameId, gameConfig, true);
+    const nextPlayer = blocked ? playerName : getVisiblePlayerForOptions(gameId);
     emitDmMessage(gameId, { text: narration, options, auto: false, previousPlayer: playerName, forPlayer: nextPlayer, world, llmRunId });
     io.to(gameId).emit('action_complete', { forPlayer: nextPlayer });
     const playerToken = gs.data.characters[playerName]?.token || null;
