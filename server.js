@@ -714,6 +714,32 @@ function isLeadLadderNarration(narration, actionText = '', history = []) {
   return authorityStack.test(text) && objectiveContext.test(`${recent} ${text}`);
 }
 
+function extractAccountableName(text) {
+  const value = String(text || '');
+  const colonName = value.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\s*:/);
+  if (colonName) return colonName[1];
+  const possessiveName = value.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})'s\b/);
+  if (possessiveName) return possessiveName[1];
+  const titledName = value.match(/\b(?:Master|Factor|Dockmaster|Clerk|Broker)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
+  if (titledName) return titledName[1];
+  const twoWordNames = value.match(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/g) || [];
+  const filtered = twoWordNames.filter(name => !/\b(?:Iron Quay|Warehouse Three|Moor Logistics|Merchant Guild|Lower Docks)\b/.test(name));
+  return filtered[0] || 'the exposed culprit';
+}
+
+function extractProofObject(text) {
+  const value = String(text || '').toLowerCase();
+  const proofWords = ['ledger', 'manifest', 'contract', 'receipt', 'satchel', 'seal', 'coffer', 'strongbox', 'shipping chit', 'token', 'order', 'papers', 'books'];
+  return proofWords.find(word => value.includes(word)) || 'the proof';
+}
+
+function buildPayoffClosureFallback({ narration, history }) {
+  const combined = `${(history || []).slice(-4).map(msg => msg?.content || '').join(' ')} ${narration || ''}`;
+  const culprit = extractAccountableName(narration || combined);
+  const proof = extractProofObject(combined);
+  return `The chase stops here. ${culprit} becomes accountable in the room, not another signpost: ${proof} is secured where witnesses can see it, and the latest name is written into the evidence instead of becoming a fresh errand. The immediate consequence lands now: the guild's cover story breaks, the witness is held under guard, and the party has leverage to demand passage, supplies, or public exposure. The next choice is not who to chase, but what price to make the guild pay for the truth.`;
+}
+
 async function repairDeferredPayoffNarration({ gameId, gameConfig, narration, actionText, history }) {
   const prompt = `Rewrite this tabletop RPG DM narration into a stronger in-scene payoff.
 
@@ -752,7 +778,11 @@ Requirements:
     if (!hasHardCombatSignal(narration) && !isExplicitHostileAction(actionText) && hasHardCombatSignal(repaired)) {
       return null;
     }
-    if (isDeferredPayoffNarration(repaired, actionText, history)) return null;
+    if (isDeferredPayoffNarration(repaired, actionText, history) ||
+        isLeadLadderNarration(repaired, actionText, history) ||
+        hasUnsupportedNonCombatDamageNarration(repaired, actionText)) {
+      return null;
+    }
     logCost({
       gameId,
       model: response.model,
@@ -2474,6 +2504,14 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
       parsed.narration = repairedNarration;
       parsed.options = [];
       io.to(gameId).emit('dm_stream_end', { narration: parsed.narration, llmRunId: finalMessage.llmRunId || null });
+    } else {
+      parsed.narration = buildPayoffClosureFallback({
+        narration: parsed.narration,
+        history: gd.chatHistory,
+      });
+      parsed.options = [];
+      io.to(gameId).emit('dm_stream_end', { narration: parsed.narration, llmRunId: finalMessage.llmRunId || null });
+      console.warn('[narration-payoff-repair] applied deterministic closure fallback');
     }
   }
   if (combatResolvedLines.length > 0 && !combatResolvedLines.every(line => parsed.narration.includes(line))) {

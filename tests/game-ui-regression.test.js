@@ -393,10 +393,13 @@ test('legacy narration path repairs deferred payoff endings after anti-stall tur
   assert.match(serverJs, /function isDeferredPayoffNarration/, 'server should detect narrations that defer payoff into another chase beat');
   assert.match(serverJs, /function hasUnsupportedNonCombatDamageNarration/, 'server should detect pseudo-combat injury outside active combat');
   assert.match(serverJs, /function isLeadLadderNarration/, 'server should detect late boss-above-boss escalation loops');
+  assert.match(serverJs, /function buildPayoffClosureFallback/, 'server should have a deterministic fallback when repair cannot land the payoff');
   assert.match(serverJs, /function repairDeferredPayoffNarration/, 'server should have a focused repair pass for deferred payoff narration');
   assert.match(serverJs, /task: 'narration-payoff-repair'/, 'repair pass should be traceable in LLM telemetry');
   assert.match(serverJs, /isDeferredPayoffNarration\(parsed\.narration, submittedActionText, gd\.chatHistory\)[\s\S]*isLeadLadderNarration\(parsed\.narration, submittedActionText, gd\.chatHistory\)[\s\S]*hasUnsupportedNonCombatDamageNarration\(parsed\.narration, submittedActionText\)/, 'legacy path should inspect parsed narration before saving it');
   assert.match(serverJs, /parsed\.narration = repairedNarration/, 'successful repair should replace the deferred narration');
+  assert.match(serverJs, /parsed\.narration = buildPayoffClosureFallback/, 'failed repair should fall back to a deterministic closure');
+  assert.match(serverJs, /The chase stops here/, 'deterministic closure should explicitly stop the breadcrumb chain');
   assert.match(serverJs, /Do not add a new route, office, lane, contact, buyer, alias, or "next lead"/, 'repair prompt should forbid creating another breadcrumb');
   assert.match(serverJs, /Do not replace the current culprit with a higher authority to chase/, 'repair prompt should prevent boss-above-boss escalation');
   assert.match(serverJs, /Outside active combat, do not narrate NPCs hitting, wounding, drawing blood, or damaging PCs/, 'repair prompt should prevent non-engine damage narration');

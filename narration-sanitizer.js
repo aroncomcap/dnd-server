@@ -62,6 +62,7 @@ function cleanInvalidCombatNarration(text) {
   );
 
   cleaned = cleaned.replace(/\b\d+d\d+\s*(?:[+-]\s*)?\?\s*/gi, '');
+  cleaned = cleaned.replace(/\bNo roll(?: this turn)?\.?\s*/gi, '');
 
   return capitalizeSentenceStarts(normalizeNarrationWhitespace(cleaned));
 }
