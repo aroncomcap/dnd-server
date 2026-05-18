@@ -172,7 +172,7 @@ async function ensureGameStarted(page) {
 
 async function pickFallbackAction(page) {
   if (await isCombatUiActive(page)) {
-    const actions = ['Attack', 'Dodge', 'Help'];
+    const actions = ['Attack nearest enemy', 'Dodge', 'Disengage'];
     return actions[Math.floor(Math.random() * actions.length)];
   }
   const actions = [
@@ -183,6 +183,43 @@ async function pickFallbackAction(page) {
     'Move on toward the next clear objective',
   ];
   return actions[Math.floor(Math.random() * actions.length)];
+}
+
+function isHostileActionText(text: string) {
+  return /\b(?:attack|strike|stab|slash|shoot|blast|kill|wound|damage|fire bolt|sacred flame|inflict wounds|magic missile|burning hands|guiding bolt|toll the dead)\b/i.test(text || '');
+}
+
+function scoreActionText(text: string, inCombat: boolean) {
+  const value = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!value) return -100;
+  if (/\bnone\b/i.test(value)) return -100;
+  if (inCombat) {
+    if (/\b(?:attack|strike|stab|slash|shoot|fire bolt|sacred flame|guiding bolt|magic missile)\b/i.test(value)) return 90;
+    if (/\b(?:dodge|disengage|dash)\b/i.test(value)) return 55;
+    if (/\b(?:heal|healing|cure|stabilize)\b/i.test(value)) return 50;
+    if (/\b(?:help|aid)\b/i.test(value)) return 5;
+    return 30;
+  }
+  if (isHostileActionText(value)) return -90;
+  if (/\b(?:move on|press on|continue|proceed|advance|head|travel|enter|follow|route|objective)\b/i.test(value)) return 95;
+  if (/\b(?:ask|talk|speak|negotiate|parley|offer|explain|persuade|convince|cooperate)\b/i.test(value)) return 90;
+  if (/\b(?:search|inspect|investigate|look|listen|study|examine|scout)\b/i.test(value)) return 75;
+  if (/\b(?:heal|healing|cure|bless|guidance)\b/i.test(value)) return 25;
+  if (/\b(?:dodge|disengage|dash|ready weapon)\b/i.test(value)) return -40;
+  return 45;
+}
+
+async function choosePlayableOptionButton(page, buttons) {
+  const inCombat = await isCombatUiActive(page);
+  const scored = [];
+  for (const btn of buttons) {
+    const text = (await btn.textContent().catch(() => '')) || '';
+    scored.push({ btn, text, score: scoreActionText(text, inCombat) });
+  }
+  scored.sort((a, b) => b.score - a.score);
+  const best = scored[0];
+  if (!best || best.score < (inCombat ? 10 : 40)) return null;
+  return best.btn;
 }
 
 test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) => {
@@ -318,16 +355,20 @@ test('Campaign Verbose: Level 1-3 with Full Output', async ({ page, baseURL }) =
         if (isReady) readyOptionButtons.push(btn);
       }
       if (readyOptionButtons.length > 0) {
-        const randomBtn = readyOptionButtons[Math.floor(Math.random() * readyOptionButtons.length)];
+        const randomBtn = await choosePlayableOptionButton(page, readyOptionButtons);
         try {
-          await randomBtn.click({ timeout: 2000 });
-          actionTaken = true;
-          noActionCount = 0;
-        } catch {
-          try {
-            await randomBtn.click();
+          if (randomBtn) {
+            await randomBtn.click({ timeout: 2000 });
             actionTaken = true;
             noActionCount = 0;
+          }
+        } catch {
+          try {
+            if (randomBtn) {
+              await randomBtn.click();
+              actionTaken = true;
+              noActionCount = 0;
+            }
           } catch {
             // Failed
           }

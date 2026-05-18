@@ -45,6 +45,7 @@ const encounterDirector = require('./encounter-director');
 const templateEngine = require('./template-engine');
 const targetAuthority = require('./target-authority');
 const enemyTargeting = require('./enemy-targeting');
+const { isPlaceholderEnemyName, normalizeEnemyEntry, normalizeEnemyEntries } = require('./enemy-normalizer');
 const USE_SPLIT_PIPELINE = process.env.SPLIT_PIPELINE === 'true';
 const TEST_MODE = process.env.TEST_MODE === 'true';
 
@@ -584,27 +585,6 @@ function plannedEncounterEnemies(encounter) {
   })).filter(e => e.displayName);
 }
 
-function monsterSlugFromName(name) {
-  return String(name || 'hostile-creature')
-    .toLowerCase()
-    .replace(/['’]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'hostile-creature';
-}
-
-function normalizeEnemyEntry(entry = {}) {
-  const displayName = String(entry.displayName || entry.name || entry.slug || 'Hostile creature').trim();
-  const customSlug = monsterSlugFromName(displayName);
-  const rawSlug = String(entry.slug || '').trim();
-  const slug = rawSlug && rawSlug !== 'custom' ? rawSlug : customSlug;
-  return {
-    displayName,
-    count: Math.max(1, Number(entry.count) || 1),
-    slug,
-    hint: entry.hint || (rawSlug === 'custom' ? displayName : null),
-  };
-}
-
 function extractNamedCombatTarget(text, partyNames = []) {
   const source = String(text || '').replace(/\([^)]*\)/g, ' ');
   const partyAliases = new Set(
@@ -1005,12 +985,16 @@ function parseResponse(text) {
         // Standard format: - Name | count | slug
         const match = line.match(/^[-*•]\s*(.+?)\s*\|\s*(\d+)\s*\|\s*(.+?)(?:\s*\|\s*(.+))?$/);
         if (match) {
-          enemies.push({
-            displayName: match[1].trim(),
-            count: parseInt(match[2], 10),
-            slug: match[3].trim(),
-            hint: match[4]?.trim() || null,
-          });
+          const displayName = match[1].trim();
+          const slug = match[3].trim();
+          if (!isPlaceholderEnemyName(displayName) && !isPlaceholderEnemyName(slug)) {
+            enemies.push({
+              displayName,
+              count: parseInt(match[2], 10),
+              slug,
+              hint: match[4]?.trim() || null,
+            });
+          }
         } else {
           // Fallback: - Name (count) or - Name x3 or just - Name
           const fallback = line.match(/^[-*•]\s*(.+?)(?:\s*\((\d+)\)|\s*x(\d+))?$/);
@@ -1039,7 +1023,7 @@ function parseResponse(text) {
 async function initiateCombat(gameId, gameConfig, enemies) {
   const gs = getGameState(gameId);
   const system = gameConfig.system || 'dnd5e';
-  const normalizedEnemies = (enemies || []).map(normalizeEnemyEntry);
+  const normalizedEnemies = normalizeEnemyEntries(enemies || []);
 
   // Gate: signal clients that combat is initializing (OOC-only mode)
   gs.combatInitializing = true;
