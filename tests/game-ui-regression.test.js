@@ -8,6 +8,7 @@ const serverJs = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8'
 const gameEngineJs = fs.readFileSync(path.join(__dirname, '..', 'game-engine.js'), 'utf8');
 const narrationPipelineJs = fs.readFileSync(path.join(__dirname, '..', 'narration-pipeline.js'), 'utf8');
 const promptBuilderJs = fs.readFileSync(path.join(__dirname, '..', 'prompt-builder.js'), 'utf8');
+const encounterDirectorJs = fs.readFileSync(path.join(__dirname, '..', 'encounter-director.js'), 'utf8');
 const gameActionTs = fs.readFileSync(path.join(__dirname, 'e2e', 'game-action.ts'), 'utf8');
 const campaignVerboseTs = fs.readFileSync(path.join(__dirname, 'e2e', 'campaign-verbose.spec.ts'), 'utf8');
 
@@ -335,6 +336,13 @@ test('non-hostile and progress intent cannot auto-derail into combat', () => {
   assert.match(serverJs, /intent-guard[\s\S]*?Suppressed ENEMIES block/, 'formal enemy blocks should be suppressible after non-hostile input');
   assert.doesNotMatch(serverJs, /emerge\|appear\|surround\|block\|engage/, 'soft scene text should not be hard combat signal terms');
   assert.match(promptBuilderJs, /Merchant, guard, watch, checkpoint/, 'prompt should preserve merchant/checkpoint scenes as social routing beats');
+});
+
+test('planned combat pacing does not force initiative by itself', () => {
+  assert.match(encounterDirectorJs, /clear choice, not automatic initiative/, 'combat pacing should introduce a threat choice first');
+  assert.match(encounterDirectorJs, /Only output an ENEMIES block if the player clearly chooses violence/, 'combat pacing should preserve player agency');
+  assert.doesNotMatch(encounterDirectorJs, /Include this ENEMIES block in ---WORLD--- exactly/, 'director should not inject automatic combat blocks');
+  assert.doesNotMatch(serverJs, /Forcing planned combat after pacing limit/, 'server should not force planned combat directly from pacing');
 });
 
 test('encounter planner is host-only and supports queued adventuring days', () => {

@@ -50,7 +50,7 @@ test('getNextPlannedEncounter skips rests and resolved beats', () => {
   assert.equal(next.encounter.pillar, 'social');
 });
 
-test('prepareEncounterPacing forces the next planned beat after two quiet turns', () => {
+test('prepareEncounterPacing introduces planned combat as a threat choice, not automatic initiative', () => {
   const plan = createEncounterPlan(makeDay());
   const gs = { encounterPlan: plan, _turnsSinceLastEncounter: PACING_TURN_LIMIT - 1 };
 
@@ -59,5 +59,7 @@ test('prepareEncounterPacing forces the next planned beat after two quiet turns'
   assert.equal(result.shouldAdvance, true);
   assert.equal(result.encounter.pillar, 'combat');
   assert.equal(gs._pendingChallenge.pillar, 'combat');
-  assert.match(gs._encounterPacingDirective, /MUST introduce the next planned combat/i);
+  assert.match(gs._encounterPacingDirective, /clear choice, not automatic initiative/i);
+  assert.match(gs._encounterPacingDirective, /avoid, parley, sneak, prepare, or engage/i);
+  assert.doesNotMatch(gs._encounterPacingDirective, /ENEMIES:/i);
 });

@@ -36,13 +36,10 @@ function planNeedsAdventuringDay(plan) {
 function formatEncounterDirective(encounter, quietTurns) {
   const turnText = `${quietTurns} quiet turn${quietTurns === 1 ? '' : 's'}`;
   if (encounter.pillar === 'combat') {
-    const enemies = (encounter.monsters || [])
-      .map(m => `- ${m.displayName || m.name} | ${m.count || 1} | ${m.slug || 'custom'}`)
-      .join('\n');
     return [
-      `DIRECTOR PACING: ${turnText} without a real challenge. You MUST introduce the next planned combat now.`,
-      `Do not narrate more searching, coins, atmosphere, or vague clues. Put immediate hostile pressure in the scene.`,
-      enemies ? `Include this ENEMIES block in ---WORLD--- exactly:\nENEMIES:\n${enemies}` : '',
+      `DIRECTOR PACING: ${turnText} without a real challenge. Introduce the next planned threat as a clear choice, not automatic initiative.`,
+      `Show why the threat matters to the route or objective, then offer ways to avoid, parley, sneak, prepare, or engage.`,
+      `Only output an ENEMIES block if the player clearly chooses violence, the threat attacks first, or failure makes combat unavoidable.`,
     ].filter(Boolean).join('\n');
   }
   if (encounter.pillar === 'social') {

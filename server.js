@@ -576,15 +576,6 @@ async function ensureActiveEncounterPlan(gameId, gameConfig, gs) {
   return { ok: true, created: true, plan: gs.encounterPlan };
 }
 
-function plannedEncounterEnemies(encounter) {
-  return (encounter?.monsters || []).map(m => ({
-    displayName: m.name || m.displayName,
-    count: m.count || 1,
-    slug: m.slug,
-    hint: null,
-  })).filter(e => e.displayName);
-}
-
 function extractNamedCombatTarget(text, partyNames = []) {
   const source = String(text || '').replace(/\([^)]*\)/g, ' ');
   const partyAliases = new Set(
@@ -688,11 +679,8 @@ async function resolvePendingPlannedChallenge(gameId, gameConfig, gs) {
 
   if (pending.pillar === 'combat') {
     if (!gs.combatEngine?.state?.active) {
-      const enemies = plannedEncounterEnemies(pending);
-      if (enemies.length > 0) {
-        console.log(`[encounter-plan] Forcing planned combat after pacing limit: ${enemies.map(e => `${e.count}x ${e.displayName}`).join(', ')}`);
-        await initiateCombat(gameId, gameConfig, enemies).catch(e => console.error('Planned combat init error:', e));
-      }
+      markPlannedEncounterResolved(gs, pendingIndex);
+      await persistAndEmitPlannerProgress(gameId);
     }
     encounterDirector.clearPacingDirective(gs);
     return;
