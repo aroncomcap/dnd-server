@@ -346,6 +346,13 @@ test('formal enemy blocks require an actual hostile trigger', () => {
   assert.match(narrationPipelineJs, /explicitHostileAction \|\| hasHardCombatSignal/, 'split pipeline should use the same hostile trigger gate');
 });
 
+test('story prompt discourages repeated gatekeeper loops and noncombat filler actions', () => {
+  assert.match(promptBuilderJs, /Maintain one current objective at a time/, 'prompt should preserve a single active objective');
+  assert.match(promptBuilderJs, /do not introduce another clerk, factor, outpost, or DC check/, 'prompt should avoid repeated guild checkpoint loops');
+  assert.match(promptBuilderJs, /Routine routing\/social scenes should resolve in one exchange and then advance/, 'prompt should move brief social scenes forward');
+  assert.match(promptBuilderJs, /Avoid Dodge, Disengage, Dash, or generic Attack fillers unless immediate physical danger is present/, 'noncombat options should not be tactical filler');
+});
+
 test('planned combat pacing does not force initiative by itself', () => {
   assert.match(encounterDirectorJs, /clear choice, not automatic initiative/, 'combat pacing should introduce a threat choice first');
   assert.match(encounterDirectorJs, /Only output an ENEMIES block if the player clearly chooses violence/, 'combat pacing should preserve player agency');

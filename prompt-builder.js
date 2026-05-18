@@ -3,6 +3,13 @@
 const MAX_CONTEXT_CHARS = 50000;
 const defaultEncounterDesigner = require('./encounter-designer');
 
+const STORY_CONTINUITY_RULES = `STORY CONTINUITY RULES:
+- Maintain one current objective at a time. Resolve it or clearly complicate it before introducing a new gatekeeper, route tax, or social checkpoint.
+- Once a merchant/guild/checkpoint NPC gives a lead, move the party toward that lead; do not introduce another clerk, factor, outpost, or DC check for the same permission.
+- Do not restate "DC 9" or "2 successes before 3 failures" unless a new major obstacle truly begins. Routine routing/social scenes should resolve in one exchange and then advance.
+- End each non-combat turn with a changed situation: a clue gained, route opened, cost paid, obstacle resolved, danger revealed, or named next decision.
+- Outside active combat, suggested options should be social, investigative, travel, or utility. Avoid Dodge, Disengage, Dash, or generic Attack fillers unless immediate physical danger is present.`;
+
 // ── Art Styles ───────────────────────────────────────────────────────────────
 const ART_STYLES = {
   'oil-painting': {
@@ -188,6 +195,8 @@ THREE PILLARS OF PLAY (target weighting):
 - Exploration: ${gs.pillars?.exploration ?? 33}% | Combat: ${gs.pillars?.combat ?? 33}% | Social: ${gs.pillars?.social ?? 34}%
 - Preserve the party's stated quest objective. Merchant, guard, watch, checkpoint, and passerby encounters are brief routing/social scenes unless the player clearly chooses violence or a hard failure forces initiative.
 - If the player signals travel, acknowledgement, progression, or moving on, advance the current story beat. If intent is ambiguous, default to non-hostile progress or dialogue, not combat.
+
+${STORY_CONTINUITY_RULES}
 
 WRITING STYLE:
 - Write narration as flowing prose PARAGRAPHS. Multiple sentences per paragraph. Do NOT put each sentence on its own line.
@@ -381,6 +390,8 @@ SKILL TEST PACING:
 - If two consecutive turns pass without any dice roll or skill check, the pace is too slow. Introduce a challenge, obstacle, or situation that demands a roll.
 - Skill tests drive advancement. Without them, characters don't grow. Make tests feel natural and consequential.
 - If characters are wandering or stalling, gently push the action forward with a route, clue, NPC prompt, or explicit choice. Do not introduce random combat unless the quest, hostile action, or a hard failure truly warrants it.
+
+${STORY_CONTINUITY_RULES}
 
 RULES:
 - Track HP, conditions, spells, powers, and resources accurately. Apply game rules correctly.
@@ -637,6 +648,7 @@ ${resolvedCombatState ? `\n${resolvedCombatState}\n` : ''}
 ${ferocityLine}
 ${pillarsLine}
 ${pacingLine}
+${STORY_CONTINUITY_RULES}
 ${encounterPlanLine}
 ${npcMemoryBlockTrimmed}
 
