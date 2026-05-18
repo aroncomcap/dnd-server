@@ -185,6 +185,18 @@ async function pickFallbackAction(page) {
   if (/\bwharf lane\b|\bcounting-house\b/.test(recentText)) {
     return 'Go directly to the shuttered counting-house on Wharf Lane';
   }
+  if (/\bprivate lift\b|\bhavel'?s circle\b|\bscheduled handoff\b|\bdelivery mark\b/.test(recentText)) {
+    return "Take the private lift key to tonight's handoff and confront Havel's circle";
+  }
+  if (/\borderbook\b|\bpayment note\b|\bfactor\b/.test(recentText)) {
+    return 'Confront the factor with the orderbook, seize the proof, and demand who profits';
+  }
+  if (/\bgreen gloves\b|\bgreen-gloved\b|\bthug\b|\bmissing warehouse key\b/.test(recentText)) {
+    return 'Cut off the green-gloved thug, protect Brann, and seize the warehouse key';
+  }
+  if (/\bcart handler\b|\bbrann\b|\bsatchel\b|\bwax seal\b|\bfresh mud\b/.test(recentText)) {
+    return 'Track the fresh mud from the sealed satchel to the person who carried it';
+  }
   if (/\bwarehouse 12\b/.test(recentText)) {
     return 'Go directly to Warehouse 12 and look for the runner and original receipt';
   }
@@ -204,10 +216,10 @@ async function pickFallbackAction(page) {
     return 'State our purpose clearly, take the current lead, and leave for the named destination';
   }
   const actions = [
-    'Move on toward the next clear objective',
-    'Follow the strongest current lead immediately',
-    'Ask one direct question, then proceed to the named lead',
-    'Search for the clue that changes the situation',
+    'Force the current lead into a confrontation now',
+    'Put the named clue in front of the person responsible',
+    'Make a decisive move that risks a cost for answers',
+    'Move to the place where the clue pays off',
   ];
   return actions[Math.floor(Math.random() * actions.length)];
 }

@@ -72,4 +72,15 @@ describe('prompt-builder resolved combat state', () => {
 
     assert.match(prompt, /ENCOUNTER PLAN: Encounter 2 of 2/);
   });
+
+  it('requires lead payoff instead of endless breadcrumb handoffs', () => {
+    const minimal = buildMinimalPrompt({ system: 'dnd5e' }, makeGameState());
+    const full = buildFullPrompt('game-1', { system: 'dnd5e' }, () => makeGameState(), require('../encounter-designer'));
+
+    for (const prompt of [minimal, full]) {
+      assert.match(prompt, /Do not end a response by only pointing to the next lead/);
+      assert.match(prompt, /A strong non-combat turn has payoff, pressure, and personality/);
+      assert.match(prompt, /Never repeat a prior clue as the main event/);
+    }
+  });
 });

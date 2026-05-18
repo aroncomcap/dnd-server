@@ -10,6 +10,9 @@ const STORY_CONTINUITY_RULES = `STORY CONTINUITY RULES:
 - If you need a twist, twist the current lead (missing contact, locked warehouse, compromised agent, visible danger) instead of swapping in another clerk, factor, road, or manifest.
 - Once a merchant/guild/checkpoint NPC gives a lead, move the party toward that lead; do not introduce another clerk, factor, outpost, or DC check for the same permission.
 - Begin each response after the latest DM message. Do not reproduce or paraphrase any full sentence from recent history.
+- Do not end a response by only pointing to the next lead. If a lead is already known, pay it off as an arrival, confrontation, revelation, cost, or hard choice before naming the next one.
+- A strong non-combat turn has payoff, pressure, and personality: show what changes, why it matters, and how a named person or visible threat reacts.
+- Never repeat a prior clue as the main event. Recap old evidence in one short phrase at most, then show the new consequence.
 - Minor routing/social scenes have a two-response ceiling: establish the lead, then reveal, resolve, complicate, or leave the scene. Do not chain clerks, permits, ledgers, or corridors.
 - If recent history already ended with "the next lead is ahead/one room away/waiting there", the next progress action must consume that lead now instead of restating that it is close.
 - Do not restate "DC 9" or "2 successes before 3 failures" unless a new major obstacle truly begins. Routine routing/social scenes should resolve in one exchange and then advance.

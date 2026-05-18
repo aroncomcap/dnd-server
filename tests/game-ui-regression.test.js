@@ -290,6 +290,9 @@ test('verbose campaign fallback actions consume named leads instead of re-asking
   assert.match(campaignVerboseTs, /go directly to Warehouse 12/i, 'smoke player should consume the Warehouse 12 lead');
   assert.match(campaignVerboseTs, /go directly to the shuttered counting-house on Wharf Lane/i, 'smoke player should consume the Wharf Lane counting-house lead');
   assert.match(campaignVerboseTs, /go directly to the cooper's shed/i, 'smoke player should consume the cooper shed lead');
+  assert.match(campaignVerboseTs, /cut off the green-gloved thug/i, 'smoke player should push visible danger into a scene');
+  assert.match(campaignVerboseTs, /confront the factor with the orderbook/i, 'smoke player should force evidence scenes to pay off');
+  assert.match(campaignVerboseTs, /private lift key to tonight's handoff/i, 'smoke player should follow scheduled handoff stakes');
   assert.doesNotMatch(campaignVerboseTs, /Ask what the clerk needs from us/, 'smoke player should not keep re-asking clerks after a lead is visible');
 });
 

@@ -414,6 +414,8 @@ describe('buildUserMessage', () => {
     assert.ok(msg.includes('change the physical location'), 'A known destination should force a location change');
     assert.ok(msg.includes('INTERPRETED INTENT'), 'Anti-stall turns should get an explicit interpreted intent');
     assert.ok(msg.includes('The party proceeds to the current named lead now'), 'Interpreted intent should force immediate lead consumption');
+    assert.ok(msg.includes('Do not end this response by only naming another lead'), 'Anti-stall should require payoff instead of another breadcrumb');
+    assert.ok(msg.includes('This turn needs payoff, pressure, or a hard choice'), 'Anti-stall should make the scene more dramatic');
   });
 
   it('adds anti-stall pacing for repeated investigation of an established lead', () => {
