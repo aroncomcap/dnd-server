@@ -12,8 +12,9 @@ function stripLeakedInlineOptions(text) {
     /\s*1\uFE0F?\u20E3\s+\S[\s\S]*?2\uFE0F?\u20E3\s+\S[\s\S]*?(?:3\uFE0F?\u20E3\s+\S[\s\S]*)?$/u,
     ''
   );
-  cleaned = cleaned.replace(/\s*1(?:\uFE0F?\u20E3|[.)])\s+\S[\s\S]*?2(?:\uFE0F?\u20E3|[.)])\s+\S[\s\S]*$/u, '');
-  cleaned = cleaned.replace(/\s*1(?:\uFE0F?\u20E3|[.)])\s+\S[\s\S]*$/u, '');
+  cleaned = cleaned.replace(/\s*1\uFE0F?\u20E3\s+\S[\s\S]*$/u, '');
+  cleaned = cleaned.replace(/(?:^|\n\n|\n)\s*1[.)]\s+\S[\s\S]*?2[.)]\s+\S[\s\S]*$/u, '');
+  cleaned = cleaned.replace(/(?:^|\n\n|\n)\s*1[.)]\s+\S[\s\S]*$/u, '');
   return cleaned;
 }
 

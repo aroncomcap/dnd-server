@@ -64,6 +64,19 @@ test('removes leaked inline action options from combat narration', () => {
   assert.doesNotMatch(cleaned, /1️⃣|2️⃣|3️⃣|Attack the unknown beast|Cast a healing or protective spell|Hold position/);
 });
 
+test('preserves combat damage totals that look like numbered options', () => {
+  assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
+  const { cleanInvalidCombatNarration } = require(modulePath);
+
+  const cleaned = cleanInvalidCombatNarration(
+    'Mirek Voss attacks Pursuit Hostiles with rapier. Damage: 1d8+3 (8 + 3 = 11) piercing. Pursuit Hostiles HP: 34→23.'
+  );
+
+  assert.match(cleaned, /11\) piercing/);
+  assert.match(cleaned, /Pursuit Hostiles HP: 34→23/);
+  assert.doesNotMatch(cleaned, /= 1\.$/);
+});
+
 test('removes leaked inline options even when the third option is omitted', () => {
   assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
   const { cleanInvalidCombatNarration } = require(modulePath);

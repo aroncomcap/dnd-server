@@ -2231,8 +2231,10 @@ function renderDmText(text) {
   if (!text || text === 'undefined' || typeof text !== 'string') return '';
   // Strip markdown noise before escaping
   let cleaned = stripStructuredBlocksFromNarration(text)
-    .replace(/\s*1(?:\uFE0F?\u20E3|[.)])\s+\S[\s\S]*?2(?:\uFE0F?\u20E3|[.)])\s+\S[\s\S]*$/u, '')
-    .replace(/\s*1(?:\uFE0F?\u20E3|[.)])\s+\S[\s\S]*$/u, '')
+    .replace(/\s*1\uFE0F?\u20E3\s+\S[\s\S]*?2\uFE0F?\u20E3\s+\S[\s\S]*$/u, '')
+    .replace(/\s*1\uFE0F?\u20E3\s+\S[\s\S]*$/u, '')
+    .replace(/(?:^|\n\n|\n)\s*1[.)]\s+\S[\s\S]*?2[.)]\s+\S[\s\S]*$/u, '')
+    .replace(/(?:^|\n\n|\n)\s*1[.)]\s+\S[\s\S]*$/u, '')
     .replace(/\s*\bOPTIONS\s*$/i, '')
     .replace(/^#{1,3}\s+.*$/gm, '')                           // strip ALL # headers (## NARRATION, # ⚔️ TITLE, etc.)
     .replace(/^-{3,}\s*$/gm, '')                              // --- dividers

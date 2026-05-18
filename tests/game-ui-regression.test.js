@@ -32,6 +32,19 @@ test('DM rendering strips structured marker blocks before display', () => {
   assert.match(gameHtml, /const finalText = stripStructuredBlocksFromNarration\(narration \|\| body\.textContent \|\| ''\)/, 'stream finalizer should sanitize fallback text');
 });
 
+test('DM rendering does not strip combat math totals as action options', () => {
+  assert.doesNotMatch(
+    gameHtml,
+    /replace\(\s*\/\\s\*1\(\?:\\uFE0F\?\\u20E3\|\[\.\)\]\)/,
+    'numeric option stripping should not match 11) inside combat damage math'
+  );
+  assert.match(
+    gameHtml,
+    /\(\?:\^\|\\n\\n\|\\n\)\\s\*1\[\.\)\]/,
+    'numeric option stripping should require a line or paragraph boundary'
+  );
+});
+
 test('E2E action waiter requires a new completed DM message', () => {
   assert.match(gameActionTs, /if \(completedDmCount <= before\) return false;/, 'waitForActionResponse should require a new completed DM message');
   assert.match(gameActionTs, /normalize\(clone\?\.textContent \|\| ''\) !== normalize\(previousText\)/, 'waitForActionResponse should reject stale repeated text when prior text is known');
@@ -445,7 +458,8 @@ test('legacy narration path repairs deferred payoff endings after anti-stall tur
   assert.match(serverJs, /slices\?/, 'noncombat damage guard should catch pseudo-damage from blades outside engine combat');
   assert.match(serverJs, /Do not start combat, call for initiative, or narrate attacks unless the player explicitly chose violence/, 'payoff repair should not preserve AI-only combat after non-hostile input');
   assert.match(gameHtml, /OPTIONS\\s\*\$\/i/, 'client renderer should remove bare OPTIONS marker tails from visible narration');
-  assert.match(gameHtml, /1\(\?:\\uFE0F\?\\u20E3\|\[\.\)\]\)/, 'client renderer should remove inline numbered option leaks');
+  assert.match(gameHtml, /1\\uFE0F\?\\u20E3/, 'client renderer should remove inline emoji numbered option leaks');
+  assert.match(gameHtml, /\(\?:\^\|\\n\\n\|\\n\)\\s\*1\[\.\)\]/, 'client renderer should remove line-start numeric option leaks');
 });
 
 test('story prompt discourages repeated gatekeeper loops and noncombat filler actions', () => {
