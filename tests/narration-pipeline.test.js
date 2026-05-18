@@ -410,6 +410,8 @@ describe('buildUserMessage', () => {
     assert.ok(msg.includes('ANTI-STALL PACING'), 'Should warn the model not to circle a known lead');
     assert.ok(msg.includes('Resolve or complicate it NOW'), 'Should require consuming the established lead');
     assert.ok(msg.includes('wrap the scene up'), 'Should shorten minor merchant/guild document scenes');
+    assert.ok(msg.includes('treat it as consent to proceed'), 'Repeated non-hostile intent should close the current exchange');
+    assert.ok(msg.includes('change the physical location'), 'A known destination should force a location change');
   });
 
   it('adds anti-stall pacing for repeated investigation of an established lead', () => {

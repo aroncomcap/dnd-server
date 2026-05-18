@@ -103,7 +103,7 @@ function buildAntiStallPacingDirective(history, actionText) {
   if (signalCount < 2) return '';
 
   return `[ANTI-STALL PACING]
-Recent DM turns already established the current lead, destination, permission step, or document trail. Do not narrate another transition, reminder, reluctance, or "it is ahead/one door away" beat. Resolve or complicate it NOW in this response: arrive inside, reveal the proof, confront the responsible NPC, introduce immediate danger, extract a cost, or close the minor routing scene and move to the next materially different scene. If this is a merchant/guild/clerk/permit/ledger scene and the player is cooperating or following the lead, wrap the scene up instead of adding another clerk or document.`;
+Recent DM turns already established the current lead, destination, permission step, or document trail. If the player repeats non-hostile social, search, or progress intent, treat it as consent to proceed. Do not narrate another transition, reminder, reluctance, or "it is ahead/one door away" beat. Resolve or complicate it NOW in this response: change the physical location, arrive inside, reveal the proof, confront the responsible NPC, introduce immediate danger, extract a cost, or close the minor routing scene and move to the next materially different scene. If this is a merchant/guild/clerk/permit/ledger scene and the player is cooperating or following the lead, wrap the scene up instead of adding another clerk or document.`;
 }
 
 function normalizeBareNarration(text) {

@@ -179,6 +179,12 @@ async function pickFallbackAction(page) {
     .replace(/\s+/g, ' ')
     .slice(-2500)
     .toLowerCase();
+  if (/\bwarehouse 12\b/.test(recentText)) {
+    return 'Go directly to Warehouse 12 and look for the runner and original receipt';
+  }
+  if (/\bharl venn\b|\bsouth warehouse quay\b/.test(recentText)) {
+    return 'Take the receipt and go directly to Harl Venn at the south warehouse quay';
+  }
   if (/\b(?:trap|seam|dart|collapse|unstable|hazard|grating|crawlspace)\b/.test(recentText)) {
     return 'Carefully inspect and bypass the hazard without forcing it';
   }

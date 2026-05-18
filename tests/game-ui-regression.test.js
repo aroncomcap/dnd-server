@@ -285,6 +285,11 @@ test('verbose campaign transcript prints selected player actions', () => {
   assert.match(campaignVerboseTs, /PLAYER ACTION:/, 'campaign transcript should print the selected action before the DM response');
 });
 
+test('verbose campaign fallback actions consume named leads instead of re-asking clerks', () => {
+  assert.match(campaignVerboseTs, /go directly to Harl Venn at the south warehouse quay/i, 'smoke player should consume the Harl Venn lead');
+  assert.match(campaignVerboseTs, /go directly to Warehouse 12/i, 'smoke player should consume the Warehouse 12 lead');
+});
+
 test('host recovery and optional combat compression are explicit controls', () => {
   assert.match(gameHtml, /Move to Next Beat/, 'reset affordance should become Move to Next Beat');
   assert.match(gameHtml, /socket\.emit\('move_to_next_beat'/, 'client should request story-beat recovery explicitly');
