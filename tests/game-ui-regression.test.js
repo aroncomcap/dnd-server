@@ -354,6 +354,9 @@ test('story prompt discourages repeated gatekeeper loops and noncombat filler ac
   assert.match(promptBuilderJs, /do not invent a replacement contact or alternate destination/, 'prompt should not rotate contacts every turn');
   assert.match(promptBuilderJs, /If you need a twist, twist the current lead/, 'prompt should complicate the current lead instead of replacing it');
   assert.match(promptBuilderJs, /do not introduce another clerk, factor, outpost, or DC check/, 'prompt should avoid repeated guild checkpoint loops');
+  assert.match(promptBuilderJs, /Minor routing\/social scenes have a two-response ceiling/, 'prompt should cap minor routing scenes before they drag');
+  assert.match(promptBuilderJs, /the next progress action must consume that lead now/, 'prompt should consume already-established leads instead of restating them');
+  assert.match(promptBuilderJs, /Make utilitarian hooks feel alive quickly/, 'prompt should demand dramatic stakes for paperwork-style scenes');
   assert.match(promptBuilderJs, /Routine routing\/social scenes should resolve in one exchange and then advance/, 'prompt should move brief social scenes forward');
   assert.match(promptBuilderJs, /Never answer progress with only cautious movement and no new information/, 'prompt should not turn progress into cautious non-events');
   assert.match(promptBuilderJs, /ground the scene immediately with a named place/, 'generic openings should become concrete scenes');
@@ -368,11 +371,15 @@ test('split narration prompt carries story momentum and option quality rules', (
   assert.match(narrationPipelineJs, /Every non-combat response must materially change the situation/, 'split narration should require changed situations');
   assert.match(narrationPipelineJs, /topLevelHistory\.length \? topLevelHistory : dataHistory/, 'split narration should read persisted chat history');
   assert.match(narrationPipelineJs, /Treat RECENT HISTORY as binding continuity/, 'split narration should preserve named leads from recent history');
+  assert.match(narrationPipelineJs, /ANTI-STALL PACING/, 'split narration should inject anti-stall directives for repeated lead loops');
+  assert.match(narrationPipelineJs, /Resolve or complicate it NOW/, 'anti-stall directives should force the established lead to be consumed');
+  assert.match(narrationPipelineJs, /Minor routing\/social scenes have a two-response ceiling/, 'split narration should cap minor routing scenes before they drag');
   assert.match(narrationPipelineJs, /Never answer progress with only cautious movement and no new information/, 'split narration should avoid cautious non-event loops');
   assert.match(narrationPipelineJs, /Do not repeat the same beat from recent turns/, 'split narration should avoid repeated scouting beats');
   assert.match(narrationPipelineJs, /Each option must change the situation/, 'split narration options should be scene-changing');
   assert.match(narrationPipelineJs, /Avoid "inspect\/search\/scout ahead" unless a specific unresolved hazard/, 'split narration should avoid repeated passive inspection options');
   assert.match(serverJs, /Each option must materially change the situation/, 'server fallback option prompts should be scene-changing');
+  assert.match(serverJs, /the direct advance option must consume it now/, 'server option fallback should avoid another travel-toward-the-lead option');
   assert.match(serverJs, /avoid repeated inspect\/watch\/scout options unless a specific unresolved hazard is visible/i, 'redo/fallback options should avoid passive re-check loops');
 });
 

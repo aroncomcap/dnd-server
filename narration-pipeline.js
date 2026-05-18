@@ -21,9 +21,12 @@ const STORY_MOMENTUM_RULES = [
   'Maintain one active named lead, contact, or destination at a time. If recent history already named a lead, keep using that same lead until the party reaches, resolves, or clearly loses it.',
   'If you need a twist, twist the current lead instead of inventing a replacement contact, route, or destination.',
   'For travel, progress, acknowledgement, and "move on" actions, move the party to the next concrete place, person, clue, or decision in this response.',
+  'Minor routing/social scenes have a two-response ceiling: establish the lead, then reveal, resolve, complicate, or leave the scene. Do not chain clerks, permits, ledgers, or corridors.',
+  'If recent history already ended with "the next lead is ahead/one room away/waiting there", the next progress action must consume that lead now instead of restating that it is close.',
   'Never answer progress with only cautious movement and no new information. If the party checks for danger and there is no meaningful hazard, compress the caution and advance the scene.',
   'Do not repeat the same beat from recent turns. If recent narration already covered scouting, watching flanks, checking traps, or a clear path, switch to arrival, discovery, dialogue, consequence, or choice.',
   'Merchant, guard, checkpoint, and passerby scenes are brief routing/social beats unless the player clearly chooses violence or a hard failure forces initiative.',
+  'Make utilitarian hooks feel alive quickly: by the second response, expose a motive, secret, threat, vivid NPC personality, or cost that gives the players something dramatic to care about.',
 ].join('\n- ');
 
 const OPTION_QUALITY_RULES = [
@@ -70,6 +73,35 @@ function buildFallbackTurn(characterName, actionText) {
     narration: `${actor}${actionClause}. The scene stays tense but playable as the party keeps its footing and watches for the next opening.`,
     options: [...FALLBACK_OPTIONS],
   };
+}
+
+function buildAntiStallPacingDirective(history, actionText) {
+  const assistantMessages = (history || [])
+    .filter(msg => msg?.role === 'assistant' && msg.content)
+    .map(msg => String(msg.content).replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .slice(-4);
+  if (assistantMessages.length < 2) return '';
+
+  const action = String(actionText || '');
+  const playerIsTryingToMoveScene =
+    isAdvanceAction(action) ||
+    isDialogueAction(action) ||
+    /\b(?:follow|continue|proceed|press on|move on|head|travel|enter|approach|leave|ask|explain|state|offer|cooperate|lead|objective)\b/i.test(action);
+  if (!playerIsTryingToMoveScene) return '';
+
+  const recent = assistantMessages.join(' ').toLowerCase();
+  const stallSignals = [
+    /\b(?:next|clear)\s+(?:lead|objective|proof|decision|place)\b/,
+    /\b(?:one\s+(?:room|door)|door\s+away|room\s+away|waiting\s+(?:there|ahead|beyond)|ahead)\b/,
+    /\b(?:points?|leads?|go(?:es)?)\s+(?:toward|to|back)\b/,
+    /\b(?:clerk|guild|ledger|permit|docket|seal|factor|counting\s+room|warehouse|countinghouse)\b/,
+  ];
+  const signalCount = stallSignals.reduce((count, pattern) => count + (pattern.test(recent) ? 1 : 0), 0);
+  if (signalCount < 2) return '';
+
+  return `[ANTI-STALL PACING]
+Recent DM turns already established the current lead, destination, permission step, or document trail. Do not narrate another transition, reminder, reluctance, or "it is ahead/one door away" beat. Resolve or complicate it NOW in this response: arrive inside, reveal the proof, confront the responsible NPC, introduce immediate danger, extract a cost, or close the minor routing scene and move to the next materially different scene. If this is a merchant/guild/clerk/permit/ledger scene and the player is cooperating or following the lead, wrap the scene up instead of adding another clerk or document.`;
 }
 
 function normalizeBareNarration(text) {
@@ -291,6 +323,9 @@ function buildUserMessage(gs, characterName, actionText) {
       return `${role}: ${msg.content}`;
     });
     parts.push(`[RECENT HISTORY]\n${historyLines.join('\n')}`);
+
+    const antiStallDirective = buildAntiStallPacingDirective(history, actionText);
+    if (antiStallDirective) parts.push(antiStallDirective);
   }
 
   const resolvedCombatState = formatResolvedCombatState(gs.lastCombatConclusion);

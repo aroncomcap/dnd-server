@@ -394,6 +394,40 @@ describe('buildUserMessage', () => {
     assert.ok(msg.includes('binding continuity'), 'Should tell the model to preserve the named lead');
   });
 
+  it('adds anti-stall pacing when recent history keeps circling an established lead', () => {
+    const gs = {
+      pendingCorrections: [],
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'Master Halven says the warehouse ledger on Flint Row is the next lead.' },
+          { role: 'assistant', content: 'The counting room is one door away, and the proof is waiting ahead.' },
+        ],
+      },
+    };
+
+    const msg = buildUserMessage(gs, 'Kael', 'Follow the lead toward the next clear objective.');
+
+    assert.ok(msg.includes('ANTI-STALL PACING'), 'Should warn the model not to circle a known lead');
+    assert.ok(msg.includes('Resolve or complicate it NOW'), 'Should require consuming the established lead');
+    assert.ok(msg.includes('wrap the scene up'), 'Should shorten minor merchant/guild document scenes');
+  });
+
+  it('does not add anti-stall pacing for a new explicit combat action', () => {
+    const gs = {
+      pendingCorrections: [],
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'The counting room is one door away, and the proof is waiting ahead.' },
+          { role: 'assistant', content: 'The clerk points toward the warehouse ledger again.' },
+        ],
+      },
+    };
+
+    const msg = buildUserMessage(gs, 'Kael', 'I stab the cultist.');
+
+    assert.ok(!msg.includes('ANTI-STALL PACING'), 'Combat actions should not receive non-combat pacing directives');
+  });
+
   it('includes the player action', () => {
     const gs = makeGameState();
     const msg = buildUserMessage(gs, 'Kael', 'I attack the goblin.');
