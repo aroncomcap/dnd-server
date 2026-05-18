@@ -391,11 +391,13 @@ test('legacy narration path injects anti-stall objective closure', () => {
 
 test('legacy narration path repairs deferred payoff endings after anti-stall turns', () => {
   assert.match(serverJs, /function isDeferredPayoffNarration/, 'server should detect narrations that defer payoff into another chase beat');
+  assert.match(serverJs, /function hasUnsupportedNonCombatDamageNarration/, 'server should detect pseudo-combat injury outside active combat');
   assert.match(serverJs, /function repairDeferredPayoffNarration/, 'server should have a focused repair pass for deferred payoff narration');
   assert.match(serverJs, /task: 'narration-payoff-repair'/, 'repair pass should be traceable in LLM telemetry');
-  assert.match(serverJs, /isDeferredPayoffNarration\(parsed\.narration, submittedActionText, gd\.chatHistory\)/, 'legacy path should inspect parsed narration before saving it');
+  assert.match(serverJs, /isDeferredPayoffNarration\(parsed\.narration, submittedActionText, gd\.chatHistory\)[\s\S]*hasUnsupportedNonCombatDamageNarration\(parsed\.narration, submittedActionText\)/, 'legacy path should inspect parsed narration before saving it');
   assert.match(serverJs, /parsed\.narration = repairedNarration/, 'successful repair should replace the deferred narration');
   assert.match(serverJs, /Do not add a new route, office, lane, contact, buyer, alias, or "next lead"/, 'repair prompt should forbid creating another breadcrumb');
+  assert.match(serverJs, /Outside active combat, do not narrate NPCs hitting, wounding, drawing blood, or damaging PCs/, 'repair prompt should prevent non-engine damage narration');
   assert.match(serverJs, /flees\?\|fleeing\|fled/, 'repair detector should catch flee-forward endings');
   assert.match(serverJs, /being \(\?:moved\|shifted\)/, 'repair detector should catch moved-tonight cache endings');
   assert.match(serverJs, /crew has names/, 'repair detector should catch named-crew breadcrumbs');

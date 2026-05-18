@@ -19,10 +19,15 @@ function stripMalformedStructuredMarkerTail(text) {
 }
 
 function stripUnsupportedCheckResultLabels(text) {
-  return String(text || '').replace(
+  let cleaned = String(text || '').replace(
     /\b(?:(?:(?:Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma|Athletics|Acrobatics|Sleight of Hand|Stealth|Arcana|History|Investigation|Nature|Religion|Animal Handling|Insight|Medicine|Perception|Survival|Deception|Intimidation|Performance|Persuasion)\s+(?:check|contest|save)\s+(?:succeeds?|fails?|passes?|lands?|works?))|Investigation payoff|Social pressure lands?|Last-second pressure works?|Improvised grapple fails?)\s*(?:—|-|:)\s*/gi,
     ''
   );
+  cleaned = cleaned.replace(
+    /\b(?:NO ROLL|(?:STR|DEX|CON|INT|WIS|CHA)\s+(?:check|contest|save)\s+implied|(?:ATHLETICS|ACROBATICS|STEALTH|ARCANA|HISTORY|INVESTIGATION|INSIGHT|PERCEPTION|SURVIVAL|DECEPTION|INTIMIDATION|PERSUASION|CHALLENGE)(?:\/(?:ATHLETICS|ACROBATICS|STEALTH|ARCANA|HISTORY|INVESTIGATION|INSIGHT|PERCEPTION|SURVIVAL|DECEPTION|INTIMIDATION|PERSUASION|CHALLENGE))*)\s*(?:—|-|:)\s*/gi,
+    ''
+  );
+  return cleaned;
 }
 
 function capitalizeSentenceStarts(text) {

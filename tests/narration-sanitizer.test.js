@@ -81,9 +81,9 @@ test('removes unsourced noncombat check result labels while preserving consequen
   const { cleanInvalidCombatNarration } = require(modulePath);
 
   const cleaned = cleanInvalidCombatNarration(
-    'Strength check succeeds — Merren is restrained in place. Social pressure lands — the boatman hesitates. Improvised grapple fails — Merren cannot break Kael’s hold.'
+    'Strength check succeeds — Merren is restrained in place. Social pressure lands — the boatman hesitates. Improvised grapple fails — Merren cannot break Kael’s hold. DEX contest implied — Theren gets aboard. NO ROLL — pressure forces a confession. INTIMIDATION/CHALLENGE — the lead is forced into the open.'
   );
 
-  assert.equal(cleaned, 'Merren is restrained in place. The boatman hesitates. Merren cannot break Kael’s hold.');
-  assert.doesNotMatch(cleaned, /check succeeds|pressure lands|grapple fails/i);
+  assert.equal(cleaned, 'Merren is restrained in place. The boatman hesitates. Merren cannot break Kael’s hold. Theren gets aboard. Pressure forces a confession. The lead is forced into the open.');
+  assert.doesNotMatch(cleaned, /check succeeds|pressure lands|grapple fails|DEX contest implied|NO ROLL|INTIMIDATION\/CHALLENGE/i);
 });

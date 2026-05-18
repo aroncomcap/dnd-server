@@ -692,6 +692,13 @@ function isDeferredPayoffNarration(narration, actionText = '', history = []) {
   return /\b(?:vanish(?:es|ed)?|retreats?|melts?|slips away|runs?|escapes?|flees?|fleeing|fled|bolts?|deeper|still within reach|not alone|real leverage|go now|one breath left|before (?:he|she|they|it|anyone|the watch) (?:learns?|reaches?|can)|trail (?:has|is|turns|points)|route (?:he|she|they|it) used|next move|next lead|points? toward|waiting under|waiting at|head straight for|being (?:moved|shifted)|(?:is|are) (?:being )?(?:moved|shifted|hidden|carried) (?:now|tonight)|happening now|crew has names|has names|about to become public|chance to shove off|lost moments?|kicks?.{0,80}(?:toward|into|over|off)|shoves?.{0,80}(?:toward|into|over|off)|throws?.{0,80}(?:toward|into|over|off)|lunges? for|goes pale at the sight)\b/.test(ending);
 }
 
+function hasUnsupportedNonCombatDamageNarration(narration, actionText = '') {
+  if (isExplicitHostileAction(actionText)) return false;
+  const text = String(narration || '').replace(/\s+/g, ' ').trim();
+  if (!text) return false;
+  return /\b(?:draw(?:s|ing)? blood|bleeding|bloodies|clubs?|slashes?|stabs?|smashes?|rams?|lashes?|strikes?|hits?|cuts?|wounds?|drives? the breath|oar into|hook across|knife into|blade into|arrow into|spear into|mace into)\b/i.test(text);
+}
+
 async function repairDeferredPayoffNarration({ gameId, gameConfig, narration, actionText, history }) {
   const prompt = `Rewrite this tabletop RPG DM narration into a stronger in-scene payoff.
 
@@ -711,6 +718,7 @@ Requirements:
 - Do not add a new route, office, lane, contact, buyer, alias, or "next lead".
 - Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", or holding "real leverage".
 - Do not end with the scene still mid-action, such as a culprit kicking proof away, someone lunging for evidence, or an accomplice bolting.
+- Outside active combat, do not narrate NPCs hitting, wounding, drawing blood, or damaging PCs. Use non-damage costs instead: alarm, lost time, public exposure, damaged proof, lost leverage, an owed favor, or a harder choice.
 - Do not start combat unless the draft already started combat.
 - Write 80-130 words of vivid, playable narration only. No options, markers, JSON, or commentary.`;
 
@@ -2436,7 +2444,8 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     parsed.options = fallback.options;
     io.to(gameId).emit('dm_stream_end', { narration: parsed.narration, llmRunId: finalMessage.llmRunId || null });
   }
-  if (!combatActive && pacingOverride && isDeferredPayoffNarration(parsed.narration, submittedActionText, gd.chatHistory)) {
+  if (!combatActive && (isDeferredPayoffNarration(parsed.narration, submittedActionText, gd.chatHistory) ||
+      hasUnsupportedNonCombatDamageNarration(parsed.narration, submittedActionText))) {
     const repairedNarration = await repairDeferredPayoffNarration({
       gameId,
       gameConfig,
