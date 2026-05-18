@@ -23,15 +23,16 @@ const STORY_MOMENTUM_RULES = [
   'If you need a twist, twist the current lead instead of inventing a replacement contact, route, or destination.',
   'Begin each response after the latest DM message. Do not reproduce or paraphrase any full sentence from recent history.',
   'Do not end by only pointing to the next lead; pay known leads off as arrival, confrontation, revelation, cost, or hard choice.',
-  'A strong non-combat turn has payoff, pressure, personality, and a visible change.',
+  'A strong non-combat turn has payoff, pressure, and visible change.',
   'Confront/demand answers is social unless explicit attack/damaging spell.',
   'Never repeat a prior clue as the main event; recap old evidence in one short phrase, then show the new consequence.',
-  'Late objectives cannot end on "the witness is trying to say a name", "the papers are burning", "the culprit is below", footsteps, or another tunnel; resolve witness, proof, culprit, or cost now.',
-  'For travel, progress, acknowledgement, and "move on" actions, move the party to the next concrete place, person, clue, or decision in this response.',
+  'Late objectives cannot end on "the witness is trying to say a name", "the papers are burning", "the culprit is below", footsteps, or another tunnel; resolve proof, culprit, or cost.',
+  'For travel, progress, acknowledgement, and "move on" actions, move the party to the next concrete place, person, clue, or decision.',
+  'Never describe a non-empty travel, progress, or clue-payoff action as "doing nothing" or "nothing useful"; partial intent moves forward.',
   'Minor routing/social scenes have a two-response ceiling: establish the lead, then reveal, resolve, complicate, or leave.',
   'If recent history already ended with "the next lead is ahead/one room away/waiting there", the next progress action must consume that lead now instead of restating that it is close.',
   'Never answer progress with only cautious movement and no new information. If the party checks for danger and there is no meaningful hazard, compress the caution and advance the scene.',
-  'Do not repeat the same beat from recent turns. If recent narration already covered scouting, watching flanks, checking traps, or a clear path, switch to arrival, discovery, dialogue, consequence, or choice.',
+  'Do not repeat the same beat from recent turns; switch to arrival, discovery, dialogue, consequence, or choice.',
   'Merchant, guard, checkpoint, and passerby scenes are brief routing/social beats unless the player clearly chooses violence or a hard failure forces initiative.',
   'By the second response, expose motive, secret, threat, personality, or cost.',
 ].join('\n- ');
@@ -134,7 +135,7 @@ The previous objective is done. Do not reopen the same culprit, guild, warehouse
 }
 
 function isFreshBeatBoundary(text) {
-  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|current scene)\b/i.test(String(text || ''));
+  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|current scene)\b/i.test(String(text || ''));
 }
 
 function isGenericResolvedObjectiveAction(actionText) {
@@ -287,6 +288,17 @@ function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration
 
 function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (/\b(?:hooded courier|thorn-choked|roadside chapel|chapel door|courier disappears)\b/i.test(latest)) {
+    return {
+      narration: 'The old guild lead stays closed. At the thorn-choked roadside chapel, the courier is no longer a rumor ahead of the party: he is at the cracked altar, one hand on a black-wax satchel and the other on a knife he is not brave enough to use. Inside the satchel is a route sketch toward the hill shrine and a broken signet pressed into the wax. The choice is immediate: seize him, bargain for the name behind the seal, or let him run and follow the map.',
+      options: [
+        'Seize the courier before he burns the satchel',
+        'Offer the courier protection for the name behind the black wax',
+        'Let the courier run and follow the hill-shrine map',
+      ],
+    };
+  }
+
   if (/\b(?:black wax|shrine road)\b/i.test(latest)) {
     return {
       narration: 'The old guild lead stays closed. The party follows the messenger\'s clue instead of circling the warehouse story: fresh prints leave the rear hatch and cut toward the shrine road, where black wax is smeared across a cracked milestone. Ahead, a hooded courier drags a satchel into the thorn-choked roadside chapel. The witness paid off; the next beat is pursuit, leverage, or a risky call before the courier disappears.',
@@ -591,7 +603,7 @@ function buildUserMessage(gs, characterName, actionText) {
   }
 
   // Player action with system override instruction
-  const systemOverride = `CRITICAL: The player has chosen an action below. You MUST narrate ONLY what happens as a direct consequence of that choice. Begin after the latest DM message. Do not reproduce or paraphrase any full sentence from RECENT HISTORY. If the player's action overlaps with a recent beat, compress the overlap and reveal the next new consequence, discovery, NPC reaction, cost, or decision. Do not repeat previous narrations or generic descriptions. Treat RECENT HISTORY as binding continuity: keep the same named lead, contact, or destination until the party reaches, resolves, or clearly loses it.\n\n`;
+  const systemOverride = `CRITICAL: The player has chosen an action below. You MUST narrate ONLY what happens as a direct consequence of that choice. Begin after the latest DM message. Do not reproduce or paraphrase any full sentence from RECENT HISTORY. If the player's action overlaps with a recent beat, compress the overlap and reveal the next new consequence, discovery, NPC reaction, cost, or decision. Do not repeat previous narrations or generic descriptions. Treat RECENT HISTORY as binding continuity: keep the same named lead, contact, or destination until the party reaches, resolves, or clearly loses it. Never describe a non-empty progress action as doing nothing useful, hesitation, or inaction; partial intent advances the current lead.\n\n`;
   parts.push(systemOverride);
   parts.push(`PLAYER ACTION: ${characterName} chooses: ${actionText}`);
   parts.push(`\nRespond directly. Narrate what happens because of this choice ONLY.`);

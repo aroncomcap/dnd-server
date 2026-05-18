@@ -726,6 +726,30 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /repeats the same warning/);
   });
 
+  it('advances repeated shrine-road actions into the chapel instead of replaying the courier approach', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The old guild lead stays closed. The party follows the messenger\'s clue instead of circling the warehouse story: fresh prints leave the rear hatch and cut toward the shrine road, where black wax is smeared across a cracked milestone. Ahead, a hooded courier drags a satchel into the thorn-choked roadside chapel. The witness paid off; the next beat is pursuit, leverage, or a risky call before the courier disappears.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The hooded courier drags a satchel into the thorn-choked roadside chapel again.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Make a decisive move that risks a cost for answers', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /cracked altar/);
+    assert.match(result.narration, /route sketch toward the hill shrine/);
+    assert.doesNotMatch(result.narration, /drags a satchel into the thorn-choked roadside chapel again/);
+  });
+
   it('keeps stale guild-proof actions in a newer south-road den scene', () => {
     const gs = {
       data: {
@@ -766,6 +790,7 @@ describe('buildUserMessage', () => {
 
     assert.ok(msg.includes('Begin after the latest DM message'), 'Should explicitly prevent rephrasing the last DM beat');
     assert.ok(msg.includes('Do not reproduce or paraphrase any full sentence from RECENT HISTORY'), 'Should forbid duplicate narration');
+    assert.ok(msg.includes('Never describe a non-empty progress action as doing nothing useful'), 'Should not punish progress intent as inaction');
   });
 
   it('does not add anti-stall pacing for a new explicit combat action', () => {

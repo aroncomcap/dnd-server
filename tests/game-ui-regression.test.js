@@ -472,6 +472,7 @@ test('split narration prompt carries story momentum and option quality rules', (
   assert.match(narrationPipelineJs, /Minor routing\/social scenes have a two-response ceiling/, 'split narration should cap minor routing scenes before they drag');
   assert.match(narrationPipelineJs, /Begin each response after the latest DM message/, 'split narration should prevent repeated DM paragraphs');
   assert.match(narrationPipelineJs, /Never answer progress with only cautious movement and no new information/, 'split narration should avoid cautious non-event loops');
+  assert.match(narrationPipelineJs, /Never describe a non-empty travel, progress, or clue-payoff action as "doing nothing"/, 'split narration should not punish progress intent as inaction');
   assert.match(narrationPipelineJs, /the culprit is below/, 'split narration should ban late objective cliffhanger loops');
   assert.match(narrationPipelineJs, /function closeDeferredPayoffIfNeeded/, 'split narration should repair mature breadcrumb loops after streaming');
   assert.match(narrationPipelineJs, /Move to the next story beat/, 'split narration closure should offer an explicit next-beat option');
