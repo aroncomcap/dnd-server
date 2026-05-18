@@ -915,6 +915,54 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /stops being a clue and becomes a trap/);
   });
 
+  it('advances river-wharf ledger leads to the wharf instead of closing the guild beat early', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The west gate is yours for tonight only. If you want the stolen shipment ledger, the river wharf is the next hard stop.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The chase stops here. Merrow is forced into the open and the ledger is secured.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Make a decisive move that risks a cost for answers', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /river wharf/);
+    assert.match(result.narration, /stolen shipment ledger/);
+    assert.doesNotMatch(result.narration, /The chase stops here|Merrow is forced/);
+  });
+
+  it('pays out river-wharf runner scenes into the black-wax route', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'At the river wharf, a dockside runner with Varlen Merr\'s stolen shipment ledger is halfway across the gangplank to a chain ferry. The ledger is in sight before the ferry bell rings.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The runner keeps moving toward the same ferry while the party considers another question.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Put the named clue in front of the person responsible', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /black-wax token/);
+    assert.match(result.narration, /sealed waystation/);
+    assert.doesNotMatch(result.narration, /keeps moving toward the same ferry/);
+  });
+
   it('pays out merchant routing scenes into the named storehouse lead', () => {
     const gs = {
       data: {

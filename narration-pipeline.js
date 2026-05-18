@@ -135,7 +135,7 @@ The previous objective is done. Do not reopen the same culprit, guild, warehouse
 }
 
 function isFreshBeatBoundary(text) {
-  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|pell varrin|blackwater warehouse|trapdoor|buyer is sera vale|sera vale|manifest tube|moon-salt|skiff|loading door|under the pier|clear water|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|black-wax tube|courier horn|switchback|safehouses|meeting point|ruined aqueduct|north road|current scene)\b/i.test(String(text || ''));
+  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|pell varrin|blackwater warehouse|trapdoor|buyer is sera vale|sera vale|manifest tube|moon-salt|skiff|loading door|under the pier|clear water|west gate|river wharf|dockside runner|shipment ledger|stolen ledger|travel chit|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|black-wax tube|courier horn|switchback|safehouses|meeting point|ruined aqueduct|north road|current scene)\b/i.test(String(text || ''));
 }
 
 function isGenericResolvedObjectiveAction(actionText) {
@@ -342,6 +342,28 @@ function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration
 
 function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (/\b(?:At the river wharf|runner.*ledger.*gangplank|ledger satchel|wharf bell|chain ferry)\b/i.test(latest)) {
+    return {
+      narration: 'The wharf scene pays out before it can become another errand. The dockside runner is pinned at the chain ferry with the ledger satchel under one arm and a wet black-wax token stuck to the clasp. He cannot outrun the party and cannot talk his way past the harbor watch. When pressed, he gives up the next truth: the ledger was only bait, and the real handoff is a black-wax courier route through the sealed waystation on the shrine road.',
+      options: [
+        'Take the ledger satchel and black-wax token',
+        'Force the runner to name who paid for the bait',
+        'Race the courier route toward the sealed waystation',
+      ],
+    };
+  }
+
+  if (/\b(?:river wharf is the next hard stop|ledger.*reaches the wharf|recover my stolen shipment ledger|west gate is yours|west gate.*tonight|stamped travel chit)\b/i.test(latest)) {
+    return {
+      narration: 'The west gate opens onto the river wharf before the warning can curdle into another meeting. Rain hisses on mooring posts, the guild lanterns are already shuttering, and a dockside runner with Varlen Merr\'s stolen shipment ledger is halfway across the gangplank to a chain ferry. He sees the party, sees the sealed travel chit, and chooses motion over lies. The ledger is in sight; the cost is whether the party reaches him before the ferry bell rings.',
+      options: [
+        'Cut off the runner at the chain ferry',
+        'Use the travel chit to freeze the harbor watch',
+        'Let the runner board and follow the ledger to its buyer',
+      ],
+    };
+  }
+
   if (/\b(?:Sera Vale.*skiff|skiff.*Sera Vale|manifest tube|moon-salt crate|cut the mooring rope|clear water|burn the papers)\b/i.test(latest)) {
     return {
       narration: 'The skiff chase pays off under the pier instead of becoming another handoff. Sera Vale slams into the harbor chain with the manifest tube smoking in her fist and moon-salt spilling white across the black water. Cornered, she gives up the black-wax mark behind the theft: a courier route through the shrine road and a sealed waystation where the patron\'s messenger was meant to vanish. The party has the proof, Sera in reach, and a new lead bought with scorched evidence rather than delay.',
