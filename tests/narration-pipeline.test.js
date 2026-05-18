@@ -632,6 +632,30 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /vouchers|counting-house/);
   });
 
+  it('advances repeated waystation stale actions to the shrine road instead of replaying messenger text', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The old guild lead stays closed. At the waystation, the usable clue is the living one: the wounded messenger grips Kael\'s sleeve and forces out a name between panicked breaths, "Black wax... rear hatch... shrine road." Helping him will cost precious minutes; chasing the fresh footprints now risks leaving the only witness bleeding on the floor.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The messenger grips Kael\'s sleeve and repeats the same warning again.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Put the named clue in front of the person responsible', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /hooded courier/);
+    assert.match(result.narration, /thorn-choked roadside chapel/);
+    assert.doesNotMatch(result.narration, /repeats the same warning/);
+  });
+
   it('keeps stale guild-proof actions in a newer south-road den scene', () => {
     const gs = {
       data: {

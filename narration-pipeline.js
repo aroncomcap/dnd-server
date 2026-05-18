@@ -277,6 +277,17 @@ function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration
 
 function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (/\b(?:black wax|shrine road)\b/i.test(latest)) {
+    return {
+      narration: 'The old guild lead stays closed. The party follows the messenger\'s clue instead of circling the warehouse story: fresh prints leave the rear hatch and cut toward the shrine road, where black wax is smeared across a cracked milestone. Ahead, a hooded courier drags a satchel into the thorn-choked roadside chapel. The witness paid off; the next beat is pursuit, leverage, or a risky call before the courier disappears.',
+      options: [
+        'Rush the courier before the chapel door closes',
+        'Circle the thorn chapel and cut off the rear exit',
+        'Call out the black wax clue and demand a parley',
+      ],
+    };
+  }
+
   if (/\b(?:south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones)\b/i.test(latest)) {
     return {
       narration: 'The guild scandal stays behind the party. At the south-road culvert, the current clue is physical and immediate: clawed tracks, torn canvas, mule bones, and a sour carrion heat breathing from the collapsed stone. Something inside drags a stamped crate deeper into the dark with deliberate strength. The choice is no longer paperwork; it is whether to expose, trap, or speak to whatever has been feeding on the stolen cargo.',
