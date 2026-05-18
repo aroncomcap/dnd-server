@@ -391,8 +391,8 @@ test('legacy narration path injects anti-stall objective closure', () => {
   assert.match(narrationPipelineJs, /buildAntiStallPacingDirective/, 'pipeline should expose anti-stall pacing');
   assert.match(serverJs, /buildAntiStallPacingDirective\(gd\.chatHistory, submittedActionTextForPrompt\)/, 'legacy path should add the same anti-stall pacing as split narration');
   assert.match(serverJs, /function buildObjectiveClosureDirective/, 'legacy path should add a stronger late-objective closure guard');
-  assert.match(serverJs, /Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, exchange, back gate, route code, escort sign, cargo prayer, or "within the hour" lead/, 'closure guard should ban the observed breadcrumb endings');
-  assert.match(serverJs, /Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", holding "real leverage", being moved tonight, a crew that "has names", or proof still being kicked into danger/, 'closure guard should ban chase-deferral endings');
+  assert.match(serverJs, /Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, exchange, back gate, route code, escort sign, cargo prayer, stair, tunnel, understructure, or "within the hour" lead/, 'closure guard should ban the observed breadcrumb endings');
+  assert.match(serverJs, /Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", holding "real leverage", being moved tonight, a crew that "has names", a witness trying to spit out a name/, 'closure guard should ban chase-deferral endings');
 });
 
 test('legacy narration path repairs deferred payoff endings after anti-stall turns', () => {
@@ -423,6 +423,11 @@ test('legacy narration path repairs deferred payoff endings after anti-stall tur
   assert.match(serverJs, /quiet wing/, 'repair detector should catch quiet-wing merchant guild ladders');
   assert.match(serverJs, /sealed bay/, 'repair detector should catch sealed-bay breadcrumbs');
   assert.match(serverJs, /next named target/, 'repair detector should catch explicit next-target deferrals');
+  assert.match(serverJs, /old tide tunnel/, 'repair detector should catch tunnel-below-the-quay deferrals');
+  assert.match(serverJs, /trying to spit out a name/, 'repair detector should catch witness-nearly-speaks deferrals');
+  assert.match(serverJs, /burn the papers/, 'repair detector should catch proof-burning deferrals');
+  assert.match(serverJs, /scrapes\? hard against stone/, 'repair detector should catch ambient cliffhanger deferrals');
+  assert.match(serverJs, /matureObjectiveLoop/, 'mature lead loops should force deterministic closure before another breadcrumb');
   assert.match(serverJs, /assistantMessages\.length < 4/, 'lead ladder detector should trigger before the transcript drags');
   assert.match(serverJs, /function shouldUseDeterministicPayoffClosure/, 'late breadcrumb chains should bypass another LLM repair attempt');
   assert.match(serverJs, /const useDeterministicClosure = shouldUseDeterministicPayoffClosure/, 'legacy path should force deterministic closure for mature breadcrumb chains');
@@ -446,6 +451,7 @@ test('story prompt discourages repeated gatekeeper loops and noncombat filler ac
   assert.match(promptBuilderJs, /the next progress action must consume that lead now/, 'prompt should consume already-established leads instead of restating them');
   assert.match(promptBuilderJs, /Begin each response after the latest DM message/, 'prompt should prevent rephrasing the latest narration');
   assert.match(promptBuilderJs, /Make utilitarian hooks feel alive quickly/, 'prompt should demand dramatic stakes for paperwork-style scenes');
+  assert.match(promptBuilderJs, /the witness is trying to say a name/, 'prompt should ban late objective cliffhanger loops');
   assert.match(promptBuilderJs, /Routine routing\/social scenes should resolve in one exchange and then advance/, 'prompt should move brief social scenes forward');
   assert.match(promptBuilderJs, /Never answer progress with only cautious movement and no new information/, 'prompt should not turn progress into cautious non-events');
   assert.match(promptBuilderJs, /ground the scene immediately with a named place/, 'generic openings should become concrete scenes');
@@ -465,6 +471,7 @@ test('split narration prompt carries story momentum and option quality rules', (
   assert.match(narrationPipelineJs, /Minor routing\/social scenes have a two-response ceiling/, 'split narration should cap minor routing scenes before they drag');
   assert.match(narrationPipelineJs, /Begin each response after the latest DM message/, 'split narration should prevent repeated DM paragraphs');
   assert.match(narrationPipelineJs, /Never answer progress with only cautious movement and no new information/, 'split narration should avoid cautious non-event loops');
+  assert.match(narrationPipelineJs, /the culprit is below/, 'split narration should ban late objective cliffhanger loops');
   assert.match(narrationPipelineJs, /Do not repeat the same beat from recent turns/, 'split narration should avoid repeated scouting beats');
   assert.match(narrationPipelineJs, /Each option must change the situation/, 'split narration options should be scene-changing');
   assert.match(narrationPipelineJs, /Avoid "inspect\/search\/scout ahead" unless a specific unresolved hazard/, 'split narration should avoid repeated passive inspection options');

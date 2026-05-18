@@ -13,6 +13,7 @@ function stripLeakedInlineOptions(text) {
     ''
   );
   cleaned = cleaned.replace(/\s*1(?:\uFE0F?\u20E3|[.)])\s+\S[\s\S]*?2(?:\uFE0F?\u20E3|[.)])\s+\S[\s\S]*$/u, '');
+  cleaned = cleaned.replace(/\s*1(?:\uFE0F?\u20E3|[.)])\s+\S[\s\S]*$/u, '');
   return cleaned;
 }
 

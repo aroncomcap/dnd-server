@@ -660,7 +660,7 @@ function buildObjectiveClosureDirective(history, actionText) {
   if (signalCount < 2) return '';
 
   return `[OBJECTIVE CLOSURE]
-This objective has had several exchanges. Close or climax it in this response: name the culprit or buyer, secure or lose the proof, expose the motive, and show the immediate consequence. Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, exchange, back gate, route code, escort sign, cargo prayer, or "within the hour" lead. Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", holding "real leverage", being moved tonight, a crew that "has names", or proof still being kicked into danger. Do not keep escalating to a boss above the boss; a larger faction may be context, but the current named culprit must be held accountable in this scene. If a culprit flees, either the party catches them, they leave complete actionable proof behind, or the scene becomes an explicit immediate threat. End on a resolved consequence or hard choice in the current scene, not a new breadcrumb.`;
+This objective has had several exchanges. Close or climax it in this response: name the culprit or buyer, secure or lose the proof, expose the motive, and show the immediate consequence. Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, exchange, back gate, route code, escort sign, cargo prayer, stair, tunnel, understructure, or "within the hour" lead. Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", holding "real leverage", being moved tonight, a crew that "has names", a witness trying to spit out a name, a door slamming, footsteps approaching, papers being burned, Sable being below, an old tide tunnel, or proof still being kicked into danger. Do not keep escalating to a boss above the boss; a larger faction may be context, but the current named culprit must be held accountable in this scene. If a culprit flees, either the party catches them, they leave complete actionable proof behind, or the scene becomes an explicit immediate threat. End on a resolved consequence or hard choice in the current scene, not a new breadcrumb.`;
 }
 
 function isPayoffSeekingAction(actionText) {
@@ -689,7 +689,7 @@ function isDeferredPayoffNarration(narration, actionText = '', history = []) {
   if (signalCount < 2) return false;
 
   const ending = text.slice(-650).toLowerCase();
-  return /\b(?:vanish(?:es|ed)?|retreats?|melts?|slips away|runs?|escapes?|flees?|fleeing|fled|bolts?|deeper|still within reach|not alone|real leverage|go now|one breath left|fresh lead|shorter path|inner counting room|route office|warehouse office|buyer'?s marks?|master hears|time mark|tonight,? eastbound|eastbound|riverfront exchange|at dusk|escort sign|cargo prayer|back gate|route code|quiet wing|quiet buyers?|private access|sealed bay|hidden side|next named target|next man|must corner|lead changes shape|doorway into|how far up|witnesses no one intended|ready to run|meets? the load|cutout|inside job|only if the escort|starts? backing away|willing to bargain|one fresh detail|almost at the door|too late to hide the lie|no longer a rumor|before (?:he|she|they|it|anyone|the watch|the books?|the records?) (?:learns?|reaches?|can|vanish(?:es)?|burns?)|trail (?:has|is|turns|points)|route (?:he|she|they|it) used|next move|next lead|points? toward|waiting under|waiting at|head straight for|being (?:moved|shifted)|(?:is|are) (?:being )?(?:moved|shifted|hidden|carried) (?:now|tonight)|happening now|crew has names|has names|about to become public|chance to shove off|lost moments?|destroying records|burns? the records?|books? vanish|record stove|berth (?:mark|number|seven)|blackwater steps|if you reach|can spot (?:him|her|them)|no watchman delays|kicks?.{0,80}(?:toward|into|over|off)|shoves?.{0,80}(?:toward|into|over|off)|throws?.{0,80}(?:toward|into|over|off)|lunges? for|goes pale at the sight)\b/.test(ending);
+  return /\b(?:vanish(?:es|ed)?|retreats?|melts?|slips away|runs?|escapes?|flees?|fleeing|fled|bolts?|deeper|still within reach|not alone|real leverage|go now|one breath left|fresh lead|shorter path|inner counting room|route office|warehouse office|buyer'?s marks?|master hears|time mark|tonight,? eastbound|eastbound|riverfront exchange|at dusk|escort sign|cargo prayer|back gate|route code|quiet wing|quiet buyers?|private access|sealed bay|hidden side|next named target|next man|must corner|lead changes shape|doorway into|how far up|witnesses no one intended|ready to run|meets? the load|cutout|inside job|only if the escort|starts? backing away|willing to bargain|one fresh detail|almost at the door|too late to hide the lie|no longer a rumor|before (?:he|she|they|it|anyone|the watch|the books?|the records?) (?:learns?|reaches?|can|vanish(?:es)?|burns?)|trail (?:has|is|turns|points)|route (?:he|she|they|it) used|next move|next lead|points? toward|waiting under|waiting at|head straight for|being (?:moved|shifted)|(?:is|are) (?:being )?(?:moved|shifted|hidden|carried) (?:now|tonight)|happening now|crew has names|has names|about to become public|chance to shove off|lost moments?|destroying records|burns? the records?|books? vanish|burn the papers|papers? into (?:a )?brazier|ledger (?:is|survives|papers?) half|ledger toward the brazier|ledger papers deeper into flame|record stove|berth (?:mark|number|seven)|blackwater steps|if you reach|can spot (?:him|her|them)|no watchman delays|trying to spit out a name|spit out a name|before they silence (?:him|her|them)|one breath more|door slams?|door behind (?:him|her|them) bangs? open|below the quay|old tide tunnel|hidden stair|lower stair|stair behind (?:them|you)|approaching footsteps|scrapes? hard against stone|path to [A-Z]?[a-z]+ is now known|this was only the surface|next answer waits?|next choice is whether|the warehouse answer (?:is|arrives)|active pressure point|kicks?.{0,80}(?:toward|into|over|off)|shoves?.{0,80}(?:toward|into|over|off)|throws?.{0,80}(?:toward|into|over|off)|lunges? for|goes pale at the sight)\b/.test(ending);
 }
 
 function hasUnsupportedNonCombatDamageNarration(narration, actionText = '') {
@@ -728,7 +728,7 @@ function isLeadLadderNarration(narration, actionText = '', history = []) {
 
   const text = String(narration || '').replace(/\s+/g, ' ').trim().toLowerCase();
   const recent = assistantMessages.slice(-6).join(' ').toLowerCase();
-  const authorityStack = /\b(?:paid me|paid him|paid her|paid by|paid for|answers? to|taking orders from|above (?:me|him|her|them)|above his own|someone higher up|higher up|merchant council|council auditors?|quartermaster|dockmaster|assistant factor|broker|middleman|tally room|route office|warehouse office|inner counting room|riverfront exchange|escort sign|cargo prayer|back gate|route code|quiet wing|quiet buyers?|private access|sealed bay|hidden side|next named target|next man|must corner|lead changes shape|doorway into|how far up|witnesses no one intended|ready to run|berth (?:mark|number|seven)|blackwater steps|seal above|wrong room to ask|next lead|fresh lead|shorter path|hard name to hunt|location|covering the handoff|signed in .{0,40} hand|will be at|waiting at|meets? the load|inside job|cutout|cargo is being moved|time mark|eastbound)\b/;
+  const authorityStack = /\b(?:paid me|paid him|paid her|paid by|paid for|answers? to|taking orders from|above (?:me|him|her|them)|above his own|someone higher up|higher up|merchant council|council auditors?|quartermaster|dockmaster|assistant factor|broker|middleman|tally room|route office|warehouse office|inner counting room|riverfront exchange|escort sign|cargo prayer|back gate|route code|quiet wing|quiet buyers?|private access|sealed bay|hidden side|next named target|next man|must corner|lead changes shape|doorway into|how far up|witnesses no one intended|ready to run|berth (?:mark|number|seven)|blackwater steps|seal above|wrong room to ask|next lead|fresh lead|shorter path|hard name to hunt|location|covering the handoff|signed in .{0,40} hand|will be at|waiting at|meets? the load|inside job|cutout|cargo is being moved|time mark|eastbound|trying to spit out a name|before they silence|house vell|sable|below the quay|old tide tunnel|hidden stair|lower stair|burn the papers|papers? into (?:a )?brazier|approaching footsteps|scrapes? hard against stone|this was only the surface|next choice is whether)\b/;
   const objectiveContext = /\b(?:guild|merchant|ledger|seal|shipment|marks?|ferry|dock|quay|factor|broker|dockmaster|council|auditors?|tally|books?|route|cargo|freight|exchange|escort|warehouse|storehouse|proof|buyer|enforcer|bay|wing|office)\b/;
   return authorityStack.test(text) && objectiveContext.test(`${recent} ${text}`);
 }
@@ -750,6 +750,8 @@ function shouldUseDeterministicPayoffClosure(narration, actionText = '', history
     /\binner counting room\b/,
     /\briverfront exchange\b/,
     /\bwarehouse office\b/,
+    /\bhouse vell\b/,
+    /\bsable\b/,
     /\bescort sign\b/,
     /\bcargo prayer\b/,
     /\bback gate\b/,
@@ -767,6 +769,18 @@ function shouldUseDeterministicPayoffClosure(narration, actionText = '', history
     /\beastbound\b/,
     /\bat dusk\b/,
     /\bwill be at\b/,
+    /\btrying to spit out a name\b/,
+    /\bbefore they silence\b/,
+    /\bbelow the quay\b/,
+    /\bold tide tunnel\b/,
+    /\bhidden stair\b/,
+    /\blower stair\b/,
+    /\bburn the papers\b/,
+    /\bpapers? into (?:a )?brazier\b/,
+    /\bapproaching footsteps\b/,
+    /\bscrapes? hard against stone\b/,
+    /\bthis was only the surface\b/,
+    /\bnext choice is whether\b/,
     /\bmeets? the load\b/,
     /\bone fresh detail\b/,
     /\bwilling to bargain\b/,
@@ -778,11 +792,15 @@ function shouldUseDeterministicPayoffClosure(narration, actionText = '', history
     /\b(?:guild|merchant|warehouse|storehouse|factor|enforcer|clerk)\b/,
   ];
   const breadcrumbCount = breadcrumbSignals.reduce((count, pattern) => count + (pattern.test(combined) ? 1 : 0), 0);
-  return breadcrumbCount >= 2 && proofSignals.every(pattern => pattern.test(combined));
+  const hasProofContext = proofSignals.every(pattern => pattern.test(combined));
+  const matureObjectiveLoop = assistantMessages.length >= 4 && hasProofContext && breadcrumbCount >= 1;
+  return matureObjectiveLoop || (breadcrumbCount >= 2 && hasProofContext);
 }
 
 function extractAccountableName(text) {
   const value = String(text || '');
+  const houseName = value.match(/\b(House\s+[A-Z][a-z]+)\b/);
+  if (houseName) return houseName[1];
   const titledName = value.match(/\b(?:Master|Factor|Dockmaster|Clerk|Broker|Guildmaster)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
   if (titledName) return titledName[1];
   const namedCulprit = value.match(/\b(?:buyer|culprit|responsible|accountable|signatory|cutout|mastermind|funder|payer|enforcer|guildman)\s+(?:is|was|named|called|called himself|called herself)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
@@ -795,6 +813,17 @@ function extractAccountableName(text) {
   if (colonName) return colonName[1];
   const possessiveName = value.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})'s\b/);
   if (possessiveName) return possessiveName[1];
+  const singleNameCounts = {};
+  for (const match of value.matchAll(/\b([A-Z][a-z]{3,})\b/g)) {
+    const name = match[1];
+    if (/^(?:The|This|That|Inside|Outside|Below|Above|House|Guild|Merchant|Warehouse|Marrow|Quay|Sable)$/i.test(name) && name !== 'Sable') continue;
+    singleNameCounts[name] = (singleNameCounts[name] || 0) + 1;
+  }
+  const repeatedSingle = Object.entries(singleNameCounts)
+    .sort((a, b) => b[1] - a[1])
+    .find(([, count]) => count >= 2)?.[0];
+  if (repeatedSingle) return repeatedSingle;
+  if (/\bSable\b/.test(value)) return 'Sable';
   const twoWordNames = value.match(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/g) || [];
   const filtered = twoWordNames.filter(name => !/\b(?:Iron Quay|Warehouse Three|Moor Logistics|Merchant Guild|Lower Docks)\b/.test(name));
   return filtered[0] || 'the exposed culprit';
@@ -802,15 +831,15 @@ function extractAccountableName(text) {
 
 function extractProofObject(text) {
   const value = String(text || '').toLowerCase();
-  const proofWords = ['red-marked freight note', 'riverfront exchange mark', 'route chit', 'escort sign', 'route code', 'freight mark', 'ledger page', 'shipping chit', 'surviving scrap', 'ledger', 'manifest', 'contract', 'receipt', 'satchel', 'seal', 'coffer', 'strongbox', 'token', 'order', 'papers', 'books'];
+  const proofWords = ['red-marked freight note', 'riverfront exchange mark', 'route chit', 'escort sign', 'route code', 'freight mark', 'ledger papers', 'ledger scraps', 'ledger page', 'shipping chit', 'surviving scrap', 'ledger', 'manifest', 'contract', 'receipt', 'satchel', 'seal', 'coffer', 'strongbox', 'token', 'order', 'papers', 'books'];
   return proofWords.find(word => value.includes(word)) || 'the proof';
 }
 
 function buildPayoffClosureFallback({ narration, history }) {
   const combined = `${(history || []).slice(-4).map(msg => msg?.content || '').join(' ')} ${narration || ''}`;
-  const culprit = extractAccountableName(narration || combined);
+  const culprit = extractAccountableName(combined);
   const proof = extractProofObject(combined);
-  return `The chase stops here. ${culprit} is forced into the open in the current scene, not turned into another errand: ${proof} is secured where witnesses can see it, and the latest name is written into the evidence instead of becoming a fresh lead. The guild's cover story breaks at the table. The witness is held under guard, the compromised cargo is frozen, and the party wins leverage to demand passage, supplies, public confession, or a costly favor. The next choice is not who to chase, but what price to make the guild pay for the truth.`;
+  return `The chase stops here. ${culprit} is forced into the open in the current scene, not turned into another errand: ${proof} survives enough to prove the diversion, and the nearest witness confirms the motive before everyone can pretend this is still rumor. The opposition gets one cost, not another escape: burned records, shouted alarm, or an owed favor, but not the truth itself. The party now has leverage to expose ${culprit}, demand passage and supplies, or make the guild pay restitution. This beat is resolved; the next choice is what price to extract.`;
 }
 
 async function repairDeferredPayoffNarration({ gameId, gameConfig, narration, actionText, history }) {

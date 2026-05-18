@@ -64,6 +64,18 @@ test('removes leaked inline action options from combat narration', () => {
   assert.doesNotMatch(cleaned, /1️⃣|2️⃣|3️⃣|Attack the unknown beast|Cast a healing or protective spell|Hold position/);
 });
 
+test('removes leaked inline options even when the third option is omitted', () => {
+  assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
+  const { cleanInvalidCombatNarration } = require(modulePath);
+
+  const cleaned = cleanInvalidCombatNarration(
+    'Below the quay, something scrapes hard against stone. 1️⃣ Rush the stair before Sable moves 2️⃣ Force the woman to answer for Sable'
+  );
+
+  assert.equal(cleaned, 'Below the quay, something scrapes hard against stone.');
+  assert.doesNotMatch(cleaned, /1️⃣|2️⃣|Rush the stair|Force the woman/);
+});
+
 test('removes malformed structured marker tails from visible narration', () => {
   assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
   const { cleanInvalidCombatNarration } = require(modulePath);

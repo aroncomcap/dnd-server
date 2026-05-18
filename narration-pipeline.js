@@ -22,22 +22,23 @@ const STORY_MOMENTUM_RULES = [
   'Maintain one active named lead, contact, or destination until the party reaches, resolves, or clearly loses it.',
   'If you need a twist, twist the current lead instead of inventing a replacement contact, route, or destination.',
   'Begin each response after the latest DM message. Do not reproduce or paraphrase any full sentence from recent history.',
-  'Do not end a response by only pointing to the next lead; pay known leads off as arrival, confrontation, revelation, cost, or hard choice.',
-  'A strong non-combat turn has payoff, pressure, and personality: show what changes, why it matters, and who reacts.',
+  'Do not end by only pointing to the next lead; pay known leads off as arrival, confrontation, revelation, cost, or hard choice.',
+  'A strong non-combat turn has payoff, pressure, personality, and a visible change.',
   'Confront/demand answers is social unless explicit attack/damaging spell.',
   'Never repeat a prior clue as the main event; recap old evidence in one short phrase, then show the new consequence.',
+  'Late objectives cannot end on "the witness is trying to say a name", "the papers are burning", "the culprit is below", footsteps, or another tunnel; resolve witness, proof, culprit, or cost now.',
   'For travel, progress, acknowledgement, and "move on" actions, move the party to the next concrete place, person, clue, or decision in this response.',
-  'Minor routing/social scenes have a two-response ceiling: establish the lead, then reveal, resolve, complicate, or leave. Do not chain clerks, permits, ledgers, or corridors.',
+  'Minor routing/social scenes have a two-response ceiling: establish the lead, then reveal, resolve, complicate, or leave.',
   'If recent history already ended with "the next lead is ahead/one room away/waiting there", the next progress action must consume that lead now instead of restating that it is close.',
   'Never answer progress with only cautious movement and no new information. If the party checks for danger and there is no meaningful hazard, compress the caution and advance the scene.',
   'Do not repeat the same beat from recent turns. If recent narration already covered scouting, watching flanks, checking traps, or a clear path, switch to arrival, discovery, dialogue, consequence, or choice.',
   'Merchant, guard, checkpoint, and passerby scenes are brief routing/social beats unless the player clearly chooses violence or a hard failure forces initiative.',
-  'Make utilitarian hooks matter by the second response: expose motive, secret, threat, personality, or cost.',
+  'By the second response, expose motive, secret, threat, personality, or cost.',
 ].join('\n- ');
 
 const OPTION_QUALITY_RULES = [
   'Each option must change the situation; avoid options that merely maintain safety, watch a flank, wait, or re-check the same path.',
-  'Offer one direct advance option, one interaction/investigation option, and one bold or risky option tied to the current scene.',
+  'Offer one direct advance option, one interaction/investigation option, and one bold or risky option.',
   'Name the current lead, NPC, location, clue, or visible danger when possible. Specific options beat generic verbs.',
   'Avoid "inspect/search/scout ahead" unless a specific unresolved hazard, clue, or mystery is visible right now.',
   'In social or travel scenes, options should favor dialogue, leverage, route choice, discovery, or decisive movement over combat defaults.',
@@ -108,7 +109,7 @@ function buildAntiStallPacingDirective(history, actionText) {
   if (signalCount < 2) return '';
 
   return `[ANTI-STALL PACING]
-Recent DM turns already established the current lead, destination, permission step, or document trail. If the player repeats non-hostile social, search, or progress intent, treat it as consent to proceed. Do not narrate another transition, reminder, reluctance, or "it is ahead/one door away" beat. Resolve or complicate it NOW in this response: change the physical location, arrive inside, reveal the proof, confront the responsible NPC, introduce immediate danger, extract a cost, or close the minor routing scene and move to the next materially different scene. Do not end this response by only naming another lead. This turn needs payoff, pressure, or a hard choice: put someone named on stage, expose motive, force a cost, start a valid threat, or close the objective. This objective has consumed several turns; if an accountable NPC, culprit, cache, handoff, or named place is visible, resolve or climax it now rather than adding another intermediary. Forbidden endings: "the next move is clear", "one more door", "the lead points to", "reach X before Y", or a newly named contact with no immediate payoff. If this is a merchant/guild/clerk/permit/ledger scene and the player is cooperating or following the lead, wrap the scene up instead of adding another clerk or document.`;
+Recent DM turns already established the current lead, destination, permission step, or document trail. If the player repeats non-hostile social, search, or progress intent, treat it as consent to proceed. Do not narrate another transition, reminder, reluctance, or "it is ahead/one door away" beat. Resolve or complicate it NOW in this response: change the physical location, arrive inside, reveal the proof, confront the responsible NPC, introduce immediate danger, extract a cost, or close the minor routing scene and move to the next materially different scene. Do not end this response by only naming another lead. This turn needs payoff, pressure, or a hard choice: put someone named on stage, expose motive, force a cost, start a valid threat, or close the objective. This objective has consumed several turns; if an accountable NPC, culprit, cache, handoff, or named place is visible, resolve or climax it now rather than adding another intermediary. Forbidden endings: "the next move is clear", "one more door", "the lead points to", "reach X before Y", "the witness is trying to say a name", "the papers are burning", "the culprit is below", "footsteps approach", "there is another tunnel", or a newly named contact with no immediate payoff. If this is a merchant/guild/clerk/permit/ledger scene and the player is cooperating or following the lead, wrap the scene up instead of adding another clerk or document.`;
 }
 
 function normalizeBareNarration(text) {
@@ -140,9 +141,9 @@ const FEROCITY_LABELS = {
 };
 
 const PERSONA_BLOCKS = {
-  epic: `You are an EPIC Dungeon Master: dramatic, grounded, and atmospheric. Use tight evocative prose, real stakes, specific consequences, and never break character.`,
+  epic: `You are an EPIC Dungeon Master: dramatic, grounded, atmospheric. Use tight prose, real stakes, and specific consequences.`,
 
-  over_the_top: `You are an OVER THE TOP Dungeon Master: comedic, chaotic, and full of Critical Role energy. Give NPCs vivid quirks, let humor emerge from stakes, and keep choices consequential.`,
+  over_the_top: `You are an OVER THE TOP Dungeon Master: comedic, chaotic, full of Critical Role energy. Give NPCs vivid quirks and consequential choices.`,
 };
 
 function formatResolvedCombatState(lastCombatConclusion) {

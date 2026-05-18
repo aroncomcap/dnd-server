@@ -15,6 +15,7 @@ const STORY_CONTINUITY_RULES = `STORY CONTINUITY RULES:
 - Treat "confront", "force an answer", "demand the truth", and similar answer-seeking pressure as social resolution unless the player explicitly attacks or casts a damaging spell.
 - Never repeat a prior clue as the main event. Recap old evidence in one short phrase at most, then show the new consequence.
 - After several turns on one objective, close or climax it; do not add another intermediary contact, receipt, or location unless the current scene has already paid off.
+- Late in an objective, do not keep ending on "the witness is trying to say a name", "the papers are burning", "the culprit is below", "footsteps approach", or "there is another tunnel"; resolve the witness, proof, culprit, or cost in the current scene.
 - Do not write check-result labels like "Strength check succeeds" or "Social pressure lands" unless the server supplied a resolved check; narrate the consequence in plain prose.
 - Minor routing/social scenes have a two-response ceiling: establish the lead, then reveal, resolve, complicate, or leave the scene. Do not chain clerks, permits, ledgers, or corridors.
 - If recent history already ended with "the next lead is ahead/one room away/waiting there", the next progress action must consume that lead now instead of restating that it is close.
