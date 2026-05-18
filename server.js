@@ -660,7 +660,7 @@ function buildObjectiveClosureDirective(history, actionText) {
   if (signalCount < 2) return '';
 
   return `[OBJECTIVE CLOSURE]
-This objective has had several exchanges. Close or climax it in this response: name the culprit or buyer, secure or lose the proof, expose the motive, and show the immediate consequence. Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, or "within the hour" lead. Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", holding "real leverage", being moved tonight, a crew that "has names", or proof still being kicked into danger. If a culprit flees, either the party catches them, they leave complete actionable proof behind, or the scene becomes an explicit immediate threat. End on a resolved consequence or hard choice in the current scene, not a new breadcrumb.`;
+This objective has had several exchanges. Close or climax it in this response: name the culprit or buyer, secure or lose the proof, expose the motive, and show the immediate consequence. Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, or "within the hour" lead. Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", holding "real leverage", being moved tonight, a crew that "has names", or proof still being kicked into danger. Do not keep escalating to a boss above the boss; a larger faction may be context, but the current named culprit must be held accountable in this scene. If a culprit flees, either the party catches them, they leave complete actionable proof behind, or the scene becomes an explicit immediate threat. End on a resolved consequence or hard choice in the current scene, not a new breadcrumb.`;
 }
 
 function isPayoffSeekingAction(actionText) {
@@ -699,6 +699,21 @@ function hasUnsupportedNonCombatDamageNarration(narration, actionText = '') {
   return /\b(?:draw(?:s|ing)? blood|bleeding|bloodies|clubs?|slashes?|stabs?|smashes?|rams?|lashes?|strikes?|hits?|cuts?|wounds?|drives? the breath|oar into|hook across|knife into|blade into|arrow into|spear into|mace into)\b/i.test(text);
 }
 
+function isLeadLadderNarration(narration, actionText = '', history = []) {
+  if (!isPayoffSeekingAction(actionText)) return false;
+  const assistantMessages = (history || [])
+    .filter(msg => msg?.role === 'assistant' && msg.content)
+    .map(msg => String(msg.content).replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+  if (assistantMessages.length < 6) return false;
+
+  const text = String(narration || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const recent = assistantMessages.slice(-6).join(' ').toLowerCase();
+  const authorityStack = /\b(?:paid me|paid him|paid her|answers? to|taking orders from|above (?:me|him|her|them)|above his own|merchant council|council auditors?|dockmaster|assistant factor|broker|tally room|seal above|wrong room to ask|next lead)\b/;
+  const objectiveContext = /\b(?:guild|merchant|ledger|seal|shipment|marks?|ferry|dock|quay|factor|broker|dockmaster|council|auditors?|tally|books?)\b/;
+  return authorityStack.test(text) && objectiveContext.test(`${recent} ${text}`);
+}
+
 async function repairDeferredPayoffNarration({ gameId, gameConfig, narration, actionText, history }) {
   const prompt = `Rewrite this tabletop RPG DM narration into a stronger in-scene payoff.
 
@@ -716,6 +731,7 @@ Requirements:
 - Resolve or climax the current objective in this scene now.
 - Answer at least two of these: who is responsible, what they wanted, what proof changes hands, what cost lands, what immediate consequence follows.
 - Do not add a new route, office, lane, contact, buyer, alias, or "next lead".
+- Do not replace the current culprit with a higher authority to chase. If a larger faction exists, treat it as aftermath context while holding the current named NPC accountable now.
 - Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", or holding "real leverage".
 - Do not end with the scene still mid-action, such as a culprit kicking proof away, someone lunging for evidence, or an accomplice bolting.
 - Outside active combat, do not narrate NPCs hitting, wounding, drawing blood, or damaging PCs. Use non-damage costs instead: alarm, lost time, public exposure, damaged proof, lost leverage, an owed favor, or a harder choice.
@@ -2445,6 +2461,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
     io.to(gameId).emit('dm_stream_end', { narration: parsed.narration, llmRunId: finalMessage.llmRunId || null });
   }
   if (!combatActive && (isDeferredPayoffNarration(parsed.narration, submittedActionText, gd.chatHistory) ||
+      isLeadLadderNarration(parsed.narration, submittedActionText, gd.chatHistory) ||
       hasUnsupportedNonCombatDamageNarration(parsed.narration, submittedActionText))) {
     const repairedNarration = await repairDeferredPayoffNarration({
       gameId,

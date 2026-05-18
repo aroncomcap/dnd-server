@@ -69,11 +69,11 @@ test('removes malformed structured marker tails from visible narration', () => {
   const { cleanInvalidCombatNarration } = require(modulePath);
 
   const cleaned = cleanInvalidCombatNarration(
-    'The foreman sees the proof and reaches for the ledger. OPTIONS---'
+    'The foreman sees the proof and reaches for the ledger. ENEMIES: 3 dockhands draw blades and close on the party. OPTIONS---'
   );
 
   assert.equal(cleaned, 'The foreman sees the proof and reaches for the ledger.');
-  assert.doesNotMatch(cleaned, /OPTIONS---/);
+  assert.doesNotMatch(cleaned, /OPTIONS---|ENEMIES:/);
 });
 
 test('removes unsourced noncombat check result labels while preserving consequences', () => {

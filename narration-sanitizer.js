@@ -18,6 +18,10 @@ function stripMalformedStructuredMarkerTail(text) {
   return String(text || '').replace(/\s*(?:-{0,3}\s*)?(?:OPTIONS|SCENE|WORLD)\s*-{2,}[\s\S]*$/i, '');
 }
 
+function stripInlineEnemyBlocks(text) {
+  return String(text || '').replace(/\s*\bENEMIES\s*:\s*[^.\n]*(?:\.|$)/gi, '');
+}
+
 function stripUnsupportedCheckResultLabels(text) {
   let cleaned = String(text || '').replace(
     /\b(?:(?:(?:Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma|Athletics|Acrobatics|Sleight of Hand|Stealth|Arcana|History|Investigation|Nature|Religion|Animal Handling|Insight|Medicine|Perception|Survival|Deception|Intimidation|Performance|Persuasion)\s+(?:check|contest|save)\s+(?:succeeds?|fails?|passes?|lands?|works?))|Investigation payoff|Social pressure lands?|Last-second pressure works?|Improvised grapple fails?)\s*(?:—|-|:)\s*/gi,
@@ -39,6 +43,7 @@ function cleanInvalidCombatNarration(text) {
 
   cleaned = stripLeakedInlineOptions(cleaned);
   cleaned = stripMalformedStructuredMarkerTail(cleaned);
+  cleaned = stripInlineEnemyBlocks(cleaned);
   cleaned = stripUnsupportedCheckResultLabels(cleaned);
 
   cleaned = cleaned.replace(
