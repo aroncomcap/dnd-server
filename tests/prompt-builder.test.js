@@ -81,6 +81,7 @@ describe('prompt-builder resolved combat state', () => {
       assert.match(prompt, /Do not end a response by only pointing to the next lead/);
       assert.match(prompt, /A strong non-combat turn has payoff, pressure, and personality/);
       assert.match(prompt, /Never repeat a prior clue as the main event/);
+      assert.match(prompt, /After several turns on one objective/);
     }
   });
 

@@ -416,6 +416,8 @@ describe('buildUserMessage', () => {
     assert.ok(msg.includes('The party proceeds to the current named lead now'), 'Interpreted intent should force immediate lead consumption');
     assert.ok(msg.includes('Do not end this response by only naming another lead'), 'Anti-stall should require payoff instead of another breadcrumb');
     assert.ok(msg.includes('This turn needs payoff, pressure, or a hard choice'), 'Anti-stall should make the scene more dramatic');
+    assert.ok(msg.includes('This objective has consumed several turns'), 'Anti-stall should force late-objective closure');
+    assert.ok(msg.includes('Forbidden endings'), 'Anti-stall should ban breadcrumb endings');
   });
 
   it('adds anti-stall pacing for repeated investigation of an established lead', () => {

@@ -64,6 +64,18 @@ test('removes leaked inline action options from combat narration', () => {
   assert.doesNotMatch(cleaned, /1️⃣|2️⃣|3️⃣|Attack the unknown beast|Cast a healing or protective spell|Hold position/);
 });
 
+test('removes malformed structured marker tails from visible narration', () => {
+  assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
+  const { cleanInvalidCombatNarration } = require(modulePath);
+
+  const cleaned = cleanInvalidCombatNarration(
+    'The foreman sees the proof and reaches for the ledger. OPTIONS---'
+  );
+
+  assert.equal(cleaned, 'The foreman sees the proof and reaches for the ledger.');
+  assert.doesNotMatch(cleaned, /OPTIONS---/);
+});
+
 test('removes unsourced noncombat check result labels while preserving consequences', () => {
   assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
   const { cleanInvalidCombatNarration } = require(modulePath);

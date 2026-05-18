@@ -13,6 +13,7 @@ const STORY_CONTINUITY_RULES = `STORY CONTINUITY RULES:
 - Do not end a response by only pointing to the next lead. If a lead is already known, pay it off as an arrival, confrontation, revelation, cost, or hard choice before naming the next one.
 - A strong non-combat turn has payoff, pressure, and personality: show what changes, why it matters, and how a named person or visible threat reacts.
 - Never repeat a prior clue as the main event. Recap old evidence in one short phrase at most, then show the new consequence.
+- After several turns on one objective, close or climax it; do not add another intermediary contact, receipt, or location unless the current scene has already paid off.
 - Do not write check-result labels like "Strength check succeeds" or "Social pressure lands" unless the server supplied a resolved check; narrate the consequence in plain prose.
 - Minor routing/social scenes have a two-response ceiling: establish the lead, then reveal, resolve, complicate, or leave the scene. Do not chain clerks, permits, ledgers, or corridors.
 - If recent history already ended with "the next lead is ahead/one room away/waiting there", the next progress action must consume that lead now instead of restating that it is close.

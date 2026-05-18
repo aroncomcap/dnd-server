@@ -294,6 +294,7 @@ test('verbose campaign fallback actions consume named leads instead of re-asking
   assert.match(campaignVerboseTs, /cut off the green-gloved thug/i, 'smoke player should push visible danger into a scene');
   assert.match(campaignVerboseTs, /confront the factor with the orderbook/i, 'smoke player should force evidence scenes to pay off');
   assert.match(campaignVerboseTs, /private lift key to tonight's handoff/i, 'smoke player should follow scheduled handoff stakes');
+  assert.match(campaignVerboseTs, /confront Harrow Quill/i, 'smoke player should force named climax targets');
   assert.doesNotMatch(campaignVerboseTs, /Ask what the clerk needs from us/, 'smoke player should not keep re-asking clerks after a lead is visible');
 });
 

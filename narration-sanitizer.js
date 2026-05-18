@@ -14,6 +14,10 @@ function stripLeakedInlineOptions(text) {
   );
 }
 
+function stripMalformedStructuredMarkerTail(text) {
+  return String(text || '').replace(/\s*(?:-{0,3}\s*)?(?:OPTIONS|SCENE|WORLD)\s*-{2,}[\s\S]*$/i, '');
+}
+
 function stripUnsupportedCheckResultLabels(text) {
   return String(text || '').replace(
     /\b(?:(?:(?:Strength|Dexterity|Constitution|Intelligence|Wisdom|Charisma|Athletics|Acrobatics|Sleight of Hand|Stealth|Arcana|History|Investigation|Nature|Religion|Animal Handling|Insight|Medicine|Perception|Survival|Deception|Intimidation|Performance|Persuasion)\s+(?:check|contest|save)\s+(?:succeeds?|fails?|passes?|lands?|works?))|Investigation payoff|Social pressure lands?|Last-second pressure works?|Improvised grapple fails?)\s*(?:—|-|:)\s*/gi,
@@ -29,6 +33,7 @@ function cleanInvalidCombatNarration(text) {
   let cleaned = String(text || '');
 
   cleaned = stripLeakedInlineOptions(cleaned);
+  cleaned = stripMalformedStructuredMarkerTail(cleaned);
   cleaned = stripUnsupportedCheckResultLabels(cleaned);
 
   cleaned = cleaned.replace(
