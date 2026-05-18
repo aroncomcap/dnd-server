@@ -750,6 +750,54 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /drags a satchel into the thorn-choked roadside chapel again/);
   });
 
+  it('advances repeated chapel actions to the hill shrine instead of replaying the altar standoff', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The old guild lead stays closed. At the thorn-choked roadside chapel, the courier is at the cracked altar with a black-wax satchel. Inside the satchel is a route sketch toward the hill shrine and a broken signet pressed into the wax.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The courier remains at the cracked altar with the same black-wax satchel.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Move to the place where the clue pays off', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /Vessa Coil/);
+    assert.match(result.narration, /obsidian bell/);
+    assert.doesNotMatch(result.narration, /same black-wax satchel/);
+  });
+
+  it('advances repeated hill-shrine actions to the watchtower choice instead of replaying Vessa', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The old guild lead stays closed. The route sketch pays off at the hill shrine, where Vessa Coil waits beside an open crypt stair and pulls a chain that wakes an obsidian bell below.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Vessa Coil waits beside the same crypt stair and the obsidian bell rings again.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Make a decisive move that risks a cost for answers', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /old watchtower/);
+    assert.match(result.narration, /black-wax map/);
+    assert.doesNotMatch(result.narration, /same crypt stair/);
+  });
+
   it('keeps stale guild-proof actions in a newer south-road den scene', () => {
     const gs = {
       data: {

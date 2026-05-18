@@ -135,7 +135,7 @@ The previous objective is done. Do not reopen the same culprit, guild, warehouse
 }
 
 function isFreshBeatBoundary(text) {
-  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|current scene)\b/i.test(String(text || ''));
+  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|current scene)\b/i.test(String(text || ''));
 }
 
 function isGenericResolvedObjectiveAction(actionText) {
@@ -288,6 +288,39 @@ function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration
 
 function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (/\b(?:watchtower|signal fire|black-wax line is broken)\b/i.test(latest)) {
+    return {
+      narration: 'The old guild lead stays closed. The watchtower is no paperwork trail: its signal fire has just been lit, and three riders below are cutting loose before the party can ask gentle questions. One rider carries a matching black-wax tube; another has a courier horn at his belt. This beat is now pursuit under a burning sky, not another ledger.',
+      options: [
+        'Cut off the rider with the black-wax tube',
+        'Shoot the courier horn from the second rider\'s belt',
+        'Let one rider flee and follow the signal route',
+      ],
+    };
+  }
+
+  if (/\b(?:vessa coil|masked patron|obsidian bell|hill-shrine crypt|seal-holder)\b/i.test(latest)) {
+    return {
+      narration: 'The old guild lead stays closed. Vessa Coil breaks when the obsidian bell rings below the hill-shrine floor; she did not buy stolen cargo for profit, but to keep that bell sealed. Her confession gives the party a name, a danger, and a cost: expose her and the wardens lose their funding, or take the black-wax map to the old watchtower before the patron sends riders to erase it. The black-wax line is broken open, and the next beat is already moving.',
+      options: [
+        'Expose Vessa and accept the wardens\' anger',
+        'Take the black-wax map to the old watchtower',
+        'Demand Vessa fund the pursuit before she falls',
+      ],
+    };
+  }
+
+  if (/\b(?:cracked altar|black-wax satchel|broken signet|route sketch|hill shrine)\b/i.test(latest)) {
+    return {
+      narration: 'The old guild lead stays closed. The route sketch pays off at the hill shrine: beneath the split lintel, the broken signet matches the ring of Vessa Coil, a veiled patron waiting beside an open crypt stair. She expected a courier, not witnesses. When the party names the black wax, Vessa\'s hand moves to a bronze pull-chain and a deep obsidian bell answers from below. The confrontation is here; the danger is what that bell just woke.',
+      options: [
+        'Stop Vessa before she pulls the chain again',
+        'Demand the truth about the obsidian bell',
+        'Dive into the crypt before the awakened thing rises',
+      ],
+    };
+  }
+
   if (/\b(?:hooded courier|thorn-choked|roadside chapel|chapel door|courier disappears)\b/i.test(latest)) {
     return {
       narration: 'The old guild lead stays closed. At the thorn-choked roadside chapel, the courier is no longer a rumor ahead of the party: he is at the cracked altar, one hand on a black-wax satchel and the other on a knife he is not brave enough to use. Inside the satchel is a route sketch toward the hill shrine and a broken signet pressed into the wax. The choice is immediate: seize him, bargain for the name behind the seal, or let him run and follow the map.',
