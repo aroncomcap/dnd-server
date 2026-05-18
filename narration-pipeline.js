@@ -135,7 +135,7 @@ The previous objective is done. Do not reopen the same culprit, guild, warehouse
 }
 
 function isFreshBeatBoundary(text) {
-  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|current scene)\b/i.test(String(text || ''));
+  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|black-wax tube|courier horn|switchback|safehouses|meeting point|ruined aqueduct|north road|current scene)\b/i.test(String(text || ''));
 }
 
 function isGenericResolvedObjectiveAction(actionText) {
@@ -171,6 +171,24 @@ function normalizeBareNarration(text) {
     .replace(/[.!?]+$/g, '')
     .trim()
     .toLowerCase();
+}
+
+function normalizeNarrationForRepeat(text) {
+  return String(text || '')
+    .split(/\n\s*---(?:OPTIONS|SCENE|WORLD)---/i)[0]
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function isRepeatedRecentNarration(narration, history = []) {
+  const current = normalizeNarrationForRepeat(narration);
+  if (current.length < 80) return false;
+  return (history || [])
+    .filter(msg => msg?.role === 'assistant' && msg.content)
+    .slice(-3)
+    .some(msg => normalizeNarrationForRepeat(msg.content) === current);
 }
 
 function getCurrentChatHistory(gs) {
@@ -221,6 +239,8 @@ function hasBreadcrumbEnding(narration) {
 function shouldClosePayoffNarration(narration, actionText, assistantHistory) {
   if (!isPayoffSeekingAction(actionText)) return false;
   if ((assistantHistory || []).length < 3) return false;
+  const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (isFreshBeatBoundary(latest)) return false;
   const combined = `${(assistantHistory || []).slice(-6).join(' ')} ${narration || ''}`;
   if (!hasObjectiveProofContext(combined)) return false;
   const matureLoop = (assistantHistory || []).length >= 4;
@@ -232,16 +252,23 @@ function shouldClosePayoffNarration(narration, actionText, assistantHistory) {
 
 function extractAccountableName(text) {
   const value = String(text || '');
+  const invalidLeadingWord = /^(?:The|A|An|This|That|These|Those|Move|Put|Force|Make|Demand|Expose|Ask|Offer|Take|At|Inside|Outside|Before|After|Follow|Rush|Circle|Call|Stop|Use|Enter|Search|Inspect)$/;
+  const isInvalidName = name => {
+    const candidate = String(name || '').trim();
+    const first = candidate.split(/\s+/)[0] || '';
+    return !candidate || invalidLeadingWord.test(first) ||
+      /\b(?:Greyhook Market|Blackreed Ford|Stonebridge Guildhall|Caves Of|Game Master)\b/.test(candidate);
+  };
   const fullName = value.match(/\b(Harvek\s+Doss|House\s+[A-Z][a-z]+)\b/);
   if (fullName) return fullName[1];
   const single = value.match(/\b(Seln|Sable)\b/);
   if (single) return single[1];
-  const titled = value.match(/\b(?:Factor|Clerk|Quaymaster|Dockmaster|Broker|Guildmaster)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
-  if (titled) return titled[1];
+  const titled = value.match(/\b(?:Master|Factor|Clerk|Quaymaster|Dockmaster|Broker|Guildmaster)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
+  if (titled && !isInvalidName(titled[1])) return titled[1];
   const named = value.match(/\b(?:culprit|responsible|signatory|payer|buyer|traitor|clerk|quaymaster)\s+(?:is|was|named|called)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
-  if (named) return named[1];
+  if (named && !isInvalidName(named[1])) return named[1];
   const twoWordNames = value.match(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/g) || [];
-  return twoWordNames.find(name => !/\b(?:Greyhook Market|Blackreed Ford|Mara Pell|Joren Pell)\b/.test(name)) || 'the exposed culprit';
+  return twoWordNames.find(name => !isInvalidName(name) && !/\b(?:Mara Pell|Joren Pell)\b/.test(name)) || 'the exposed culprit';
 }
 
 function extractProofObject(text) {
@@ -288,6 +315,17 @@ function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration
 
 function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (/\b(?:ruined aqueduct|safehouses|meeting point|north road)\b/i.test(latest)) {
+    return {
+      narration: 'At the ruined aqueduct, the black-wax map stops being a clue and becomes a trap the party can spring. Lanterns move below the broken arches; one safehouse runner arrives early with a coded purse, and another signal waits unlit on the north road. The party has the meeting in reach now, but taking it quietly means choosing who gets to walk away with false confidence.',
+      options: [
+        'Ambush the early runner and take the coded purse',
+        'Let the runner pass and follow them to the true safehouse',
+        'Light a false signal on the north road to split the meeting',
+      ],
+    };
+  }
+
   if (/\b(?:riders below|black-wax tube|courier horn|burning sky)\b/i.test(latest)) {
     return {
       narration: 'The pursuit pays off in motion: the rider with the black-wax tube is cut off at the switchback, the horn never sounds, and the tube cracks open in the dust. Inside is not another errand but a target: a charcoal map of the north road, three marked safehouses, and tonight\'s meeting point circled at the ruined aqueduct. The party has momentum now; the next choice is whether to ambush the meeting or turn the map into public leverage.',
@@ -980,6 +1018,16 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
 
     const parsed = parseNarrationResponse(responseText);
     parsed.narration = cleanInvalidCombatNarration(parsed.narration);
+    if (isRepeatedRecentNarration(parsed.narration, getCurrentChatHistory(gs))) {
+      const fallback = buildFallbackTurn(characterName, actionText);
+      closeStream(fallback.narration, response.llmRunId || null);
+      return {
+        ...fallback,
+        llmRunId: response.llmRunId || null,
+        fallback: true,
+        repeated: true,
+      };
+    }
     if (isLowInformationNarration(parsed.narration, actionText)) {
       const fallback = buildFallbackTurn(characterName, actionText);
       closeStream(fallback.narration, response.llmRunId || null);

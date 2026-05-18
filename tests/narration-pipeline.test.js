@@ -868,6 +868,52 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /same three riders/);
   });
 
+  it('continues from the pursuit map to the ruined aqueduct instead of closing the old guild beat', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The pursuit pays off in motion: the rider with the black-wax tube is cut off at the switchback, the horn never sounds, and the tube cracks open in the dust. Inside is not another errand but a target: a charcoal map of the north road, three marked safehouses, and tonight\'s meeting point circled at the ruined aqueduct.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The guild ledger is secured and another clerk starts bargaining for passage.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Move to the place where the clue pays off', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /ruined aqueduct/);
+    assert.doesNotMatch(result.narration, /The chase stops here|guild matter closes|force restitution/i);
+  });
+
+  it('does not extract determiners from generic responsible-person actions as culprit names', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'The ledger room is one door away, and the proof is waiting ahead.' },
+          { role: 'assistant', content: 'The clerk points toward the warehouse ledger again.' },
+          { role: 'assistant', content: 'The sealed manifests show the same missing names and a witness reaches for the proof.' },
+          { role: 'assistant', content: 'The manifest is secured but the narration tries to send the party to another hidden cache.' },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The proof survives, but the culprit says the next lead waits below the quay before anyone can name them.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Put the named clue in front of the person responsible', gs);
+
+    assert.equal(result.payoffClosed, true);
+    assert.doesNotMatch(result.narration, /\bThe is forced\b|Expose The\b/);
+    assert.match(result.narration, /the exposed culprit is forced into the open/i);
+  });
+
   it('keeps stale guild-proof actions in a newer south-road den scene', () => {
     const gs = {
       data: {
@@ -1250,6 +1296,7 @@ describe('handlePlayerAction fallback behavior', () => {
       makeGameConfig(),
       {
         ...makeGameState(),
+        chatHistory: [],
         data: {
           characters: {
             Caldus: {
@@ -1283,6 +1330,51 @@ describe('handlePlayerAction fallback behavior', () => {
       'Inspect the room',
       'Cast detect magic',
     ]);
+  });
+
+  it('replaces repeated split-pipeline narration with a playable fallback', async () => {
+    const repeated = 'The warehouse is watched by men who do not wear guild colors. They want the cargo, not the coin. Go now, and do not open the crate in the street.';
+    llm.setProviderForTesting({
+      streamText: async ({ onToken }) => {
+        onToken(repeated);
+        return {
+          text: repeated,
+          usage: { inputTokens: 10, outputTokens: 30 },
+          llmRunId: 'run-repeat',
+        };
+      },
+    });
+
+    const result = await callModelNarration(
+      'game-repeat-guard',
+      makeGameConfig(),
+      {
+        ...makeGameState(),
+        chatHistory: [],
+        data: {
+          characters: {
+            Caldus: {
+              class: 'Fighter',
+              level: 5,
+              personality: 'Cautious and steady.',
+              standardActions: 'Advance, Question, Guard',
+              backstory: 'Shield-bearing veteran.',
+            },
+          },
+          chatHistory: [
+            { role: 'assistant', content: repeated },
+          ],
+        },
+      },
+      'Caldus',
+      'Move to the place where the clue pays off',
+      { to: () => ({ emit: () => {} }) },
+      {}
+    );
+
+    assert.equal(result.fallback, true);
+    assert.notEqual(result.narration, repeated);
+    assert.match(result.narration, /Move to the place where the clue pays off/);
   });
 
   it('returns an actionable fallback immediately when narration streaming fails', async () => {
