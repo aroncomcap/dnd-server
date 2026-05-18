@@ -599,6 +599,33 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /hidden cache|floor hatch/);
   });
 
+  it('still advances if one stale guild narration slips in after a resolved closure', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The chase stops here. Verran Holt is forced into the open. This beat is resolved; the next decision is what price to make them pay.',
+          },
+          {
+            role: 'assistant',
+            content: 'Verran folds again and points back to Salt Lane Warehouse, south bay, where the hidden cargo waits under guild seal.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Verran names Salt Lane Warehouse again and the clerk hands over another manifest.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.resolvedBeatAdvanced, true);
+    assert.match(result.narration, /sealed roadside waystation/);
+    assert.doesNotMatch(result.narration, /Verran|Salt Lane|manifest/);
+  });
+
   it('pays out closure aftermath actions without reopening the old objective', () => {
     const gs = {
       data: {

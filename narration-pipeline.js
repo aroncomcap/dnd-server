@@ -125,8 +125,9 @@ function buildResolvedBeatAdvanceDirective(history, actionText) {
     .map(msg => String(msg.content).replace(/\s+/g, ' ').trim())
     .filter(Boolean);
   const latest = assistantMessages[assistantMessages.length - 1] || '';
-  if (!/\bThis beat is resolved\b|\btruth no longer moves to another room\b/i.test(latest)) return '';
   if (!isClosedBeatAftermathAction(actionText)) return '';
+  if (!hasRecentResolvedBeat(assistantMessages)) return '';
+  if (isFreshBeatBoundary(latest)) return '';
 
   return `[RESOLVED BEAT ADVANCE]
 The previous objective is done. Do not reopen the same culprit, guild, warehouse, ledger, cache, quay, stair, runner, buyer, or hidden room. Pay out the consequence in one sentence, then cut to a fresh materially different story beat tied to the party's larger objective.`;
@@ -265,10 +266,13 @@ function buildSplitPayoffOptions({ narration, actionText, assistantHistory }) {
   ];
 }
 
-function shouldAdvanceAfterResolvedBeat(actionText, assistantHistory) {
+function shouldAdvanceAfterResolvedBeat(actionText, assistantHistory, narration = '') {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
-  return /\bThis beat is resolved\b|\btruth no longer moves to another room\b/i.test(latest) &&
-    isClosedBeatAftermathAction(actionText);
+  if (!hasRecentResolvedBeat(assistantHistory)) return false;
+  if (!isClosedBeatAftermathAction(actionText)) return false;
+  if (isFreshBeatBoundary(latest)) return false;
+  if (/\bThis beat is resolved\b|\btruth no longer moves to another room\b/i.test(latest)) return true;
+  return isGenericResolvedObjectiveAction(actionText) || reopensClosedGuildObjective(narration);
 }
 
 function buildResolvedBeatAdvance() {
@@ -335,7 +339,7 @@ function closeDeferredPayoffIfNeeded(parsed, actionText, gs) {
       freshBeatGuarded: true,
     };
   }
-  if (shouldAdvanceAfterResolvedBeat(actionText, assistantHistory)) {
+  if (shouldAdvanceAfterResolvedBeat(actionText, assistantHistory, parsed?.narration)) {
     return {
       ...parsed,
       narration: buildResolvedBeatAdvance(),
