@@ -807,6 +807,17 @@ function emitTurnChange(gameId, data) {
   io.to(gameId).emit('turn_change', data);
   discord.onTurnChange(gameId, data).catch(e => console.error('Discord turn_change error:', e.message));
 }
+
+function publishCurrentTurn(gameId, gameConfig, { startTimer = true } = {}) {
+  const gs = getGameState(gameId);
+  const current = getCurrentPlayer(gameId);
+  if (!current) return null;
+  const token = gs.data.characters[current]?.token || null;
+  emitTurnChange(gameId, { player: current, duration: gs.turnDuration * 1000, token });
+  if (startTimer) startTurnTimer(gameId, gameConfig, current);
+  return current;
+}
+
 function emitSystem(gameId, data) {
   io.to(gameId).emit('system', data);
   discord.onSystem(gameId, data).catch(e => console.error('Discord system error:', e.message));
@@ -1728,7 +1739,7 @@ async function generateWorldArt(gameId, item) {
 
 // ── Cost Tracking & Rate Limiting ─────────────────────────────────────────────
 // (Moved to cost-tracker.js)
-const { estimateCost, logCost, checkRateLimit, getCostSummary, IMAGE_COST, MAX_CALLS_PER_HOUR } = costTracker;
+const { estimateCost, logCost, checkRateLimit, getCostSummary, getCostLog, IMAGE_COST, MAX_CALLS_PER_HOUR } = costTracker;
 
 // ── Rolling Story Summary ─────────────────────────────────────────────────────
 async function refreshStorySummary(gameId, gameConfig) {
@@ -3373,6 +3384,7 @@ app.get('/api/deploy-time', (req, res) => {
 
 app.get('/api/costs', (req, res) => {
   const summary = getCostSummary();
+  const costLog = getCostLog();
   const games_detail = {};
   for (const entry of costLog) {
     if (!games_detail[entry.gameId]) games_detail[entry.gameId] = { calls: 0, cost: 0 };
@@ -4635,6 +4647,7 @@ Output ONLY this format:
       const gameConfig = await db.getGame(gameId);
       const gs = getGameState(gameId);
       await ensurePlayablePartyForStart(gameId, gameConfig, gs, socket);
+      publishCurrentTurn(gameId, gameConfig, { startTimer: false });
       // ✅ FIX: Serialize narration streaming per game
       const { narration, options, scene, world, llmRunId } = await withStreamingLock(gameId, () =>
         callGameLLM(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.')
@@ -4656,12 +4669,7 @@ Output ONLY this format:
           }
         }).catch(err => console.error('[scene-gen]', err.message));
       }
-      const first = getCurrentPlayer(gameId);
-      if (first) {
-        const firstToken = gs.data.characters[first]?.token || null;
-        emitTurnChange(gameId, { player: first, duration: gs.turnDuration * 1000, token: firstToken });
-        startTurnTimer(gameId, gameConfig, first);
-      }
+      publishCurrentTurn(gameId, gameConfig);
       // Generate encounter plan for the adventuring day
       const plannerDay = await buildPlannerDay(gameId, gameConfig, gs);
       if (plannerDay.ok) {
@@ -5139,6 +5147,7 @@ const discordGameEngine = {
     gs.paused = false;
     gs.idleTurns = 0;
     await ensurePlayablePartyForStart(gameId, gameConfig, gs);
+    publishCurrentTurn(gameId, gameConfig, { startTimer: false });
     // ✅ FIX: Serialize narration streaming per game
     const { narration, options, scene, world, llmRunId } = await withStreamingLock(gameId, () =>
       callGameLLM(gameId, gameConfig, prompt || 'Begin the adventure. Set the scene vividly.')
@@ -5159,12 +5168,7 @@ const discordGameEngine = {
         }
       }).catch(err => console.error('[scene-gen]', err.message));
     }
-    const first = getCurrentPlayer(gameId);
-    if (first) {
-      const firstToken = gs.data.characters[first]?.token || null;
-      emitTurnChange(gameId, { player: first, duration: TURN_DURATION, token: firstToken });
-      startTurnTimer(gameId, gameConfig, first);
-    }
+    publishCurrentTurn(gameId, gameConfig);
   },
 
   async resetGame(gameId) {

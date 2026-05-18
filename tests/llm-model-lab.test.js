@@ -98,3 +98,21 @@ describe('LLM output harness', () => {
     }
   });
 });
+
+describe('LLM timeout handling', () => {
+  it('fails a wedged stream quickly instead of leaving the table waiting forever', async () => {
+    llm.setProviderForTesting({
+      streamText: async () => new Promise(() => {}),
+    });
+
+    await assert.rejects(
+      llm.streamText({
+        task: 'narration',
+        gameId: 'timeout-test',
+        prompt: 'Start the scene.',
+        timeoutMs: 15,
+      }),
+      err => err?.code === 'LLM_TIMEOUT' && err?.name === 'TimeoutError'
+    );
+  });
+});

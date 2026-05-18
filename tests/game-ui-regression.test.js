@@ -68,6 +68,8 @@ test('game start guarantees a playable party before narration or combat', () => 
   assert.match(serverJs, /async function ensurePlayablePartyForStart\(gameId, gameConfig, gs, socket = null\)/, 'server should have a reusable start-time party guard');
   assert.match(serverJs, /socket\.on\('dm_start'[\s\S]*?await ensurePlayablePartyForStart\(gameId, gameConfig, gs, socket\);[\s\S]*?callGameLLM/, 'socket game start should create a fallback party before narration');
   assert.match(serverJs, /async startGame\(gameId, prompt\)[\s\S]*?await ensurePlayablePartyForStart\(gameId, gameConfig, gs\);[\s\S]*?callGameLLM/, 'engine game start should create a fallback party before narration');
+  assert.match(serverJs, /socket\.on\('dm_start'[\s\S]*?await ensurePlayablePartyForStart\(gameId, gameConfig, gs, socket\);[\s\S]*?publishCurrentTurn\(gameId, gameConfig, \{ startTimer: false \}\);[\s\S]*?callGameLLM/, 'socket game start should publish the first turn before waiting on narration');
+  assert.match(serverJs, /async startGame\(gameId, prompt\)[\s\S]*?await ensurePlayablePartyForStart\(gameId, gameConfig, gs\);[\s\S]*?publishCurrentTurn\(gameId, gameConfig, \{ startTimer: false \}\);[\s\S]*?callGameLLM/, 'engine game start should publish the first turn before waiting on narration');
   assert.match(serverJs, /if \(pcCombatants\.length === 0\) \{[\s\S]*?No player characters available for combat/, 'combat initialization should refuse enemy-only combat');
 });
 
@@ -370,4 +372,9 @@ test('encounter planner is host-only and supports queued adventuring days', () =
   assert.match(serverJs, /socket\.on\('planner:plan_next_day'/, 'server should support queueing the next adventuring day');
   assert.match(serverJs, /db\.setState\(gameId, 'encounterPlan'/, 'planner state should be persisted');
   assert.match(serverJs, /io\.to\(hostRoom\(gameId\)\)\.emit\('encounter_plan_updated'/, 'planner updates should not be broadcast to all players');
+});
+
+test('cost endpoint reads cost history through the tracker API', () => {
+  assert.match(serverJs, /getCostLog/, 'server should import the exported cost log accessor');
+  assert.match(serverJs, /app\.get\('\/api\/costs'[\s\S]*?const costLog = getCostLog\(\)/, 'cost endpoint should not reference an unscoped costLog variable');
 });

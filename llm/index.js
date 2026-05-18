@@ -23,6 +23,35 @@ function getUsage(result) {
   };
 }
 
+function getTimeoutMs(task, options = {}) {
+  if (options.timeoutMs != null) return Number(options.timeoutMs) || 0;
+  const taskKey = String(task || 'generic').toUpperCase().replace(/[^A-Z0-9]+/g, '_');
+  const taskSpecific = process.env[`LLM_${taskKey}_TIMEOUT_MS`];
+  const generic = process.env.LLM_TIMEOUT_MS;
+  const fallback = task === 'narration' ? 90_000 : 60_000;
+  const parsed = Number(taskSpecific ?? generic ?? fallback);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+async function withTimeout(promise, timeoutMs, task) {
+  if (!timeoutMs) return promise;
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const err = new Error(`LLM ${task || 'call'} timed out after ${timeoutMs}ms`);
+      err.name = 'TimeoutError';
+      err.code = 'LLM_TIMEOUT';
+      reject(err);
+    }, timeoutMs);
+    timer.unref?.();
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function resolveConfig(task, options) {
   if (task === 'narration' && !options.model) {
     const assignment = await getNarrationAssignment(options.gameId);
@@ -37,16 +66,18 @@ async function streamText(options = {}) {
   const config = await resolveConfig(task, options);
   const messages = normalizeMessages(options);
   const start = Date.now();
+  const timeoutMs = getTimeoutMs(task, options);
 
   try {
-    const result = await activeProvider().streamText({
+    const result = await withTimeout(activeProvider().streamText({
       model: config.model,
       system: options.system || '',
       messages,
       maxTokens: config.maxTokens,
       temperature: config.temperature,
       onToken: options.onToken,
-    });
+      timeoutMs,
+    }), timeoutMs, task);
 
     const latencyMs = Date.now() - start;
     const run = await telemetry.recordRun({
@@ -103,15 +134,17 @@ async function completeText(options = {}) {
   const config = await resolveConfig(task, options);
   const messages = normalizeMessages(options);
   const start = Date.now();
+  const timeoutMs = getTimeoutMs(task, options);
 
   try {
-    const result = await activeProvider().completeText({
+    const result = await withTimeout(activeProvider().completeText({
       model: config.model,
       system: options.system || '',
       messages,
       maxTokens: config.maxTokens,
       temperature: config.temperature,
-    });
+      timeoutMs,
+    }), timeoutMs, task);
     const latencyMs = Date.now() - start;
     const run = await telemetry.recordRun({
       ...options.metadata,
@@ -152,16 +185,18 @@ async function completeJson(options = {}) {
   const config = await resolveConfig(task, options);
   const messages = normalizeMessages(options);
   const start = Date.now();
+  const timeoutMs = getTimeoutMs(task, options);
 
   try {
-    const result = await activeProvider().completeJson({
+    const result = await withTimeout(activeProvider().completeJson({
       model: config.model,
       system: options.system || '',
       messages,
       schema: options.schema,
       maxTokens: config.maxTokens,
       temperature: config.temperature,
-    });
+      timeoutMs,
+    }), timeoutMs, task);
     const latencyMs = Date.now() - start;
     const run = await telemetry.recordRun({
       ...options.metadata,

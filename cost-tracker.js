@@ -31,6 +31,10 @@ function getCostSummary() {
   };
 }
 
+function getCostLog() {
+  return costLog.slice();
+}
+
 const apiCallLog = {}; // gameId -> [timestamps]
 const MAX_CALLS_PER_HOUR = 60;
 
@@ -53,6 +57,7 @@ module.exports = {
   estimateCost,
   logCost,
   getCostSummary,
+  getCostLog,
   checkRateLimit,
   MODEL_COSTS,
   IMAGE_COST,
