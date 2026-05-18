@@ -195,6 +195,13 @@ test('non-combat scenes do not keep hostile suggested options', () => {
   assert.match(serverJs, /filterOptionsForSceneState\(messageData\.options, gs, messageData\.text \|\| ''\)/, 'dm messages should filter stale hostile options before saving them');
 });
 
+test('non-combat scenes suppress AI-generated narrative option buttons', () => {
+  assert.match(serverJs, /function suppressNonCombatSceneOptions/, 'server should centralize non-combat option suppression');
+  assert.match(serverJs, /optionsSuppressedForSceneInput: true/, 'suppressed scene options should be traceable in dm_message diagnostics');
+  assert.match(serverJs, /!gs\.combatEngine\?\.state\?\.active/, 'scene option suppression should only apply outside active combat');
+  assert.match(serverJs, /gs\.lastOptions = \[\]/, 'suppressed scene options should not persist for reconnect');
+});
+
 test('combat narration cannot claim an engine target died early', () => {
   assert.match(serverJs, /Do NOT narrate a target as dead, defeated, motionless, or finished/, 'combat prompt should forbid premature kill narration');
   assert.match(serverJs, /unless RESOLVED THIS ROUND explicitly says its HP reached 0 or COMBAT IS OVER is present/, 'premature kill guard should tie death language to engine state');

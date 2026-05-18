@@ -34,6 +34,8 @@ function cleanInvalidCombatNarration(text) {
     '$1 '
   );
 
+  cleaned = cleaned.replace(/\b\d+d\d+\s*(?:[+-]\s*)?\?\s*/gi, '');
+
   return normalizeNarrationWhitespace(cleaned);
 }
 

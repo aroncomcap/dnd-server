@@ -651,6 +651,17 @@ function filterOptionsForSceneState(options, gs, narration = '') {
   return filtered.length >= 2 ? filtered.slice(0, 3) : [];
 }
 
+function suppressNonCombatSceneOptions(messageData, gs) {
+  if (!gs || !Array.isArray(messageData?.options) || messageData.options.length === 0) return messageData;
+  const outsideActiveCombat = !gs.combatEngine?.state?.active;
+  if (!outsideActiveCombat || messageData.tactical || messageData.allowSceneOptions) return messageData;
+  return {
+    ...messageData,
+    options: [],
+    optionsSuppressedForSceneInput: true,
+  };
+}
+
 async function maybeStartCombatFromOffensiveAction(gameId, gameConfig, userMessage, gs = getGameState(gameId)) {
   if (gs.combatEngine?.state?.active) return false;
   const targetName = extractNamedCombatTarget(userMessage, Object.keys(gs.data.characters || {}));
@@ -792,6 +803,9 @@ function emitDmMessage(gameId, data) {
         optionsFilteredForScene: true,
       };
     }
+  }
+  if (gs && messageData?.options?.length) {
+    messageData = suppressNonCombatSceneOptions(messageData, gs);
   }
   if (gs && messageData.options?.length) {
     gs.lastOptions = messageData.options;

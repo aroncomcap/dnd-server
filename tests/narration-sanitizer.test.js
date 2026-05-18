@@ -40,6 +40,18 @@ test('removes unknown combat placeholder lines', () => {
   assert.equal(cleaned, 'Fleeing Presence Claw. The blue-lit thing streaks on.');
 });
 
+test('removes unresolved dice placeholders from exploration narration', () => {
+  assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
+  const { cleanInvalidCombatNarration } = require(modulePath);
+
+  const cleaned = cleanInvalidCombatNarration(
+    'The shed floor is streaked with ink. 1d20+? The evidence says Joss was here recently. 1d20 + ? A second path heads toward the waterline.'
+  );
+
+  assert.equal(cleaned, 'The shed floor is streaked with ink. The evidence says Joss was here recently. A second path heads toward the waterline.');
+  assert.doesNotMatch(cleaned, /1d20|\?/);
+});
+
 test('removes leaked inline action options from combat narration', () => {
   assert.ok(fs.existsSync(modulePath), 'narration-sanitizer.js should exist');
   const { cleanInvalidCombatNarration } = require(modulePath);
