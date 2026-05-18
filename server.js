@@ -660,7 +660,7 @@ function buildObjectiveClosureDirective(history, actionText) {
   if (signalCount < 2) return '';
 
   return `[OBJECTIVE CLOSURE]
-This objective has had several exchanges. Close or climax it in this response: name the culprit or buyer, secure or lose the proof, expose the motive, and show the immediate consequence. Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, or "within the hour" lead. Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", or holding "real leverage". If a culprit flees, either the party catches them, they leave complete actionable proof behind, or the scene becomes an explicit immediate threat. End on a resolved consequence or hard choice in the current scene, not a new breadcrumb.`;
+This objective has had several exchanges. Close or climax it in this response: name the culprit or buyer, secure or lose the proof, expose the motive, and show the immediate consequence. Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, or "within the hour" lead. Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", holding "real leverage", being moved tonight, a crew that "has names", or proof still being kicked into danger. If a culprit flees, either the party catches them, they leave complete actionable proof behind, or the scene becomes an explicit immediate threat. End on a resolved consequence or hard choice in the current scene, not a new breadcrumb.`;
 }
 
 function isPayoffSeekingAction(actionText) {
@@ -689,7 +689,7 @@ function isDeferredPayoffNarration(narration, actionText = '', history = []) {
   if (signalCount < 2) return false;
 
   const ending = text.slice(-650).toLowerCase();
-  return /\b(?:vanish(?:es|ed)?|retreats?|melts?|slips away|runs?|escapes?|deeper|still within reach|not alone|real leverage|go now|before (?:he|she|they|it) learns?|trail (?:has|is|turns|points)|route (?:he|she|they|it) used|next move|next lead|points? toward|waiting under|waiting at|head straight for)\b/.test(ending);
+  return /\b(?:vanish(?:es|ed)?|retreats?|melts?|slips away|runs?|escapes?|flees?|fleeing|fled|bolts?|deeper|still within reach|not alone|real leverage|go now|one breath left|before (?:he|she|they|it|anyone|the watch) (?:learns?|reaches?|can)|trail (?:has|is|turns|points)|route (?:he|she|they|it) used|next move|next lead|points? toward|waiting under|waiting at|head straight for|being (?:moved|shifted)|(?:is|are) (?:being )?(?:moved|shifted|hidden|carried) (?:now|tonight)|happening now|crew has names|has names|about to become public|chance to shove off|lost moments?|kicks?.{0,80}(?:toward|into|over|off)|shoves?.{0,80}(?:toward|into|over|off)|throws?.{0,80}(?:toward|into|over|off)|lunges? for|goes pale at the sight)\b/.test(ending);
 }
 
 async function repairDeferredPayoffNarration({ gameId, gameConfig, narration, actionText, history }) {
@@ -710,6 +710,7 @@ Requirements:
 - Answer at least two of these: who is responsible, what they wanted, what proof changes hands, what cost lands, what immediate consequence follows.
 - Do not add a new route, office, lane, contact, buyer, alias, or "next lead".
 - Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", or holding "real leverage".
+- Do not end with the scene still mid-action, such as a culprit kicking proof away, someone lunging for evidence, or an accomplice bolting.
 - Do not start combat unless the draft already started combat.
 - Write 80-130 words of vivid, playable narration only. No options, markers, JSON, or commentary.`;
 

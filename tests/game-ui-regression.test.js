@@ -386,7 +386,7 @@ test('legacy narration path injects anti-stall objective closure', () => {
   assert.match(serverJs, /buildAntiStallPacingDirective\(gd\.chatHistory, submittedActionTextForPrompt\)/, 'legacy path should add the same anti-stall pacing as split narration');
   assert.match(serverJs, /function buildObjectiveClosureDirective/, 'legacy path should add a stronger late-objective closure guard');
   assert.match(serverJs, /Do not send the party to another office, annex, room, clerk, signatory, meeting, quay, crane, lane, route, or "within the hour" lead/, 'closure guard should ban the observed breadcrumb endings');
-  assert.match(serverJs, /Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", or holding "real leverage"/, 'closure guard should ban chase-deferral endings');
+  assert.match(serverJs, /Do not end with someone merely escaping, vanishing deeper, still within reach, "not alone", holding "real leverage", being moved tonight, a crew that "has names", or proof still being kicked into danger/, 'closure guard should ban chase-deferral endings');
 });
 
 test('legacy narration path repairs deferred payoff endings after anti-stall turns', () => {
@@ -396,6 +396,11 @@ test('legacy narration path repairs deferred payoff endings after anti-stall tur
   assert.match(serverJs, /isDeferredPayoffNarration\(parsed\.narration, submittedActionText, gd\.chatHistory\)/, 'legacy path should inspect parsed narration before saving it');
   assert.match(serverJs, /parsed\.narration = repairedNarration/, 'successful repair should replace the deferred narration');
   assert.match(serverJs, /Do not add a new route, office, lane, contact, buyer, alias, or "next lead"/, 'repair prompt should forbid creating another breadcrumb');
+  assert.match(serverJs, /flees\?\|fleeing\|fled/, 'repair detector should catch flee-forward endings');
+  assert.match(serverJs, /being \(\?:moved\|shifted\)/, 'repair detector should catch moved-tonight cache endings');
+  assert.match(serverJs, /crew has names/, 'repair detector should catch named-crew breadcrumbs');
+  assert.match(serverJs, /kicks\?\.\{0,80\}\(\?:toward\|into\|over\|off\)/, 'repair detector should catch proof kicked into danger');
+  assert.match(serverJs, /Do not end with the scene still mid-action/, 'repair prompt should force late scenes to land an outcome');
 });
 
 test('story prompt discourages repeated gatekeeper loops and noncombat filler actions', () => {
