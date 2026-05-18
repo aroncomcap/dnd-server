@@ -342,9 +342,20 @@ function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration
 
 function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (/\b(?:black-wax mark behind the theft|courier route through the shrine road and a sealed waystation|black-wax courier route through the sealed waystation|new lead bought with scorched evidence|patron's messenger was meant to vanish)\b/i.test(latest)) {
+    return {
+      narration: 'The black-wax route carries the party out of the harbor and onto the shrine road. By dusk, the sealed waystation comes into view with its bell ringing hard and no visible hand on the rope. Inside, something has dragged a wounded messenger behind the service shelves, and fresh footprints cut toward the rear hatch. The proof from Sera has become a living witness and a trail that is still warm.',
+      options: [
+        'Free the wounded messenger and demand one clear name',
+        'Follow the fresh footprints through the rear hatch',
+        'Disable the bell mechanism and search the service room',
+      ],
+    };
+  }
+
   if (/\b(?:At the river wharf|runner.*ledger.*gangplank|ledger satchel|wharf bell|chain ferry)\b/i.test(latest)) {
     return {
-      narration: 'The wharf scene pays out before it can become another errand. The dockside runner is pinned at the chain ferry with the ledger satchel under one arm and a wet black-wax token stuck to the clasp. He cannot outrun the party and cannot talk his way past the harbor watch. When pressed, he gives up the next truth: the ledger was only bait, and the real handoff is a black-wax courier route through the sealed waystation on the shrine road.',
+      narration: 'The wharf chase snaps shut at the chain ferry. The dockside runner is pinned with the ledger satchel under one arm and a wet black-wax token stuck to the clasp. He cannot outrun the party and cannot talk his way past the harbor watch. When pressed, he gives up the next truth: the ledger was only bait, and the real handoff is a black-wax courier route through the sealed waystation on the shrine road.',
       options: [
         'Take the ledger satchel and black-wax token',
         'Force the runner to name who paid for the bait',
@@ -366,7 +377,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:Sera Vale.*skiff|skiff.*Sera Vale|manifest tube|moon-salt crate|cut the mooring rope|clear water|burn the papers)\b/i.test(latest)) {
     return {
-      narration: 'The skiff chase pays off under the pier instead of becoming another handoff. Sera Vale slams into the harbor chain with the manifest tube smoking in her fist and moon-salt spilling white across the black water. Cornered, she gives up the black-wax mark behind the theft: a courier route through the shrine road and a sealed waystation where the patron\'s messenger was meant to vanish. The party has the proof, Sera in reach, and a new lead bought with scorched evidence rather than delay.',
+      narration: 'The skiff chase ends under the pier. Sera Vale slams into the harbor chain with the manifest tube smoking in her fist and moon-salt spilling white across the black water. Cornered, she gives up the black-wax mark behind the theft: a courier route through the shrine road and a sealed waystation where the patron\'s messenger was meant to vanish. The party has the proof, Sera in reach, and a new lead bought with scorched evidence rather than delay.',
       options: [
         'Seize Sera and the smoking manifest tube',
         'Demand the patron\'s name before the evidence burns',
@@ -388,7 +399,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:At the ruined aqueduct, the black-wax map|Lanterns move below the broken arches|safehouse runner arrives early|coded purse|false signal on the north road)\b/i.test(latest)) {
     return {
-      narration: 'The aqueduct meeting breaks open instead of resetting. The early runner is pinned against a cracked pillar with the coded purse still in hand, and the unlit north-road signal becomes the party\'s leverage. Below the arches, Captain Rulven Marr realizes the ambush is not his anymore. He must either trade the safehouse list, call his hidden crossbowmen, or watch the party light the false signal that turns his own network against him.',
+      narration: 'The aqueduct meeting breaks open. The early runner is pinned against a cracked pillar with the coded purse still in hand, and the unlit north-road signal becomes the party\'s leverage. Below the arches, Captain Rulven Marr realizes the ambush is not his anymore. He must either trade the safehouse list, call his hidden crossbowmen, or watch the party light the false signal that turns his own network against him.',
       options: [
         'Force Rulven Marr to trade the full safehouse list',
         'Light the false signal and split his network',

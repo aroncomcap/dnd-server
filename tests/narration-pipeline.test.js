@@ -960,6 +960,7 @@ describe('buildUserMessage', () => {
     assert.equal(result.freshBeatGuarded, true);
     assert.match(result.narration, /black-wax token/);
     assert.match(result.narration, /sealed waystation/);
+    assert.doesNotMatch(result.narration, /before it can become another errand|pays out/i);
     assert.doesNotMatch(result.narration, /keeps moving toward the same ferry/);
   });
 
@@ -1073,9 +1074,33 @@ describe('buildUserMessage', () => {
     const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
 
     assert.equal(result.freshBeatGuarded, true);
-    assert.match(result.narration, /skiff chase pays off/);
+    assert.match(result.narration, /skiff chase ends/);
     assert.match(result.narration, /sealed waystation/);
-    assert.doesNotMatch(result.narration, /guild can demand restitution|The chase stops here/);
+    assert.doesNotMatch(result.narration, /guild can demand restitution|The chase stops here|instead of becoming another handoff/);
+  });
+
+  it('advances from the Sera skiff payoff to the sealed waystation instead of repeating the skiff', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The skiff chase ends under the pier. Sera Vale slams into the harbor chain with the manifest tube smoking in her fist and moon-salt spilling white across the black water. Cornered, she gives up the black-wax mark behind the theft: a courier route through the shrine road and a sealed waystation where the patron\'s messenger was meant to vanish. The party has the proof, Sera in reach, and a new lead bought with scorched evidence rather than delay.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Sera Vale is still in the skiff with the same manifest tube.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Move to the place where the clue pays off', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /sealed waystation comes into view/);
+    assert.match(result.narration, /wounded messenger/);
+    assert.doesNotMatch(result.narration, /still in the skiff|slams into the harbor chain/);
   });
 
   it('does not extract determiners from generic responsible-person actions as culprit names', () => {
