@@ -464,7 +464,8 @@ test('story prompt discourages repeated gatekeeper loops and noncombat filler ac
 
 test('split narration prompt carries story momentum and option quality rules', () => {
   assert.match(narrationPipelineJs, /Every non-combat response must materially change the situation/, 'split narration should require changed situations');
-  assert.match(narrationPipelineJs, /topLevelHistory\.length \? topLevelHistory : dataHistory/, 'split narration should read persisted chat history');
+  assert.match(narrationPipelineJs, /function getCurrentChatHistory/, 'split narration should centralize chat history selection');
+  assert.match(narrationPipelineJs, /dataHistory\.length >= topLevelHistory\.length \? dataHistory : topLevelHistory/, 'split narration should prefer the freshest persisted chat history');
   assert.match(narrationPipelineJs, /Treat RECENT HISTORY as binding continuity/, 'split narration should preserve named leads from recent history');
   assert.match(narrationPipelineJs, /ANTI-STALL PACING/, 'split narration should inject anti-stall directives for repeated lead loops');
   assert.match(narrationPipelineJs, /Resolve or complicate it NOW/, 'anti-stall directives should force the established lead to be consumed');

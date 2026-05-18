@@ -171,6 +171,14 @@ function normalizeBareNarration(text) {
     .toLowerCase();
 }
 
+function getCurrentChatHistory(gs) {
+  const topLevelHistory = Array.isArray(gs?.chatHistory) ? gs.chatHistory : [];
+  const dataHistory = Array.isArray(gs?.data?.chatHistory) ? gs.data.chatHistory : [];
+  if (!topLevelHistory.length) return dataHistory;
+  if (!dataHistory.length) return topLevelHistory;
+  return dataHistory.length >= topLevelHistory.length ? dataHistory : topLevelHistory;
+}
+
 function isLowInformationNarration(narration, actionText = '') {
   const normalized = normalizeBareNarration(narration);
   if (!normalized) return true;
@@ -184,9 +192,7 @@ function isLowInformationNarration(narration, actionText = '') {
 }
 
 function getAssistantHistory(gs) {
-  const topLevelHistory = Array.isArray(gs?.chatHistory) ? gs.chatHistory : [];
-  const dataHistory = Array.isArray(gs?.data?.chatHistory) ? gs.data.chatHistory : [];
-  return (topLevelHistory.length ? topLevelHistory : dataHistory)
+  return getCurrentChatHistory(gs)
     .filter(msg => msg?.role === 'assistant' && msg.content)
     .map(msg => String(msg.content).replace(/\s+/g, ' ').trim())
     .filter(Boolean);
@@ -548,9 +554,7 @@ function buildUserMessage(gs, characterName, actionText) {
   }
 
   // Chat history
-  const topLevelHistory = Array.isArray(gs.chatHistory) ? gs.chatHistory : [];
-  const dataHistory = Array.isArray(gs.data?.chatHistory) ? gs.data.chatHistory : [];
-  const history = topLevelHistory.length ? topLevelHistory : dataHistory;
+  const history = getCurrentChatHistory(gs);
   if (history.length > 0) {
     const historyLines = history.map(msg => {
       const role = msg.role === 'assistant' ? 'DM' : (msg.name || characterName || 'Player');

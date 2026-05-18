@@ -395,6 +395,26 @@ describe('buildUserMessage', () => {
     assert.ok(msg.includes('binding continuity'), 'Should tell the model to preserve the named lead');
   });
 
+  it('uses the freshest persisted history when top-level chatHistory is stale', () => {
+    const gs = {
+      pendingCorrections: [],
+      chatHistory: [
+        { role: 'assistant', content: 'Old top-level history only mentions the countinghouse.' },
+      ],
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'Old top-level history only mentions the countinghouse.' },
+          { role: 'assistant', content: 'The chase stops here. This beat is resolved; the next decision is what price to make them pay.' },
+        ],
+      },
+    };
+
+    const msg = buildUserMessage(gs, 'Kael', 'Move to the place where the clue pays off');
+
+    assert.match(msg, /This beat is resolved/);
+    assert.match(msg, /RESOLVED BEAT ADVANCE/);
+  });
+
   it('adds anti-stall pacing when recent history keeps circling an established lead', () => {
     const gs = {
       pendingCorrections: [],
@@ -554,6 +574,29 @@ describe('buildUserMessage', () => {
     assert.equal(result.resolvedBeatAdvanced, true);
     assert.match(result.narration, /next story beat/);
     assert.doesNotMatch(result.narration, /another office|Merrow signs/);
+  });
+
+  it('closes against the freshest persisted history when top-level history is stale', () => {
+    const gs = {
+      chatHistory: [
+        { role: 'assistant', content: 'The party is still talking to Merrow in the countinghouse.' },
+      ],
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'The party is still talking to Merrow in the countinghouse.' },
+          { role: 'assistant', content: 'The chase stops here. Merrow is forced into the open. This beat is resolved; the next decision is what price to make them pay.' },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Kael finds another hidden cache under the floor hatch.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.resolvedBeatAdvanced, true);
+    assert.doesNotMatch(result.narration, /hidden cache|floor hatch/);
   });
 
   it('pays out closure aftermath actions without reopening the old objective', () => {
