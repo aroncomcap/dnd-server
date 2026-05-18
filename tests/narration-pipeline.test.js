@@ -937,6 +937,29 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /Blackwake Slip is forced into the open|Expose Blackwake Slip/);
   });
 
+  it('never treats pronouns as culprit names in payoff closure', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'The factor sends the party to the warehouse foreman.' },
+          { role: 'assistant', content: 'The foreman braces beside the red-slashed crate and the Lampwick Row stamp.' },
+          { role: 'assistant', content: 'The foreman plants a hand on the crate while dockhands watch.' },
+          { role: 'assistant', content: 'The sealed cargo manifest gives the party proof, but the foreman keeps pointing below the quay.' },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'He orders the tarp cut open in front of everyone, exposing sealed contraband and enough proof to name a thief, then claims the next lead waits below the quay.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Move to the place where the clue pays off', gs);
+
+    assert.equal(result.payoffClosed, true);
+    assert.match(result.narration, /the foreman is forced into the open/);
+    assert.doesNotMatch(result.narration, /\bHe is forced into the open|\bExpose He\b/);
+  });
+
   it('keeps stale guild-proof actions in a newer south-road den scene', () => {
     const gs = {
       data: {

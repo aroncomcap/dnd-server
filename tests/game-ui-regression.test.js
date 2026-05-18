@@ -454,6 +454,8 @@ test('legacy narration path repairs deferred payoff endings after anti-stall tur
   assert.match(serverJs, /Do not end with the scene still mid-action/, 'repair prompt should force late scenes to land an outcome');
   assert.match(serverJs, /function isRepeatedRecentNarration/, 'server should reject verbatim repeated narration before it reaches players');
   assert.match(serverJs, /narration-repeat-guard/, 'repeated narration replacements should be traceable in logs');
+  assert.match(serverJs, /post-repair repeated narration/, 'server should re-check repeats after payoff repair changes narration');
+  assert.match(serverJs, /He\|She\|They/, 'server culprit extraction should reject pronouns as names');
   assert.match(serverJs, /initiative starts\?/, 'noncombat damage guard should catch AI-only initiative starts');
   assert.match(serverJs, /slices\?/, 'noncombat damage guard should catch pseudo-damage from blades outside engine combat');
   assert.match(serverJs, /Do not start combat, call for initiative, or narrate attacks unless the player explicitly chose violence/, 'payoff repair should not preserve AI-only combat after non-hostile input');

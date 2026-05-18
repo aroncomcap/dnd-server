@@ -252,7 +252,7 @@ function shouldClosePayoffNarration(narration, actionText, assistantHistory) {
 
 function extractAccountableName(text) {
   const value = String(text || '');
-  const invalidLeadingWord = /^(?:The|A|An|This|That|These|Those|Move|Put|Force|Make|Demand|Expose|Ask|Offer|Take|At|Inside|Outside|Before|After|Follow|Rush|Circle|Call|Stop|Use|Enter|Search|Inspect)$/;
+  const invalidLeadingWord = /^(?:The|A|An|This|That|These|Those|He|She|They|Them|His|Her|Their|It|Its|You|Your|We|Our|I|My|Move|Put|Force|Make|Demand|Expose|Ask|Offer|Take|At|Inside|Outside|Before|After|Follow|Rush|Circle|Call|Stop|Use|Enter|Search|Inspect)$/;
   const isInvalidName = name => {
     const candidate = String(name || '').trim();
     const first = candidate.split(/\s+/)[0] || '';
@@ -271,6 +271,10 @@ function extractAccountableName(text) {
   if (titled && !isInvalidName(titled[1])) return titled[1];
   const named = value.match(/\b(?:culprit|responsible|signatory|payer|buyer|traitor|clerk|quaymaster)\s+(?:is|was|named|called)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
   if (named && !isInvalidName(named[1])) return named[1];
+  const rolePriority = ['foreman', 'deputy', 'clerk', 'buyer', 'patron', 'factor', 'dockmaster', 'quaymaster', 'courier', 'rider', 'accomplice', 'thief'];
+  const lowerValue = value.toLowerCase();
+  const role = rolePriority.find(candidate => (lowerValue.match(new RegExp(`\\b${candidate}\\b`, 'gi')) || []).length >= 2);
+  if (role) return `the ${role}`;
   const twoWordNames = value.match(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/g) || [];
   return twoWordNames.find(name => !isInvalidName(name) && !/\b(?:Mara Pell|Joren Pell)\b/.test(name)) || 'the exposed culprit';
 }
@@ -1044,6 +1048,16 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
     const finalized = closeDeferredPayoffIfNeeded(parsed, actionText, gs);
     if (!finalized.options.length && !finalized.payoffClosed) {
       finalized.options = [...FALLBACK_OPTIONS];
+    }
+    if (isRepeatedRecentNarration(finalized.narration, getCurrentChatHistory(gs))) {
+      const fallback = buildFallbackTurn(characterName, actionText);
+      closeStream(fallback.narration, response.llmRunId || null);
+      return {
+        ...fallback,
+        llmRunId: response.llmRunId || null,
+        fallback: true,
+        repeated: true,
+      };
     }
     finalized.llmRunId = response.llmRunId;
     closeStream(finalized.narration || responseText.trim(), response.llmRunId);

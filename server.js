@@ -799,7 +799,7 @@ function shouldUseDeterministicPayoffClosure(narration, actionText = '', history
 
 function extractAccountableName(text) {
   const value = String(text || '');
-  const invalidLeadingWord = /^(?:The|A|An|This|That|These|Those|Move|Put|Force|Make|Demand|Expose|Ask|Offer|Take|At|Inside|Outside|Before|After|Follow|Rush|Circle|Call|Stop|Use|Enter|Search|Inspect)$/;
+  const invalidLeadingWord = /^(?:The|A|An|This|That|These|Those|He|She|They|Them|His|Her|Their|It|Its|You|Your|We|Our|I|My|Move|Put|Force|Make|Demand|Expose|Ask|Offer|Take|At|Inside|Outside|Before|After|Follow|Rush|Circle|Call|Stop|Use|Enter|Search|Inspect)$/;
   const isInvalidName = name => {
     const candidate = String(name || '').trim();
     const first = candidate.split(/\s+/)[0] || '';
@@ -822,6 +822,10 @@ function extractAccountableName(text) {
   if (colonName && !isInvalidName(colonName[1])) return colonName[1];
   const possessiveName = value.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})'s\b/);
   if (possessiveName && !isInvalidName(possessiveName[1])) return possessiveName[1];
+  const rolePriority = ['foreman', 'deputy', 'clerk', 'buyer', 'patron', 'factor', 'dockmaster', 'quaymaster', 'courier', 'rider', 'accomplice', 'thief'];
+  const lowerValue = value.toLowerCase();
+  const role = rolePriority.find(candidate => (lowerValue.match(new RegExp(`\\b${candidate}\\b`, 'gi')) || []).length >= 2);
+  if (role) return `the ${role}`;
   const singleNameCounts = {};
   for (const match of value.matchAll(/\b([A-Z][a-z]{3,})\b/g)) {
     const name = match[1];
@@ -2638,6 +2642,21 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   }
   if (combatResolvedLines.length > 0 && !combatResolvedLines.every(line => parsed.narration.includes(line))) {
     parsed.narration = `${combatResolvedLines.map(line => `🎲 ${line}`).join('\n')}\n\n${parsed.narration}`.trim();
+  }
+  if (!combatActive && isRepeatedRecentNarration(parsed.narration, gd.chatHistory)) {
+    if (isPayoffSeekingAction(submittedActionText)) {
+      parsed.narration = buildPayoffClosureFallback({
+        narration: parsed.narration,
+        history: gd.chatHistory,
+      });
+      parsed.options = [];
+    } else {
+      const fallbackActor = actingAs || userMessage.split(':')[0]?.trim() || 'Unknown';
+      const fallback = buildFallbackTurn(fallbackActor, submittedActionText);
+      parsed.narration = fallback.narration;
+      parsed.options = fallback.options;
+    }
+    console.warn('[narration-repeat-guard] replaced post-repair repeated narration with fallback');
   }
   io.to(gameId).emit('dm_stream_end', { narration: parsed.narration, llmRunId: finalMessage.llmRunId || null });
   parsed.llmRunId = finalMessage.llmRunId || null;
