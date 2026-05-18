@@ -184,6 +184,18 @@ test('GM prompt keeps attack rolls under server control', () => {
   assert.doesNotMatch(serverJs, /Kael swings longsword \(STR \+3, Prof \+2\) — rolls 17/, 'legacy few-shot should not teach model-resolved attacks');
 });
 
+test('non-combat scenes do not keep hostile suggested options', () => {
+  assert.match(serverJs, /function looksLikeHostileOption/, 'server should classify hostile suggested options');
+  assert.match(serverJs, /function filterOptionsForSceneState/, 'server should filter options against current scene state');
+  assert.match(serverJs, /optionsFilteredForScene/, 'filtered options should be traceable in dm_message diagnostics');
+  assert.match(serverJs, /filterOptionsForSceneState\(messageData\.options, gs, messageData\.text \|\| ''\)/, 'dm messages should filter stale hostile options before saving them');
+});
+
+test('combat narration cannot claim an engine target died early', () => {
+  assert.match(serverJs, /Do NOT narrate a target as dead, defeated, motionless, or finished/, 'combat prompt should forbid premature kill narration');
+  assert.match(serverJs, /unless RESOLVED THIS ROUND explicitly says its HP reached 0 or COMBAT IS OVER is present/, 'premature kill guard should tie death language to engine state');
+});
+
 test('combat turn options stay scoped to the engine turn after actions and auto-actions', () => {
   assert.match(serverJs, /function getVisiblePlayerForOptions/, 'server should compute option owner from active combat engine turn');
   assert.match(serverJs, /const nextPlayer = getVisiblePlayerForOptions\(gameId\);[\s\S]*emitDmMessage\(gameId, \{ text: narration, options, auto: false/, 'human combat actions should emit options for the resolved engine turn');

@@ -657,6 +657,23 @@ function targetRequiredNarration(userMessage) {
   };
 }
 
+function looksLikeHostileOption(option) {
+  const text = String(option || '').replace(/^[\s\d.)\uFE0F\u20E3]+/u, '').trim();
+  if (!text) return false;
+  if (hasNonHostileProgressIntent(text)) return false;
+  if (/\b(?:check|inspect|investigate|search|examine|study|observe|look|listen|scan|track|ask|talk|explain|negotiate|persuade|convince|offer|bargain|move on|press on|continue|proceed|travel|head toward)\b/i.test(text)) {
+    return false;
+  }
+  return /\b(?:attack|strike|hit|stab|slash|shoot|blast|kill|wound|damage|charge|dodge|take cover|ready (?:a|the|your)?\s*weapon|draw (?:a|the|your)?\s*(?:sword|blade|weapon)|mace|longsword|shortsword|rapier|dagger|spear|crossbow|shortbow|longbow|axe beak|goblin|orc|skeleton|zombie|bandit|cultist|cast\s+(?:acid splash|burning hands|chill touch|eldritch blast|fire bolt|fireball|guiding bolt|inflict wounds|magic missile|poison spray|ray of frost|sacred flame|shocking grasp|thunderwave|toll the dead))\b/i.test(text);
+}
+
+function filterOptionsForSceneState(options, gs, narration = '') {
+  if (!Array.isArray(options) || !options.length) return options || [];
+  if (gs?.combatEngine?.state?.active || hasHardCombatSignal(narration)) return options;
+  const filtered = options.filter(option => !looksLikeHostileOption(option));
+  return filtered.length >= 2 ? filtered.slice(0, 3) : [];
+}
+
 async function maybeStartCombatFromOffensiveAction(gameId, gameConfig, userMessage, gs = getGameState(gameId)) {
   if (gs.combatEngine?.state?.active) return false;
   const targetName = extractNamedCombatTarget(userMessage, Object.keys(gs.data.characters || {}));
@@ -788,6 +805,17 @@ function emitDmMessage(gameId, data) {
         options: scoped.options,
         optionsRetargeted: true,
         optionsRetargetedFrom: scoped.mismatchedNames,
+      };
+    }
+  }
+  if (gs && messageData?.options?.length) {
+    const sceneOptions = filterOptionsForSceneState(messageData.options, gs, messageData.text || '');
+    if (sceneOptions.length !== messageData.options.length) {
+      gs.preTaggedOptions = null;
+      messageData = {
+        ...messageData,
+        options: sceneOptions,
+        optionsFilteredForScene: true,
       };
     }
   }
@@ -2172,6 +2200,7 @@ DO NOT: roll dice, invent attack results, change HP, ask for initiative rolls, o
 DO: Narrate EVERY result from RESOLVED THIS ROUND as a bold dice line, then 1 sentence of flavor. That's it.
 Preserve the combat engine math exactly. Show to-hit as "To hit: d20 [roll] + [bonus] = [total] vs AC [AC]" and damage as "Damage: [formula] ([dice] + [bonus] = [total]) [type]".
 Do NOT add HIT/MISS to non-damage, heal, buff, movement, dodge, dash, disengage, or death-save results. If a resolved line has no roll, damage, or target HP, do not invent one.
+Do NOT narrate a target as dead, defeated, motionless, or finished unless RESOLVED THIS ROUND explicitly says its HP reached 0 or COMBAT IS OVER is present.
 ENEMY ATTACKS ON PCs are the most dramatic part — describe the PC getting hurt, bleeding, staggering.
 KILLSHOT: [scene] when a target reaches 0 HP.
 Keep narration SHORT — this is tactical combat, not a novel.` : '';
