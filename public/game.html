@@ -2330,6 +2330,12 @@ function showOptions(options) {
   sfx.options();
 }
 
+function clearPendingOptions() {
+  pendingOptions = [];
+  pendingForPlayer = null;
+  showOptions([]);
+}
+
 // ── Scene Image ───────────────────────────────────────────────
 const scenePanel = document.getElementById('scene-panel');
 let sceneImg = document.getElementById('scene-img');
@@ -2747,6 +2753,7 @@ socket.on('combat_started', (data) => {
   combatActive = true;
   combatState = { ...(combatState || {}), ...data };
   targetPreferences = data.targetPreferences || targetPreferences || {};
+  clearPendingOptions();
   // Restore full action input
   const myTurn = document.getElementById('my-turn-controls');
   const waiting = ensureWaitingMessageStructure();
@@ -3559,6 +3566,8 @@ socket.on('dm_message', (data) => {
   }
   if (!data.options || !data.options.length) {
     console.warn('NO OPTIONS in model response');
+    pendingOptions = [];
+    pendingForPlayer = null;
     // Show fallback notice if it's my turn and no options were provided
     if (isMyTurnCheck()) {
       const notice = document.createElement('div');

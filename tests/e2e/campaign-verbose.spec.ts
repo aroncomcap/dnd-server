@@ -18,6 +18,7 @@ const TURN_READY_TIMEOUT_MS = Number(process.env.CAMPAIGN_TURN_READY_TIMEOUT_MS 
 const REUSE_CAMPAIGN = process.env.CAMPAIGN_REUSE_CAMPAIGN !== 'false';
 const REUSE_ROTATE_HOURS = Number(process.env.CAMPAIGN_REUSE_ROTATE_HOURS || 24);
 const REUSE_NAME_PREFIX = process.env.CAMPAIGN_REUSE_NAME_PREFIX || 'Verbose-Reusable-DND5E';
+const REUSE_LOOKUP_TIMEOUT_MS = Number(process.env.CAMPAIGN_REUSE_LOOKUP_TIMEOUT_MS || 30000);
 
 test.setTimeout(CAMPAIGN_TIMEOUT_MS);
 
@@ -35,13 +36,19 @@ function getReuseCampaignName() {
 
 async function findReusableGameId(page, baseURL, gameName) {
   if (!gameName) return null;
-  const gamesRes = await page.request.get(`${baseURL}/api/games`);
-  if (!gamesRes.ok()) return null;
-  const games = await gamesRes.json();
-  const match = games
-    .filter(game => game?.name === gameName)
-    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))[0];
-  return match?.id || null;
+  try {
+    const gamesRes = await page.request.get(`${baseURL}/api/games`, { timeout: REUSE_LOOKUP_TIMEOUT_MS });
+    if (!gamesRes.ok()) return null;
+    const games = await gamesRes.json();
+    const match = games
+      .filter(game => game?.name === gameName)
+      .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))[0];
+    return match?.id || null;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.log(`⚠️  Reusable game lookup skipped: ${message}`);
+    return null;
+  }
 }
 
 async function isCombatUiActive(page) {

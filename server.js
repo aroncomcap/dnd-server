@@ -767,6 +767,9 @@ function emitDmMessage(gameId, data) {
   if (gs && messageData.options?.length) {
     gs.lastOptions = messageData.options;
     gs.lastForPlayer = messageData.forPlayer;
+  } else if (gs && Object.prototype.hasOwnProperty.call(messageData || {}, 'options')) {
+    gs.lastOptions = [];
+    gs.lastForPlayer = null;
   }
   io.to(gameId).emit('dm_message', messageData);
   discord.onDmMessage(gameId, messageData).catch(e => console.error('Discord dm_message error:', e.message));

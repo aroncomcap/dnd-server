@@ -182,6 +182,13 @@ test('combat turn options stay scoped to the engine turn after actions and auto-
   assert.match(serverJs, /const nextPlayer = getVisiblePlayerForOptions\(gameId\);[\s\S]*emitDmMessage\(gameId, \{ text: narration, options, auto: true/, 'auto combat actions should emit options for the resolved engine turn');
 });
 
+test('combat start clears stale scene options', () => {
+  assert.match(gameHtml, /function clearPendingOptions\(\)/, 'client should centralize stale option clearing');
+  assert.match(gameHtml, /socket\.on\('combat_started'[\s\S]*?clearPendingOptions\(\)/, 'combat start should remove pre-combat social options from the action area');
+  assert.match(gameHtml, /NO OPTIONS in model response[\s\S]*?pendingOptions = \[\]/, 'messages with no options should clear pending client options');
+  assert.match(serverJs, /hasOwnProperty\.call\(messageData \|\| \{\}, 'options'\)[\s\S]*?gs\.lastOptions = \[\]/, 'server should clear remembered options when emitting an explicit empty options array');
+});
+
 test('combat auto-actions are resolved by the combat engine', () => {
   assert.match(serverJs, /function chooseCombatAutoAction/, 'server should choose a concrete combat action for timed-out PCs');
   assert.match(serverJs, /callGameLLM\(gameId, gameConfig, gs\.combatEngine\?\.state\?\.active \? `\$\{playerName\}: \$\{autoAction\}` : autoAction/, 'combat auto-actions should be sent as parseable player actions');
