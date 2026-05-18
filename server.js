@@ -799,20 +799,29 @@ function shouldUseDeterministicPayoffClosure(narration, actionText = '', history
 
 function extractAccountableName(text) {
   const value = String(text || '');
+  const invalidLeadingWord = /^(?:The|A|An|This|That|These|Those|Move|Put|Force|Make|Demand|Expose|Ask|Offer|Take|At|Inside|Outside|Before|After|Follow|Rush|Circle|Call|Stop|Use|Enter|Search|Inspect)$/;
+  const isInvalidName = name => {
+    const candidate = String(name || '').trim();
+    const first = candidate.split(/\s+/)[0] || '';
+    return !candidate || invalidLeadingWord.test(first) ||
+      /\b(?:Iron Quay|Warehouse Three|Moor Logistics|Merchant Guild|Lower Docks|Blackwake Slip|Gildershade Hall|Stonebridge Guildhall|Greyhook Market|Blackreed Ford)\b/.test(candidate);
+  };
   const houseName = value.match(/\b(House\s+[A-Z][a-z]+)\b/);
   if (houseName) return houseName[1];
+  const roleNamed = value.match(/\b(?:deputy|accomplice|clerk|buyer|teamster|patron|liar|witness),?\s+([A-Z][a-z]+)\b/);
+  if (roleNamed && !isInvalidName(roleNamed[1])) return roleNamed[1];
+  const actionName = value.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\s+(?:finally breaks|breaks first|bolts|backs away|staggers|blurts|spits|points|confesses|admits|stands|snaps|orders|kicks)\b/);
+  if (actionName && !isInvalidName(actionName[1])) return actionName[1];
   const titledName = value.match(/\b(?:Master|Factor|Dockmaster|Clerk|Broker|Guildmaster)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
-  if (titledName) return titledName[1];
+  if (titledName && !isInvalidName(titledName[1])) return titledName[1];
   const namedCulprit = value.match(/\b(?:buyer|culprit|responsible|accountable|signatory|cutout|mastermind|funder|payer|enforcer|guildman)\s+(?:is|was|named|called|called himself|called herself)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
-  if (namedCulprit) return namedCulprit[1];
-  const actionName = value.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\s+(?:finally breaks|breaks first|bolts|backs away|staggers|blurts|spits|points|confesses|admits)\b/);
-  if (actionName) return actionName[1];
+  if (namedCulprit && !isInvalidName(namedCulprit[1])) return namedCulprit[1];
   const ownershipName = value.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})'s\s+(?:seal|mark|route|ledger|cargo|freight|payment|escort|men|cutout|records?)\b/);
-  if (ownershipName) return ownershipName[1];
+  if (ownershipName && !isInvalidName(ownershipName[1])) return ownershipName[1];
   const colonName = value.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\s*:/);
-  if (colonName) return colonName[1];
+  if (colonName && !isInvalidName(colonName[1])) return colonName[1];
   const possessiveName = value.match(/\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})'s\b/);
-  if (possessiveName) return possessiveName[1];
+  if (possessiveName && !isInvalidName(possessiveName[1])) return possessiveName[1];
   const singleNameCounts = {};
   for (const match of value.matchAll(/\b([A-Z][a-z]{3,})\b/g)) {
     const name = match[1];
@@ -825,7 +834,7 @@ function extractAccountableName(text) {
   if (repeatedSingle) return repeatedSingle;
   if (/\bSable\b/.test(value)) return 'Sable';
   const twoWordNames = value.match(/\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/g) || [];
-  const filtered = twoWordNames.filter(name => !/\b(?:Iron Quay|Warehouse Three|Moor Logistics|Merchant Guild|Lower Docks)\b/.test(name));
+  const filtered = twoWordNames.filter(name => !isInvalidName(name));
   return filtered[0] || 'the exposed culprit';
 }
 

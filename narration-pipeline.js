@@ -263,6 +263,10 @@ function extractAccountableName(text) {
   if (fullName) return fullName[1];
   const single = value.match(/\b(Seln|Sable)\b/);
   if (single) return single[1];
+  const roleNamed = value.match(/\b(?:deputy|accomplice|clerk|buyer|teamster|patron|liar|witness),?\s+([A-Z][a-z]+)\b/);
+  if (roleNamed && !isInvalidName(roleNamed[1])) return roleNamed[1];
+  const actionNamed = value.match(/\b([A-Z][a-z]+)\s+(?:stands|snaps|backs away|bolts|breaks|confesses|admits|points|orders|kicks)\b/);
+  if (actionNamed && !isInvalidName(actionNamed[1])) return actionNamed[1];
   const titled = value.match(/\b(?:Master|Factor|Clerk|Quaymaster|Dockmaster|Broker|Guildmaster)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);
   if (titled && !isInvalidName(titled[1])) return titled[1];
   const named = value.match(/\b(?:culprit|responsible|signatory|payer|buyer|traitor|clerk|quaymaster)\s+(?:is|was|named|called)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2})\b/);

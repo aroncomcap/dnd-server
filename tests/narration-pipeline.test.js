@@ -914,6 +914,29 @@ describe('buildUserMessage', () => {
     assert.match(result.narration, /the exposed culprit is forced into the open/i);
   });
 
+  it('prefers accountable people over place names when closing a payoff scene', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'Guild Factor Merrow points the party toward the riverside warehouse where the trail broke.' },
+          { role: 'assistant', content: 'The warehouse ledger names Blackwake Slip as the payoff drop.' },
+          { role: 'assistant', content: 'The teamster points straight at the clerk and names Merrow\'s deputy, Selvek, as the one who ordered the falsified entry.' },
+          { role: 'assistant', content: 'At Blackwake Slip, Selvek stands with three dockhands and a hooded buyer beside the strongboxes.' },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Selvek kicks one strongbox toward the boat and claims the next lead waits below the quay.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.payoffClosed, true);
+    assert.match(result.narration, /Selvek is forced into the open/);
+    assert.doesNotMatch(result.narration, /Blackwake Slip is forced into the open|Expose Blackwake Slip/);
+  });
+
   it('keeps stale guild-proof actions in a newer south-road den scene', () => {
     const gs = {
       data: {
