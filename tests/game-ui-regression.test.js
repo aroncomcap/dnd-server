@@ -369,8 +369,15 @@ test('non-hostile and progress intent cannot auto-derail into combat', () => {
 test('formal enemy blocks require an actual hostile trigger', () => {
   assert.match(actionParserJs, /function isExplicitHostileAction/, 'parser should expose a narrow hostile-action predicate');
   assert.match(serverJs, /const explicitHostileAction = hasExplicitHostileAction\(userMessage\)/, 'server should inspect submitted action before accepting ENEMIES blocks');
-  assert.match(serverJs, /if \(!hardCombatSignal && !explicitHostileAction\)/, 'formal enemy blocks should not start combat from neutral scene text alone');
-  assert.match(narrationPipelineJs, /explicitHostileAction \|\| hasHardCombatSignal/, 'split pipeline should use the same hostile trigger gate');
+  assert.match(serverJs, /if \(nonHostileProgressIntent && !explicitHostileAction\)/, 'formal enemy blocks should not start combat after non-hostile player intent');
+  assert.match(narrationPipelineJs, /explicitHostileAction \|\| \(!nonHostileIntent && hasHardCombatSignal/, 'split pipeline should use the same non-hostile intent gate');
+});
+
+test('legacy narration path replaces low-information action echoes', () => {
+  assert.match(narrationPipelineJs, /function isLowInformationNarration/, 'pipeline should centralize low-information narration detection');
+  assert.match(narrationPipelineJs, /function buildFallbackTurn/, 'pipeline should centralize playable fallback narration');
+  assert.match(serverJs, /isLowInformationNarration\(parsed\.narration, submittedActionText\)/, 'legacy path should detect action echoes after parsing model output');
+  assert.match(serverJs, /buildFallbackTurn\(fallbackActor, submittedActionText\)/, 'legacy path should replace echoes with playable fallback narration');
 });
 
 test('story prompt discourages repeated gatekeeper loops and noncombat filler actions', () => {

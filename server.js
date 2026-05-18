@@ -30,6 +30,7 @@ const { parseStatsText } = require('./stat-parser');
 const { getMonsterStats } = require('./monster-lookup');
 const ed = require('./encounter-designer');
 const narrationPipeline = require('./narration-pipeline');
+const { buildFallbackTurn, isLowInformationNarration } = narrationPipeline;
 const costTracker = require('./cost-tracker');
 const llm = require('./llm');
 const llmTelemetry = require('./llm/telemetry');
@@ -2314,6 +2315,14 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
 
   const parsed = parseResponse(reply);
   parsed.narration = cleanInvalidCombatNarration(parsed.narration);
+  const submittedActionText = extractSubmittedActionText(userMessage);
+  if (!combatActive && isLowInformationNarration(parsed.narration, submittedActionText)) {
+    const fallbackActor = actingAs || userMessage.split(':')[0]?.trim() || 'Unknown';
+    const fallback = buildFallbackTurn(fallbackActor, submittedActionText);
+    parsed.narration = fallback.narration;
+    parsed.options = fallback.options;
+    io.to(gameId).emit('dm_stream_end', { narration: parsed.narration, llmRunId: finalMessage.llmRunId || null });
+  }
   if (combatResolvedLines.length > 0 && !combatResolvedLines.every(line => parsed.narration.includes(line))) {
     parsed.narration = `${combatResolvedLines.map(line => `🎲 ${line}`).join('\n')}\n\n${parsed.narration}`.trim();
   }
@@ -2465,7 +2474,10 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
   const hardCombatSignal = hasHardCombatSignal(parsed.narration || '');
   const explicitHostileAction = hasExplicitHostileAction(userMessage);
   if (parsed.world?.enemies?.length > 0 && !gs.combatEngine.state.active) {
-    if (!hardCombatSignal && !explicitHostileAction) {
+    if (nonHostileProgressIntent && !explicitHostileAction) {
+      console.log(`[intent-guard] Suppressed ENEMIES block after non-hostile/progress input: ${extractSubmittedActionText(userMessage)}`);
+      parsed.world.enemies = [];
+    } else if (!hardCombatSignal && !explicitHostileAction) {
       const reason = nonHostileProgressIntent ? 'non-hostile/progress input' : 'no hostile trigger';
       console.log(`[intent-guard] Suppressed ENEMIES block after ${reason}: ${extractSubmittedActionText(userMessage)}`);
       parsed.world.enemies = [];

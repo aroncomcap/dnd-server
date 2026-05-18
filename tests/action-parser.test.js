@@ -417,6 +417,20 @@ describe('parseAction — dialogue intent', () => {
     assert.equal(result.targetId, null);
   });
 
+  it('confrontation and force-answer phrasing routes to dialogue, not combat', () => {
+    const result = parseAction('Confront Harrow Quill and force a final answer now', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'dialogue');
+    assert.equal(result.targetId, null);
+  });
+
+  it('generic lead confrontation routes to dialogue instead of uncertain combat', () => {
+    const result = parseAction('Force the current lead into a confrontation now', 'kael', BASE_CTX);
+    assert.ok(result);
+    assert.equal(result.type, 'dialogue');
+    assert.equal(result.targetId, null);
+  });
+
   it('explicit attack still wins over nearby social words', () => {
     const result = parseAction('attack the Goblin with Longsword', 'kael', BASE_CTX);
     assert.ok(result);
@@ -442,6 +456,16 @@ describe('intent guards', () => {
   it('does not treat aid, safe passage, or quoted attack words as hostile', () => {
     assert.equal(isExplicitHostileAction('Step closer and offer aid, healing, or safe passage'), false);
     assert.equal(isExplicitHostileAction('ask them not to attack the caravan'), false);
+  });
+
+  it('still treats explicit attacks as hostile even when social words are nearby', () => {
+    assert.equal(isExplicitHostileAction('ask the guard one question, then attack with longsword'), true);
+    assert.equal(isExplicitHostileAction('confront Harrow Quill and cast fire bolt at him'), true);
+  });
+
+  it('does not treat confrontational answer-seeking as a hostile action', () => {
+    assert.equal(isExplicitHostileAction('Confront Harrow Quill and force a final answer now'), false);
+    assert.equal(isExplicitHostileAction('Force the current lead into a confrontation now'), false);
   });
 });
 

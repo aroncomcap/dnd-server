@@ -24,6 +24,7 @@ const STORY_MOMENTUM_RULES = [
   'Begin each response after the latest DM message. Do not reproduce or paraphrase any full sentence from recent history.',
   'Do not end a response by only pointing to the next lead; pay known leads off as arrival, confrontation, revelation, cost, or hard choice.',
   'A strong non-combat turn has payoff, pressure, and personality: show what changes, why it matters, and who reacts.',
+  'Confront/demand answers is social unless explicit attack/damaging spell.',
   'Never repeat a prior clue as the main event; recap old evidence in one short phrase, then show the new consequence.',
   'For travel, progress, acknowledgement, and "move on" actions, move the party to the next concrete place, person, clue, or decision in this response.',
   'Minor routing/social scenes have a two-response ceiling: establish the lead, then reveal, resolve, complicate, or leave. Do not chain clerks, permits, ledgers, or corridors.',
@@ -31,7 +32,7 @@ const STORY_MOMENTUM_RULES = [
   'Never answer progress with only cautious movement and no new information. If the party checks for danger and there is no meaningful hazard, compress the caution and advance the scene.',
   'Do not repeat the same beat from recent turns. If recent narration already covered scouting, watching flanks, checking traps, or a clear path, switch to arrival, discovery, dialogue, consequence, or choice.',
   'Merchant, guard, checkpoint, and passerby scenes are brief routing/social beats unless the player clearly chooses violence or a hard failure forces initiative.',
-  'Make utilitarian hooks feel alive quickly: by the second response, expose a motive, secret, threat, vivid NPC personality, or cost that gives the players something dramatic to care about.',
+  'Make utilitarian hooks matter by the second response: expose motive, secret, threat, personality, or cost.',
 ].join('\n- ');
 
 const OPTION_QUALITY_RULES = [
@@ -967,7 +968,7 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
   const enemies = extractionResult.enemies || [];
   const nonHostileIntent = isDialogueAction(actionText) || isAdvanceAction(actionText);
   const explicitHostileAction = isExplicitHostileAction(actionText);
-  if (enemies.length > 0 && initiateCombat && (explicitHostileAction || hasHardCombatSignal(narration))) {
+  if (enemies.length > 0 && initiateCombat && (explicitHostileAction || (!nonHostileIntent && hasHardCombatSignal(narration)))) {
     try {
       await initiateCombat(gameId, gameConfig, enemies);
     } catch (err) {
@@ -1012,4 +1013,6 @@ module.exports = {
   callWorldExtraction,
   callNarrationValidation,
   handlePlayerAction,
+  buildFallbackTurn,
+  isLowInformationNarration,
 };

@@ -701,6 +701,64 @@ describe('handlePlayerAction fallback behavior', () => {
     assert.deepEqual(result.world.enemies, [], 'suppressed enemies should not leak into world output');
   });
 
+  it('suppresses extracted enemies after non-hostile confrontation intent even if narration invents guard violence', async () => {
+    let jsonCalls = 0;
+    let combatStarted = false;
+    llm.setProviderForTesting({
+      streamText: async ({ onToken }) => {
+        const text = 'Guild guards attack Seraphine with longswords as Harrow Quill backs toward the ledgers.';
+        onToken(text);
+        return { text, usage: { inputTokens: 20, outputTokens: 20 } };
+      },
+      completeJson: async () => {
+        jsonCalls++;
+        if (jsonCalls === 1) {
+          return {
+            object: {
+              enemies: [{ displayName: 'Guild Guard', count: 2, slug: 'custom', hint: 'guild guards' }],
+              scene: { action: 'Guild guards threaten violence', mood: 'tense', npc: 'Harrow Quill' },
+            },
+            text: '{}',
+            usage: { inputTokens: 20, outputTokens: 10 },
+          };
+        }
+        return { object: { violations: [] }, text: '{}', usage: { inputTokens: 10, outputTokens: 3 } };
+      },
+    });
+
+    const gs = {
+      ...makeGameState(),
+      data: {
+        characters: {
+          Seraphine: {
+            class: 'Rogue',
+            level: 1,
+            personality: 'Sharp and suspicious.',
+            standardActions: 'Question suspects, Search the room, Dodge',
+            backstory: 'A former investigator.',
+            statsText: 'Level 1 rogue',
+          },
+        },
+        chatHistory: [],
+        turnOrder: ['Seraphine'],
+        currentTurnIndex: 0,
+      },
+    };
+
+    const result = await handlePlayerAction(
+      'game-confrontation-social',
+      makeGameConfig(),
+      gs,
+      'Seraphine',
+      'Confront Harrow Quill and force a final answer now',
+      { to: () => ({ emit: () => {} }) },
+      { initiateCombat: async () => { combatStarted = true; } }
+    );
+
+    assert.equal(combatStarted, false, 'non-hostile confrontation should not start invented guard combat');
+    assert.deepEqual(result.world.enemies, [], 'suppressed enemies should not leak into world output');
+  });
+
   it('stops streaming visible narration before structured metadata', async () => {
     llm.setProviderForTesting({
       streamText: async ({ onToken }) => {

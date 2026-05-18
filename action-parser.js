@@ -184,9 +184,13 @@ function isSneakAttackAction(text) {
 
 function isExplicitHostileAction(text) {
   const raw = stripEmoji(String(text || '').replace(/^.*?:\s*/, '').trim());
-  if (!raw || isDialogueAction(raw) || isAdvanceAction(raw)) return false;
-  return /\b(?:attack|attacks|attacking|strike|strikes|striking|hit|hits|hitting|slash|slashes|slashing|stab|stabs|stabbing|shoot|shoots|shooting|sneak\s+attack|lunge|lunges|lunging|charge|charges|charging)\b/i.test(raw) ||
-    /\bcast\s+(?:acid\s+splash|burning\s+hands|chill\s+touch|chromatic\s+orb|eldritch\s+blast|fire\s*bolt|fireball|guiding\s+bolt|inflict\s+wounds|lightning\s+bolt|magic\s+missile|poison\s+spray|ray\s+of\s+frost|sacred\s+flame|shatter|shocking\s+grasp|thunderwave|toll\s+the\s+dead|witch\s+bolt)\b/i.test(raw);
+  if (!raw) return false;
+  const hostileText = raw.replace(
+    /\b(?:not|never|without|avoid|don't|do\s+not|won't|will\s+not|isn't|wasn't|weren't)\s+(?:to\s+)?(?:attack|attacks|attacking|strike|strikes|striking|hit|hits|hitting|slash|slashes|slashing|stab|stabs|stabbing|shoot|shoots|shooting|fight|fighting|harm|hurt|kill|damage)\b/gi,
+    ''
+  );
+  return /\b(?:attack|attacks|attacking|strike|strikes|striking|hit|hits|hitting|slash|slashes|slashing|stab|stabs|stabbing|shoot|shoots|shooting|sneak\s+attack|lunge|lunges|lunging|charge|charges|charging)\b/i.test(hostileText) ||
+    /\bcast\s+(?:acid\s+splash|burning\s+hands|chill\s+touch|chromatic\s+orb|eldritch\s+blast|fire\s*bolt|fireball|guiding\s+bolt|inflict\s+wounds|lightning\s+bolt|magic\s+missile|poison\s+spray|ray\s+of\s+frost|sacred\s+flame|shatter|shocking\s+grasp|thunderwave|toll\s+the\s+dead|witch\s+bolt)\b/i.test(hostileText);
 }
 
 function parseSneakAttackAction(raw, playerId, combatants, weapons, targetPreferences = {}) {
@@ -215,7 +219,7 @@ function parseSneakAttackAction(raw, playerId, combatants, weapons, targetPrefer
 }
 
 function isDialogueAction(text) {
-  return /\b(?:speak|speaks|speaking|talk|talks|talking|tell|tells|telling|explain|explains|explaining|request|requests|requesting|parl(?:e|a)y|negotiate|negotiates|negotiating|ask|asks|asking|question|questions|questioning|offer\s+(?:aid|help|healing|safe\s+passage|passage|peace|terms|cooperation)|make\s+peace|peacefully|persuade|persuades|persuading|persuasion|convince|convinces|convincing|diplomacy|diplomatic|reason\s+with|calm\s+(?:down|them|him|her|it)|de-?escalate|surrender|lower\s+(?:my|our|the)\s+weapon|hold\s+up\s+(?:my|our|their)?\s*hands|we\s+seek|seek\s+(?:safe\s+)?passage|safe\s+passage|can\s+help|pressure|pressures|pressuring|intimidate|intimidates|intimidating|intimidation|demand|demands|demanding|argue|argues|arguing|appeal|appeals|appealing|plead|pleads|pleading|bargain|bargains|bargaining|barter|barters|bartering|haggle|haggles|haggling)\b/i.test(text || '');
+  return /\b(?:speak|speaks|speaking|talk|talks|talking|tell|tells|telling|explain|explains|explaining|request|requests|requesting|parl(?:e|a)y|negotiate|negotiates|negotiating|ask|asks|asking|question|questions|questioning|confront|confronts|confronting|confrontation|accuse|accuses|accusing|challenge|challenges|challenging|force\s+(?:a\s+)?(?:final\s+)?answer|force\s+(?:the\s+)?(?:truth|confession)|offer\s+(?:aid|help|healing|safe\s+passage|passage|peace|terms|cooperation)|make\s+peace|peacefully|persuade|persuades|persuading|persuasion|convince|convinces|convincing|diplomacy|diplomatic|reason\s+with|calm\s+(?:down|them|him|her|it)|de-?escalate|surrender|lower\s+(?:my|our|the)\s+weapon|hold\s+up\s+(?:my|our|their)?\s*hands|we\s+seek|seek\s+(?:safe\s+)?passage|safe\s+passage|can\s+help|pressure|pressures|pressuring|intimidate|intimidates|intimidating|intimidation|demand|demands|demanding|argue|argues|arguing|appeal|appeals|appealing|plead|pleads|pleading|bargain|bargains|bargaining|barter|barters|bartering|haggle|haggles|haggling)\b/i.test(text || '');
 }
 
 function makeDialogueAction(raw, playerId) {
