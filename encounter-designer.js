@@ -870,6 +870,55 @@ function formatStoryBeatContract(encounter) {
   return `STORY BEAT CONTRACT: Objective: ${objective} Because: ${because} Therefore: ${therefore} Success: ${success} Failure: ${failure} Continuity: ${continuity} Next hook: ${hook}`;
 }
 
+function isPromptRestEncounter(encounter) {
+  return encounter?.rest || encounter?.pillar === 'rest' || encounter?.type === 'short' || encounter?.type === 'long';
+}
+
+function isPromptResolved(encounter) {
+  return encounter?.completed || encounter?.status === 'resolved' || encounter?.status === 'skipped';
+}
+
+function isSandboxEncounterPlan(plan) {
+  return String(plan?.sourceMode || plan?.mode || 'sandbox').toLowerCase() === 'sandbox';
+}
+
+function findPromptEncounter(encounters, currentIndex) {
+  const rawIndex = Math.max(0, Number(currentIndex || 0));
+  const indexedPlayable = (encounters || [])
+    .map((encounter, index) => ({ encounter, index }))
+    .filter(entry => !isPromptRestEncounter(entry.encounter));
+
+  if (rawIndex >= (encounters || []).length && rawIndex >= indexedPlayable.length) {
+    return null;
+  }
+
+  let entry = indexedPlayable.find(item =>
+    item.index === rawIndex && !isPromptResolved(item.encounter)
+  );
+
+  if (!entry && rawIndex < (encounters || []).length) {
+    entry = indexedPlayable.find(item =>
+      item.index >= rawIndex && !isPromptResolved(item.encounter)
+    );
+  }
+
+  if (!entry && rawIndex < indexedPlayable.length) {
+    entry = indexedPlayable
+      .slice(rawIndex)
+      .find(item => !isPromptResolved(item.encounter));
+  }
+
+  if (!entry) return null;
+
+  const playableIndex = indexedPlayable.findIndex(item => item.index === entry.index);
+  return {
+    next: entry.encounter,
+    pos: playableIndex >= 0 ? playableIndex + 1 : 1,
+    done: playableIndex > 0 ? indexedPlayable.slice(0, playableIndex).map(item => item.encounter) : [],
+    total: indexedPlayable.length,
+  };
+}
+
 /**
  * Format the current encounter plan as a single-line string for injection
  * into an AI prompt.
@@ -881,19 +930,37 @@ function formatStoryBeatContract(encounter) {
 function formatPlanForPrompt(plan, currentIndex) {
   const { encounters, summary } = plan;
 
-  // Skip rest entries when counting
-  const fightEncs = encounters.filter(e => e.pillar !== 'rest');
-  const total     = fightEncs.length;
-  const next      = fightEncs[currentIndex];
+  const promptEncounter = findPromptEncounter(encounters, currentIndex);
+  const total = promptEncounter?.total || (encounters || []).filter(e => !isPromptRestEncounter(e)).length;
 
-  if (!next) {
+  if (!promptEncounter?.next) {
     return `ENCOUNTER PLAN: All ${total} encounters complete. Proceed to long rest.`;
   }
 
-  const pos     = currentIndex + 1;
+  const next = promptEncounter.next;
+  const pos = promptEncounter.pos;
   let nextDesc  = '';
+  const sandboxPlan = isSandboxEncounterPlan(plan);
 
-  if (next.pillar === 'combat') {
+  if (sandboxPlan) {
+    if (next.pillar === 'combat') {
+      nextDesc = [
+        'Next sandbox emphasis: COMBAT pressure.',
+        'Treat this as pacing rhythm, not a script: evolve an already established threat, visible danger, or consequence if one exists.',
+        'Do not name or introduce unrelated monsters from the planner, and do not start initiative from this guidance alone.',
+      ].join(' ');
+    } else if (next.pillar === 'social') {
+      nextDesc = [
+        `Next sandbox emphasis: SOCIAL pressure${next.type ? ` (${next.type})` : ''}.`,
+        'Use an already relevant NPC, faction, witness, or relationship if present; otherwise resolve the current exchange quickly and advance to the next concrete lead.',
+      ].join(' ');
+    } else {
+      nextDesc = [
+        `Next sandbox emphasis: EXPLORATION pressure${next.type ? ` (${next.type})` : ''}.`,
+        'Use the current route, clue, hazard, or discovery; otherwise move the party to the next meaningful location.',
+      ].join(' ');
+    }
+  } else if (next.pillar === 'combat') {
     const monsterStr = (next.monsters || [])
       .map(m => `${m.count}x ${m.name}`)
       .join(', ');
@@ -917,7 +984,7 @@ function formatPlanForPrompt(plan, currentIndex) {
   ) ? ' After this, offer a short rest.' : '';
 
   // Pillar progress so far
-  const done = fightEncs.slice(0, currentIndex);
+  const done = promptEncounter.done || [];
   const cCount = done.filter(e => e.pillar === 'combat').length;
   const sCount = done.filter(e => e.pillar === 'social').length;
   const eCount = done.filter(e => e.pillar === 'exploration').length;

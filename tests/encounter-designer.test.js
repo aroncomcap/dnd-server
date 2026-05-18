@@ -722,6 +722,62 @@ describe('formatPlanForPrompt()', () => {
     assert.match(str, /Reuse or evolve the current route/, `missing route continuity rule in: ${str}`);
     assert.match(str, /Next hook:/, `missing next hook in: ${str}`);
   });
+
+  it('treats sandbox combat as rhythm guidance instead of exact monster injection', () => {
+    const sandboxPlan = {
+      sourceMode: 'sandbox',
+      encounters: [{
+        pillar: 'combat',
+        monsters: [{ name: 'Ash Wisp', count: 2, slug: 'ash-wisp' }],
+        objective: 'Reach the river road',
+      }],
+      summary: { totalEncounters: 1 },
+    };
+
+    const str = formatPlanForPrompt(sandboxPlan, 0);
+
+    assert.match(str, /Next sandbox emphasis: COMBAT pressure/, `missing sandbox combat rhythm in: ${str}`);
+    assert.match(str, /pacing rhythm, not a script/, `sandbox guidance should not be treated as a script: ${str}`);
+    assert.doesNotMatch(str, /ENEMIES:/, `sandbox guidance must not inject an enemy block: ${str}`);
+    assert.doesNotMatch(str, /Ash Wisp/, `sandbox guidance must not force a random monster name: ${str}`);
+  });
+
+  it('keeps authored module combat specific enough to start when triggered', () => {
+    const modulePlan = {
+      sourceMode: 'adaptive-module',
+      encounters: [{
+        pillar: 'combat',
+        monsters: [{ name: 'Ash Wisp', displayName: 'Ash Wisp', count: 2, slug: 'ash-wisp' }],
+        totalMonsterHP: 24,
+        estimatedRounds: 3,
+        ferocity: 3,
+      }],
+      summary: { totalEncounters: 1 },
+    };
+
+    const str = formatPlanForPrompt(modulePlan, 0);
+
+    assert.match(str, /Monsters: 2x Ash Wisp/, `authored combat should preserve planned details: ${str}`);
+    assert.match(str, /ENEMIES:\n- Ash Wisp \| 2 \| ash-wisp/, `authored combat should retain the engine-ready block: ${str}`);
+  });
+
+  it('uses raw day cursor indexes when rests are present', () => {
+    const planWithRest = {
+      sourceMode: 'adaptive-module',
+      encounters: [
+        { pillar: 'social', type: 'negotiation', dc: 13, status: 'resolved', completed: true },
+        { pillar: 'rest', type: 'short', rest: 'short' },
+        { pillar: 'exploration', type: 'trail', dc: 14 },
+      ],
+      summary: { totalEncounters: 2 },
+    };
+
+    const str = formatPlanForPrompt(planWithRest, 1);
+
+    assert.match(str, /Encounter 2 of 2/, `cursor should skip the rest entry: ${str}`);
+    assert.match(str, /Next: EXPLORATION/, `cursor should land on the next playable beat: ${str}`);
+    assert.doesNotMatch(str, /Next: SOCIAL/, `cursor should not replay the resolved beat: ${str}`);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -352,12 +352,18 @@ test('story prompt discourages repeated gatekeeper loops and noncombat filler ac
   assert.match(promptBuilderJs, /Maintain one current objective at a time/, 'prompt should preserve a single active objective');
   assert.match(promptBuilderJs, /do not introduce another clerk, factor, outpost, or DC check/, 'prompt should avoid repeated guild checkpoint loops');
   assert.match(promptBuilderJs, /Routine routing\/social scenes should resolve in one exchange and then advance/, 'prompt should move brief social scenes forward');
+  assert.match(promptBuilderJs, /Roll only when there is real uncertainty, meaningful consequence/, 'prompt should reserve rolls for meaningful uncertainty');
+  assert.match(promptBuilderJs, /already-earned passage should advance without a check/, 'prompt should not block earned progress with extra checks');
   assert.match(promptBuilderJs, /Avoid Dodge, Disengage, Dash, or generic Attack fillers unless immediate physical danger is present/, 'noncombat options should not be tactical filler');
+  assert.doesNotMatch(promptBuilderJs, /MOST character actions/, 'prompt should not demand procedural checks for most actions');
+  assert.doesNotMatch(promptBuilderJs, /at minimum every other action/, 'prompt should not force rolls every other turn');
 });
 
 test('planned combat pacing does not force initiative by itself', () => {
   assert.match(encounterDirectorJs, /clear choice, not automatic initiative/, 'combat pacing should introduce a threat choice first');
   assert.match(encounterDirectorJs, /Only output an ENEMIES block if the player clearly chooses violence/, 'combat pacing should preserve player agency');
+  assert.match(encounterDirectorJs, /guidance, not a scripted encounter/, 'sandbox encounter pacing should be soft guidance');
+  assert.match(encounterDirectorJs, /Do not introduce unrelated monsters/, 'sandbox pacing should preserve current story context');
   assert.doesNotMatch(encounterDirectorJs, /Include this ENEMIES block in ---WORLD--- exactly/, 'director should not inject automatic combat blocks');
   assert.doesNotMatch(serverJs, /Forcing planned combat after pacing limit/, 'server should not force planned combat directly from pacing');
 });

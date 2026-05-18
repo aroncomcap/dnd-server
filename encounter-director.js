@@ -4,6 +4,14 @@ const plannerState = require('./planner-state');
 
 const PACING_TURN_LIMIT = 2;
 
+function getPlanSourceMode(plan) {
+  return String(plan?.sourceMode || plan?.mode || 'sandbox').toLowerCase();
+}
+
+function isSandboxPlan(plan) {
+  return getPlanSourceMode(plan) === 'sandbox';
+}
+
 function isRestEncounter(enc) {
   return enc?.rest || enc?.pillar === 'rest' || enc?.type === 'short' || enc?.type === 'long';
 }
@@ -54,6 +62,26 @@ function formatEncounterDirective(encounter, quietTurns) {
   ].join('\n');
 }
 
+function formatSandboxPacingDirective(encounter, quietTurns) {
+  const turnText = `${quietTurns} turn${quietTurns === 1 ? '' : 's'} since a substantial beat`;
+  const pillar = encounter?.pillar || 'story';
+  const lines = [
+    `DIRECTOR PACING: ${turnText}. Sandbox rhythm suggests ${pillar} pressure, but this is guidance, not a scripted encounter.`,
+    `Evolve the current route, lead, NPC, location, visible danger, or quest objective. Do not introduce unrelated monsters, new gatekeepers, surprise tolls, or extra permission checks.`,
+    `If the current player indicates travel, agreement, acknowledgement, investigation, or moving on, advance the main quest beat unless the scene explicitly requires one more resolution.`,
+  ];
+
+  if (pillar === 'combat') {
+    lines.push('Foreshadow danger or offer preparation, avoidance, parley, and engagement choices. Start combat only after explicit violence, an established hostile attack, or unavoidable hard failure.');
+  } else if (pillar === 'social') {
+    lines.push('Use social pressure only through an already relevant NPC, faction, witness, or consequence; otherwise let the party reach the next concrete lead.');
+  } else if (pillar === 'exploration') {
+    lines.push('Use exploration pressure as a clue, route choice, discovery, or hazard tied to the current path; otherwise move the party to the next meaningful location.');
+  }
+
+  return lines.join('\n');
+}
+
 function prepareEncounterPacing(gs, threshold = PACING_TURN_LIMIT) {
   if (!gs || gs.combatEngine?.state?.active) {
     if (gs) gs._turnsSinceLastEncounter = 0;
@@ -69,6 +97,15 @@ function prepareEncounterPacing(gs, threshold = PACING_TURN_LIMIT) {
   gs.encounterPlan = next.plan;
   gs.encounterPlanIndex = next.index;
   gs._turnsSinceLastEncounter = Math.max(0, Number(gs._turnsSinceLastEncounter || 0)) + 1;
+
+  if (isSandboxPlan(gs.encounterPlan)) {
+    gs._pendingChallenge = null;
+    gs._pendingChallengeIndex = null;
+    gs._encounterPacingDirective = gs._turnsSinceLastEncounter < threshold
+      ? `DIRECTOR PACING: Sandbox rhythm suggests ${next.encounter.pillar} soon. Keep the current objective moving and foreshadow that pillar only if it naturally fits the established scene.`
+      : formatSandboxPacingDirective(next.encounter, gs._turnsSinceLastEncounter);
+    return { shouldAdvance: false, encounter: next.encounter, index: next.index, soft: true };
+  }
 
   if (gs._turnsSinceLastEncounter < threshold) {
     gs._encounterPacingDirective = `DIRECTOR PACING: Next planned beat is ${next.encounter.pillar}. After at most one brief connective response, advance into it.`;

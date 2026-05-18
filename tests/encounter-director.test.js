@@ -50,8 +50,23 @@ test('getNextPlannedEncounter skips rests and resolved beats', () => {
   assert.equal(next.encounter.pillar, 'social');
 });
 
-test('prepareEncounterPacing introduces planned combat as a threat choice, not automatic initiative', () => {
+test('prepareEncounterPacing keeps sandbox plans as soft story rhythm', () => {
   const plan = createEncounterPlan(makeDay());
+  const gs = { encounterPlan: plan, _turnsSinceLastEncounter: PACING_TURN_LIMIT - 1 };
+
+  const result = prepareEncounterPacing(gs);
+
+  assert.equal(result.shouldAdvance, false);
+  assert.equal(result.soft, true);
+  assert.equal(result.encounter.pillar, 'combat');
+  assert.equal(gs._pendingChallenge, null);
+  assert.match(gs._encounterPacingDirective, /guidance, not a scripted encounter/i);
+  assert.match(gs._encounterPacingDirective, /current route, lead, NPC, location, visible danger, or quest objective/i);
+  assert.match(gs._encounterPacingDirective, /Start combat only after explicit violence/i);
+});
+
+test('prepareEncounterPacing introduces authored combat as a threat choice, not automatic initiative', () => {
+  const plan = createEncounterPlan(makeDay(), { sourceMode: 'adaptive-module' });
   const gs = { encounterPlan: plan, _turnsSinceLastEncounter: PACING_TURN_LIMIT - 1 };
 
   const result = prepareEncounterPacing(gs);

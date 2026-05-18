@@ -386,9 +386,10 @@ THREE PILLARS OF PLAY (target weighting):
   * Social: persuasion, intimidation, deception, insight, diplomacy, bargaining, interrogation
 
 SKILL TEST PACING:
-- CRITICAL: Include a skill test, ability check, or game mechanic roll with MOST character actions — at minimum every other action.
-- If two consecutive turns pass without any dice roll or skill check, the pace is too slow. Introduce a challenge, obstacle, or situation that demands a roll.
-- Skill tests drive advancement. Without them, characters don't grow. Make tests feel natural and consequential.
+- Roll only when there is real uncertainty, meaningful consequence, and a character's capability matters.
+- Routine travel, acknowledgement, conversation, accepted bargains, and already-earned passage should advance without a check.
+- If two consecutive turns pass without a meaningful change, move the scene forward with a route, clue, NPC consequence, danger sign, or explicit choice rather than forcing a roll.
+- Skill tests drive advancement when they matter. Make tests feel natural and consequential, not procedural.
 - If characters are wandering or stalling, gently push the action forward with a route, clue, NPC prompt, or explicit choice. Do not introduce random combat unless the quest, hostile action, or a hard failure truly warrants it.
 
 ${STORY_CONTINUITY_RULES}
@@ -602,7 +603,7 @@ ${catchphrases}
     gs.ferocity <= 4 ? 'light challenges, modest treasure' :
     'easy and forgiving, minimal treasure'}`;
 
-  const pillarsLine = `Pillars: E${gs.pillars?.exploration ?? 33}/C${gs.pillars?.combat ?? 33}/S${gs.pillars?.social ?? 34}. Include skill checks every 1-2 actions.`;
+  const pillarsLine = `Pillars: E${gs.pillars?.exploration ?? 33}/C${gs.pillars?.combat ?? 33}/S${gs.pillars?.social ?? 34}. Roll only when uncertainty and consequences are real.`;
 
   // Compact encounter + NPC context (only include if relevant)
   let encounterPlanLine = gs.encounterPlan ? ed.formatPlanForPrompt(gs.encounterPlan, gs.encounterPlanIndex || 0) : '';
