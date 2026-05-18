@@ -1056,6 +1056,27 @@ describe('CombatEngine', () => {
       assert.doesNotMatch(text, /3d4\+3force/i);
     });
 
+    it('preserves readable spaces in descriptive spell damage formulas', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');
+      const result = {
+        type: 'spell-damage',
+        casterName: 'Kael',
+        spell: 'Magic Missile',
+        damageRoll: 5,
+        damageDiceTotal: 1,
+        damageModifier: 4,
+        damageFormula: '3 darts dealing 1d4+1 force each',
+        damageType: 'force',
+        targets: [{ id: 'axe-beak', name: 'Axe Beak', damage: 5 }],
+      };
+
+      const text = engine.formatResultForPrompt(result);
+
+      assert.match(text, /Damage: 3 darts dealing 1d4\+1 each \(1 \+ 4 = 5\) force/i);
+      assert.doesNotMatch(text, /3dartsdealing/i);
+    });
+
     it('formats a heal result', () => {
       const engine = new CombatEngine();
       engine.initCombat([makeDnDPC()], [makeDnDEnemy()], 'dnd5e');

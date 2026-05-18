@@ -33,13 +33,20 @@ function cleanDamageFormulaForPrompt(formula, damageType = '') {
   const original = String(formula || 'damage').trim();
   if (!original) return 'damage';
 
-  let cleaned = original;
+  let cleaned = original.replace(/\s+/g, ' ');
   const type = String(damageType || '').trim();
   if (type) {
-    cleaned = cleaned.replace(new RegExp(`\\s*${escapeRegExp(type)}\\s*$`, 'i'), '').trim();
+    cleaned = cleaned
+      .replace(new RegExp(`\\s*\\b${escapeRegExp(type)}\\b\\s*(?=$|each\\b)`, 'i'), ' ')
+      .replace(new RegExp(`\\s*${escapeRegExp(type)}\\s*$`, 'i'), '')
+      .replace(/\s+/g, ' ')
+      .trim();
   }
 
-  return cleaned.replace(/\s+/g, '') || 'damage';
+  return cleaned
+    .replace(/\s*([+-])\s*/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim() || 'damage';
 }
 
 // ---------------------------------------------------------------------------
