@@ -891,6 +891,30 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /The chase stops here|guild matter closes|force restitution/i);
   });
 
+  it('advances after the ruined aqueduct setup instead of repeating the same ambush frame', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'At the ruined aqueduct, the black-wax map stops being a clue and becomes a trap the party can spring. Lanterns move below the broken arches; one safehouse runner arrives early with a coded purse, and another signal waits unlit on the north road. The party has the meeting in reach now, but taking it quietly means choosing who gets to walk away with false confidence.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'At the ruined aqueduct, the black-wax map stops being a clue and becomes a trap the party can spring. Lanterns move below the broken arches.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Make a decisive move that risks a cost for answers', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /Rulven Marr/);
+    assert.match(result.narration, /coded purse/);
+    assert.doesNotMatch(result.narration, /stops being a clue and becomes a trap/);
+  });
+
   it('pays out merchant routing scenes into the named storehouse lead', () => {
     const gs = {
       data: {
@@ -1002,6 +1026,29 @@ describe('buildUserMessage', () => {
     assert.equal(result.payoffClosed, true);
     assert.match(result.narration, /Selvek is forced into the open/);
     assert.doesNotMatch(result.narration, /Blackwake Slip is forced into the open|Expose Blackwake Slip/);
+  });
+
+  it('does not turn a merchant quest-giver into the culprit when he points to the forger', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          { role: 'assistant', content: 'Master Edric Voss says, "My cargo is missing, and my people are too frightened to speak."' },
+          { role: 'assistant', content: 'Edric Voss says he is trying to discover who forged the dock receipt and sends the party toward Blackfen Wharf.' },
+          { role: 'assistant', content: 'Two dockhands exchange a look; one has ink on his thumb in the same dark curl as the signature.' },
+          { role: 'assistant', content: 'Voss grants you the name you need: the dock clerk at Blackfen Wharf handled the paper last, and now he knows you know.' },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The proof survives, but the next lead waits below the quay before anyone can name the forger.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Put the named clue in front of the person responsible', gs);
+
+    assert.equal(result.payoffClosed, true);
+    assert.match(result.narration, /Blackfen dock clerk is forced into the open/);
+    assert.doesNotMatch(result.narration, /Edric Voss is forced into the open|Expose Edric Voss/);
   });
 
   it('never treats pronouns as culprit names in payoff closure', () => {

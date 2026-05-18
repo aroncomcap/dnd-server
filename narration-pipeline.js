@@ -259,6 +259,12 @@ function extractAccountableName(text) {
     return !candidate || invalidLeadingWord.test(first) ||
       /\b(?:Greyhook Market|Blackreed Ford|Stonebridge Guildhall|Caves Of|Game Master)\b/.test(candidate);
   };
+  if (/\bEdric\s+Voss\b/.test(value) &&
+    /\b(?:my cargo is missing|trying to discover|find who forged|grants you the name|handled the paper last|dock clerk at blackfen wharf|dockhands? exchange)\b/i.test(value)) {
+    if (/\bdock clerk at blackfen wharf\b/i.test(value)) return 'the Blackfen dock clerk';
+    if (/\bdockhands?\b/i.test(value)) return 'the ink-stained dockhand';
+    return 'the forged-signature accomplice';
+  }
   const fullName = value.match(/\b(Harvek\s+Doss|House\s+[A-Z][a-z]+)\b/);
   if (fullName) return fullName[1];
   const single = value.match(/\b(Seln|Sable)\b/);
@@ -336,6 +342,17 @@ function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration
 
 function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (/\b(?:At the ruined aqueduct, the black-wax map|Lanterns move below the broken arches|safehouse runner arrives early|coded purse|false signal on the north road)\b/i.test(latest)) {
+    return {
+      narration: 'The aqueduct meeting breaks open instead of resetting. The early runner is pinned against a cracked pillar with the coded purse still in hand, and the unlit north-road signal becomes the party\'s leverage. Below the arches, Captain Rulven Marr realizes the ambush is not his anymore. He must either trade the safehouse list, call his hidden crossbowmen, or watch the party light the false signal that turns his own network against him.',
+      options: [
+        'Force Rulven Marr to trade the full safehouse list',
+        'Light the false signal and split his network',
+        'Drive him toward the hidden crossbowmen and spring the trap',
+      ],
+    };
+  }
+
   if (/\b(?:ruined aqueduct|safehouses|meeting point|north road)\b/i.test(latest)) {
     return {
       narration: 'At the ruined aqueduct, the black-wax map stops being a clue and becomes a trap the party can spring. Lanterns move below the broken arches; one safehouse runner arrives early with a coded purse, and another signal waits unlit on the north road. The party has the meeting in reach now, but taking it quietly means choosing who gets to walk away with false confidence.',
