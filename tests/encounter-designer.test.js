@@ -718,6 +718,8 @@ describe('formatPlanForPrompt()', () => {
     assert.match(str, /Therefore:/, `missing consequence bridge in: ${str}`);
     assert.match(str, /Success:/, `missing success consequence in: ${str}`);
     assert.match(str, /Failure:/, `missing failure consequence in: ${str}`);
+    assert.match(str, /Continuity:/, `missing continuity bridge in: ${str}`);
+    assert.match(str, /Reuse or evolve the current route/, `missing route continuity rule in: ${str}`);
     assert.match(str, /Next hook:/, `missing next hook in: ${str}`);
   });
 });

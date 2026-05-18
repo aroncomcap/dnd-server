@@ -863,8 +863,11 @@ function formatStoryBeatContract(encounter) {
   const hook = encounter.nextHook || (
     'End by naming the next concrete lead, route, NPC, visible danger, or decision point.'
   );
+  const continuity = encounter.continuity || (
+    'Reuse or evolve the current route, lead, faction, location, or visible danger. Do not introduce a second gatekeeper or unrelated obstacle after the party already earned passage; make this beat feel like a consequence of the last hook.'
+  );
 
-  return `STORY BEAT CONTRACT: Objective: ${objective} Because: ${because} Therefore: ${therefore} Success: ${success} Failure: ${failure} Next hook: ${hook}`;
+  return `STORY BEAT CONTRACT: Objective: ${objective} Because: ${because} Therefore: ${therefore} Success: ${success} Failure: ${failure} Continuity: ${continuity} Next hook: ${hook}`;
 }
 
 /**

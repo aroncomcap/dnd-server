@@ -175,6 +175,22 @@ async function pickFallbackAction(page) {
     const actions = ['Attack nearest enemy', 'Dodge', 'Disengage'];
     return actions[Math.floor(Math.random() * actions.length)];
   }
+  const recentText = ((await page.locator('body').textContent({ timeout: 500 }).catch(() => '')) || '')
+    .replace(/\s+/g, ' ')
+    .slice(-2500)
+    .toLowerCase();
+  if (/\b(?:trap|seam|dart|collapse|unstable|hazard|grating|crawlspace)\b/.test(recentText)) {
+    return 'Carefully inspect and bypass the hazard without forcing it';
+  }
+  if (/\b(?:acolyte|priest|ape|weapons do not lower|violence hesitates)\b/.test(recentText)) {
+    return 'Keep weapons lowered and ask what they want';
+  }
+  if (/\b(?:road|route|lead|map|marker|ruin|gate|trail|path|objective)\b/.test(recentText)) {
+    return 'Follow the lead toward the next clear objective';
+  }
+  if (/\b(?:guild|factor|clerk|toll|steward|passage|merchant)\b/.test(recentText)) {
+    return 'State our purpose clearly, ask for the useful lead, and move on';
+  }
   const actions = [
     'Ask what the clerk needs from us',
     'Explain that we seek safe passage',
