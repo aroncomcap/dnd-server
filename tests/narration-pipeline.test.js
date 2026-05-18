@@ -229,6 +229,27 @@ describe('buildNarrationPrompt', () => {
     );
   });
 
+  it('includes story momentum rules that prevent cautious non-event loops', () => {
+    const gs = makeGameState();
+    const cfg = makeGameConfig();
+    const prompt = buildNarrationPrompt('game-1', cfg, gs);
+
+    assert.match(prompt, /Every non-combat response must materially change the situation/);
+    assert.match(prompt, /move the party to the next concrete place, person, clue, or decision/);
+    assert.match(prompt, /Never answer progress with only cautious movement and no new information/);
+    assert.match(prompt, /Do not repeat the same beat from recent turns/);
+  });
+
+  it('requires scene-changing options instead of passive re-checks', () => {
+    const gs = makeGameState();
+    const cfg = makeGameConfig();
+    const prompt = buildNarrationPrompt('game-1', cfg, gs);
+
+    assert.match(prompt, /Each option must change the situation/);
+    assert.match(prompt, /one direct advance option, one interaction\/investigation option, and one bold or risky option/);
+    assert.match(prompt, /Avoid "inspect\/search\/scout ahead" unless a specific unresolved hazard/);
+  });
+
   it('uses encounterPlanIndex when injecting encounter guidance', () => {
     const gs = makeGameState();
     gs.encounterPlan = createEncounterPlan({

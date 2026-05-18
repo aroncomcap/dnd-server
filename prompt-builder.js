@@ -8,6 +8,7 @@ const STORY_CONTINUITY_RULES = `STORY CONTINUITY RULES:
 - Once a merchant/guild/checkpoint NPC gives a lead, move the party toward that lead; do not introduce another clerk, factor, outpost, or DC check for the same permission.
 - Do not restate "DC 9" or "2 successes before 3 failures" unless a new major obstacle truly begins. Routine routing/social scenes should resolve in one exchange and then advance.
 - End each non-combat turn with a changed situation: a clue gained, route opened, cost paid, obstacle resolved, danger revealed, or named next decision.
+- For travel, progress, acknowledgement, and "move on" actions, move the party to the next concrete place, person, clue, or decision. Never answer progress with only cautious movement and no new information.
 - Outside active combat, suggested options should be social, investigative, travel, or utility. Avoid Dodge, Disengage, Dash, or generic Attack fillers unless immediate physical danger is present.`;
 
 // ── Art Styles ───────────────────────────────────────────────────────────────

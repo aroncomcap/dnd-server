@@ -16,10 +16,26 @@ const VERBOSITY_RULES = {
   terse:   'TERSE MODE — ABSOLUTE LIMIT: 50 words max. 3 sentences max. No atmosphere, no descriptions, no internal thoughts. State what happens mechanically. Count your words. If you write more than 50 words, you have failed.',
 };
 
+const STORY_MOMENTUM_RULES = [
+  'Every non-combat response must materially change the situation: new location, new clue, changed NPC stance, visible danger, paid cost, opened route, or a sharper decision.',
+  'For travel, progress, acknowledgement, and "move on" actions, move the party to the next concrete place, person, clue, or decision in this response.',
+  'Never answer progress with only cautious movement and no new information. If the party checks for danger and there is no meaningful hazard, compress the caution and advance the scene.',
+  'Do not repeat the same beat from recent turns. If recent narration already covered scouting, watching flanks, checking traps, or a clear path, switch to arrival, discovery, dialogue, consequence, or choice.',
+  'Merchant, guard, checkpoint, and passerby scenes are brief routing/social beats unless the player clearly chooses violence or a hard failure forces initiative.',
+].join('\n- ');
+
+const OPTION_QUALITY_RULES = [
+  'Each option must change the situation; avoid options that merely maintain safety, watch a flank, wait, or re-check the same path.',
+  'Offer one direct advance option, one interaction/investigation option, and one bold or risky option tied to the current scene.',
+  'Name the current lead, NPC, location, clue, or visible danger when possible. Specific options beat generic verbs.',
+  'Avoid "inspect/search/scout ahead" unless a specific unresolved hazard, clue, or mystery is visible right now.',
+  'In social or travel scenes, options should favor dialogue, leverage, route choice, discovery, or decisive movement over combat defaults.',
+].join('\n- ');
+
 const FALLBACK_OPTIONS = [
-  'Press forward cautiously',
-  'Search the area for clues',
-  'Ask the party what they notice',
+  'Advance to the next clear lead',
+  'Ask one pointed question about the current clue',
+  'Take a bold risk that changes the situation',
 ];
 
 const STRUCTURED_MARKER_PATTERN = String.raw`(?:-{3,}\s*(OPTIONS|SCENE|WORLD)\s*-{3,}?|#{1,3}\s*(OPTIONS?|SCENE|WORLD)\s*(?=\n|$))`;
@@ -220,6 +236,12 @@ function buildNarrationPrompt(gameId, gameConfig, gs) {
     `=== DIFFICULTY ===`,
     `Ferocity ${ferocity}: ${ferocityDesc}`,
     `Pillars: ${pillarsLine}`,
+    '',
+    `=== STORY MOMENTUM ===`,
+    `- ${STORY_MOMENTUM_RULES}`,
+    '',
+    `=== OPTION QUALITY ===`,
+    `- ${OPTION_QUALITY_RULES}`,
     '',
     `=== NARRATION RULES ===`,
     `CRITICAL: Your narration MUST directly acknowledge and respond to the player's action. Show what happens as a direct consequence of their choice. Do not ignore or bypass their action — make it clear their decision matters and shapes the world.`,

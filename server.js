@@ -2334,7 +2334,7 @@ Keep narration SHORT — this is tactical combat, not a novel.` : '';
         gameId,
         maxTokens: 200,
         temperature: 0.3,
-        prompt: `Given this narration from a ${gameConfig.system || 'D&D 5e'} game, suggest exactly 3 scene-specific action options for ${nextPlayer || 'the next player'}. Avoid generic attack/defend/wild defaults; match the current scene and player intent. Output ONLY this format with number emojis, nothing else:\n\n1️⃣ [specific option]\n2️⃣ [distinct alternative]\n3️⃣ [bold but context-aware option]\n\nNarration: ${parsed.narration.slice(-500)}`,
+        prompt: `Given this narration from a ${gameConfig.system || 'D&D 5e'} game, suggest exactly 3 scene-specific action options for ${nextPlayer || 'the next player'}. Each option must materially change the situation. Include one direct advance option, one interaction/investigation option, and one bold or risky option tied to the current scene. Avoid generic attack/defend/wild defaults and avoid repeated inspect/watch/scout options unless a specific unresolved hazard is visible. Output ONLY this format with number emojis, nothing else:\n\n1️⃣ [specific option]\n2️⃣ [distinct alternative]\n3️⃣ [bold but context-aware option]\n\nNarration: ${parsed.narration.slice(-500)}`,
       });
       const optLines = extractNumberedOptions(optionsResponse.text);
       if (optLines.length >= 2) parsed.options = optLines;
@@ -4120,7 +4120,9 @@ io.on('connection', (socket) => {
       temperature: 0.4,
       prompt: `Regenerate exactly 3 scene-specific player options for ${targetPlayer || 'the current player'} in this ${game?.system || 'D&D 5e'} game.
 
+Each option must materially change the situation. Include one direct advance option, one interaction/investigation option, and one bold or risky option tied to the current scene.
 Avoid generic "attack / defend / wild move" defaults. Use concrete details from the current scene. Do not duplicate spell/skill button basics unless the scene specifically calls for them.
+Avoid repeated inspect/watch/scout options unless a specific unresolved hazard is visible.
 If the scene is social or travel-focused, include social, investigative, or advancement options rather than combat.
 
 Character standard actions and capabilities:

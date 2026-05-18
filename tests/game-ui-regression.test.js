@@ -52,7 +52,7 @@ test('streamed narration failures are finalized instead of leaving a live stream
   assert.match(gameHtml, /if \(lastMessageWasStreamed\) \{[\s\S]*?finalizeStreamBubble\(data\.text, data\.llmRunId\);[\s\S]*?lastMessageWasStreamed = false;/, 'fallback dm_message should finalize an orphaned stream bubble');
   assert.match(narrationPipelineJs, /const closeStream = \(narration, llmRunId = null\) => \{[\s\S]*?dm_stream_end[\s\S]*?streamEnded = true;/, 'split pipeline should centralize stream closure');
   assert.match(narrationPipelineJs, /catch \(err\) \{[\s\S]*?buildFallbackTurn\(characterName, actionText\);[\s\S]*?closeStream\(visibleNarration\.trim\(\) \|\| fallback\.narration, err\.llmRunId \|\| null\);[\s\S]*?fallback: true/, 'split pipeline should emit a playable fallback when model streaming fails');
-  assert.match(narrationPipelineJs, /const FALLBACK_OPTIONS = \[[\s\S]*?Press forward cautiously/, 'split pipeline should keep fallback turns actionable');
+  assert.match(narrationPipelineJs, /const FALLBACK_OPTIONS = \[[\s\S]*?Advance to the next clear lead/, 'split pipeline should keep fallback turns actionable');
   assert.match(narrationPipelineJs, /options: \[\.\.\.FALLBACK_OPTIONS\]/, 'narration failures should emit fallback options');
   assert.match(narrationPipelineJs, /if \(narrationResult\.fallback\) \{[\s\S]*?return \{[\s\S]*?fallback: true/, 'fallback narration should skip extra structured model calls');
 });
@@ -352,11 +352,22 @@ test('story prompt discourages repeated gatekeeper loops and noncombat filler ac
   assert.match(promptBuilderJs, /Maintain one current objective at a time/, 'prompt should preserve a single active objective');
   assert.match(promptBuilderJs, /do not introduce another clerk, factor, outpost, or DC check/, 'prompt should avoid repeated guild checkpoint loops');
   assert.match(promptBuilderJs, /Routine routing\/social scenes should resolve in one exchange and then advance/, 'prompt should move brief social scenes forward');
+  assert.match(promptBuilderJs, /Never answer progress with only cautious movement and no new information/, 'prompt should not turn progress into cautious non-events');
   assert.match(promptBuilderJs, /Roll only when there is real uncertainty, meaningful consequence/, 'prompt should reserve rolls for meaningful uncertainty');
   assert.match(promptBuilderJs, /already-earned passage should advance without a check/, 'prompt should not block earned progress with extra checks');
   assert.match(promptBuilderJs, /Avoid Dodge, Disengage, Dash, or generic Attack fillers unless immediate physical danger is present/, 'noncombat options should not be tactical filler');
   assert.doesNotMatch(promptBuilderJs, /MOST character actions/, 'prompt should not demand procedural checks for most actions');
   assert.doesNotMatch(promptBuilderJs, /at minimum every other action/, 'prompt should not force rolls every other turn');
+});
+
+test('split narration prompt carries story momentum and option quality rules', () => {
+  assert.match(narrationPipelineJs, /Every non-combat response must materially change the situation/, 'split narration should require changed situations');
+  assert.match(narrationPipelineJs, /Never answer progress with only cautious movement and no new information/, 'split narration should avoid cautious non-event loops');
+  assert.match(narrationPipelineJs, /Do not repeat the same beat from recent turns/, 'split narration should avoid repeated scouting beats');
+  assert.match(narrationPipelineJs, /Each option must change the situation/, 'split narration options should be scene-changing');
+  assert.match(narrationPipelineJs, /Avoid "inspect\/search\/scout ahead" unless a specific unresolved hazard/, 'split narration should avoid repeated passive inspection options');
+  assert.match(serverJs, /Each option must materially change the situation/, 'server fallback option prompts should be scene-changing');
+  assert.match(serverJs, /avoid repeated inspect\/watch\/scout options unless a specific unresolved hazard is visible/i, 'redo/fallback options should avoid passive re-check loops');
 });
 
 test('planned combat pacing does not force initiative by itself', () => {
