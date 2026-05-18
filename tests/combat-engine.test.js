@@ -1079,6 +1079,26 @@ describe('CombatEngine', () => {
       assert.ok(text.toLowerCase().includes('dodge'));
     });
 
+    it('formats resolved death saves instead of leaking raw JSON', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC({ hp: 0 })], [makeDnDEnemy()], 'dnd5e');
+      const result = engine.resolveAction({ type: 'death_save', actorId: 'kael' });
+      const text = engine.formatResultForPrompt(result);
+      assert.equal(result.type, 'death_save');
+      assert.match(text, /Kael .*death save/i);
+      assert.doesNotMatch(text, /^\{/);
+    });
+
+    it('does not keep rolling death saves for a dead PC', () => {
+      const engine = new CombatEngine();
+      engine.initCombat([makeDnDPC({ hp: 0, deathSaves: { successes: 0, failures: 3 } })], [makeDnDEnemy()], 'dnd5e');
+      const result = engine.resolveAction({ type: 'death_save', actorId: 'kael' });
+      assert.equal(result.type, 'death_save');
+      assert.equal(result.dead, true);
+      assert.equal(result.alreadyDead, true);
+      assert.equal(engine.state.combatants.kael.dead, true);
+    });
+
     it('formats a RuneQuest attack result', () => {
       const engine = new CombatEngine();
       engine.initCombat([makeRQPC()], [makeRQEnemy()], 'runequest');

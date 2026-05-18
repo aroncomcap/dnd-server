@@ -433,12 +433,34 @@ class CombatEngine {
       case 'death_save': {
         const actor = this.state.combatants[action.actorId || action.attackerId];
         if (!actor) { result = { type: 'error', message: `Unknown actor for death save` }; break; }
-        result = resolver.resolveDeathSave(actor);
-        result.actorId = actor.id;
-        result.actorName = actor.name;
+        if (actor.dead || actor.deathSaves?.failures >= 3) {
+          actor.dead = true;
+          result = {
+            type: 'death_save',
+            actorId: actor.id,
+            actorName: actor.name,
+            dead: true,
+            alreadyDead: true,
+            description: `${actor.name} is dead and makes no further death saves.`,
+          };
+          break;
+        }
+        result = {
+          type: 'death_save',
+          ...resolver.resolveDeathSave(actor),
+          actorId: actor.id,
+          actorName: actor.name,
+        };
+        if (result.hp > 0) result.revived = true;
         // Update combatant state
         actor.deathSaves = { successes: result.successes, failures: result.failures };
-        if (result.revived) actor.hp = result.hp;
+        if (result.revived) {
+          actor.hp = result.hp;
+          actor.dead = false;
+          actor.stabilized = false;
+        }
+        if (result.stabilized) actor.stabilized = true;
+        if (result.dead) actor.dead = true;
         break;
       }
 

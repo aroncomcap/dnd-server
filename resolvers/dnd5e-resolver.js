@@ -426,7 +426,18 @@ function applyDamage(target, damage, damageType, activeEffects = []) {
  */
 function checkDeath(combatant) {
   if (combatant.hp > 0) return { status: 'alive', id: combatant.id, name: combatant.name };
-  if (combatant.type === 'PC') return { status: 'unconscious', id: combatant.id, name: combatant.name };
+  if (combatant.type === 'PC') {
+    const deathSaves = combatant.deathSaves || {};
+    if (combatant.dead || deathSaves.failures >= 3) {
+      return { status: 'dead', id: combatant.id, name: combatant.name };
+    }
+    return {
+      status: 'unconscious',
+      id: combatant.id,
+      name: combatant.name,
+      stable: !!combatant.stabilized || deathSaves.successes >= 3,
+    };
+  }
   return { status: 'dead', id: combatant.id, name: combatant.name };
 }
 

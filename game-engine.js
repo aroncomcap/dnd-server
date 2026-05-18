@@ -344,6 +344,10 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
           if (!nextTurn || nextTurn.type !== 'PC') break;
           const deathCheck = resolver.checkDeath(nextTurn);
           if (deathCheck.status !== 'unconscious') break;
+          if (deathCheck.stable) {
+            resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
+            continue;
+          }
           const dsResult = gs.combatEngine.resolveAction({ type: 'death_save', actorId: nextTurn.id });
           resolvedCombatResults.push(dsResult);
           resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
@@ -358,6 +362,10 @@ async function legacyCallClaude(gameId, gameConfig, userMessage, actingAs = null
           if (!nextTurn || nextTurn.type !== 'PC') break;
           const deathCheck = resolver.checkDeath(nextTurn);
           if (deathCheck.status !== 'unconscious') break;
+          if (deathCheck.stable) {
+            resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
+            continue;
+          }
           const dsResult = gs.combatEngine.resolveAction({ type: 'death_save', actorId: nextTurn.id });
           resolvedCombatResults.push(dsResult);
           resolvedCombatResults.push(...gs.combatEngine.advanceTurn());

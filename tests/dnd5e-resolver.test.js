@@ -535,6 +535,18 @@ describe('checkDeath', () => {
     const pc = makePC({ hp: 0 });
     assert.equal(checkDeath(pc).status, 'unconscious');
   });
+
+  it('PC with 3 failed death saves => dead', () => {
+    const pc = makePC({ hp: 0, deathSaves: { successes: 0, failures: 3 } });
+    assert.equal(checkDeath(pc).status, 'dead');
+  });
+
+  it('PC with 3 successful death saves is unconscious but stable', () => {
+    const pc = makePC({ hp: 0, deathSaves: { successes: 3, failures: 0 } });
+    const result = checkDeath(pc);
+    assert.equal(result.status, 'unconscious');
+    assert.equal(result.stable, true);
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -1393,6 +1393,10 @@ async function resolveDeathSavesUntilPlayableTurn(engine, results) {
     if (!nextTurn || nextTurn.type !== 'PC') break;
     const deathCheck = resolver.checkDeath(nextTurn);
     if (deathCheck.status !== 'unconscious') break;
+    if (deathCheck.stable) {
+      results.push(...engine.advanceTurn());
+      continue;
+    }
     const dsResult = engine.resolveAction({ type: 'death_save', actorId: nextTurn.id });
     results.push(dsResult);
     results.push(...engine.advanceTurn());
@@ -1994,6 +1998,10 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
           if (!nextTurn || nextTurn.type !== 'PC') break;
           const deathCheck = resolver.checkDeath(nextTurn);
           if (deathCheck.status !== 'unconscious') break;
+          if (deathCheck.stable) {
+            resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
+            continue;
+          }
           const dsResult = gs.combatEngine.resolveAction({ type: 'death_save', actorId: nextTurn.id });
           resolvedCombatResults.push(dsResult);
           resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
@@ -2008,6 +2016,10 @@ async function legacyCallLLM(gameId, gameConfig, userMessage, actingAs = null) {
           if (!nextTurn || nextTurn.type !== 'PC') break;
           const deathCheck = resolver.checkDeath(nextTurn);
           if (deathCheck.status !== 'unconscious') break;
+          if (deathCheck.stable) {
+            resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
+            continue;
+          }
           const dsResult = gs.combatEngine.resolveAction({ type: 'death_save', actorId: nextTurn.id });
           resolvedCombatResults.push(dsResult);
           resolvedCombatResults.push(...gs.combatEngine.advanceTurn());
