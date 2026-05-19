@@ -16,6 +16,7 @@ const {
   callModelNarration,
   handlePlayerAction,
   closeDeferredPayoffIfNeeded,
+  buildFallbackTurn,
 } = require('../narration-pipeline');
 
 afterEach(() => {
@@ -1134,6 +1135,26 @@ describe('buildUserMessage', () => {
     assert.match(result.narration, /black-wax route mark/);
     assert.match(result.narration, /sealed roadside waystation/);
     assert.doesNotMatch(result.narration, /keep unloading/);
+  });
+
+  it('advances live kiln payoff fallback to the sealed waystation instead of replaying the runner', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The blue-tabarded runner breaks before the wagon burns. He throws down Halven\'s waxed tally and names the buyer who paid for the ambush: a black-wax courier using the sealed roadside waystation beyond Greyhook. The reed-cloaked haulers scatter into the reeds, but the party keeps the wagon, the witness, and a black-wax route mark fresh enough to follow before dusk.\n\n1️⃣ Take the black-wax route mark to the sealed waystation\n2️⃣ Drag the guild runner back to Halven in chains\n3️⃣ Send the rescued wagon ahead and pursue the courier',
+          },
+        ],
+      },
+    };
+
+    const result = buildFallbackTurn('Kael Swiftblade', 'Put the named clue in front of the person responsible', gs);
+
+    assert.equal(result.fallbackFreshBeat, true);
+    assert.match(result.narration, /sealed waystation/);
+    assert.match(result.narration, /wounded messenger/);
+    assert.doesNotMatch(result.narration, /blue-tabarded runner breaks|reed-cloaked haulers scatter/);
   });
 
   it('pays out merchant routing scenes into the named storehouse lead', () => {

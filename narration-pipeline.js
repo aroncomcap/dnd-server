@@ -400,7 +400,7 @@ function buildFreshBeatContinuation(assistantHistory) {
     };
   }
 
-  if (/\b(?:black-wax mark behind the theft|courier route through the shrine road and a sealed waystation|black-wax courier route through the sealed waystation|new lead bought with scorched evidence|patron's messenger was meant to vanish)\b/i.test(latest)) {
+  if (/\b(?:black-wax mark behind the theft|courier route through the shrine road and a sealed waystation|black-wax courier route through the sealed waystation|black-wax courier using the sealed roadside waystation|black-wax route mark fresh enough to follow|take the black-wax route mark to the sealed waystation|pursue the courier|new lead bought with scorched evidence|patron's messenger was meant to vanish)\b/i.test(latest)) {
     return {
       narration: 'The black-wax route carries the party out of the harbor and onto the shrine road. By dusk, the sealed waystation comes into view with its bell ringing hard and no visible hand on the rope. Inside, something has dragged a wounded messenger behind the service shelves, and fresh footprints cut toward the rear hatch. The proof from Sera has become a living witness and a trail that is still warm.',
       options: [
