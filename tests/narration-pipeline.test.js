@@ -1088,6 +1088,54 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /This beat is resolved|not another|paperwork|next beat/i);
   });
 
+  it('advances road-cut wagon ambushes to the haulers instead of blaming the quest giver', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'Lyssa finds the dead driver and a witness says the thieves wore reed-colored cloaks and carried hooks for hauling. Halven goes white. This was a prepared ambush, and someone in the guild knew the route.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Halven Rusk has nowhere left to move and the guildhall goes quiet.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Make a decisive move that risks a cost for answers', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /flooded kiln yard/);
+    assert.match(result.narration, /blue-tabarded guild runner/);
+    assert.doesNotMatch(result.narration, /Halven Rusk has nowhere left/);
+  });
+
+  it('pays out the kiln-yard wagon scene into the black-wax waystation route', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The flooded kiln yard holds reed-cloaked haulers unloading the missing wagon while a blue-tabarded guild runner hides by the culvert.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The haulers keep unloading the same missing wagon while the runner hides.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Put the named clue in front of the person responsible', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /black-wax route mark/);
+    assert.match(result.narration, /sealed roadside waystation/);
+    assert.doesNotMatch(result.narration, /keep unloading/);
+  });
+
   it('pays out merchant routing scenes into the named storehouse lead', () => {
     const gs = {
       data: {
@@ -1803,6 +1851,53 @@ describe('handlePlayerAction fallback behavior', () => {
     assert.equal(result.fallback, true);
     assert.notEqual(result.narration, repeated);
     assert.match(result.narration, /Move to the place where the clue pays off/);
+  });
+
+  it('uses deterministic fresh-beat repair before bland fallback on repeated narration', async () => {
+    const repeated = 'Vessa Coil breaks when the obsidian bell rings below the hill-shrine floor. She did not buy stolen cargo for profit; she bought silence to keep that bell sealed. Her confession gives the party a name, a danger, and a cost: expose her or take the black-wax map to the old watchtower before riders erase it.';
+    llm.setProviderForTesting({
+      streamText: async ({ onToken }) => {
+        onToken(repeated);
+        return {
+          text: repeated,
+          usage: { inputTokens: 10, outputTokens: 30 },
+          llmRunId: 'run-repeat-fresh-repair',
+        };
+      },
+    });
+
+    const result = await callModelNarration(
+      'game-repeat-fresh-repair',
+      makeGameConfig(),
+      {
+        ...makeGameState(),
+        chatHistory: [],
+        data: {
+          characters: {
+            Ember: {
+              class: 'Wizard',
+              level: 5,
+              personality: 'Restless and decisive.',
+              standardActions: 'Advance, Question, Cast fire bolt',
+              backstory: 'A quick-eyed scholar.',
+            },
+          },
+          chatHistory: [
+            { role: 'assistant', content: repeated },
+          ],
+        },
+      },
+      'Ember',
+      'Make a decisive move that risks a cost for answers',
+      { to: () => ({ emit: () => {} }) },
+      {}
+    );
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.equal(result.repeated, true);
+    assert.notEqual(result.narration, repeated);
+    assert.match(result.narration, /old watchtower|signal fire|safehouse/);
+    assert.notEqual(result.fallback, true);
   });
 
   it('returns an actionable fallback immediately when narration streaming fails', async () => {

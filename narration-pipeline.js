@@ -135,7 +135,7 @@ The previous objective is done. Do not reopen the same culprit, guild, warehouse
 }
 
 function isFreshBeatBoundary(text) {
-  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|pell varrin|blackwater warehouse|trapdoor|buyer is sera vale|sera vale|manifest tube|moon-salt|skiff|loading door|under the pier|clear water|marric vell|della rusk|route clearance|riverside countinghouse|stamp case|north pier|warehouse three|quay-watch captain|forged cargo line|west gate|river wharf|dockside runner|shipment ledger|stolen ledger|travel chit|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|black-wax tube|courier horn|switchback|safehouses|meeting point|ruined aqueduct|north road|current scene)\b/i.test(String(text || ''));
+  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|missing wagon|wagon trail|road-cut|road cut|reed-colored cloaks|hauling hooks|prepared ambush|half-swallowed path|flooded kiln yard|blue-tabarded guild runner|pell varrin|blackwater warehouse|trapdoor|buyer is sera vale|sera vale|manifest tube|moon-salt|skiff|loading door|under the pier|clear water|marric vell|della rusk|route clearance|riverside countinghouse|stamp case|north pier|warehouse three|quay-watch captain|forged cargo line|west gate|river wharf|dockside runner|shipment ledger|stolen ledger|travel chit|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|black-wax tube|courier horn|switchback|safehouses|meeting point|ruined aqueduct|north road|current scene)\b/i.test(String(text || ''));
 }
 
 function isGenericResolvedObjectiveAction(actionText) {
@@ -265,6 +265,9 @@ function extractAccountableName(text) {
     if (/\bdockhands?\b/i.test(value)) return 'the ink-stained dockhand';
     return 'the forged-signature accomplice';
   }
+  if (/\b(?:someone in the guild knew the route|prepared ambush|reed-colored cloaks|hooks for hauling|hauling hooks|blue-tabarded guild runner)\b/i.test(value)) {
+    return 'the inside guild accomplice';
+  }
   const fullName = value.match(/\b(Harvek\s+Doss|House\s+[A-Z][a-z]+)\b/);
   if (fullName) return fullName[1];
   const single = value.match(/\b(Seln|Sable)\b/);
@@ -382,6 +385,28 @@ function buildFreshBeatContinuation(assistantHistory) {
         'Free the wounded messenger and demand one clear name',
         'Follow the fresh footprints through the rear hatch',
         'Disable the bell mechanism and search the service room',
+      ],
+    };
+  }
+
+  if (/\b(?:flooded kiln yard|blue-tabarded guild runner|unloading the missing wagon|reed-cloaked haulers)\b/i.test(latest)) {
+    return {
+      narration: 'The blue-tabarded runner breaks before the wagon burns. He throws down Halven\'s waxed tally and names the buyer who paid for the ambush: a black-wax courier using the sealed roadside waystation beyond Greyhook. The reed-cloaked haulers scatter into the reeds, but the party keeps the wagon, the witness, and a black-wax route mark fresh enough to follow before dusk.',
+      options: [
+        'Take the black-wax route mark to the sealed waystation',
+        'Drag the guild runner back to Halven in chains',
+        'Send the rescued wagon ahead and pursue the courier',
+      ],
+    };
+  }
+
+  if (/\b(?:missing wagon|wagon trail|road-cut|road cut|reed-colored cloaks|hauling hooks|prepared ambush|half-swallowed path)\b/i.test(latest)) {
+    return {
+      narration: 'The half-swallowed reed path ends at a flooded kiln yard where reed-cloaked haulers are already unloading the missing wagon. Their hooks are for lifting grain sacks, but the foreman recognizes Halven\'s waxed tally and shouts toward a blue-tabarded guild runner hiding by the culvert. The inside accomplice is on stage now, caught between the party, the stolen grain, and a lantern tipping toward the wagon bed.',
+      options: [
+        'Stop the lantern and pin the guild runner in place',
+        'Turn the haulers against their blue-tabarded paymaster',
+        'Let the runner flee and follow him to the buyer',
       ],
     };
   }
@@ -666,6 +691,16 @@ function closeDeferredPayoffIfNeeded(parsed, actionText, gs) {
     }),
     payoffClosed: true,
   };
+}
+
+function hasDeterministicNarrationRepair(result, original) {
+  if (!result || result === original) return false;
+  return Boolean(
+    result.merchantRoutingAdvanced ||
+    result.freshBeatGuarded ||
+    result.resolvedBeatAdvanced ||
+    result.payoffClosed
+  );
 }
 
 const FEROCITY_LABELS = {
@@ -1225,6 +1260,15 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
     const parsed = parseNarrationResponse(responseText);
     parsed.narration = cleanInvalidCombatNarration(parsed.narration);
     if (isRepeatedRecentNarration(parsed.narration, getCurrentChatHistory(gs))) {
+      const repaired = closeDeferredPayoffIfNeeded(parsed, actionText, gs);
+      if (hasDeterministicNarrationRepair(repaired, parsed)) {
+        repaired.llmRunId = response.llmRunId;
+        closeStream(repaired.narration, response.llmRunId || null);
+        return {
+          ...repaired,
+          repeated: true,
+        };
+      }
       const fallback = buildFallbackTurn(characterName, actionText);
       closeStream(fallback.narration, response.llmRunId || null);
       return {
@@ -1235,6 +1279,12 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
       };
     }
     if (isLowInformationNarration(parsed.narration, actionText)) {
+      const repaired = closeDeferredPayoffIfNeeded(parsed, actionText, gs);
+      if (hasDeterministicNarrationRepair(repaired, parsed)) {
+        repaired.llmRunId = response.llmRunId;
+        closeStream(repaired.narration, response.llmRunId || null);
+        return repaired;
+      }
       const fallback = buildFallbackTurn(characterName, actionText);
       closeStream(fallback.narration, response.llmRunId || null);
       return {
