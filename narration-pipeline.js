@@ -488,6 +488,17 @@ function buildFreshBeatContinuation(assistantHistory) {
     };
   }
 
+  if (/\b(?:black-wax network is not gone|loses its map, its safehouses, and its silence|ward holds because the party)\b/i.test(latest)) {
+    return {
+      narration: 'Dawn finds Cinder Gate ringed with witnesses instead of secrets. The Bellwarden is alive, furious, and useful; Vessa Coil arrives under guard with a second truth: the ward did not fail, but something below the old stones heard the cracked bell answer. The party has won the city a night of honesty, and the next story beat begins with a quieter, stranger threat under the sealed streets.',
+      options: [
+        'Question Vessa Coil about what heard the bell',
+        'Secure the Bellwarden as a hostile witness',
+        'Move to the next story beat beneath the sealed streets',
+      ],
+    };
+  }
+
   if (/\b(?:Cinder Gate opens|cracked bronze engine|bell cradle|bell's own voice)\b/i.test(latest)) {
     return {
       narration: 'The cracked bell rings once, and the city answers. The ward holds because the party makes the theft public, puts the missing cargo back into the engine, and forces the Bellwarden to kneel in front of witnesses instead of vanish into another secret. The black-wax network is not gone, but tonight it loses its map, its safehouses, and its silence.',

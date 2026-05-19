@@ -988,14 +988,27 @@ describe('buildUserMessage', () => {
         ],
       },
     };
+    const aftermath = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The cracked bell rings once, and the city answers. The ward holds because the party makes the theft public, puts the missing cargo back into the engine, and forces the Bellwarden to kneel in front of witnesses instead of vanish into another secret. The black-wax network is not gone, but tonight it loses its map, its safehouses, and its silence.',
+          },
+        ],
+      },
+    };
 
     const elianResult = buildFallbackTurn('Thorgrim Ironbeard', 'Move to the place where the clue pays off', elian);
     const gateResult = buildFallbackTurn('Lyssa Moonwhisper', 'Put the named clue in front of the person responsible', gate);
     const finalResult = buildFallbackTurn('Kael Swiftblade', 'Move to the next story beat', final);
+    const aftermathResult = buildFallbackTurn('Ember Flamecrest', 'Make a decisive move that risks a cost for answers', aftermath);
 
     assert.match(elianResult.narration, /Bellwarden of Cinder Gate/);
     assert.match(gateResult.narration, /Cinder Gate opens/);
     assert.match(finalResult.narration, /The cracked bell rings once/);
+    assert.match(aftermathResult.narration, /Dawn finds Cinder Gate/);
+    assert.doesNotMatch(aftermathResult.narration, /ruined aqueduct|safehouse runner/i);
   });
 
   it('advances river-wharf ledger leads to the wharf instead of closing the guild beat early', () => {
