@@ -149,7 +149,7 @@ function reopensClosedGuildObjective(text) {
 function hasRecentResolvedBeat(assistantHistory) {
   return (assistantHistory || [])
     .slice(-6)
-    .some(msg => /\bThis beat is resolved\b|\btruth no longer moves to another room\b|\bold guild lead stays closed\b|\bold ledger trail is behind you\b|\bguild matter closes instead of reopening\b/i.test(msg || ''));
+    .some(msg => /\bThis beat is resolved\b|\btruth no longer moves to another room\b|\bold guild lead stays closed\b|\bold ledger trail is behind you\b|\bguild matter closes instead of reopening\b|\broom turns decisive\b|\bhas nowhere left to move\b|\bchoose how hard to squeeze\b|\bDarrin Holt'?s testimony\b|\bguild token buys passage\b/i.test(msg || ''));
 }
 
 function buildFreshBeatStaleActionDirective(history, actionText) {
@@ -308,7 +308,7 @@ function buildSplitPayoffClosure({ narration, actionText, assistantHistory }) {
   const combined = `${(assistantHistory || []).slice(-6).join(' ')} ${actionText || ''} ${narration || ''}`;
   const culprit = extractAccountableName(combined);
   const proof = extractProofObject(combined);
-  return `The chase stops here. ${culprit} is forced into the open in this scene: ${proof} is secured, the witness confirms the scheme, and the remaining accomplice loses the nerve to keep running. One cost still lands—the papers are scorched, the crowd hears ugly names, or the guild now knows the party has leverage—but the truth no longer moves to another room, quay, stair, or hidden cache. The party has enough to expose ${culprit}, demand passage and supplies, or force restitution from the guild. This beat is resolved; the next decision is what price to make them pay.`;
+  return `The room goes still. ${culprit} has nowhere left to move: ${proof} is in the party's hands, the witness confirms the scheme, and the last accomplice flinches before the crowd. A cost still lands; papers are scorched, ugly names carry through the guildhall, and everyone present learns the party can hurt powerful people. Now the party can expose ${culprit}, demand passage and supplies, or choose how hard to squeeze.`;
 }
 
 function buildSplitPayoffOptions({ narration, actionText, assistantHistory }) {
@@ -326,12 +326,12 @@ function shouldAdvanceAfterResolvedBeat(actionText, assistantHistory, narration 
   if (!hasRecentResolvedBeat(assistantHistory)) return false;
   if (!isClosedBeatAftermathAction(actionText)) return false;
   if (isFreshBeatBoundary(latest)) return false;
-  if (/\bThis beat is resolved\b|\btruth no longer moves to another room\b/i.test(latest)) return true;
+  if (/\bThis beat is resolved\b|\btruth no longer moves to another room\b|\broom turns decisive\b|\bhas nowhere left to move\b|\bchoose how hard to squeeze\b|\bDarrin Holt'?s testimony\b|\bguild token buys passage\b/i.test(latest)) return true;
   return isGenericResolvedObjectiveAction(actionText) || reopensClosedGuildObjective(narration);
 }
 
 function buildResolvedBeatAdvance() {
-  return 'The guild matter closes instead of reopening. Witnesses take custody of the proof, the promised supplies and passage are granted, and the party leaves with public leverage rather than another errand. By dusk, the next story beat is already waiting beyond Greyhook: a sealed roadside waystation with its bell ringing hard and no visible hand on the rope. The old ledger trail is behind you; this is a new problem.';
+  return 'Witnesses take custody of the proof while guild runners scramble to repair the damage. By dusk, the party has supplies, passage, and a harder road beyond Greyhook. The sealed roadside waystation ahead is barred from within, its bell hammering in the dark with no hand on the rope.';
 }
 
 function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration) {
@@ -344,7 +344,7 @@ function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
   if (/\b(?:North Pier|warehouse three|quay-watch captain|forged cargo line|watch buries the trail|minutes, not mercy|protected fraud)\b/i.test(latest)) {
     return {
-      narration: 'North Pier stops the paperwork cold. Warehouse Three is open, rain blowing through its cargo doors while the quay-watch captain oversees a crew dragging crescent-marked crates toward a waiting barge. The forged cargo line is on his clipboard, not hidden in another office. When the party arrives with Della\'s seal case, the captain has one clean choice: surrender the shipment and name the buyer, or turn the watch on witnesses in front of everyone.',
+      narration: 'The last signature leads straight to North Pier. Warehouse Three yawns open in the rain while the quay-watch captain oversees a crew dragging crescent-marked crates toward a waiting barge. The forged cargo line hangs from his clipboard in plain sight. When the party arrives with Della\'s seal case, the captain has one clean choice: surrender the shipment and name the buyer, or turn the watch on witnesses in front of everyone.',
       options: [
         'Confront the quay-watch captain with Della\'s seal',
         'Seize the forged cargo line before the barge leaves',
@@ -366,7 +366,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:Della Rusk|account seal|stamp case|guild seal|route sheet|dockside delivery time|office above the riverside countinghouse)\b/i.test(latest)) {
     return {
-      narration: 'Della Rusk\'s office gives up the route, not another negotiation. The guild seal lands in the party\'s hands with a copied dock ledger still wet from her blotter: North Pier, Warehouse Three, delivery due within minutes, signed by the quay-watch captain. Della can curse Marric later. Right now the cargo is moving, the proof has a place, and the next scene is the pier before the barge casts off.',
+      narration: 'Della Rusk\'s office gives up the route. The guild seal lands in the party\'s hands with a copied dock ledger still wet from her blotter: North Pier, Warehouse Three, delivery due within minutes, signed by the quay-watch captain. Della can curse Marric later. Right now the cargo is moving, the proof has a place, and the pier is close enough to hear the barge chains groan.',
       options: [
         'Take Della\'s seal and go straight to Warehouse Three',
         'Force Della to send a clerk ahead as witness',
@@ -454,7 +454,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:riders below|black-wax tube|courier horn|burning sky)\b/i.test(latest)) {
     return {
-      narration: 'The pursuit pays off in motion: the rider with the black-wax tube is cut off at the switchback, the horn never sounds, and the tube cracks open in the dust. Inside is not another errand but a target: a charcoal map of the north road, three marked safehouses, and tonight\'s meeting point circled at the ruined aqueduct. The party has momentum now; the next choice is whether to ambush the meeting or turn the map into public leverage.',
+      narration: 'The pursuit snaps shut at the switchback. The rider with the black-wax tube hits the dust, the horn never sounds, and the tube cracks open under Kael\'s boot. Inside waits a charcoal map of the north road, three marked safehouses, and tonight\'s meeting point circled at the ruined aqueduct. The party has momentum now; the next choice is whether to ambush the meeting or turn the map into public leverage.',
       options: [
         'Ambush the ruined-aqueduct meeting before dusk',
         'Use the safehouse map to flip an informant',
@@ -465,7 +465,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:watchtower|signal fire|black-wax line is broken)\b/i.test(latest)) {
     return {
-      narration: 'The watchtower is no paperwork trail: its signal fire has just been lit, and three riders below are cutting loose before the party can ask gentle questions. One rider carries a matching black-wax tube; another has a courier horn at his belt. This beat is now pursuit under a burning sky, not another ledger.',
+      narration: 'The watchtower is already burning. Its signal fire throws red light over the switchback below, where three riders are cutting loose before the party can ask gentle questions. One rider carries a matching black-wax tube; another has a courier horn at his belt. If that horn sounds, every safehouse on the north road will know to vanish.',
       options: [
         'Cut off the rider with the black-wax tube',
         'Shoot the courier horn from the second rider\'s belt',
@@ -476,7 +476,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:vessa coil|masked patron|obsidian bell|hill-shrine crypt|seal-holder)\b/i.test(latest)) {
     return {
-      narration: 'Vessa Coil breaks when the obsidian bell rings below the hill-shrine floor; she did not buy stolen cargo for profit, but to keep that bell sealed. Her confession gives the party a name, a danger, and a cost: expose her and the wardens lose their funding, or take the black-wax map to the old watchtower before the patron sends riders to erase it. The black-wax line is broken open, and the next beat is already moving.',
+      narration: 'Vessa Coil breaks when the obsidian bell rings below the hill-shrine floor. She did not buy stolen cargo for profit; she bought silence to keep that bell sealed. Her confession gives the party a name, a danger, and a cost: expose her and the wardens lose their funding, or take the black-wax map to the old watchtower before the patron sends riders to erase it.',
       options: [
         'Expose Vessa and accept the wardens\' anger',
         'Take the black-wax map to the old watchtower',
@@ -487,7 +487,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:cracked altar|black-wax satchel|broken signet|route sketch|hill shrine)\b/i.test(latest)) {
     return {
-      narration: 'The route sketch pays off at the hill shrine: beneath the split lintel, the broken signet matches the ring of Vessa Coil, a veiled patron waiting beside an open crypt stair. She expected a courier, not witnesses. When the party names the black wax, Vessa\'s hand moves to a bronze pull-chain and a deep obsidian bell answers from below. The confrontation is here; the danger is what that bell just woke.',
+      narration: 'The route sketch leads to the hill shrine. Beneath the split lintel, the broken signet matches the ring of Vessa Coil, a veiled patron waiting beside an open crypt stair. She expected a courier, not witnesses. When the party names the black wax, Vessa\'s hand moves to a bronze pull-chain and a deep obsidian bell answers from below. The confrontation is here; the danger is what that bell just woke.',
       options: [
         'Stop Vessa before she pulls the chain again',
         'Demand the truth about the obsidian bell',
@@ -509,7 +509,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:black wax|shrine road)\b/i.test(latest)) {
     return {
-      narration: 'The messenger\'s clue bites: fresh prints leave the rear hatch and cut toward the shrine road, where black wax is smeared across a cracked milestone. Ahead, a hooded courier drags a satchel into the thorn-choked roadside chapel. The witness paid off; the next beat is pursuit, leverage, or a risky call before the courier disappears.',
+      narration: 'The messenger\'s clue bites: fresh prints leave the rear hatch and cut toward the shrine road, where black wax is smeared across a cracked milestone. Ahead, a hooded courier drags a satchel into the thorn-choked roadside chapel. He looks back once, sees the party gaining, and reaches for a striker to burn whatever is inside.',
       options: [
         'Rush the courier before the chapel door closes',
         'Circle the thorn chapel and cut off the rear exit',
@@ -520,7 +520,7 @@ function buildFreshBeatContinuation(assistantHistory) {
 
   if (/\b(?:south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones)\b/i.test(latest)) {
     return {
-      narration: 'The guild scandal stays behind the party. At the south-road culvert, the current clue is physical and immediate: clawed tracks, torn canvas, mule bones, and a sour carrion heat breathing from the collapsed stone. Something inside drags a stamped crate deeper into the dark with deliberate strength. The choice is no longer paperwork; it is whether to expose, trap, or speak to whatever has been feeding on the stolen cargo.',
+      narration: 'The road turns mean at the south-road culvert. Fresh clawed tracks, torn canvas, mule bones, and sour carrion heat spill from the collapsed stone. Something inside drags a stamped crate deeper into the dark with deliberate strength. The party can light the den, set a trap line, or try speaking before steel decides the shape of the answer.',
       options: [
         'Light the culvert and identify what is feeding there',
         'Set a rope line and draw the creature into the open',
@@ -555,18 +555,42 @@ function shouldAdvanceMerchantRoutingScene(actionText, assistantHistory) {
   if (hasRecentResolvedBeat(assistantHistory)) return false;
   const recent = (assistantHistory || []).slice(-4).join(' ').toLowerCase();
   if (/\b(?:pell varrin|reed street without delay|door is already ajar|dock[- ]master.*receipt book|crate-marked ledger page|missing shipment was diverted|quiet storage|bay 3)\b/.test(recent)) return false;
+  if (/\b(?:roadside waystation|wounded messenger|black wax|black-wax|shrine road|old ledger trail is behind you)\b/.test(recent)) return false;
   const hobbStorehouseRoute = /\b(?:hobb|wax token|south storehouse|dockmaster|grant passage|guild will not open|bring me proof)\b/.test(recent);
   const mercerHallRoute = /\b(?:mercer'?s hall|mercers hall|hall'?s ironbound doors|ironbound doors|merchant wheel|liveried porters|dock market)\b/.test(recent);
   const reedStreetRoute = /\b(?:reed street|warehouse key|lantern token|midnight entry)\b/.test(recent);
-  if (!hobbStorehouseRoute && !mercerHallRoute && !reedStreetRoute) return false;
+  const vennStorehouseRoute = /\b(?:master venn|venn'?s token|guild token|east quay storehouse|east storehouse|quay storehouse|darrin holt|sealed ledger key|salt-stained gloves)\b/.test(recent);
+  if (!hobbStorehouseRoute && !mercerHallRoute && !reedStreetRoute && !vennStorehouseRoute) return false;
   if (!/\b(?:merchant|guild|factor|ledger|freight|cargo|crate|shipment|wax token|wax-sealed|passage)\b/.test(recent)) return false;
-  if (!/\b(?:dockmaster|south storehouse|storehouse|silt quay|warehouse yard|warehouse|mercer'?s hall|mercers hall|hall'?s ironbound doors|reed street)\b/.test(recent)) return false;
+  if (!/\b(?:dockmaster|south storehouse|storehouse|east quay|east storehouse|quay storehouse|silt quay|warehouse yard|warehouse|mercer'?s hall|mercers hall|hall'?s ironbound doors|reed street)\b/.test(recent)) return false;
   if (/\b(?:dockmaster rell|splintered handcart|loading ramp|crate-marked ledger page|missing shipment was diverted)\b/.test(recent)) return false;
   return true;
 }
 
 function buildMerchantRoutingContinuation(assistantHistory = []) {
   const recent = (assistantHistory || []).slice(-4).join(' ').toLowerCase();
+  if (/\b(?:missing agent lies|darrin holt|bound,? and gagged|salt-stained gloves|rifling through ledger rolls|proof is already in the room)\b/.test(recent)) {
+    return {
+      narration: 'The factor\'s lie breaks against Darrin Holt\'s testimony. Thorgrim hauls the bound runner upright while Kael keeps the ledger from the lantern flame; inside the torn binding is a black-wax route mark and a sketch of a sealed roadside waystation beyond Greyhook. Venn\'s guild token buys passage, but not silence. By dusk the party reaches the waystation with the rescued witness breathing shallowly behind them and its bell hammering in the dark.',
+      options: [
+        'Enter the sealed waystation and look for survivors',
+        'Circle the waystation for tracks before opening the door',
+        'Question Darrin about the black-wax route mark',
+      ],
+    };
+  }
+
+  if (/\b(?:master venn|venn'?s token|guild token|east quay storehouse|east storehouse|quay storehouse|sealed ledger key)\b/.test(recent)) {
+    return {
+      narration: 'Venn\'s token opens the east quay storehouse before another guild excuse can form. The sealed door stands half-open from the inside, and Darrin Holt lies alive among splintered crates, bound and gagged beside a smear of dark water. A guild factor in salt-stained gloves freezes over a heap of ledger rolls. He has the key, the motive, and one hand already reaching for the lantern.',
+      options: [
+        'Stop the factor before he burns the ledger rolls',
+        'Free Darrin Holt and make him name the inside contact',
+        'Seal the storehouse doors and call witnesses from the quay',
+      ],
+    };
+  }
+
   if (/\b(?:mercer'?s hall|mercers hall|hall'?s ironbound doors|ironbound doors|merchant wheel|liveried porters|dock market)\b/.test(recent)) {
     return {
       narration: 'Mercer\'s Hall stops being a doorway and becomes the room where leverage lives. The porters open the ironbound doors onto a counting chamber of chained ledgers, brass lamps, and merchants pretending not to listen. The soot-gray scribe\'s ledger matches a second book on the dais, except one page has been cut out cleanly. A porter tries to palm the fresh scrap before anyone names him. The party can seize the scrap, force the scribe to read the missing account aloud, or follow the porter to whoever paid for the silence.',
@@ -580,7 +604,7 @@ function buildMerchantRoutingContinuation(assistantHistory = []) {
 
   if (/\b(?:reed street|warehouse key|lantern token|midnight entry)\b/.test(recent)) {
     return {
-      narration: 'The pass and key do their job: Reed Street becomes a crime scene, not another promise. The warehouse stands under a dead lantern with its guild mark cut away and reset too neatly to hide the scar. Inside, Pell Varrin is already shoving a ledger into a crate, ink on his cuffs and fear in his jaw. A rear door swings in the draft behind him. The party has the clerk, the ledger, and the moving trail in the same room.',
+      narration: 'The pass and key do their job: Reed Street becomes a crime scene under a dead lantern. The warehouse guild mark has been cut away and reset too neatly to hide the scar. Inside, Pell Varrin is already shoving a ledger into a crate, ink on his cuffs and fear in his jaw. A rear door swings in the draft behind him. The party has the clerk, the ledger, and the moving trail in the same room.',
       options: [
         'Pin Pell Varrin down before he reaches the rear door',
         'Secure the ledger and read the circled payment line',

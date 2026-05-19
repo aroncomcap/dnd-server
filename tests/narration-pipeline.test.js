@@ -520,8 +520,9 @@ describe('buildUserMessage', () => {
     assert.equal(result.payoffClosed, true);
     assert.equal(result.options.length, 3);
     assert.match(result.options.join(' '), /Move to the next story beat/);
-    assert.match(result.narration, /The chase stops here/);
-    assert.match(result.narration, /This beat is resolved/);
+    assert.match(result.narration, /room goes still/);
+    assert.match(result.narration, /choose how hard to squeeze/);
+    assert.doesNotMatch(result.narration, /This beat is resolved|truth no longer moves|another room/i);
     assert.doesNotMatch(result.narration, /south quay weighhouse|floorboards|before dusk/);
   });
 
@@ -572,7 +573,7 @@ describe('buildUserMessage', () => {
     const result = closeDeferredPayoffIfNeeded(parsed, 'Move to the place where the clue pays off', gs);
 
     assert.equal(result.resolvedBeatAdvanced, true);
-    assert.match(result.narration, /next story beat/);
+    assert.match(result.narration, /roadside waystation/);
     assert.doesNotMatch(result.narration, /another office|Merrow signs/);
   });
 
@@ -645,7 +646,8 @@ describe('buildUserMessage', () => {
     const result = closeDeferredPayoffIfNeeded(parsed, 'Expose Seln publicly and demand restitution from the guild', gs);
 
     assert.equal(result.resolvedBeatAdvanced, true);
-    assert.match(result.narration, /promised supplies and passage are granted/);
+    assert.match(result.narration, /supplies, passage/);
+    assert.doesNotMatch(result.narration, /closes instead of reopening|old ledger trail|next story beat/i);
     assert.doesNotMatch(result.narration, /hidden stair|buyer|quay/);
   });
 
@@ -1036,6 +1038,56 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /only minutes, not mercy/);
   });
 
+  it('advances Venn token scenes into the east quay storehouse', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'Master Venn marks the east quay storehouse for immediate access and says the guild token will open the sealed door.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Venn repeats that the party should go to the storehouse.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Move to the place where the clue pays off', gs);
+
+    assert.equal(result.merchantRoutingAdvanced, true);
+    assert.match(result.narration, /east quay storehouse/);
+    assert.match(result.narration, /Darrin Holt/);
+    assert.match(result.narration, /guild factor/);
+    assert.doesNotMatch(result.narration, /Venn repeats/);
+  });
+
+  it('pays out Venn storehouse confrontations into the sealed waystation route', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'At the east quay storehouse, Darrin Holt lies alive, bound and gagged among splintered crates while a guild factor in salt-stained gloves rifles through ledger rolls.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Master Venn again names Darrin Holt and the east quay storehouse.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.merchantRoutingAdvanced, true);
+    assert.match(result.narration, /Darrin Holt's testimony/);
+    assert.match(result.narration, /sealed roadside waystation/);
+    assert.doesNotMatch(result.narration, /Master Venn again/);
+    assert.doesNotMatch(result.narration, /This beat is resolved|not another|paperwork|next beat/i);
+  });
+
   it('pays out merchant routing scenes into the named storehouse lead', () => {
     const gs = {
       data: {
@@ -1195,7 +1247,7 @@ describe('buildUserMessage', () => {
 
     assert.equal(result.payoffClosed, true);
     assert.doesNotMatch(result.narration, /\bThe is forced\b|Expose The\b/);
-    assert.match(result.narration, /the exposed culprit is forced into the open/i);
+    assert.match(result.narration, /the exposed culprit has nowhere left to move/i);
   });
 
   it('prefers accountable people over place names when closing a payoff scene', () => {
@@ -1217,8 +1269,8 @@ describe('buildUserMessage', () => {
     const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
 
     assert.equal(result.payoffClosed, true);
-    assert.match(result.narration, /Selvek is forced into the open/);
-    assert.doesNotMatch(result.narration, /Blackwake Slip is forced into the open|Expose Blackwake Slip/);
+    assert.match(result.narration, /Selvek has nowhere left to move/);
+    assert.doesNotMatch(result.narration, /Blackwake Slip has nowhere left to move|Expose Blackwake Slip/);
   });
 
   it('does not turn a merchant quest-giver into the culprit when he points to the forger', () => {
@@ -1240,8 +1292,8 @@ describe('buildUserMessage', () => {
     const result = closeDeferredPayoffIfNeeded(parsed, 'Put the named clue in front of the person responsible', gs);
 
     assert.equal(result.payoffClosed, true);
-    assert.match(result.narration, /Blackfen dock clerk is forced into the open/);
-    assert.doesNotMatch(result.narration, /Edric Voss is forced into the open|Expose Edric Voss/);
+    assert.match(result.narration, /Blackfen dock clerk has nowhere left to move/);
+    assert.doesNotMatch(result.narration, /Edric Voss has nowhere left to move|Expose Edric Voss/);
   });
 
   it('never treats pronouns as culprit names in payoff closure', () => {
@@ -1263,8 +1315,8 @@ describe('buildUserMessage', () => {
     const result = closeDeferredPayoffIfNeeded(parsed, 'Move to the place where the clue pays off', gs);
 
     assert.equal(result.payoffClosed, true);
-    assert.match(result.narration, /the foreman is forced into the open/);
-    assert.doesNotMatch(result.narration, /\bHe is forced into the open|\bExpose He\b/);
+    assert.match(result.narration, /the foreman has nowhere left to move/);
+    assert.doesNotMatch(result.narration, /\bHe has nowhere left to move|\bExpose He\b/);
   });
 
   it('prefers hyphenated dock-master role over incidental clerk mentions', () => {
@@ -1286,8 +1338,8 @@ describe('buildUserMessage', () => {
     const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
 
     assert.equal(result.payoffClosed, true);
-    assert.match(result.narration, /the dock-master is forced into the open/);
-    assert.doesNotMatch(result.narration, /the clerk is forced into the open/);
+    assert.match(result.narration, /the dock-master has nowhere left to move/);
+    assert.doesNotMatch(result.narration, /the clerk has nowhere left to move/);
   });
 
   it('keeps stale guild-proof actions in a newer south-road den scene', () => {

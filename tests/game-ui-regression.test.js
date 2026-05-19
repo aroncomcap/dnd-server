@@ -507,7 +507,7 @@ test('split narration prompt carries story momentum and option quality rules', (
   assert.match(narrationPipelineJs, /south-road culvert/, 'fresh scene guards should preserve newer physical beats after guild closure');
   assert.match(narrationPipelineJs, /south quay weighhouse/, 'split narration should catch observed weighhouse breadcrumb loops');
   assert.match(narrationPipelineJs, /trap ledger/, 'split narration should catch observed hidden-ledger breadcrumb loops');
-  assert.match(narrationPipelineJs, /The chase stops here/, 'split narration deterministic closure should end mature lead loops');
+  assert.match(narrationPipelineJs, /has nowhere left to move/, 'split narration deterministic closure should end mature lead loops');
   assert.match(narrationPipelineJs, /Do not repeat the same beat from recent turns/, 'split narration should avoid repeated scouting beats');
   assert.match(narrationPipelineJs, /Each option must change the situation/, 'split narration options should be scene-changing');
   assert.match(narrationPipelineJs, /Avoid "inspect\/search\/scout ahead" unless a specific unresolved hazard/, 'split narration should avoid repeated passive inspection options');
