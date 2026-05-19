@@ -135,7 +135,7 @@ The previous objective is done. Do not reopen the same culprit, guild, warehouse
 }
 
 function isFreshBeatBoundary(text) {
-  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|pell varrin|blackwater warehouse|trapdoor|buyer is sera vale|sera vale|manifest tube|moon-salt|skiff|loading door|under the pier|clear water|west gate|river wharf|dockside runner|shipment ledger|stolen ledger|travel chit|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|black-wax tube|courier horn|switchback|safehouses|meeting point|ruined aqueduct|north road|current scene)\b/i.test(String(text || ''));
+  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|pell varrin|blackwater warehouse|trapdoor|buyer is sera vale|sera vale|manifest tube|moon-salt|skiff|loading door|under the pier|clear water|marric vell|della rusk|route clearance|riverside countinghouse|stamp case|north pier|warehouse three|quay-watch captain|forged cargo line|west gate|river wharf|dockside runner|shipment ledger|stolen ledger|travel chit|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|black-wax tube|courier horn|switchback|safehouses|meeting point|ruined aqueduct|north road|current scene)\b/i.test(String(text || ''));
 }
 
 function isGenericResolvedObjectiveAction(actionText) {
@@ -342,6 +342,39 @@ function shouldKeepFreshBeatAfterClosure(actionText, assistantHistory, narration
 
 function buildFreshBeatContinuation(assistantHistory) {
   const latest = (assistantHistory || [])[assistantHistory.length - 1] || '';
+  if (/\b(?:North Pier|warehouse three|quay-watch captain|forged cargo line|watch buries the trail|minutes, not mercy|protected fraud)\b/i.test(latest)) {
+    return {
+      narration: 'North Pier stops the paperwork cold. Warehouse Three is open, rain blowing through its cargo doors while the quay-watch captain oversees a crew dragging crescent-marked crates toward a waiting barge. The forged cargo line is on his clipboard, not hidden in another office. When the party arrives with Della\'s seal case, the captain has one clean choice: surrender the shipment and name the buyer, or turn the watch on witnesses in front of everyone.',
+      options: [
+        'Confront the quay-watch captain with Della\'s seal',
+        'Seize the forged cargo line before the barge leaves',
+        'Turn the watching dock crew against the captain',
+      ],
+    };
+  }
+
+  if (/\b(?:Marric Vell|route clearance|sealed note|quiet bargain|riverside countinghouse|Della Rusk holds the account seal|private accounts)\b/i.test(latest)) {
+    return {
+      narration: 'Marric\'s quiet bargain collapses into movement. The route clearance is real, but the account seal that makes it dangerous is upstairs with Della Rusk, and the quay-watch has already noticed the handoff. The party reaches the riverside countinghouse before Marric can wrap the lie in another favor. Della is at her desk with the stamp case open and a copied dock ledger underneath it.',
+      options: [
+        'Put Marric\'s pouch on Della\'s desk and demand the seal',
+        'Call the quay-watch inside before Della can burn the ledger',
+        'Take the stamp case and follow the copied dock route',
+      ],
+    };
+  }
+
+  if (/\b(?:Della Rusk|account seal|stamp case|guild seal|route sheet|dockside delivery time|office above the riverside countinghouse)\b/i.test(latest)) {
+    return {
+      narration: 'Della Rusk\'s office gives up the route, not another negotiation. The guild seal lands in the party\'s hands with a copied dock ledger still wet from her blotter: North Pier, Warehouse Three, delivery due within minutes, signed by the quay-watch captain. Della can curse Marric later. Right now the cargo is moving, the proof has a place, and the next scene is the pier before the barge casts off.',
+      options: [
+        'Take Della\'s seal and go straight to Warehouse Three',
+        'Force Della to send a clerk ahead as witness',
+        'Warn the quay-watch that the forged cargo line is exposed',
+      ],
+    };
+  }
+
   if (/\b(?:black-wax mark behind the theft|courier route through the shrine road and a sealed waystation|black-wax courier route through the sealed waystation|new lead bought with scorched evidence|patron's messenger was meant to vanish)\b/i.test(latest)) {
     return {
       narration: 'The black-wax route carries the party out of the harbor and onto the shrine road. By dusk, the sealed waystation comes into view with its bell ringing hard and no visible hand on the rope. Inside, something has dragged a wounded messenger behind the service shelves, and fresh footprints cut toward the rear hatch. The proof from Sera has become a living witness and a trail that is still warm.',

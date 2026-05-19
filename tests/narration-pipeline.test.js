@@ -964,6 +964,78 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /keeps moving toward the same ferry/);
   });
 
+  it('advances Marric route-clearance bargains to Della instead of repeating guild paperwork', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'Marric Vell offers the route clearance now, but only if you take his sealed note to Della Rusk tonight and keep his name out of the guild books. A quiet bargain, or a loud scandal.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Marric repeats the same quiet bargain and asks for one more favor.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Move to the place where the clue pays off', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /riverside countinghouse/);
+    assert.match(result.narration, /Della.*stamp case/);
+    assert.doesNotMatch(result.narration, /repeats the same quiet bargain/);
+  });
+
+  it('advances Della account-seal scenes to North Pier instead of adding another negotiation', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'Della Rusk pushes the guild seal across the desk and slides a copied route sheet forward, marked with a dockside delivery time.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'Della asks whether the party wants to buy a route or a confession.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /North Pier/);
+    assert.match(result.narration, /Warehouse Three/);
+    assert.doesNotMatch(result.narration, /buy a route or a confession/);
+  });
+
+  it('puts North Pier forged-cargo leads on stage with the watch captain', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The captain signed the forged cargo line. North Pier, warehouse three. If that cargo lands, the watch buries the trail and Marric takes the fall alone.',
+          },
+        ],
+      },
+    };
+    const parsed = {
+      narration: 'The party hears again that there are only minutes, not mercy.',
+      options: [],
+    };
+
+    const result = closeDeferredPayoffIfNeeded(parsed, 'Make a decisive move that risks a cost for answers', gs);
+
+    assert.equal(result.freshBeatGuarded, true);
+    assert.match(result.narration, /quay-watch captain/);
+    assert.match(result.narration, /crescent-marked crates/);
+    assert.doesNotMatch(result.narration, /only minutes, not mercy/);
+  });
+
   it('pays out merchant routing scenes into the named storehouse lead', () => {
     const gs = {
       data: {
