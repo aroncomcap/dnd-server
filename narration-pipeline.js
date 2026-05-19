@@ -63,7 +63,18 @@ function createStructuredMarkerRegex(flags) {
   return new RegExp(STRUCTURED_MARKER_PATTERN, flags);
 }
 
-function buildFallbackTurn(characterName, actionText) {
+function buildFallbackTurn(characterName, actionText, gs = null) {
+  const assistantHistory = gs ? getAssistantHistory(gs) : [];
+  const latest = assistantHistory[assistantHistory.length - 1] || '';
+  const actionForRouting = String(actionText || '');
+  if (latest && isFreshBeatBoundary(latest) &&
+    (isGenericResolvedObjectiveAction(actionForRouting) || isAdvanceAction(actionForRouting))) {
+    return {
+      ...buildFreshBeatContinuation(assistantHistory),
+      fallbackFreshBeat: true,
+    };
+  }
+
   const rawActor = String(characterName || '').trim();
   const actor = rawActor && rawActor !== 'Unknown' && rawActor.length <= 40 && !/[.!?]/.test(rawActor)
     ? rawActor
@@ -72,14 +83,25 @@ function buildFallbackTurn(characterName, actionText) {
     .replace(/\[AUTO-ACTION[^\]]*\]\s*/i, '')
     .replace(/\s+/g, ' ')
     .trim();
-  const verb = actor === 'The story' ? 'moves forward' : 'follows through';
-  const actionClause = action
-    ? ` ${verb}: ${action}`
-    : ' takes a cautious step forward';
+  const actionSummary = action
+    .replace(/^I\s+/i, '')
+    .replace(/[.!?]+$/g, '')
+    .trim();
+  const genericHarnessAction = isGenericResolvedObjectiveAction(actionSummary) ||
+    /\bmove to the place where the clue pays off\b/i.test(actionSummary);
+  const leadIn = actor === 'The story'
+    ? 'The story moves forward'
+    : genericHarnessAction
+      ? `${actor} forces the loose lead into motion`
+      : `${actor} turns ${actionSummary || 'the moment'} into a concrete lead`;
 
   return {
-    narration: `${actor}${actionClause}. The scene stays tense but playable as the party keeps its footing and watches for the next opening.`,
-    options: [...FALLBACK_OPTIONS],
+    narration: `${leadIn}. At the west market gate, a mud-spattered guild runner drops a waxed tally into the party's hands and points to drag marks leaving the blocked grain wagon. A missing shipment has been pulled toward the road-cut, and someone in blue tabards is trying very hard to leave before questions find them.`,
+    options: [
+      'Follow the drag marks toward the road-cut',
+      'Stop the blue-tabarded runner before he slips away',
+      'Cut through the guild yard and reach the wagon first',
+    ],
   };
 }
 
@@ -1248,7 +1270,7 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
 
     const responseText = fullText || response.text || '';
     if (!responseText.trim()) {
-      const fallback = buildFallbackTurn(characterName, actionText);
+      const fallback = buildFallbackTurn(characterName, actionText, gs);
       closeStream(fallback.narration, response.llmRunId || null);
       return {
         ...fallback,
@@ -1269,7 +1291,7 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
           repeated: true,
         };
       }
-      const fallback = buildFallbackTurn(characterName, actionText);
+      const fallback = buildFallbackTurn(characterName, actionText, gs);
       closeStream(fallback.narration, response.llmRunId || null);
       return {
         ...fallback,
@@ -1285,7 +1307,7 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
         closeStream(repaired.narration, response.llmRunId || null);
         return repaired;
       }
-      const fallback = buildFallbackTurn(characterName, actionText);
+      const fallback = buildFallbackTurn(characterName, actionText, gs);
       closeStream(fallback.narration, response.llmRunId || null);
       return {
         ...fallback,
@@ -1298,7 +1320,7 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
       finalized.options = [...FALLBACK_OPTIONS];
     }
     if (isRepeatedRecentNarration(finalized.narration, getCurrentChatHistory(gs))) {
-      const fallback = buildFallbackTurn(characterName, actionText);
+      const fallback = buildFallbackTurn(characterName, actionText, gs);
       closeStream(fallback.narration, response.llmRunId || null);
       return {
         ...fallback,
@@ -1311,7 +1333,7 @@ async function callModelNarration(gameId, gameConfig, gs, characterName, actionT
     closeStream(finalized.narration || responseText.trim(), response.llmRunId);
     return finalized;
   } catch (err) {
-    const fallback = buildFallbackTurn(characterName, actionText);
+    const fallback = buildFallbackTurn(characterName, actionText, gs);
     flushVisibleNarration();
     closeStream(visibleNarration.trim() || fallback.narration, err.llmRunId || null);
     return {
@@ -1553,7 +1575,7 @@ async function handlePlayerAction(gameId, gameConfig, gs, characterName, actionT
     }
   } catch (err) {
     console.error(`[narration-pipeline] callModelNarration failed:`, err.message);
-    const fallback = buildFallbackTurn(characterName, actionText);
+    const fallback = buildFallbackTurn(characterName, actionText, gs);
     narration = fallback.narration;
     options = fallback.options;
     return {

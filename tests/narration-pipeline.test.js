@@ -1850,7 +1850,7 @@ describe('handlePlayerAction fallback behavior', () => {
 
     assert.equal(result.fallback, true);
     assert.notEqual(result.narration, repeated);
-    assert.match(result.narration, /Move to the place where the clue pays off/);
+    assert.match(result.narration, /west market gate|road-cut/);
   });
 
   it('uses deterministic fresh-beat repair before bland fallback on repeated narration', async () => {

@@ -75,9 +75,9 @@ test('streamed narration failures are finalized instead of leaving a live stream
   assert.match(gameHtml, /socket\.on\('dm_stream_end'[\s\S]*?finalizeStreamBubble\(narration, data\.llmRunId\);/, 'stream end should finalize the live stream bubble');
   assert.match(gameHtml, /if \(lastMessageWasStreamed\) \{[\s\S]*?finalizeStreamBubble\(data\.text, data\.llmRunId\);[\s\S]*?lastMessageWasStreamed = false;/, 'fallback dm_message should finalize an orphaned stream bubble');
   assert.match(narrationPipelineJs, /const closeStream = \(narration, llmRunId = null\) => \{[\s\S]*?dm_stream_end[\s\S]*?streamEnded = true;/, 'split pipeline should centralize stream closure');
-  assert.match(narrationPipelineJs, /catch \(err\) \{[\s\S]*?buildFallbackTurn\(characterName, actionText\);[\s\S]*?closeStream\(visibleNarration\.trim\(\) \|\| fallback\.narration, err\.llmRunId \|\| null\);[\s\S]*?fallback: true/, 'split pipeline should emit a playable fallback when model streaming fails');
+  assert.match(narrationPipelineJs, /catch \(err\) \{[\s\S]*?buildFallbackTurn\(characterName, actionText, gs\);[\s\S]*?closeStream\(visibleNarration\.trim\(\) \|\| fallback\.narration, err\.llmRunId \|\| null\);[\s\S]*?fallback: true/, 'split pipeline should emit a playable fallback when model streaming fails');
   assert.match(narrationPipelineJs, /const FALLBACK_OPTIONS = \[[\s\S]*?Advance to the next clear lead/, 'split pipeline should keep fallback turns actionable');
-  assert.match(narrationPipelineJs, /options: \[\.\.\.FALLBACK_OPTIONS\]/, 'narration failures should emit fallback options');
+  assert.match(narrationPipelineJs, /Follow the drag marks toward the road-cut/, 'narration failures should emit concrete fallback options');
   assert.match(narrationPipelineJs, /if \(narrationResult\.fallback\) \{[\s\S]*?return \{[\s\S]*?fallback: true/, 'fallback narration should skip extra structured model calls');
 });
 
