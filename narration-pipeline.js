@@ -157,7 +157,7 @@ The previous objective is done. Do not reopen the same culprit, guild, warehouse
 }
 
 function isFreshBeatBoundary(text) {
-  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|missing wagon|wagon trail|road-cut|road cut|reed-colored cloaks|hauling hooks|prepared ambush|half-swallowed path|flooded kiln yard|blue-tabarded guild runner|pell varrin|blackwater warehouse|trapdoor|buyer is sera vale|sera vale|manifest tube|moon-salt|skiff|loading door|under the pier|clear water|marric vell|della rusk|route clearance|riverside countinghouse|stamp case|north pier|warehouse three|quay-watch captain|forged cargo line|west gate|river wharf|dockside runner|shipment ledger|stolen ledger|travel chit|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|black-wax tube|courier horn|switchback|safehouses|meeting point|ruined aqueduct|north road|current scene)\b/i.test(String(text || ''));
+  return /\b(?:old ledger trail is behind you|this is a new problem|sealed roadside waystation|bell ringing|bell inside keeps ringing|ringing is coming from a mechanism|drag mark|rear hatch|wounded messenger|missing wagon|wagon trail|road-cut|road cut|reed-colored cloaks|hauling hooks|prepared ambush|half-swallowed path|flooded kiln yard|blue-tabarded guild runner|pell varrin|blackwater warehouse|trapdoor|buyer is sera vale|sera vale|manifest tube|moon-salt|skiff|loading door|under the pier|clear water|marric vell|della rusk|route clearance|riverside countinghouse|stamp case|north pier|warehouse three|quay-watch captain|forged cargo line|west gate|river wharf|dockside runner|shipment ledger|stolen ledger|travel chit|south-road|south road|loss site|wrecked milestone|collapsed culvert|clawed tracks|hidden den|scavenger beast|creature|mule bones|fresh footprints|shrine road|hooded courier|roadside chapel|thorn-choked|cracked altar|black-wax satchel|broken signet|hill shrine|vessa coil|obsidian bell|watchtower|black-wax tube|courier horn|switchback|safehouse|safehouses|meeting point|ruined aqueduct|aqueduct meeting|captain rulven marr|coded purse|false signal|crossbowmen|harrowglass house|ledger master|elian voss|cinder gate|north road|north-road|current scene)\b/i.test(String(text || ''));
 }
 
 function isGenericResolvedObjectiveAction(actionText) {
@@ -400,7 +400,18 @@ function buildFreshBeatContinuation(assistantHistory) {
     };
   }
 
-  if (/\b(?:black-wax mark behind the theft|courier route through the shrine road and a sealed waystation|black-wax courier route through the sealed waystation|black-wax courier using the sealed roadside waystation|black-wax route mark fresh enough to follow|take the black-wax route mark to the sealed waystation|pursue the courier|new lead bought with scorched evidence|patron's messenger was meant to vanish)\b/i.test(latest)) {
+  if (/\b(?:black-wax courier using the sealed roadside waystation|black-wax route mark fresh enough to follow|take the black-wax route mark to the sealed waystation|pursue the courier)\b/i.test(latest)) {
+    return {
+      narration: 'The black-wax route carries the party out of the harbor and onto the shrine road. By dusk, the sealed waystation comes into view with its bell ringing hard and no visible hand on the rope. Inside, something has dragged a wounded messenger behind the service shelves, and fresh footprints cut toward the rear hatch. The kiln-yard proof has become a living witness and a trail that is still warm.',
+      options: [
+        'Free the wounded messenger and demand one clear name',
+        'Follow the fresh footprints through the rear hatch',
+        'Disable the bell mechanism and search the service room',
+      ],
+    };
+  }
+
+  if (/\b(?:black-wax mark behind the theft|courier route through the shrine road and a sealed waystation|black-wax courier route through the sealed waystation|new lead bought with scorched evidence|patron's messenger was meant to vanish)\b/i.test(latest)) {
     return {
       narration: 'The black-wax route carries the party out of the harbor and onto the shrine road. By dusk, the sealed waystation comes into view with its bell ringing hard and no visible hand on the rope. Inside, something has dragged a wounded messenger behind the service shelves, and fresh footprints cut toward the rear hatch. The proof from Sera has become a living witness and a trail that is still warm.',
       options: [
@@ -477,7 +488,51 @@ function buildFreshBeatContinuation(assistantHistory) {
     };
   }
 
-  if (/\b(?:At the ruined aqueduct, the black-wax map|Lanterns move below the broken arches|safehouse runner arrives early|coded purse|false signal on the north road)\b/i.test(latest)) {
+  if (/\b(?:aqueduct meeting breaks open|Captain Rulven Marr|safehouse list|hidden crossbowmen|false signal that turns his own network)\b/i.test(latest)) {
+    return {
+      narration: 'Rulven chooses survival over loyalty. He throws the safehouse list into the open water before his crossbowmen can fire, then points to the one address circled in black wax: Harrowglass House, a counting house that keeps no public books. The false signal goes up behind him anyway. By the time the party reaches the lane, shutters are slamming, runners are fleeing, and one upper window burns ledger-blue.',
+      options: [
+        'Storm Harrowglass House before the ledgers burn',
+        'Cut off the fleeing runners carrying the black-wax books',
+        'Use Rulven as a witness and force the doors open publicly',
+      ],
+    };
+  }
+
+  if (/\b(?:Harrowglass House|counting house that keeps no public books|ledger-blue|black-wax books)\b/i.test(latest)) {
+    return {
+      narration: 'Harrowglass House gives the conspiracy a face. Ledger Master Elian Voss stands in the upper archive with soot on his cuffs and three bells on his desk: shrine, watchtower, gate. He can burn the last book, ring the Cinder Gate warning, or trade the patron\'s name for protection. The room is hot enough to make every choice cost something.',
+      options: [
+        'Stop Elian before he rings the Cinder Gate bell',
+        'Save the last ledger even if Elian escapes',
+        'Offer protection for the patron\'s name',
+      ],
+    };
+  }
+
+  if (/\b(?:Ledger Master Elian Voss|Elian Voss|Cinder Gate warning|last ledger|patron's name)\b/i.test(latest)) {
+    return {
+      narration: 'Elian folds when the last ledger survives the fire. The patron is not a merchant at all but the Bellwarden of Cinder Gate, buying stolen cargo to feed an old warding engine under the city. If the bell rings tonight, the north road safehouses vanish; if it stays silent, whatever the Bellwarden feared may wake hungry. The party has the name, the proof, and one final door.',
+      options: [
+        'Go to Cinder Gate and confront the Bellwarden',
+        'Make the proof public before the Bellwarden can flee',
+        'Use the safehouse runners to bait the final handoff',
+      ],
+    };
+  }
+
+  if (/\b(?:Bellwarden of Cinder Gate|old warding engine|one final door|Cinder Gate and confront)\b/i.test(latest)) {
+    return {
+      narration: 'Cinder Gate opens on the edge of disaster. The Bellwarden stands beside a cracked bronze engine, hands black with wax, and the missing cargo stacked as fuel around the bell cradle. He was not stealing for coin; he was buying one more night of silence. The party can expose him and risk the ward failing, force him to teach them the bell, or let the city hear the truth in the bell\'s own voice.',
+      options: [
+        'Expose the Bellwarden and take control of the ward',
+        'Force him to teach the party how the bell holds',
+        'Ring the cracked bell and make the city choose',
+      ],
+    };
+  }
+
+  if (/\b(?:At the ruined aqueduct, the black-wax map|Lanterns move below the broken arches|safehouse runner arrives early|coded purse|false signal on the north road|false signal on the north-road)\b/i.test(latest)) {
     return {
       narration: 'The aqueduct meeting breaks open. The early runner is pinned against a cracked pillar with the coded purse still in hand, and the unlit north-road signal becomes the party\'s leverage. Below the arches, Captain Rulven Marr realizes the ambush is not his anymore. He must either trade the safehouse list, call his hidden crossbowmen, or watch the party light the false signal that turns his own network against him.',
       options: [

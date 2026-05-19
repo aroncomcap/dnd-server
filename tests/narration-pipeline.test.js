@@ -918,6 +918,26 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /stops being a clue and becomes a trap/);
   });
 
+  it('advances aqueduct leverage scenes to Harrowglass instead of resetting to the market fallback', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'The aqueduct meeting breaks open. The early runner is pinned against a cracked pillar with the coded purse still in hand, and the unlit north-road signal becomes the party\'s leverage. Below the arches, Captain Rulven Marr realizes the ambush is not his anymore. He must either trade the safehouse list, call his hidden crossbowmen, or watch the party light the false signal that turns his own network against him.',
+          },
+        ],
+      },
+    };
+
+    const result = buildFallbackTurn('Kael Swiftblade', 'Make a decisive move that risks a cost for answers', gs);
+
+    assert.equal(result.fallbackFreshBeat, true);
+    assert.match(result.narration, /Harrowglass House/);
+    assert.match(result.narration, /safehouse list/);
+    assert.doesNotMatch(result.narration, /west market gate|blocked grain wagon|blue-tabarded/);
+  });
+
   it('advances river-wharf ledger leads to the wharf instead of closing the guild beat early', () => {
     const gs = {
       data: {
@@ -1154,6 +1174,7 @@ describe('buildUserMessage', () => {
     assert.equal(result.fallbackFreshBeat, true);
     assert.match(result.narration, /sealed waystation/);
     assert.match(result.narration, /wounded messenger/);
+    assert.doesNotMatch(result.narration, /Sera/);
     assert.doesNotMatch(result.narration, /blue-tabarded runner breaks|reed-cloaked haulers scatter/);
   });
 
