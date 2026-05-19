@@ -938,6 +938,66 @@ describe('buildUserMessage', () => {
     assert.doesNotMatch(result.narration, /west market gate|blocked grain wagon|blue-tabarded/);
   });
 
+  it('continues Harrowglass scenes to Elian instead of replaying Rulven', () => {
+    const gs = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'Rulven chooses survival over loyalty. He throws the safehouse list into the open water before his crossbowmen can fire, then points to the one address circled in black wax: Harrowglass House, a counting house that keeps no public books. The false signal goes up behind him anyway. By the time the party reaches the lane, shutters are slamming, runners are fleeing, and one upper window burns ledger-blue.',
+          },
+        ],
+      },
+    };
+
+    const result = buildFallbackTurn('Ember Flamecrest', 'Force the current lead into a confrontation now', gs);
+
+    assert.equal(result.fallbackFreshBeat, true);
+    assert.match(result.narration, /Ledger Master Elian Voss/);
+    assert.doesNotMatch(result.narration, /Rulven chooses survival/);
+  });
+
+  it('continues Elian and Cinder Gate scenes toward a real finale', () => {
+    const elian = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'Harrowglass House gives the conspiracy a face. Ledger Master Elian Voss stands in the upper archive with soot on his cuffs and three bells on his desk: shrine, watchtower, gate. He can burn the last book, ring the Cinder Gate warning, or trade the patron\'s name for protection.',
+          },
+        ],
+      },
+    };
+    const gate = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'Elian folds when the last ledger survives the fire. The patron is not a merchant at all but the Bellwarden of Cinder Gate, buying stolen cargo to feed an old warding engine under the city. The party has the name, the proof, and one final door.',
+          },
+        ],
+      },
+    };
+    const final = {
+      data: {
+        chatHistory: [
+          {
+            role: 'assistant',
+            content: 'Cinder Gate opens on the edge of disaster. The Bellwarden stands beside a cracked bronze engine, hands black with wax, and the missing cargo stacked as fuel around the bell cradle.',
+          },
+        ],
+      },
+    };
+
+    const elianResult = buildFallbackTurn('Thorgrim Ironbeard', 'Move to the place where the clue pays off', elian);
+    const gateResult = buildFallbackTurn('Lyssa Moonwhisper', 'Put the named clue in front of the person responsible', gate);
+    const finalResult = buildFallbackTurn('Kael Swiftblade', 'Move to the next story beat', final);
+
+    assert.match(elianResult.narration, /Bellwarden of Cinder Gate/);
+    assert.match(gateResult.narration, /Cinder Gate opens/);
+    assert.match(finalResult.narration, /The cracked bell rings once/);
+  });
+
   it('advances river-wharf ledger leads to the wharf instead of closing the guild beat early', () => {
     const gs = {
       data: {

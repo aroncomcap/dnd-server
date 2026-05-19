@@ -488,24 +488,24 @@ function buildFreshBeatContinuation(assistantHistory) {
     };
   }
 
-  if (/\b(?:aqueduct meeting breaks open|Captain Rulven Marr|safehouse list|hidden crossbowmen|false signal that turns his own network)\b/i.test(latest)) {
+  if (/\b(?:Cinder Gate opens|cracked bronze engine|bell cradle|bell's own voice)\b/i.test(latest)) {
     return {
-      narration: 'Rulven chooses survival over loyalty. He throws the safehouse list into the open water before his crossbowmen can fire, then points to the one address circled in black wax: Harrowglass House, a counting house that keeps no public books. The false signal goes up behind him anyway. By the time the party reaches the lane, shutters are slamming, runners are fleeing, and one upper window burns ledger-blue.',
+      narration: 'The cracked bell rings once, and the city answers. The ward holds because the party makes the theft public, puts the missing cargo back into the engine, and forces the Bellwarden to kneel in front of witnesses instead of vanish into another secret. The black-wax network is not gone, but tonight it loses its map, its safehouses, and its silence.',
       options: [
-        'Storm Harrowglass House before the ledgers burn',
-        'Cut off the fleeing runners carrying the black-wax books',
-        'Use Rulven as a witness and force the doors open publicly',
+        'Secure the black-wax records for the city watch',
+        'Ask Vessa Coil what the ward was really holding back',
+        'Move to the next story beat',
       ],
     };
   }
 
-  if (/\b(?:Harrowglass House|counting house that keeps no public books|ledger-blue|black-wax books)\b/i.test(latest)) {
+  if (/\b(?:Bellwarden of Cinder Gate|old warding engine|one final door|Cinder Gate and confront)\b/i.test(latest)) {
     return {
-      narration: 'Harrowglass House gives the conspiracy a face. Ledger Master Elian Voss stands in the upper archive with soot on his cuffs and three bells on his desk: shrine, watchtower, gate. He can burn the last book, ring the Cinder Gate warning, or trade the patron\'s name for protection. The room is hot enough to make every choice cost something.',
+      narration: 'Cinder Gate opens on the edge of disaster. The Bellwarden stands beside a cracked bronze engine, hands black with wax, and the missing cargo stacked as fuel around the bell cradle. He was not stealing for coin; he was buying one more night of silence. The party can expose him and risk the ward failing, force him to teach them the bell, or let the city hear the truth in the bell\'s own voice.',
       options: [
-        'Stop Elian before he rings the Cinder Gate bell',
-        'Save the last ledger even if Elian escapes',
-        'Offer protection for the patron\'s name',
+        'Expose the Bellwarden and take control of the ward',
+        'Force him to teach the party how the bell holds',
+        'Ring the cracked bell and make the city choose',
       ],
     };
   }
@@ -521,13 +521,24 @@ function buildFreshBeatContinuation(assistantHistory) {
     };
   }
 
-  if (/\b(?:Bellwarden of Cinder Gate|old warding engine|one final door|Cinder Gate and confront)\b/i.test(latest)) {
+  if (/\b(?:Harrowglass House|counting house that keeps no public books|ledger-blue|black-wax books)\b/i.test(latest)) {
     return {
-      narration: 'Cinder Gate opens on the edge of disaster. The Bellwarden stands beside a cracked bronze engine, hands black with wax, and the missing cargo stacked as fuel around the bell cradle. He was not stealing for coin; he was buying one more night of silence. The party can expose him and risk the ward failing, force him to teach them the bell, or let the city hear the truth in the bell\'s own voice.',
+      narration: 'Harrowglass House gives the conspiracy a face. Ledger Master Elian Voss stands in the upper archive with soot on his cuffs and three bells on his desk: shrine, watchtower, gate. He can burn the last book, ring the Cinder Gate warning, or trade the patron\'s name for protection. The room is hot enough to make every choice cost something.',
       options: [
-        'Expose the Bellwarden and take control of the ward',
-        'Force him to teach the party how the bell holds',
-        'Ring the cracked bell and make the city choose',
+        'Stop Elian before he rings the Cinder Gate bell',
+        'Save the last ledger even if Elian escapes',
+        'Offer protection for the patron\'s name',
+      ],
+    };
+  }
+
+  if (/\b(?:aqueduct meeting breaks open|Captain Rulven Marr|safehouse list|hidden crossbowmen|false signal that turns his own network)\b/i.test(latest)) {
+    return {
+      narration: 'Rulven chooses survival over loyalty. He throws the safehouse list into the open water before his crossbowmen can fire, then points to the one address circled in black wax: Harrowglass House, a counting house that keeps no public books. The false signal goes up behind him anyway. By the time the party reaches the lane, shutters are slamming, runners are fleeing, and one upper window burns ledger-blue.',
+      options: [
+        'Storm Harrowglass House before the ledgers burn',
+        'Cut off the fleeing runners carrying the black-wax books',
+        'Use Rulven as a witness and force the doors open publicly',
       ],
     };
   }
